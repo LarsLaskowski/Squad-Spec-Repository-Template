@@ -11,7 +11,8 @@ Checks, without arguments:
   instruction files use, its `stack.md` defines every command name the core refers to, and its
   `squad_settings.py` defines the coverage settings;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
-  target's `config-check.py` then reports nothing but unfilled placeholders.
+  target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
+  filled and the template is applied a second time (a refresh), `config-check.py` passes completely.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -22,6 +23,8 @@ import re
 import subprocess
 import sys
 import tempfile
+
+sys.dont_write_bytecode = True  # importing the profiles' squad_settings.py must not leave __pycache__ behind
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE = os.path.join(ROOT, "core")
@@ -106,6 +109,29 @@ def check_core(errors):
             errors.append(f"{os.path.relpath(path, ROOT)}: unclosed markers {open_blocks}")
 
 
+PLACEHOLDER = re.compile(r"(?<!\$)\{\{[^{}]+?\}\}")
+BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->", re.S)
+MARKED = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
+          os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"), "SECURITY.md",
+          os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md")]
+
+
+def check_placeholders(errors):
+    """A placeholder outside a project block would be reset by every refresh and could never be filled."""
+    paths = [p for p in glob.glob(os.path.join(CORE, "**", "*"), recursive=True) +
+             glob.glob(os.path.join(CORE, ".*", "**", "*"), recursive=True) +
+             glob.glob(os.path.join(ROOT, "profiles", "*", "managed", "**", "*"), recursive=True) +
+             glob.glob(os.path.join(ROOT, "profiles", "*", "managed", ".*", "**", "*"), recursive=True) +
+             glob.glob(os.path.join(ROOT, "profiles", "*", "instructions.md"))
+             if os.path.isfile(p) and "_template" not in p and not p.endswith(".py")]
+    for path in sorted(set(paths)):
+        text = read(path)
+        if os.path.relpath(path, CORE) in MARKED:
+            text = BLOCK.sub("", text)
+        for match in PLACEHOLDER.finditer(text):
+            errors.append(f"{os.path.relpath(path, ROOT)}: placeholder {match.group(0)!r} outside a project block")
+
+
 def check_profiles(errors):
     stack_blocks = set(re.findall(r"<!-- stack:begin ([\w-]+) -->", read(os.path.join(CORE, "CLAUDE.md"))))
     profiles = sorted(p for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
@@ -151,6 +177,27 @@ def smoke_test(profiles, errors):
                      if line and not line.startswith("Checked") and "placeholder" not in line]
             for line in lines:
                 errors.append(f"profile {name}: config-check after apply: {line}")
+            fill_placeholders(target)
+            subprocess.run([sys.executable, os.path.join(ROOT, "tools", "apply-template.py"),
+                            "--target", target, "--profile", name], capture_output=True, text=True, check=True)
+            refreshed = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
+                                       capture_output=True, text=True)
+            if refreshed.returncode != 0:
+                for line in refreshed.stdout.splitlines()[:10]:
+                    errors.append(f"profile {name}: config-check after filling and refreshing: {line}")
+
+
+def fill_placeholders(target):
+    for directory, dirs, names in os.walk(target):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for file_name in names:
+            path = os.path.join(directory, file_name)
+            with open(path, encoding="utf-8", newline="") as handle:
+                text = handle.read()
+            filled = PLACEHOLDER.sub("filled", text)
+            if filled != text:
+                with open(path, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(filled)
 
 
 def main():
@@ -158,6 +205,7 @@ def main():
     check_mirrors(ROOT, errors)
     check_mirrors(CORE, errors)
     check_core(errors)
+    check_placeholders(errors)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
     for error in errors:

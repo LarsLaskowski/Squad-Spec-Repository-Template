@@ -4,6 +4,6 @@ Process decisions about how the squad works in this repository — not decisions
 (those are decision records in `docs/decisions/`). Append-only: add a dated entry, never rewrite an old
 one. Changed only in squad-maintenance PRs.
 
-- <date> — Squad adopted from ProjectTemplate (`adopt-template`), stack profile `<profile>`. Reason: one
+- {{date}} — Squad adopted from ProjectTemplate (`adopt-template`), stack profile `{{profile}}`. Reason: one
   shared, stack-neutral squad and rule set across all repositories; project knowledge lives in
   `.squad/stack.md`, `.squad/project.md` and the `<!-- project:… -->` sections of the instruction files.

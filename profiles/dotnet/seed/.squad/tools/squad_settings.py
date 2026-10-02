@@ -2,7 +2,7 @@
 later refreshes; the scripts that import it are template-managed."""
 
 # Solution or project file the analyzer gate builds.
-SOLUTION = "<Solution>.slnx"
+SOLUTION = "{{Solution}}.slnx"
 
 # Coverage gate (.squad/tools/coverage-check.py)
 COVERAGE_FORMAT = "cobertura"

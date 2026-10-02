@@ -12,8 +12,9 @@ it. This script checks, without arguments:
 - the three skill folders contain the same skills with identical content;
 - `CLAUDE.md`, `AGENTS.md` and `.github/copilot-instructions.md` are identical from their first `## `
   heading on (only the title and introduction may differ);
-- `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no squad or
-  instruction file still contains a ProjectTemplate placeholder.
+- `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
+  template seeded or rebuilt still contains a ProjectTemplate placeholder (`{{…}}`; GitHub Actions
+  expressions `${{ … }}` are not placeholders).
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/config-check.py
@@ -22,6 +23,7 @@ Exit code 0 when everything is valid, 1 otherwise. Requires PyYAML (`pip install
 """
 import glob
 import os
+import re
 import sys
 
 AGENTS_DIR = os.path.join(".claude", "agents")
@@ -29,9 +31,12 @@ SKILL_ROOTS = [os.path.join(".claude", "skills"), os.path.join(".agents", "skill
 INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md")]
 REQUIRED_FILES = [os.path.join(".squad", "stack.md"), os.path.join(".squad", "project.md"),
                   os.path.join(".squad", "tools", "squad_settings.py")]
-PLACEHOLDERS = ["<project name>", "<Solution>", "<sonar-project-key>", "<sonar-organization>",
-                "<security contact e-mail>", "<one line per project>"]
-PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [os.path.join(".squad", "*.md")]
+PLACEHOLDER = re.compile(r"(?<!\$)\{\{([^{}]+?)\}\}")
+PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [
+    "SECURITY.md", "sonar-project.properties",
+    os.path.join(".squad", "**", "*.md"), os.path.join("docs", "**", "*.md"),
+    os.path.join(".github", "**", "*.md"), os.path.join(".github", "**", "*.yml"),
+]
 
 try:
     import yaml
@@ -114,12 +119,14 @@ def check_project_files(errors):
     for path in REQUIRED_FILES:
         if not os.path.isfile(path):
             errors.append(f"{path} is missing (seeded by adopt-template)")
-    paths = sorted({p for pattern in PLACEHOLDER_GLOBS for p in glob.glob(pattern) if os.path.isfile(p)})
+    paths = sorted({p for pattern in PLACEHOLDER_GLOBS for p in glob.glob(pattern, recursive=True)
+                    if os.path.isfile(p)})
     for path in paths:
         text = read_text(path)
-        for placeholder in PLACEHOLDERS:
-            if placeholder in text:
-                errors.append(f"{path}: template placeholder '{placeholder}' not filled in")
+        for match in PLACEHOLDER.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            first = " ".join(match.group(1).split())[:60]
+            errors.append(f"{path}:{line}: template placeholder '{{{{{first}}}}}' not filled in")
 
 
 def main():

@@ -79,7 +79,8 @@ action yourself — including follow-up issues the Lead decides on.
    `CHANGES_REQUIRED`, launch `squad-lead` in mode `revise` and repeat. After the **2nd** rejection launch
    `squad-lead` in mode `decide` (scope down, split into issues, abort, or escalate).
 4. **Skeleton** (only if the plan adds or changes API). Launch `squad-dev` in mode `skeleton`: the planned
-   signatures with bodies that throw `NotImplementedException`, so the tests of step 5 compile.
+   signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), so the tests of
+   step 5 compile.
 5. **Tests first** (skipped for `trivial`). Launch `squad-tester` in mode `tests-first`. Confirm yourself
    that the new tests compile and fail on the current code (unless the Tester justified why one cannot).
    A fix without a reproducing test is only acceptable when the bug genuinely needs a live external

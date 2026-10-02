@@ -84,8 +84,11 @@ def fill(template, project, stack):
     return BLOCK.sub(replace, template)
 
 
-def uses_crlf(target):
+def uses_crlf(target, profile):
+    """The target's own .gitattributes decides; without one, the profile's seeded one does."""
     path = os.path.join(target, ".gitattributes")
+    if not os.path.isfile(path):
+        path = os.path.join(profile, "seed", "gitattributes")
     return os.path.isfile(path) and re.search(r"^\*\s+text=auto\s+eol=crlf", read(path), re.M) is not None
 
 
@@ -126,7 +129,7 @@ def main():
         sys.exit(f"{target} is not the root of a git repository")
     profile = os.path.join(ROOT, "profiles", args.profile)
     stack = blocks(read(os.path.join(profile, "instructions.md")), "stack")
-    crlf = uses_crlf(target)
+    crlf = uses_crlf(target, profile)
     report = []
 
     core = files_under(os.path.join(ROOT, "core"))

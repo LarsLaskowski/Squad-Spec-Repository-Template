@@ -1,4 +1,4 @@
-# CLAUDE.md — <project name>
+# CLAUDE.md
 
 Project guidance for Claude when working in this repository. These rules mirror `AGENTS.md` and `.github/copilot-instructions.md`; keep all three in sync —
 everything from the first `##` heading on is identical in all three files. This file is a summary; the
@@ -12,8 +12,8 @@ license to pick either one.
 ## What this project is
 
 <!-- project:begin overview -->
-<Two or three sentences: what the software does, how it runs (service, CLI, web app, container), who
-uses it. See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how it fits together.>
+{{Two or three sentences: what the software does, how it runs (service, CLI, web app, container), who
+uses it. See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how it fits together.}}
 <!-- project:end overview -->
 
 ## Golden rules
@@ -61,7 +61,7 @@ All commands, with what each one checks, are listed in [`.squad/stack.md`](.squa
 ## Architecture
 
 <!-- project:begin architecture -->
-<The main projects/packages/modules, one line each.>
+{{The main projects/packages/modules, one line each.}}
 <!-- project:end architecture -->
 
 ## Project configuration

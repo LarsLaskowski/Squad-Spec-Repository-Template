@@ -41,13 +41,17 @@ Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/routing.md`, `.claude/agents/*`, skills, `.squad/tools/*.py` (except settings) | overwritten |
+| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, PR template, feature-request template, `specs/` templates, `docs/decisions/_template.md` | overwritten |
 | marked | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `SECURITY.md`, bug report template, decision index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
-| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `docs/UNIT_TESTS.md`, CI workflows | never touched again |
+| seed | `.squad/stack.md`, `.squad/project.md`, `.squad/decisions.md`, histories, `squad_settings.py`, `.claude/settings.json`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
 guarantees, integration surface and test doubles. That is what keeps the core stack-neutral.
+
+Placeholders are written `{{…}}` and only ever appear inside project blocks or seeded files, so a refresh
+never resets filled-in text; `config-check.py` fails while any is left (GitHub Actions expressions
+`${{ … }}` are not placeholders).
 
 ## Profiles
 
@@ -55,7 +59,7 @@ guarantees, integration surface and test doubles. That is what keeps the core st
 | ------- | ----------- | --------- | ------------- | -------- | ------------ |
 | `dotnet` | `*.slnx`, `*.sln`, `*.csproj` | `reihitsu-format` | Roslyn SARIF of a full build: Reihitsu, SonarAnalyzer.CSharp, MSTest, CA | Cobertura (coverlet) | PlexToJellyfinSync, DockerUpdateGuard, F1-Telemetry |
 | `node` | `package.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov | OpenHabLogViewer, e-networld |
-| `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base` | Go coverprofile | PiMonitor |
+| `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base --whole-files` | Go coverprofile | PiMonitor |
 
 ## Using it
 

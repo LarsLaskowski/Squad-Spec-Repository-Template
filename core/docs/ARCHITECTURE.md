@@ -1,29 +1,29 @@
 # Architecture
 
 <!-- project:begin architecture -->
-<What the system does, in two or three sentences.>
+{{What the system does, in two or three sentences.}}
 
 ## Components
 
-<The projects/packages/modules and what each owns. A diagram (Mermaid) of the main data flow.>
+{{The projects/packages/modules and what each owns. A diagram (Mermaid) of the main data flow.}}
 
-## <Main flow, e.g. request pipeline / sync pipeline>
+## {{Main flow, e.g. request pipeline / sync pipeline}}
 
-<How data moves through the system, and the deliberate guarantees along the way — each guarantee also
-listed in `.squad/project.md` (*Guarantees*) and linked to its decision record.>
+{{How data moves through the system, and the deliberate guarantees along the way — each guarantee also
+listed in `.squad/project.md` (*Guarantees*) and linked to its decision record.}}
 
 ## Configuration
 
-<Where configuration comes from, required settings, defaults, validation at startup.>
+{{Where configuration comes from, required settings, defaults, validation at startup.}}
 
 ## Security model
 
-<Authentication, secrets, trust boundaries. Kept in sync with `SECURITY.md` and the *Security areas* in
-`.squad/project.md`.>
+{{Authentication, secrets, trust boundaries. Kept in sync with `SECURITY.md` and the *Security areas* in
+`.squad/project.md`.}}
 
 ## Deployment
 
-<How the software is built, packaged and released.>
+{{How the software is built, packaged and released.}}
 <!-- project:end architecture -->
 
 ## Development process

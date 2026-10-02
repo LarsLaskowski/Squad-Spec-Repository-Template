@@ -140,8 +140,9 @@ posted comment.
   of continuing as if it succeeded.
 - Never force-push over another contributor's commits without explicit
   confirmation.
-- If the change touches the sync pipeline, path mapping, NFO writing, the
-  dashboard's auth model, a configuration key, or the Docker/CI setup, make
+- If the change touches a guarantee, security area or integration-surface
+  entry in [`.squad/project.md`](../../../.squad/project.md), a configuration
+  key, or the Docker/CI setup, make
   sure the corresponding documentation — [`README.md`](../../../README.md),
   [`ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md),
   [`SECURITY.md`](../../../SECURITY.md) — was updated in the same PR (see the

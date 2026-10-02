@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Analyzer gate (Go profile): `go vet ./...` must pass for the whole module, and golangci-lint must report
-no issue introduced since the merge base with origin/main (working tree and untracked files included).
+no issue anywhere in a file changed since the merge base with origin/main (`--whole-files`; working tree
+and untracked files included).
 
 The base (origin/main) and the commands are fixed here: the script takes no arguments, so nothing
 user-supplied reaches the shell, git or the filesystem.
@@ -17,7 +18,7 @@ import sys
 BASE_REF = "origin/main"
 STEPS = [
     ("go vet", ["go", "vet", "./..."]),
-    ("golangci-lint (new issues)", ["golangci-lint", "run", "--new-from-merge-base=" + BASE_REF, "./..."]),
+    ("golangci-lint (new issues)", ["golangci-lint", "run", "--new-from-merge-base=" + BASE_REF, "--whole-files", "./..."]),
 ]
 
 

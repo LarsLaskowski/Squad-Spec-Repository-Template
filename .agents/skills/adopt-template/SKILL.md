@@ -45,10 +45,11 @@ Rules that hold throughout:
    - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*;
    - `docs/ARCHITECTURE.md`: *architecture* (normally the whole former document, minus a former
      "development process" section the template now provides);
-   - `SECURITY.md`: *deployment*, *scope*; also put the real contact address into the template text;
+   - `SECURITY.md`: *contact* (the real reporting address), *deployment*, *scope*;
    - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*;
    - `docs/decisions/README.md`: *index* (the existing table rows).
-   Replace every `<…>` placeholder. Rules that the stack or core sections already state are dropped from
+   Replace every `{{…}}` placeholder — they only occur inside project blocks and seeded files, so a
+   refresh never brings them back. Rules that the stack or core sections already state are dropped from
    the project blocks rather than kept twice. Copy `CLAUDE.md`'s body to `AGENTS.md` and
    `.github/copilot-instructions.md` unchanged from the first `##` heading on.
 5. **Fill `.squad/stack.md` and `.squad/tools/squad_settings.py`** from the target's real build: versions,
@@ -63,7 +64,11 @@ Rules that hold throughout:
    existing one gets the *Code coverage* and checklist sections of the seed merged in.
 6. **Fill `.squad/project.md`** from `ARCHITECTURE.md`, `SECURITY.md`, the README configuration table, the
    decision records and old review skills or agents: concrete security areas, guarantees with their
-   decision records, the integration surface (what must change together), and the test doubles.
+   decision records, the integration surface (what must change together), and the test doubles. On a
+   first adoption, also read `git diff HEAD` of the **managed** files the apply step overwrote — a
+   repository that already had a squad keeps its project knowledge there (e.g. the integration-surface
+   sweep in an old `squad-reviewer.md`, project names in charters or the PR template) — and carry that
+   knowledge into `project.md` or `stack.md` before it is lost.
 7. **Old skills and agents** (the "not part of the template" list): fold their project-specific content
    into `project.md`, `stack.md` or `docs/`, then delete the ones the template replaces — `fix-issue` →
    `squad-issue`, `publish-pr`/`create-pr` → `create-pr`, `rereview-pr`/`review-pr` → `review-pr`, a

@@ -5,23 +5,23 @@
 
 ### Machine setup
 
-<Tools a contributor needs once: Git, the SDK/runtime of the stack (see `.squad/stack.md`, *Toolchain*),
-the formatter and linters, anything else.>
+{{Tools a contributor needs once: Git, the SDK/runtime of the stack (see `.squad/stack.md`, *Toolchain*),
+the formatter and linters, anything else.}}
 
 ### Cloning the repository
 
 ```shell
-git clone https://github.com/<owner>/<repo>.git
+git clone https://github.com/{{owner}}/{{repo}}.git
 ```
 
 ### Building and running
 
-<The *Restore*, *Build* and run commands from `.squad/stack.md`, plus the minimum configuration needed to
-see the application do useful work locally.>
+{{The *Restore*, *Build* and run commands from `.squad/stack.md`, plus the minimum configuration needed to
+see the application do useful work locally.}}
 
 ### Running tests
 
-<The *Test* command from `.squad/stack.md`.>
+{{The *Test* command from `.squad/stack.md`.}}
 
 For detailed rules on how unit tests are structured and named, see [`UNIT_TESTS.md`](UNIT_TESTS.md).
 **Unit tests are mandatory for newly written code** — see the checklist there before opening a pull
@@ -46,7 +46,7 @@ For PR naming use the following convention: `[area] Description` (no period at t
   the change entails is enough; there is room to elaborate in the description.
 
 <!-- project:begin areas -->
-Areas: `<Area1>`, `<Area2>`, `Tests`, `Docker`, `CI`, `Docs`.
+Areas: `{{Area1}}`, `{{Area2}}`, `Tests`, `Docker`, `CI`, `Docs`.
 <!-- project:end areas -->
 
 When a PR is related to an issue, use the `Closes #issuenumber` syntax so the issue links to the

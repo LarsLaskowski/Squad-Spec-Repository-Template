@@ -8,17 +8,20 @@
   un-regioned and never add the regions only after an analyzer warning.
 <!-- stack:end golden-rules -->
 <!-- stack:begin commands -->
+Run from the repository root, where the solution file lives (exact commands, with the solution name, in
+`.squad/stack.md`):
+
 ```bash
-dotnet restore <Solution>.slnx
+dotnet restore
 reihitsu-format ./                                          # dotnet tool install -g Reihitsu.Cli
-dotnet build <Solution>.slnx -c Release --no-restore
-dotnet test <Solution>.slnx -c Release --no-build
+dotnet build -c Release --no-restore
+dotnet test -c Release --no-build
 python3 .squad/tools/analyzer-check.py                      # analyzer gate
 python3 .squad/tools/coverage-check.py                      # coverage gate, after a coverage run
 ```
 <!-- stack:end commands -->
 <!-- stack:begin configuration -->
-- **Target framework** `<net10.0>`; **nullable reference types**, **implicit usings**, and
+- **Target framework** as set in `Directory.Build.props` (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and
   **documentation XML** generation are all enabled.
 - **Central Package Management** via `Directory.Packages.props`; never put versions in individual
   `.csproj` files.

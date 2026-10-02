@@ -6,14 +6,14 @@ by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- Go `<version from go.mod>` (module `<module path>`).
-- `gofmt` as the formatter, `go vet` and **golangci-lint** `<v2.x>` (configured in `.golangci.yml`) as the
+- Go `{{version from go.mod}}` (module `{{module path}}`).
+- `gofmt` as the formatter, `go vet` and **golangci-lint** `{{v2.x}}` (configured in `.golangci.yml`) as the
   analyzers, `govulncheck` (a `tool` dependency in `go.mod`) for known vulnerabilities.
 - The SessionStart hook `.claude/hooks/session-start.sh` runs `go mod download` in remote sessions.
 
 ## Layout
 
-- Production code: `<cmd/…, internal/…>`.
+- Production code: `{{cmd/…, internal/…}}`.
 - Tests: colocated `_test.go` files next to the code they cover, one per source file under test
   (`foo.go` → `foo_test.go`).
 
@@ -34,8 +34,8 @@ by this repository: keep it true when the build changes.
 ## Analyzer gate
 
 `analyzer-check.py` runs `go vet ./...` (must pass for the whole module) and
-`golangci-lint run --new-from-merge-base=origin/main ./...`, which reports every issue introduced since
-the merge base with `origin/main`. Fixable style findings are the Code Officer's; findings that need a
+`golangci-lint run --new-from-merge-base=origin/main --whole-files ./...`, which reports every issue
+anywhere in a file changed since the merge base with `origin/main`. Fixable style findings are the Code Officer's; findings that need a
 code change go to the Dev or Tester. SonarQube Cloud has no local Go equivalent here, so its findings
 (and duplication, hotspots) arrive in squad step 11.
 
@@ -46,7 +46,7 @@ code change go to the Dev or Tester. SonarQube Cloud has no local Go equivalent 
 - Errors are returned and wrapped with context (`fmt.Errorf("…: %w", err)`), never ignored; no `panic` in
   library code.
 - `context.Context` is the first parameter of anything that does I/O or can block, and is honored.
-- <project-specific conventions>
+- {{project-specific conventions}}
 
 ## Writing tests
 

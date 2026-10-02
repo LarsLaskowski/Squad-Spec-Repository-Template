@@ -16,7 +16,7 @@ Please **do not** open a public GitHub issue for security vulnerabilities.
 <!-- project:begin contact -->
 Report vulnerabilities by e-mail to:
 
-**{{security contact e-mail}}**
+**{{TODO: security contact e-mail}}**
 <!-- project:end contact -->
 
 Include in your report:
@@ -33,7 +33,7 @@ process.
 <!-- project:begin deployment -->
 ## Deployment Security Considerations
 
-{{How the software is meant to be deployed (e.g. home network, behind a reverse proxy), and what an
+{{TODO: How the software is meant to be deployed (e.g. home network, behind a reverse proxy), and what an
 operator must do before exposing it: authentication, secrets in environment variables, minimum
 permissions, network restrictions.}}
 <!-- project:end deployment -->
@@ -43,7 +43,7 @@ permissions, network restrictions.}}
 
 The following are considered in scope for vulnerability reports:
 
-- {{The project's attack surface — the same areas as *Security areas* in `.squad/project.md`.}}
+- {{TODO: The project's attack surface — the same areas as *Security areas* in `.squad/project.md`.}}
 - Dependency vulnerabilities in packages consumed by the project
 
 The following are **out of scope**:

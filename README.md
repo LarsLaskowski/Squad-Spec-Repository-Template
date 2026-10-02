@@ -49,9 +49,9 @@ Three kinds of files in a target repository:
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
 guarantees, integration surface and test doubles. That is what keeps the core stack-neutral.
 
-Placeholders are written `{{…}}` and only ever appear inside project blocks or seeded files, so a refresh
-never resets filled-in text; `config-check.py` fails while any is left (GitHub Actions expressions
-`${{ … }}` are not placeholders).
+Placeholders are written `{{TODO: …}}` and only ever appear inside project blocks or seeded files, so a
+refresh never resets filled-in text; `config-check.py` fails while any is left. The `TODO:` prefix keeps
+Go templates, `docker --format` strings and GitHub Actions expressions from being mistaken for one.
 
 ## Profiles
 

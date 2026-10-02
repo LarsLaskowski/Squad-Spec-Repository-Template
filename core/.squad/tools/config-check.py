@@ -13,8 +13,8 @@ it. This script checks, without arguments:
 - `CLAUDE.md`, `AGENTS.md` and `.github/copilot-instructions.md` are identical from their first `## `
   heading on (only the title and introduction may differ);
 - `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
-  template seeded or rebuilt still contains a ProjectTemplate placeholder (`{{…}}`; GitHub Actions
-  expressions `${{ … }}` are not placeholders).
+  template seeded or rebuilt still contains a ProjectTemplate placeholder (`{{TODO: …}}` — a marker that
+  ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain).
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/config-check.py
@@ -31,7 +31,7 @@ SKILL_ROOTS = [os.path.join(".claude", "skills"), os.path.join(".agents", "skill
 INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md")]
 REQUIRED_FILES = [os.path.join(".squad", "stack.md"), os.path.join(".squad", "project.md"),
                   os.path.join(".squad", "tools", "squad_settings.py")]
-PLACEHOLDER = re.compile(r"(?<!\$)\{\{([^{}]+?)\}\}")
+PLACEHOLDER = re.compile(r"\{\{TODO:\s*([^{}]*?)\}\}")
 PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [
     "SECURITY.md", "sonar-project.properties",
     os.path.join(".squad", "**", "*.md"), os.path.join("docs", "**", "*.md"),
@@ -126,7 +126,7 @@ def check_project_files(errors):
         for match in PLACEHOLDER.finditer(text):
             line = text.count("\n", 0, match.start()) + 1
             first = " ".join(match.group(1).split())[:60]
-            errors.append(f"{path}:{line}: template placeholder '{{{{{first}}}}}' not filled in")
+            errors.append(f"{path}:{line}: template placeholder '{{{{TODO: {first}}}}}' not filled in")
 
 
 def main():

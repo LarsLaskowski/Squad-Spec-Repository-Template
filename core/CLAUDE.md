@@ -12,7 +12,7 @@ license to pick either one.
 ## What this project is
 
 <!-- project:begin overview -->
-{{Two or three sentences: what the software does, how it runs (service, CLI, web app, container), who
+{{TODO: Two or three sentences: what the software does, how it runs (service, CLI, web app, container), who
 uses it. See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how it fits together.}}
 <!-- project:end overview -->
 
@@ -61,7 +61,7 @@ All commands, with what each one checks, are listed in [`.squad/stack.md`](.squa
 ## Architecture
 
 <!-- project:begin architecture -->
-{{The main projects/packages/modules, one line each.}}
+{{TODO: The main projects/packages/modules, one line each.}}
 <!-- project:end architecture -->
 
 ## Project configuration

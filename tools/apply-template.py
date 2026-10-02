@@ -15,7 +15,8 @@ What it does, for the chosen stack profile (`profiles/<profile>`):
   them yet;
 - `.squad/template.json` records the template commit and the profile.
 
-Line endings follow the target: CRLF when its `.gitattributes` sets `* text=auto eol=crlf`, LF otherwise;
+Line endings follow the target: CRLF when its `.gitattributes` sets `* text=auto eol=crlf` (a target without
+one uses the `.gitattributes` the profile seeds), LF otherwise;
 shell scripts always keep LF and the executable bit.
 
 Usage, from the ProjectTemplate root:

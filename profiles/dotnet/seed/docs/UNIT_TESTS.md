@@ -15,7 +15,7 @@ neighboring test file before inventing a new pattern.
 ## Where tests live
 
 <!-- project:begin layout -->
-- Test project: `tests/{{Project}}.Tests/`, test classes placed flat in it (no subfolders).
+- Test project: `tests/{{TODO: Project}}.Tests/`, test classes placed flat in it (no subfolders).
 - One test class per type under test, in `{TypeUnderTest}Tests.cs`.
 <!-- project:end layout -->
 

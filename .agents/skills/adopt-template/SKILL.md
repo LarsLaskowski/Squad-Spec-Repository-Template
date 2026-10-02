@@ -48,7 +48,7 @@ Rules that hold throughout:
    - `SECURITY.md`: *contact* (the real reporting address), *deployment*, *scope*;
    - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*;
    - `docs/decisions/README.md`: *index* (the existing table rows).
-   Replace every `{{…}}` placeholder — they only occur inside project blocks and seeded files, so a
+   Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a
    refresh never brings them back. Rules that the stack or core sections already state are dropped from
    the project blocks rather than kept twice. Copy `CLAUDE.md`'s body to `AGENTS.md` and
    `.github/copilot-instructions.md` unchanged from the first `##` heading on.

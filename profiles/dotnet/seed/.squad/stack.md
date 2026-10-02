@@ -6,7 +6,7 @@ owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- .NET SDK `{{version, e.g. 10.0.x}}` (target framework `{{net10.0}}`), solution `{{Solution}}.slnx`.
+- .NET SDK `{{TODO: version, e.g. 10.0.x}}` (target framework `{{TODO: net10.0}}`), solution `{{TODO: Solution}}.slnx`.
 - Formatter: `reihitsu-format` (`dotnet tool install -g Reihitsu.Cli`), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert
   code the analyzer considers correct.
@@ -17,21 +17,21 @@ owned by this repository: keep it true when the build changes.
 
 ## Layout
 
-- Production code: `src/` (`{{one line per project}}`).
-- Tests: `tests/{{Project}}.Tests/`, one test class per type under test in `{TypeUnderTest}Tests.cs`,
+- Production code: `src/` (`{{TODO: one line per project}}`).
+- Tests: `tests/{{TODO: Project}}.Tests/`, one test class per type under test in `{TypeUnderTest}Tests.cs`,
   placed flat in the test project.
 
 ## Commands
 
 | Name | Command |
 | ---- | ------- |
-| *Restore* | `dotnet restore {{Solution}}.slnx` |
+| *Restore* | `dotnet restore {{TODO: Solution}}.slnx` |
 | *Format* (Code Officer only in the squad) | `reihitsu-format --force ./` |
 | *Format check* | `reihitsu-format --check ./` |
-| *Build* | `dotnet build {{Solution}}.slnx -c Release --no-restore` |
-| *Test* | `dotnet test {{Solution}}.slnx -c Release --no-build` |
-| *Single test* | `dotnet test {{TestProject}}.csproj --filter "FullyQualifiedName~ClassName.MethodName"` |
-| *Test with coverage* | `dotnet test {{Solution}}.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults` |
+| *Build* | `dotnet build {{TODO: Solution}}.slnx -c Release --no-restore` |
+| *Test* | `dotnet test {{TODO: Solution}}.slnx -c Release --no-build` |
+| *Single test* | `dotnet test {{TODO: TestProject}}.csproj --filter "FullyQualifiedName~ClassName.MethodName"` |
+| *Test with coverage* | `dotnet test {{TODO: Solution}}.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults` |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
 

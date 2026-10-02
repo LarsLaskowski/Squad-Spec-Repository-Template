@@ -8,7 +8,7 @@ neighboring test file before inventing a new pattern.
 ## Test stack
 
 <!-- project:begin stack -->
-- Test runner: `{{Node's built-in test runner via tsx | Vitest | Jest}}`; assertions: `{{node:assert/strict | expect}}`.
+- Test runner: `{{TODO: Node's built-in test runner via tsx | Vitest | Jest}}`; assertions: `{{TODO: node:assert/strict | expect}}`.
 - No mocking library beyond what the runner ships with — prefer real objects and the hand-written fakes
   listed in `.squad/project.md` (*Test doubles*).
 <!-- project:end stack -->

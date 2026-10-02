@@ -6,14 +6,14 @@ by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- Go `{{version from go.mod}}` (module `{{module path}}`).
-- `gofmt` as the formatter, `go vet` and **golangci-lint** `{{v2.x}}` (configured in `.golangci.yml`) as the
+- Go `{{TODO: version from go.mod}}` (module `{{TODO: module path}}`).
+- `gofmt` as the formatter, `go vet` and **golangci-lint** `{{TODO: v2.x}}` (configured in `.golangci.yml`) as the
   analyzers, `govulncheck` (a `tool` dependency in `go.mod`) for known vulnerabilities.
 - The SessionStart hook `.claude/hooks/session-start.sh` runs `go mod download` in remote sessions.
 
 ## Layout
 
-- Production code: `{{cmd/…, internal/…}}`.
+- Production code: `{{TODO: cmd/…, internal/…}}`.
 - Tests: colocated `_test.go` files next to the code they cover, one per source file under test
   (`foo.go` → `foo_test.go`).
 
@@ -46,7 +46,7 @@ code change go to the Dev or Tester. SonarQube Cloud has no local Go equivalent 
 - Errors are returned and wrapped with context (`fmt.Errorf("…: %w", err)`), never ignored; no `panic` in
   library code.
 - `context.Context` is the first parameter of anything that does I/O or can block, and is honored.
-- {{project-specific conventions}}
+- {{TODO: project-specific conventions}}
 
 ## Writing tests
 

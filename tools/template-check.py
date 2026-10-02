@@ -109,7 +109,7 @@ def check_core(errors):
             errors.append(f"{os.path.relpath(path, ROOT)}: unclosed markers {open_blocks}")
 
 
-PLACEHOLDER = re.compile(r"(?<!\$)\{\{[^{}]+?\}\}")
+PLACEHOLDER = re.compile(r"\{\{TODO:[^{}]*?\}\}")
 BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->", re.S)
 MARKED = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
           os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"), "SECURITY.md",

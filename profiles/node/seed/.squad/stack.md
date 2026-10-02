@@ -13,8 +13,8 @@ owned by this repository: keep it true when the build changes.
 
 ## Layout
 
-- Production code: `{{src/ …}}`.
-- Tests: `{{colocated `*.test.ts` next to the code | `test/`}}`, one test file per module under test, named
+- Production code: `{{TODO: src/ …}}`.
+- Tests: `{{TODO: colocated `*.test.ts` next to the code | `test/`}}`, one test file per module under test, named
   `<module>.test.ts`.
 
 ## Commands
@@ -50,7 +50,7 @@ SonarQube Cloud can still report rules the local plugin version does not have, a
   silence the compiler.
 - `const` by default, `===` only, async/await over raw promise chains, every promise awaited or
   explicitly handled.
-- {{project-specific conventions: naming, module layout, error handling}}
+- {{TODO: project-specific conventions: naming, module layout, error handling}}
 
 ## Writing tests
 

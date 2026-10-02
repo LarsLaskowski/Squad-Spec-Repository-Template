@@ -18,7 +18,7 @@ import sys
 BASE_REF = "origin/main"
 STEPS = [
     ("go vet", ["go", "vet", "./..."]),
-    ("golangci-lint (new issues)", ["golangci-lint", "run", "--new-from-merge-base=" + BASE_REF, "--whole-files", "./..."]),
+    ("golangci-lint (changed files)", ["golangci-lint", "run", "--new-from-merge-base=" + BASE_REF, "--whole-files", "./..."]),
 ]
 
 

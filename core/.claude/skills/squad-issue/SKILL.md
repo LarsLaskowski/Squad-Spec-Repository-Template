@@ -21,9 +21,10 @@ action yourself — including follow-up issues the Lead decides on.
   or `.github/copilot-instructions.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
   change itself genuinely needs one of those files (e.g. a new build command every contributor must know),
-  the Lead escalates instead; the Product Manager decides, and the squad-file part never goes into the
-  product PR: a template-managed file is changed in the template repository, `.squad/stack.md` or
-  `.squad/project.md` as *Scope of a product PR* allows.
+  the Lead escalates instead and the Product Manager decides: `.squad/stack.md` and `.squad/project.md` may
+  change in the product PR (*Scope of a product PR*); a template-managed file is changed in the template
+  repository; any other squad or instruction file (e.g. a project block) goes into a separate
+  squad-maintenance PR.
 - **Working records stay off `main`.** `specs/<folder>/` exists only on the work branch, so it survives a
   crashed session. Before the PR (step 10) its content is posted as a comment and the folder is removed;
   the lasting reasoning lives in `docs/decisions/`.

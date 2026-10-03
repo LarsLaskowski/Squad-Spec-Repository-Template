@@ -98,7 +98,10 @@ def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
     if rel.endswith(".sh"):
         crlf = False
     data = (text.replace("\n", "\r\n") if crlf else text).encode("utf-8")
-    old = open(dest, "rb").read() if os.path.isfile(dest) else None
+    old = None
+    if os.path.isfile(dest):
+        with open(dest, "rb") as existing:
+            old = existing.read()
     status = status_if_new if old is None else ("unchanged" if old == data else "updated")
     report.append((status, rel))
     if dry_run or status == "unchanged":
@@ -107,7 +110,9 @@ def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
     with open(dest, "wb") as handle:
         handle.write(data)
     if rel.endswith(".sh"):
-        os.chmod(dest, 0o755)
+        # Add the execute bit only where read is already granted, so the umask is respected.
+        mode = os.stat(dest).st_mode & 0o777
+        os.chmod(dest, mode | ((mode & 0o444) >> 2))
 
 
 def backup(target, rel, dry_run, report):

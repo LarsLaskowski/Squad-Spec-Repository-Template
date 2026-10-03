@@ -87,5 +87,7 @@ Do not report security vulnerabilities through public GitHub issues. See
 
 ## License
 
+<!-- project:begin license -->
 By contributing to this project, you agree that your contributions will be licensed under the
 same license that covers the project (see `LICENSE` or `LICENSE.md` in the repository root).
+<!-- project:end license -->

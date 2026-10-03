@@ -33,7 +33,8 @@ Rules that hold throughout:
    `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
    solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new
    profile has to be added to Squad-Spec-Repository-Template first (see `README.md`, *Adding a stack*).
-3. **Apply.** From the template repository's root run
+3. **Apply.** From the template repository's root, on an up-to-date checkout of its `main` (the commit
+   is recorded in `.squad/template.json`; a branch commit disappears with the squash merge), run
    `python3 tools/apply-template.py --target <path> --profile <profile> --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files and the files in template-owned
    folders the template does not know.
@@ -48,6 +49,8 @@ Rules that hold throughout:
    - `SECURITY.md`: *contact* (the real reporting address), *deployment*, *scope*;
    - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*;
    - `docs/decisions/README.md`: *index* (the existing table rows).
+   Links in the three instruction files are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`)
+   so they resolve from `.github/copilot-instructions.md` too; write the project blocks the same way.
    Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a
    refresh never brings them back. Rules that the stack or core sections already state are dropped from
    the project blocks rather than kept twice. Copy `CLAUDE.md`'s body to `AGENTS.md` and
@@ -78,8 +81,11 @@ Rules that hold throughout:
    `stack.md` where they contradict it.
 8. **Decision records, settings, CI.**
    - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
-     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has an
-     equivalent record; add them to the index.
+     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has a
+     record that says the same; add them to the index. An existing record on the same subject whose rules
+     the template now changes (e.g. what a product PR may touch, where squad lessons go) is superseded:
+     the seed gets the next number with *Supersedes* set, and the old record's status becomes
+     `Superseded by NNNN`.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding

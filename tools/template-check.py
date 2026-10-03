@@ -97,6 +97,10 @@ def check_core(errors):
         bodies.append(text[text.find("\n## "):])
     if len(set(bodies)) != 1:
         errors.append("core instruction files differ after the first '## ' heading")
+    relative = re.compile(r"\]\((?!https?:|#|/|mailto:)[^)\s]+\)")
+    for rel in INSTRUCTIONS:
+        for match in relative.finditer(read(os.path.join(CORE, rel))):
+            errors.append(f"core/{rel}: relative link {match.group(0)} - use a repository-rooted link (/path)")
     for path in glob.glob(os.path.join(CORE, "**", "*.md"), recursive=True) + \
             glob.glob(os.path.join(CORE, ".*", "**", "*.md"), recursive=True):
         open_blocks = []

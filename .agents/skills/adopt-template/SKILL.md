@@ -28,27 +28,41 @@ Rules that hold throughout:
    off `origin/main`. Read its `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `README.md`,
    `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile` (older
-   records without `repository` get it on this run) and continue with step 3.
+   records without `repository` get it on this run) and continue with step 3. Seeded files are not
+   refreshed, so on a refresh compare the target's `.squad/stack.md` and `squad_settings.py` with the
+   profile's seeds (`git -C <template> diff <old commit>..main -- profiles/<profile>/seed`) and carry over
+   changed commands or settings by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
    solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new
    profile has to be added to Squad-Spec-Repository-Template first (see `README.md`, *Adding a stack*).
-3. **Apply.** From the template repository's root, on an up-to-date checkout of its `main` (the commit
+3. **Apply.** First, on a first adoption, move documents the template expects under `docs/` but the target
+   keeps elsewhere (e.g. a root-level `ARCHITECTURE.md` or `CONTRIBUTING.md`) there with `git mv` and fix
+   every link to them: the apply step then backs them up like any other marked file, and their content
+   lands in the template's file instead of living twice. Then, from the template repository's root, on an
+   up-to-date checkout of its `main` (the commit
    is recorded in `.squad/template.json`; a branch commit disappears with the squash merge), run
    `python3 tools/apply-template.py --target <path> --profile <profile> --dry-run`, read the list, then run
-   it without `--dry-run`. Keep the output: it names the backed-up files and the files in template-owned
-   folders the template does not know.
+   it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
+   the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
+   and the files in template-owned folders the template does not know.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing
    new needs a block). For every file backed up under `.git/adopt-template/backup/` in the target, move its
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:
    - instruction files: *overview*, *architecture*, *configuration*, *code-style* (only what goes beyond
      the stack block);
-   - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*;
+   - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*,
+     *license*;
    - `docs/ARCHITECTURE.md`: *architecture* (normally the whole former document, minus a former
      "development process" section the template now provides);
-   - `SECURITY.md`: *contact* (the real reporting address), *deployment*, *scope*;
-   - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*;
+   - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*, *logs*;
+   - `.github/pull_request_template.md`: *checklist* (project-specific checklist items, e.g. a UI section);
    - `docs/decisions/README.md`: *index* (the existing table rows).
+   `SECURITY.md` is seeded, not rebuilt: an existing one stays as it is; a new one gets its placeholders
+   filled; on a refresh, remove `<!-- project:… -->` markers left in it from older template versions. A pull
+   request or issue template under another name or case (e.g. `.github/PULL_REQUEST_TEMPLATE.md`) is merged
+   into the template's file and removed — GitHub would otherwise pick one at random, and the two names
+   collide on case-insensitive file systems.
    Links in the three instruction files are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`)
    so they resolve from `.github/copilot-instructions.md` too; write the project blocks the same way.
    Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a

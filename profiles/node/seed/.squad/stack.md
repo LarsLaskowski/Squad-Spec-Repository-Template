@@ -29,7 +29,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | *Build* | `npm run build` |
 | *Test* | `npm test` |
 | *Single test* | `<e.g. node --import tsx --test --test-name-pattern "<name>" src/x.test.ts>` |
-| *Test with coverage* | `npm run coverage:lcov` (writes `coverage/lcov.info`) |
+| *Test with coverage* | `npm run coverage:lcov` (overwrites `coverage/lcov.info`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
 

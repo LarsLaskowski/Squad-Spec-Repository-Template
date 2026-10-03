@@ -116,8 +116,9 @@ def check_core(errors):
 PLACEHOLDER = re.compile(r"\{\{TODO:[^{}]*\}\}")
 BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->", re.S)
 MARKED = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
-          os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"), "SECURITY.md",
-          os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md")]
+          os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
+          os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md"),
+          os.path.join(".github", "pull_request_template.md")]
 
 
 def check_placeholders(errors):

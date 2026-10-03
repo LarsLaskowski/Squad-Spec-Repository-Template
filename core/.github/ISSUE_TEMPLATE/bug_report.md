@@ -30,7 +30,9 @@ A clear and concise description of what you expected to happen.
 <!-- project:end environment -->
 
 **Logs**
+<!-- project:begin logs -->
 Paste the relevant log excerpt (redact tokens, passwords and other secrets).
+<!-- project:end logs -->
 
 ```
 paste logs here

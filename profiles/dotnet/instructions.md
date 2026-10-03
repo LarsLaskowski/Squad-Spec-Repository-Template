@@ -21,7 +21,7 @@ python3 .squad/tools/coverage-check.py                      # coverage gate, aft
 ```
 <!-- stack:end commands -->
 <!-- stack:begin configuration -->
-- **Target framework** as set in `Directory.Build.props` (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and
+- **Target framework** as set in the project files (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and
   **documentation XML** generation are all enabled.
 - **Central Package Management** via `Directory.Packages.props`; never put versions in individual
   `.csproj` files.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Coverage gate for the squad: line coverage of new/changed production lines (like SonarQube's
-"coverage on new code") and overall line coverage, read from the newest coverage report.
+"coverage on new code") and overall line coverage, merged from the coverage reports of the latest test run (one per test project).
 
 Supported report formats (set COVERAGE_FORMAT in `.squad/tools/squad_settings.py`):
 - `cobertura` — e.g. coverlet's `coverage.cobertura.xml` (.NET), or any Cobertura XML
@@ -58,11 +58,17 @@ def changed_lines():
     return result
 
 
-def newest_report():
+# Reports written within this many seconds of the newest one belong to the same test run (one report per
+# test project); older ones are leftovers of earlier runs and are ignored.
+RUN_WINDOW_SECONDS = 600
+
+
+def latest_run_reports():
     reports = glob.glob(settings.COVERAGE_REPORT_GLOB, recursive=True)
     if not reports:
         sys.exit(f"No coverage report matches {settings.COVERAGE_REPORT_GLOB} - run *Test with coverage* first")
-    return max(reports, key=os.path.getmtime)
+    newest = max(os.path.getmtime(report) for report in reports)
+    return sorted(report for report in reports if newest - os.path.getmtime(report) <= RUN_WINDOW_SECONDS)
 
 
 def add_hit(hits, path, number, count):
@@ -140,7 +146,11 @@ def main():
     loader = LOADERS.get(settings.COVERAGE_FORMAT)
     if loader is None:
         sys.exit(f"Unknown COVERAGE_FORMAT '{settings.COVERAGE_FORMAT}' in squad_settings.py")
-    hits = loader(newest_report())
+    hits = {}
+    for report in latest_run_reports():
+        for path, lines in loader(report).items():
+            for number, count in lines.items():
+                add_hit(hits, path, number, count)
 
     tracked = set(subprocess.run(
         ["git", "ls-files", "--", *settings.COVERAGE_PATHSPECS,

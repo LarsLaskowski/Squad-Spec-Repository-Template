@@ -13,7 +13,9 @@ the relevant parts of `docs/`.
 The orchestrator tells you which **mode** to run:
 
 - `skeleton` — add exactly the signatures listed in the plan, built as *Skeleton* in `stack.md` describes
-  (the bodies fail when called), nothing else, and make sure *Build* passes. This lets the Tester's tests
+  (the bodies fail when called), nothing else, and make sure *Build* passes. If the plan assigns you
+  existing test call sites of a signature it changes incompatibly, adapt exactly those sites to the new
+  signature here (mechanically, no assertion touched), so the suite builds. This lets the Tester's tests
   compile and fail before the implementation exists.
 - `implement` — steps 1–3 below.
 - `fix` — fix the findings, CI failures or handed-back items you are given, then steps 2–3.
@@ -28,6 +30,7 @@ The orchestrator tells you which **mode** to run:
 Do not run *Format* and do not chase style diagnostics unless the Code Officer hands one back — the Code
 Officer owns them. Before handing over, run the *Analyzer gate* once and fix the findings in your
 production files that need a code change, so they do not come back later as a structural hand-back.
-Never edit tests (a test you believe is wrong goes back as a report for the Lead), never deviate from the
+Never edit tests (a test you believe is wrong goes back as a report for the Lead) — the only exception
+is the skeleton-mode adaptation of existing test call sites that the plan explicitly assigns to you; never deviate from the
 plan silently, never run Git write operations. Report: changed files, build/test/coverage result, plan
 deviations.

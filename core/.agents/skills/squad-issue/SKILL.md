@@ -18,10 +18,13 @@ action yourself — including follow-up issues the Lead decides on.
   squad's bookkeeping: `log.md` and `tasks.md` check marks (features). Never production code, tests or `docs/`.
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
   (including `history.md` and `decisions.md`), `.claude/`, `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`
-  or `.github/copilot-instructions.md`. Lessons about the squad become a GitHub issue labelled `squad` in
-  step 12 and are worked in a separate squad-maintenance PR. If the change itself genuinely needs one of
-  those files (e.g. a new build command every contributor must know), the Lead escalates instead; the
-  Product Manager decides, and the squad-file part always goes into a separate squad-maintenance PR.
+  or `.github/copilot-instructions.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
+  *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
+  change itself genuinely needs one of those files (e.g. a new build command every contributor must know),
+  the Lead escalates instead and the Product Manager decides: `.squad/stack.md` and `.squad/project.md` may
+  change in the product PR (*Scope of a product PR*); a template-managed file is changed in the template
+  repository; any other squad or instruction file (e.g. a project block) goes into a separate
+  squad-maintenance PR.
 - **Working records stay off `main`.** `specs/<folder>/` exists only on the work branch, so it survives a
   crashed session. Before the PR (step 10) its content is posted as a comment and the folder is removed;
   the lasting reasoning lives in `docs/decisions/`.
@@ -34,7 +37,10 @@ action yourself — including follow-up issues the Lead decides on.
   push `specs/<folder>/log.md` right after intake (step 1), so a stop hook or a crashed session finds no
   untracked files, and after every further completed step. PRs are merged with *Squash and merge*, so only
   the PR title and description reach `main`; intermediate commit messages may name the step, but never
-  contain secrets. Never commit to `main`.
+  contain secrets. Interim work-in-progress commits — e.g. demanded by a stop hook while a member is still
+  working — are fine for the same reason. Stage with plain `git add -A`: ignored paths such as `TestResults/`
+  are skipped anyway, and an exclusion pathspec for an ignored path makes `git add` fail and stage
+  nothing. Never commit to `main`.
 - **GitHub access:** use the GitHub MCP tools (`mcp__github__*`) for issues, comments, labels and pull
   requests. In these sessions the `gh` CLI only works as `gh api repos/<owner>/<repo>/...`; `gh issue`,
   `gh pr` and `gh search` fail (GraphQL is blocked and search is not scoped to the repository).
@@ -79,8 +85,9 @@ action yourself — including follow-up issues the Lead decides on.
    `CHANGES_REQUIRED`, launch `squad-lead` in mode `revise` and repeat. After the **2nd** rejection launch
    `squad-lead` in mode `decide` (scope down, split into issues, abort, or escalate).
 4. **Skeleton** (only if the plan adds or changes API). Launch `squad-dev` in mode `skeleton`: the planned
-   signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), so the tests of
-   step 5 compile.
+   signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), plus the existing
+   test call sites the plan assigns to the Dev for an incompatible signature change, so the tests of step 5
+   compile.
 5. **Tests first** (skipped for `trivial`). Launch `squad-tester` in mode `tests-first`. Confirm yourself
    that the new tests compile and fail on the current code (unless the Tester justified why one cannot).
    A fix without a reproducing test is only acceptable when the bug genuinely needs a live external
@@ -145,11 +152,14 @@ action yourself — including follow-up issues the Lead decides on.
     comment. Never skip, disable or weaken a test to get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself (a rule that was
     unclear or contradictory, a tool that misbehaved, an agent that could not be launched, a step that
-    had to be improvised) and open **one** GitHub issue labelled `squad` (create the label if missing)
-    that lists each lesson with the role it concerns and a concrete proposal; link it from the working
-    record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files — that happens in a
-    separate squad-maintenance PR. Report the branch, the PR URL, the tier, the `squad` issue (or "no
-    lessons") and any escalation or Lead decision to the user. If there is genuinely nothing to learn,
+    had to be improvised), each with the role it concerns and a concrete proposal, and file them as
+    `.squad/routing.md`, *Squad lessons*, says: lessons about template-managed files as **one** issue
+    labelled `squad` in the template repository named in `.squad/template.json` (attach that repository to the session if
+    needed; without access, file it here with the label `squad-upstream`), lessons about project knowledge
+    as **one** issue labelled `squad` in this repository (create the labels if missing). Link the issues
+    from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
+    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons") and any escalation or
+    Lead decision to the user. If there is genuinely nothing to learn,
     append a `| <date> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
     instead of opening an issue — the step itself is never skipped.
 

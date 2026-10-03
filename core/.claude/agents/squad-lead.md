@@ -29,7 +29,10 @@ The orchestrator tells you which **mode** to run:
   - the exact **signatures** of every new or changed public/internal member, so the Dev can build a
     compile-only skeleton before the tests are written;
   - the **test files**: named strictly by the convention in *Layout* of `.squad/stack.md` and
-    `docs/UNIT_TESTS.md` — never a combined file or an "or one …" alternative;
+    `docs/UNIT_TESTS.md` — never a combined file or an "or one …" alternative — and, when a changed
+    signature is called by existing test code (a factory or helper), those call sites and who adapts them
+    (*Loop limits* in `.squad/routing.md`: the Dev in the skeleton step if the old signature goes away,
+    the Tester if old and new signature coexist);
   - the **documentation updates** the change requires (`README.md` configuration table and env vars,
     `docs/*.md`), which the Dev makes.
 

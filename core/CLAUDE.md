@@ -120,10 +120,12 @@ the project's guarantees, security areas and integration surface in
 comment on the issue and removed, so `main` keeps no working records. An issue or feature PR never changes
 the squad or these instructions (`.squad/` except `stack.md` and `project.md`, `.claude/`,
 `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`): squad
-lessons become a GitHub issue labelled `squad` and are worked in a separate squad-maintenance PR, checked
-with `python3 .squad/tools/config-check.py`. The squad and these rules come from the ProjectTemplate
-repository; a lesson about a template-managed file is fixed there and rolled out with its
-`adopt-template` skill (`.squad/routing.md`, *Template-managed files*). The user acts as Product Manager
+lessons are filed as GitHub issues labelled `squad` and never fixed in a product PR. The squad and these
+rules come from the template repository named in `.squad/template.json`: a lesson about a template-managed
+file becomes an issue there and is rolled out with its `adopt-template` skill; a lesson about project
+knowledge (`.squad/stack.md`, `.squad/project.md`, a project block) becomes an issue here and is worked in
+a squad-maintenance PR checked with `python3 .squad/tools/config-check.py` (`.squad/routing.md`,
+*Squad lessons*). The user acts as Product Manager
 and is only asked when the Lead escalates. Pull requests are merged with *Squash and merge*, so only the
 PR title and description reach `main`.
 

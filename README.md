@@ -1,4 +1,4 @@
-# ProjectTemplate
+# Squad-Spec-Repository-Template
 
 The shared squad, AI-agent rules and repository scaffolding for all repositories: one stack-neutral
 **core** plus one **profile** per tech stack. It is not used through GitHub's "Use this template" button;
@@ -64,19 +64,39 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 ## Using it
 
 In a Claude Code session with this repository and the target repository available, ask for it in plain
-words ("bring ProjectTemplate into DockerUpdateGuard") or run `/adopt-template`. The skill detects the
-profile, runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks and
-the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
-reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and
-keeps everything project-specific.
+words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
+detects the profile, runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
+and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
+reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
+everything project-specific.
 
 ## Changing the template
 
-- Lessons from a squad run that concern a template-managed file are fixed **here**, never in the target
-  (the target's next refresh would overwrite the fix), and then rolled out with `adopt-template`.
+Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squad lessons*):
+
+| A lesson about | is filed as | and fixed by |
+| -------------- | ----------- | ------------ |
+| a managed file or the template part of a marked file (squad rules, charters, agents, skills, tools, shared instruction sections) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
+
+Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where
+to file. A session without access to this repository files the issue in the product repository with the
+label `squad-upstream`; it is moved here, never worked there.
+
 - Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
   details into a project block or `.squad/project.md`.
 - Run `python3 tools/template-check.py` before every pull request.
+
+### Rolling out a change
+
+1. Merge the template PR here (`python3 tools/template-check.py` and the Python CI pass).
+2. In each repository that uses the template — the ones with a `.squad/template.json` — run
+   `adopt-template` as a refresh: it re-applies the template at its new commit, keeps every project block
+   and seeded file, verifies the gates and opens one PR per repository
+   (`[Docs] Update the squad from Squad-Spec-Repository-Template`).
+3. Close the template issue once the change is merged here; the refresh PRs reference it.
+
+A local edit of a managed file in a product repository is never the fix: the next refresh overwrites it.
 
 ### Adding a stack
 

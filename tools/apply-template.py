@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Apply ProjectTemplate to a target repository: the mechanical half of the `adopt-template` skill.
+"""Apply Squad-Spec-Repository-Template to a target repository.
+
+This is the mechanical half of the `adopt-template` skill.
 
 What it does, for the chosen stack profile (`profiles/<profile>`):
 
@@ -13,13 +15,13 @@ What it does, for the chosen stack profile (`profiles/<profile>`):
   template version, so the skill can move its content into the project blocks;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
   them yet;
-- `.squad/template.json` records the template commit and the profile.
+- `.squad/template.json` records the template repository, its commit and the profile.
 
 Line endings follow the target: CRLF when its `.gitattributes` sets `* text=auto eol=crlf` (a target without
 one uses the `.gitattributes` the profile seeds), LF otherwise;
 shell scripts always keep LF and the executable bit.
 
-Usage, from the ProjectTemplate root:
+Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo --profile dotnet [--dry-run]
 
 Prints one line per file (created / updated / unchanged / kept / merged / backed-up) and the files in
@@ -34,6 +36,8 @@ import shutil
 import subprocess
 import sys
 
+# Where squad lessons about template-managed files are filed; recorded in every target's .squad/template.json.
+TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
 MARKED = [
@@ -163,7 +167,7 @@ def main():
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()
-    record = json.dumps({"template": "ProjectTemplate", "commit": commit, "profile": args.profile}, indent=2) + "\n"
+    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": args.profile}, indent=2) + "\n"
     write(target, ".squad/template.json", record, crlf, args.dry_run, report)
 
     known = set(managed) | set(seeds) | {".squad/template.json"}

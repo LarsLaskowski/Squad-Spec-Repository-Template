@@ -8,7 +8,9 @@
   Dev (*Skeleton* in `stack.md`).
 - **Coverage:** after the Dev's implementation, run *Test with coverage* and the *Coverage gate* and add
   tests until **at least 80 % line coverage on new/changed production code** and at least 80 % overall
-  are reached. Tests that only execute lines without asserting behavior do not count.
+  are reached. Tests that only execute lines without asserting behavior do not count. If the Dev adapted
+  existing test call sites in the skeleton step (`.squad/routing.md`, *Loop limits*), check that only the
+  planned call sites changed and no assertion was weakened.
 - Follow `docs/UNIT_TESTS.md` and *Writing tests* in `stack.md` (framework, test doubles from
   `.squad/project.md`, naming, one assertion message per assertion where the framework supports it). Run
   the *Analyzer gate* before handing over and fix the findings in your test files that are test-design

@@ -1,5 +1,5 @@
 # Lint config for the template's Python tools (used by .github/workflows/python-ci.yml).
-target-version = "py39"
+target-version = "py314"
 line-length = 130
 
 [lint]

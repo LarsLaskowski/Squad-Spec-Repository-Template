@@ -17,14 +17,15 @@ What it does, for the chosen stack profile (`profiles/<profile>`):
   them yet;
 - `.squad/template.json` records the template repository, its commit and the profile.
 
-Line endings follow the target: CRLF when its `.gitattributes` sets `* text=auto eol=crlf` (a target without
-one uses the `.gitattributes` the profile seeds), LF otherwise;
-shell scripts always keep LF and the executable bit.
+Line endings follow the target: its `.gitattributes` decides (CRLF for `* text=auto eol=crlf`); an existing
+repository without one keeps the line endings of its index, and its `.gitattributes` and `.editorconfig` are
+not seeded (they would change line endings repository-wide — a decision of its own); only an empty repository
+follows the profile's seeds. Shell scripts always keep LF and the executable bit.
 
 Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo --profile dotnet [--dry-run]
 
-Prints one line per file (created / updated / unchanged / kept / merged / backed-up) and the files in
+Prints one line per file (created / updated / unchanged / kept / skipped / backed-up) and the files in
 template-owned folders of the target that the template does not know (old skills or agents to review).
 """
 import argparse
@@ -51,6 +52,7 @@ MARKED = [
     ".github/pull_request_template.md",
 ]
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
+LINE_ENDING_SEEDS = {".gitattributes", ".editorconfig"}
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
@@ -180,10 +182,10 @@ def main():
     for rel, src in sorted(seeds.items()):
         if os.path.exists(os.path.join(target, rel)):
             report.append(("kept", rel))
-        elif rel == ".gitattributes" and existing:
-            # A new .gitattributes renormalizes line endings across the whole repository; that is a
-            # decision of its own, not a side effect of adopting the squad.
-            report.append(("skipped", rel + " (existing repository without one; add it in a change of its own)"))
+        elif rel in LINE_ENDING_SEEDS and existing and not os.path.isfile(os.path.join(target, ".gitattributes")):
+            # A new .gitattributes or .editorconfig changes line endings across the whole repository; that is
+            # a decision of its own, not a side effect of adopting the squad.
+            report.append(("skipped", rel + " (existing repository without .gitattributes; add it in a change of its own)"))
         else:
             write(target, rel, read(src), crlf, args.dry_run, report)
 

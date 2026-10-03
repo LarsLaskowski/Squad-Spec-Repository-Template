@@ -110,7 +110,9 @@ def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
     with open(dest, "wb") as handle:
         handle.write(data)
     if rel.endswith(".sh"):
-        os.chmod(dest, 0o755)  # noqa: S103  # nosec B103
+        # Add the execute bit only where read is already granted, so the umask is respected.
+        mode = os.stat(dest).st_mode & 0o777
+        os.chmod(dest, mode | ((mode & 0o444) >> 2))
 
 
 def backup(target, rel, dry_run, report):

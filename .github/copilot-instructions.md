@@ -5,8 +5,8 @@ Guidance for GitHub Copilot when working in this repository. `CLAUDE.md`, `AGENT
 
 ## What this repository is
 
-Squad-Spec-Repository-Template: the shared squad, AI-agent rules and scaffolding that `adopt-template` applies to the
-other repositories. It contains no product code. See [`README.md`](README.md) for the layout (`core/`,
+Squad-Spec-Repository-Template: the shared squad, AI-agent rules and scaffolding that `adopt-template` applies
+to the other repositories. It contains no product code. See [`README.md`](README.md) for the layout (`core/`,
 `profiles/`, `seed/`, `decision-seeds/`, `tools/`).
 
 ## Golden rules

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Apply Squad-Spec-Repository-Template to a target repository: the mechanical half of the `adopt-template` skill.
+"""Apply Squad-Spec-Repository-Template to a target repository.
+
+This is the mechanical half of the `adopt-template` skill.
 
 What it does, for the chosen stack profile (`profiles/<profile>`):
 

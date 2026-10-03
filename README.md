@@ -64,11 +64,11 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 ## Using it
 
 In a Claude Code session with this repository and the target repository available, ask for it in plain
-words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill detects the
-profile, runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks and
-the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
-reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and
-keeps everything project-specific.
+words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
+detects the profile, runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
+and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
+reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
+everything project-specific.
 
 ## Changing the template
 
@@ -83,6 +83,10 @@ Every target records this repository in `.squad/template.json` (`repository`), s
 to file. A session without access to this repository files the issue in the product repository with the
 label `squad-upstream`; it is moved here, never worked there.
 
+- Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
+  details into a project block or `.squad/project.md`.
+- Run `python3 tools/template-check.py` before every pull request.
+
 ### Rolling out a change
 
 1. Merge the template PR here (`python3 tools/template-check.py` and the Python CI pass).
@@ -93,9 +97,6 @@ label `squad-upstream`; it is moved here, never worked there.
 3. Close the template issue once the change is merged here; the refresh PRs reference it.
 
 A local edit of a managed file in a product repository is never the fix: the next refresh overwrites it.
-- Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
-  details into a project block or `.squad/project.md`.
-- Run `python3 tools/template-check.py` before every pull request.
 
 ### Adding a stack
 

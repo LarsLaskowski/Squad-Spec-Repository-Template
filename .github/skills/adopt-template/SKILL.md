@@ -5,9 +5,9 @@ description: Use when the user wants to bring the Squad-Spec-Repository-Template
 
 # Adopt Template
 
-Bring Squad-Spec-Repository-Template into a **target repository**, or refresh it there. You run in a session that has both
-this repository and the target cloned. Invoking this skill is the user's approval for opening the pull
-request in the target repository at the end (step 10) — nothing else.
+Bring Squad-Spec-Repository-Template into a **target repository**, or refresh it there. You run in a session
+that has both this repository and the target cloned. Invoking this skill is the user's approval for opening
+the pull request in the target repository at the end (step 10) — nothing else.
 
 Rules that hold throughout:
 
@@ -78,8 +78,8 @@ Rules that hold throughout:
    `stack.md` where they contradict it.
 8. **Decision records, settings, CI.**
    - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
-     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has an equivalent record;
-     add them to the index.
+     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has an
+     equivalent record; add them to the index.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
@@ -93,8 +93,8 @@ Rules that hold throughout:
    review only the delta.
 10. **Pull request** in the target, from its `.github/pull_request_template.md`: title
     `[Docs] Adopt the Squad-Spec-Repository-Template squad and agent rules` (refresh:
-    `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced, moved and
-    deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
+    `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced,
+    moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until CI is green.
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.
     coverage below 80 %), and any template change you had to make here first.

@@ -1,8 +1,8 @@
 # Stack: Node.js / TypeScript
 
 The toolchain and the exact commands of this repository. Every squad member, skill and instruction file
-refers to the entries below by their *italic name*. Seeded from the Squad-Spec-Repository-Template `node` profile and
-owned by this repository: keep it true when the build changes.
+refers to the entries below by their *italic name*. Seeded from the Squad-Spec-Repository-Template `node`
+profile and owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 

@@ -15,7 +15,7 @@ it. This script checks, without arguments:
 - `.squad/template.json` names the template repository (where lessons about template-managed files are
   filed);
 - `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
-  template seeded or rebuilt still contains a Squad-Spec-Repository-Template placeholder (`{{TODO: …}}` — a marker that
+  template seeded or rebuilt still contains a template placeholder (`{{TODO: …}}` — a marker that
   ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain).
 
 Usage, from anywhere inside the repository:
@@ -126,7 +126,7 @@ def check_template_record(errors):
     except (OSError, ValueError) as error:
         errors.append(f"{path}: {error} (written by adopt-template)")
         return
-    if not str(record.get("repository") or "").strip():
+    if not isinstance(record, dict) or not str(record.get("repository") or "").strip():
         errors.append(f"{path}: no 'repository' - refresh the squad with adopt-template")
 
 

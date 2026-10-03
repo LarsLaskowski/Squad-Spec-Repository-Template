@@ -31,7 +31,8 @@ The orchestrator tells you which **mode** to run:
   - the **test files**: named strictly by the convention in *Layout* of `.squad/stack.md` and
     `docs/UNIT_TESTS.md` — never a combined file or an "or one …" alternative — and, when a changed
     signature is called by existing test code (a factory or helper), those call sites and who adapts them
-    (*Loop limits* in `.squad/routing.md`: the Tester if old and new signature can coexist, else the Dev);
+    (*Loop limits* in `.squad/routing.md`: the Dev in the skeleton step if the old signature goes away,
+    the Tester if old and new signature coexist);
   - the **documentation updates** the change requires (`README.md` configuration table and env vars,
     `docs/*.md`), which the Dev makes.
 

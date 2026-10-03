@@ -33,8 +33,8 @@ guarantee or coupling point — and the Reviewer treats a stale entry there like
 
 ## Template-managed files
 
-Many squad, instruction and documentation files come from the Squad-Spec-Repository-Template repository and are
-refreshed from there with its `adopt-template` skill (`.squad/template.json` records the template
+Many squad, instruction and documentation files come from the Squad-Spec-Repository-Template repository and
+are refreshed from there with its `adopt-template` skill (`.squad/template.json` records the template
 repository, its commit and the stack profile). Three kinds:
 
 - **Managed** — overwritten on every refresh: `.squad/team.md`, `.squad/routing.md`, the charters in
@@ -92,7 +92,7 @@ tier applies; Security or the Reviewer may raise the tier at any point (never lo
 | 9 | PR approval | Lead | Latest review round without a blocking finding not covered by a recorded Lead decision, and covering every change to production code, tests and `docs/` except `specs/` bookkeeping and the Lead's own approval edits (record status, index, `docs/ARCHITECTURE.md` link); plan fulfilled, coverage met, decision records `Accepted` and indexed → `APPROVED` → 10 |
 | 10 | Pull request | Dev (via orchestrator) | Working record posted as comment, `specs/<folder>/` removed, PR opened (merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green, SonarQube Cloud quality gate passed, review comments worked |
-| 12 | Wrap-up | Orchestrator | Squad lessons filed as one `squad` issue (or "no lessons" logged), user informed |
+| 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; user informed |
 
 Commits and pushes to the work branch happen right after intake (`specs/<folder>/log.md`, so a stop hook
 or a crashed session finds no untracked files) and after every further completed step; with *Squash and
@@ -126,10 +126,14 @@ told so.
   rounds**, each reviewing only the delta. Blocking findings still open after that go to the Lead, who
   decides: accept with justification, split into a follow-up issue, abort, or escalate.
 - **Existing tests affected by a signature change:** when the plan changes a constructor or another
-  signature that existing test code calls (a test factory or helper), the plan names who adapts it: the
-  Tester in step 5 when old and new signature can coexist (e.g. an added overload), otherwise the Dev in
-  step 6, for exactly the call sites the plan lists and nothing else in the tests. This is the only case in
-  which the Dev edits test code; the Tester reviews that edit in the coverage step.
+  signature that existing test code calls (a test factory or helper), the plan lists those call sites and
+  who adapts them. If the old signature is removed or changed incompatibly, the existing tests stop
+  building as soon as the skeleton exists, so the **Dev** adapts exactly the listed call sites in step 4
+  (*Skeleton*) — mechanically, to the new signature, without touching an assertion — so *Build* passes
+  before the Tester starts. If old and new signature coexist (e.g. an added overload), nothing breaks, and
+  the **Tester** moves the listed call sites to the new signature in step 5 where the plan asks for it.
+  This is the only case in which the Dev edits test code; the Tester checks the Dev's edit of those call
+  sites in its coverage step (only those sites, no assertion weakened).
 - **Dev ↔ Tester disagreements:** if the Dev believes a step-5 test is wrong, the Lead decides (the test
   is not changed silently). Not counted against a loop limit.
 - **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted

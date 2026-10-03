@@ -189,7 +189,7 @@ def main():
         else:
             text = read(src)
             if rel == ".editorconfig":
-                text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)\s*$", r"\g<1>" + ("crlf" if crlf else "lf"), text,
+                text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)[ \t]*$", r"\g<1>" + ("crlf" if crlf else "lf"), text,
                               flags=re.M)
             write(target, rel, text, crlf, args.dry_run, report)
 

@@ -33,7 +33,8 @@ Rules that hold throughout:
    `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
    solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new
    profile has to be added to Squad-Spec-Repository-Template first (see `README.md`, *Adding a stack*).
-3. **Apply.** From the template repository's root run
+3. **Apply.** From the template repository's root, on an up-to-date checkout of its `main` (the commit
+   is recorded in `.squad/template.json`; a branch commit disappears with the squash merge), run
    `python3 tools/apply-template.py --target <path> --profile <profile> --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files and the files in template-owned
    folders the template does not know.

@@ -46,9 +46,9 @@ MARKED = [
     ".github/copilot-instructions.md",
     "docs/CONTRIBUTING.md",
     "docs/ARCHITECTURE.md",
-    "SECURITY.md",
     ".github/ISSUE_TEMPLATE/bug_report.md",
     "docs/decisions/README.md",
+    ".github/pull_request_template.md",
 ]
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
@@ -89,11 +89,28 @@ def fill(template, project, stack):
     return BLOCK.sub(replace, template)
 
 
+def tracked_eol(target):
+    """Count text files stored with CRLF and with LF in the target's index."""
+    listing = subprocess.run(["git", "-C", target, "ls-files", "--eol"], capture_output=True, text=True,
+                             check=False).stdout.split()
+    return listing.count("i/crlf"), listing.count("i/lf")
+
+
+def is_existing_repository(target):
+    crlf, lf = tracked_eol(target)
+    return crlf + lf > 0
+
+
 def uses_crlf(target, profile):
-    """The target's own .gitattributes decides; without one, the profile's seeded one does."""
+    """The target's own .gitattributes decides; an existing repository without one keeps the line endings
+    of its index; only an empty repository follows the profile's seeded .gitattributes."""
     path = os.path.join(target, ".gitattributes")
-    if not os.path.isfile(path):
-        path = os.path.join(profile, "seed", "gitattributes")
+    if os.path.isfile(path):
+        return re.search(r"^\*\s+text=auto\s+eol=crlf", read(path), re.M) is not None
+    if is_existing_repository(target):
+        crlf, lf = tracked_eol(target)
+        return crlf > lf
+    path = os.path.join(profile, "seed", "gitattributes")
     return os.path.isfile(path) and re.search(r"^\*\s+text=auto\s+eol=crlf", read(path), re.M) is not None
 
 
@@ -159,9 +176,14 @@ def main():
 
     seeds = files_under(os.path.join(ROOT, "seed"))
     seeds.update(files_under(os.path.join(profile, "seed")))
+    existing = is_existing_repository(target)
     for rel, src in sorted(seeds.items()):
         if os.path.exists(os.path.join(target, rel)):
             report.append(("kept", rel))
+        elif rel == ".gitattributes" and existing:
+            # A new .gitattributes renormalizes line endings across the whole repository; that is a
+            # decision of its own, not a side effect of adopting the squad.
+            report.append(("skipped", rel + " (existing repository without one; add it in a change of its own)"))
         else:
             write(target, rel, read(src), crlf, args.dry_run, report)
 

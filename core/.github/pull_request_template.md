@@ -47,6 +47,9 @@ Please provide a summary of the tests affected by this work and any unique strat
 - [ ] I have read the [CONTRIBUTING](../docs/CONTRIBUTING.md) documentation and followed the project's code style guidelines.
 - [ ] New dependencies, if any, were added the way *Dependencies* in `.squad/stack.md` prescribes.
 
+<!-- project:begin checklist -->
+<!-- project:end checklist -->
+
 ## ⏭ Next Steps
 
 <!---

@@ -43,12 +43,20 @@ Rules that hold throughout:
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:
    - instruction files: *overview*, *architecture*, *configuration*, *code-style* (only what goes beyond
      the stack block);
-   - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*;
+   - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*,
+     *license*;
    - `docs/ARCHITECTURE.md`: *architecture* (normally the whole former document, minus a former
      "development process" section the template now provides);
-   - `SECURITY.md`: *contact* (the real reporting address), *deployment*, *scope*;
-   - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*;
+   - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*, *logs*;
+   - `.github/pull_request_template.md`: *checklist* (project-specific checklist items, e.g. a UI section);
    - `docs/decisions/README.md`: *index* (the existing table rows).
+   `SECURITY.md` is seeded, not rebuilt: an existing one stays as it is; a new one gets its placeholders
+   filled. Before this step, move documents the template expects under `docs/` but the target keeps
+   elsewhere (e.g. a root-level `ARCHITECTURE.md` or `CONTRIBUTING.md`) with `git mv` and fix every link
+   to them, so their content lands in the template's file instead of living twice. A pull request or
+   issue template under another name or case (e.g. `.github/PULL_REQUEST_TEMPLATE.md`) is merged into the
+   template's file and removed — GitHub would otherwise pick one at random, and the two names collide on
+   case-insensitive file systems.
    Links in the three instruction files are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`)
    so they resolve from `.github/copilot-instructions.md` too; write the project blocks the same way.
    Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a

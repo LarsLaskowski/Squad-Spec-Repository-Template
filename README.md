@@ -41,9 +41,9 @@ Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, PR template, feature-request template, `specs/` templates, `docs/decisions/_template.md` | overwritten |
-| marked | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `SECURITY.md`, bug report template, decision index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
-| seed | `.squad/stack.md`, `.squad/project.md`, `.squad/decisions.md`, histories, `squad_settings.py`, `.claude/settings.json`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
+| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md` | overwritten |
+| marked | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
+| seed | `.squad/stack.md`, `.squad/project.md`, `.squad/decisions.md`, histories, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,

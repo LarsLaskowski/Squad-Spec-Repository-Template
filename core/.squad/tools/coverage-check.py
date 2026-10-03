@@ -71,7 +71,8 @@ def add_hit(hits, path, number, count):
 
 
 def load_cobertura(report):
-    root = ET.parse(report).getroot()
+    # Local report from the repo's own test run; the tool stays stdlib-only, so no defusedxml.
+    root = ET.parse(report).getroot()  # noqa: S314  # nosec B314
     sources = [s.text.rstrip("/\\") for s in root.iter("source") if s.text]
     hits = {}
     for cls in root.iter("class"):

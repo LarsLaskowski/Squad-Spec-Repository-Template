@@ -1,0 +1,10 @@
+# Lint config for the template's Python tools (used by .github/workflows/python-ci.yml).
+target-version = "py39"
+line-length = 130
+
+[lint]
+select = ["E", "F", "W", "B", "S", "UP", "C4", "SIM"]
+ignore = [
+    "S603",  # the tools run fixed commands (git, python3, dotnet, ...) and never a shell
+    "S607",  # tools are looked up on PATH on purpose
+]

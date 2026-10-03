@@ -29,16 +29,20 @@ import os
 import re
 import sys
 
-AGENTS_DIR = os.path.join(".claude", "agents")
-SKILL_ROOTS = [os.path.join(".claude", "skills"), os.path.join(".agents", "skills"), os.path.join(".github", "skills")]
-INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md")]
-REQUIRED_FILES = [os.path.join(".squad", "stack.md"), os.path.join(".squad", "project.md"),
-                  os.path.join(".squad", "tools", "squad_settings.py")]
-PLACEHOLDER = re.compile(r"\{\{TODO:\s*([^{}]*?)\}\}")
+CLAUDE_DIR = ".claude"
+GITHUB_DIR = ".github"
+SQUAD_DIR = ".squad"
+AGENTS_DIR = os.path.join(CLAUDE_DIR, "agents")
+SKILL_ROOTS = [os.path.join(CLAUDE_DIR, "skills"), os.path.join(".agents", "skills"), os.path.join(GITHUB_DIR, "skills")]
+INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", os.path.join(GITHUB_DIR, "copilot-instructions.md")]
+REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), os.path.join(SQUAD_DIR, "project.md"),
+                  os.path.join(SQUAD_DIR, "tools", "squad_settings.py")]
+# No quantifier overlaps another one, so matching stays linear (no backtracking).
+PLACEHOLDER = re.compile(r"\{\{TODO:([^{}]*)\}\}")
 PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [
     "SECURITY.md", "sonar-project.properties",
-    os.path.join(".squad", "**", "*.md"), os.path.join("docs", "**", "*.md"),
-    os.path.join(".github", "**", "*.md"), os.path.join(".github", "**", "*.yml"),
+    os.path.join(SQUAD_DIR, "**", "*.md"), os.path.join("docs", "**", "*.md"),
+    os.path.join(GITHUB_DIR, "**", "*.md"), os.path.join(GITHUB_DIR, "**", "*.yml"),
 ]
 
 try:
@@ -119,7 +123,7 @@ def check_instructions(errors):
 
 
 def check_template_record(errors):
-    path = os.path.join(".squad", "template.json")
+    path = os.path.join(SQUAD_DIR, "template.json")
     try:
         with open(path, encoding="utf-8") as handle:
             record = json.load(handle)

@@ -28,7 +28,10 @@ Rules that hold throughout:
    off `origin/main`. Read its `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `README.md`,
    `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile` (older
-   records without `repository` get it on this run) and continue with step 3.
+   records without `repository` get it on this run) and continue with step 3. Seeded files are not
+   refreshed, so on a refresh compare the target's `.squad/stack.md` and `squad_settings.py` with the
+   profile's seeds (`git -C <template> diff <old commit>..main -- profiles/<profile>/seed`) and carry over
+   changed commands or settings by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
    solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new

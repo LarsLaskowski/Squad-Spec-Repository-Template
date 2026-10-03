@@ -29,6 +29,10 @@ Every new or changed member, with its full signature — or "none".
 Named strictly by the convention in *Layout* of [`.squad/stack.md`](../../.squad/stack.md) and
 [UNIT_TESTS.md](../../docs/UNIT_TESTS.md) — no combined file, no alternatives.
 
+Existing test code that calls a changed signature (factories, helpers): the call sites, and who adapts them —
+the Tester in step 5 if old and new signature can coexist, otherwise the Dev in step 6 for exactly these
+call sites (`.squad/routing.md`, *Loop limits*). "None" if no existing test is affected.
+
 ## Documentation updates
 
 `README.md` (configuration table, env vars), `docs/*.md` — or "none".

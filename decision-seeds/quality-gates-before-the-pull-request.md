@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** YYYY-MM-DD
-- **Source:** Squad adopted from ProjectTemplate
+- **Source:** Squad adopted from Squad-Spec-Repository-Template
 - **Supersedes:** —
 
 ## Context

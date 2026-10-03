@@ -28,6 +28,7 @@ The orchestrator tells you which **mode** to run:
 Do not run *Format* and do not chase style diagnostics unless the Code Officer hands one back — the Code
 Officer owns them. Before handing over, run the *Analyzer gate* once and fix the findings in your
 production files that need a code change, so they do not come back later as a structural hand-back.
-Never edit tests (a test you believe is wrong goes back as a report for the Lead), never deviate from the
+Never edit tests (a test you believe is wrong goes back as a report for the Lead) — the only exception
+is adapting the existing test call sites of a changed signature that the plan explicitly assigns to you; never deviate from the
 plan silently, never run Git write operations. Report: changed files, build/test/coverage result, plan
 deviations.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-check for ProjectTemplate, run before every PR in this repository.
+"""Self-check for Squad-Spec-Repository-Template, run before every PR in this repository.
 
 Checks, without arguments:
 

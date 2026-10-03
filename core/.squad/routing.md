@@ -23,9 +23,9 @@ that replaces it). Step numbers below are the ones the skills use.
 An issue or feature PR changes the product and its documentation only. It never touches the squad or the
 agent instructions: `.squad/` (charters, `history.md`, `decisions.md`, tools), `.claude/`,
 `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`.
-Lessons about the squad are collected in step 12 as a GitHub issue labelled `squad` and implemented in a
-separate squad-maintenance PR, which runs `.squad/tools/config-check.py`. The Reviewer reports any such
-file in a product PR as a blocking finding.
+Lessons about the squad are collected in step 12 and filed where they can be fixed (*Squad lessons*
+below), never fixed in the product PR. The Reviewer reports any such file in a product PR as a blocking
+finding.
 
 One exception: `.squad/stack.md` and `.squad/project.md` describe the product, not the squad. A product PR
 updates them when the change itself makes them untrue — a new build command, a new security area, a new
@@ -33,9 +33,9 @@ guarantee or coupling point — and the Reviewer treats a stale entry there like
 
 ## Template-managed files
 
-Many squad, instruction and documentation files come from the ProjectTemplate repository and are
-refreshed from there with its `adopt-template` skill (`.squad/template.json` records the template commit
-and stack profile). Three kinds:
+Many squad, instruction and documentation files come from the Squad-Spec-Repository-Template repository and are
+refreshed from there with its `adopt-template` skill (`.squad/template.json` records the template
+repository, its commit and the stack profile). Three kinds:
 
 - **Managed** — overwritten on every refresh: `.squad/team.md`, `.squad/routing.md`, the charters in
   `.squad/agents/*/charter.md`, `.squad/tools/*.py` except `squad_settings.py`, `.squad/tools/.gitignore`,
@@ -52,8 +52,18 @@ and stack profile). Three kinds:
   `.claude/settings.json`, `docs/UNIT_TESTS.md` and the stack profile's CI, CodeQL, Dependabot and tool
   configuration files.
 
-A lesson that concerns a managed file or the template part of a marked file is fixed in ProjectTemplate
-and rolled out from there; the step-12 `squad` issue says so, so the fix is not lost in the next refresh.
+## Squad lessons
+
+Every lesson from step 12 is filed once, where it can actually be fixed:
+
+| The lesson concerns | Filed as | Fixed by |
+| ------------------- | -------- | -------- |
+| a **managed** file, or the template part of a **marked** file (squad rules, charters, agents, skills, tools, the shared sections of the instruction files) | an issue labelled `squad` in the template repository named in `.squad/template.json` (`repository`), titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | a PR in the template repository, then a refresh of every repository that uses the template (`adopt-template`) — never a local edit, which the next refresh would overwrite |
+| **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `.squad/tools/squad_settings.py`, a `<!-- project:… -->` block, another seeded file | an issue labelled `squad` in this repository | a small squad-maintenance PR in this repository, checked with `.squad/tools/config-check.py` |
+
+One run's lessons go into at most one issue per destination. If the session cannot create an issue in the
+template repository (no access), it files that issue in this repository with the label `squad-upstream`
+and tells the user, who moves it to the template repository; it is never worked here.
 
 ## Tiers
 
@@ -62,7 +72,7 @@ tier applies; Security or the Reviewer may raise the tier at any point (never lo
 
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
-| `docs` | Issues only (never a feature). Only product Markdown documentation changes — `README.md`, `docs/` except `docs/decisions/`, and inside their `<!-- project:… -->` blocks `SECURITY.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md` and the bug report template — and no other file at all (template-managed files such as the PR template are fixed in ProjectTemplate, see *Template-managed files*): not even a comment in production or test code (that is `trivial`), no build, CI, Docker or config file, and never squad or instruction files (`.squad/`, `.claude/`, `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`). A change that needs a decision record is not `docs` either. | Lead plans briefly (no `plan.md`: tier, change list and acceptance criteria go into its result, recorded as the first `log.md` row); steps 3–7 and 9 skipped; the Dev makes the edits; the orchestrator verifies read-only (*Format check* in `.squad/stack.md`); one Reviewer round, which checks the diff against the first `log.md` row — a blocking finding goes to the Dev, then the read-only check and a delta round; the orchestrator opens the PR once the latest round is clean. |
+| `docs` | Issues only (never a feature). Only product Markdown documentation changes — `README.md`, `docs/` except `docs/decisions/`, and inside their `<!-- project:… -->` blocks `SECURITY.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md` and the bug report template — and no other file at all (template-managed files such as the PR template are fixed in Squad-Spec-Repository-Template, see *Template-managed files*): not even a comment in production or test code (that is `trivial`), no build, CI, Docker or config file, and never squad or instruction files (`.squad/`, `.claude/`, `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`). A change that needs a decision record is not `docs` either. | Lead plans briefly (no `plan.md`: tier, change list and acceptance criteria go into its result, recorded as the first `log.md` row); steps 3–7 and 9 skipped; the Dev makes the edits; the orchestrator verifies read-only (*Format check* in `.squad/stack.md`); one Reviewer round, which checks the diff against the first `log.md` row — a blocking finding goes to the Dev, then the read-only check and a delta round; the orchestrator opens the PR once the latest round is clean. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and Lead approval still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2; step 3 skipped; Security reviews only the diff (step 8) |
 | `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency | Full pipeline, including the plan challenge in step 2 |
@@ -115,6 +125,11 @@ told so.
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review; at most **2 further fix-and-review
   rounds**, each reviewing only the delta. Blocking findings still open after that go to the Lead, who
   decides: accept with justification, split into a follow-up issue, abort, or escalate.
+- **Existing tests affected by a signature change:** when the plan changes a constructor or another
+  signature that existing test code calls (a test factory or helper), the plan names who adapts it: the
+  Tester in step 5 when old and new signature can coexist (e.g. an added overload), otherwise the Dev in
+  step 6, for exactly the call sites the plan lists and nothing else in the tests. This is the only case in
+  which the Dev edits test code; the Tester reviews that edit in the coverage step.
 - **Dev ↔ Tester disagreements:** if the Dev believes a step-5 test is wrong, the Lead decides (the test
   is not changed silently). Not counted against a loop limit.
 - **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted

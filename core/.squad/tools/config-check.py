@@ -12,8 +12,10 @@ it. This script checks, without arguments:
 - the three skill folders contain the same skills with identical content;
 - `CLAUDE.md`, `AGENTS.md` and `.github/copilot-instructions.md` are identical from their first `## `
   heading on (only the title and introduction may differ);
+- `.squad/template.json` names the template repository (where lessons about template-managed files are
+  filed);
 - `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
-  template seeded or rebuilt still contains a ProjectTemplate placeholder (`{{TODO: …}}` — a marker that
+  template seeded or rebuilt still contains a Squad-Spec-Repository-Template placeholder (`{{TODO: …}}` — a marker that
   ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain).
 
 Usage, from anywhere inside the repository:
@@ -22,6 +24,7 @@ Usage, from anywhere inside the repository:
 Exit code 0 when everything is valid, 1 otherwise. Requires PyYAML (`pip install pyyaml`).
 """
 import glob
+import json
 import os
 import re
 import sys
@@ -115,6 +118,18 @@ def check_instructions(errors):
             errors.append(f"{path} differs from {present[0]} after the first '## ' heading")
 
 
+def check_template_record(errors):
+    path = os.path.join(".squad", "template.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            record = json.load(handle)
+    except (OSError, ValueError) as error:
+        errors.append(f"{path}: {error} (written by adopt-template)")
+        return
+    if not str(record.get("repository") or "").strip():
+        errors.append(f"{path}: no 'repository' - refresh the squad with adopt-template")
+
+
 def check_project_files(errors):
     for path in REQUIRED_FILES:
         if not os.path.isfile(path):
@@ -138,6 +153,7 @@ def main():
         check(path, os.path.splitext(os.path.basename(path))[0], errors)
     skills = check_skills(errors)
     check_instructions(errors)
+    check_template_record(errors)
     check_project_files(errors)
 
     if not agents or not skills:

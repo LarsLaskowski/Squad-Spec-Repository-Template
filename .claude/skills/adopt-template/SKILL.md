@@ -1,11 +1,11 @@
 ---
 name: adopt-template
-description: Use when the user wants to bring the ProjectTemplate squad and AI rules (Claude, Codex/GPT, Copilot) into another repository, or to refresh a repository that already uses them. Detects the stack profile, applies the template with tools/apply-template.py, moves the repository's own knowledge into the project sections, .squad/stack.md and .squad/project.md, replaces old skills, verifies everything and opens a pull request in the target repository.
+description: Use when the user wants to bring the Squad-Spec-Repository-Template squad and AI rules (Claude, Codex/GPT, Copilot) into another repository, or to refresh a repository that already uses them. Detects the stack profile, applies the template with tools/apply-template.py, moves the repository's own knowledge into the project sections, .squad/stack.md and .squad/project.md, replaces old skills, verifies everything and opens a pull request in the target repository.
 ---
 
 # Adopt Template
 
-Bring ProjectTemplate into a **target repository**, or refresh it there. You run in a session that has both
+Bring Squad-Spec-Repository-Template into a **target repository**, or refresh it there. You run in a session that has both
 this repository and the target cloned. Invoking this skill is the user's approval for opening the pull
 request in the target repository at the end (step 10) — nothing else.
 
@@ -19,7 +19,7 @@ Rules that hold throughout:
   skills or agents — ends up in a project block, `.squad/stack.md`, `.squad/project.md`, `docs/` or a kept
   file. Deleting is only allowed for content the template now covers word for word in meaning.
 - **Template-managed files are not edited in the target** (`.squad/routing.md`, *Template-managed files*).
-  If one does not fit the target, stop and fix it here in ProjectTemplate first, then re-apply.
+  If one does not fit the target, stop and fix it here in Squad-Spec-Repository-Template first, then re-apply.
 - Everything written into the target is in **English**.
 
 ## Steps
@@ -27,13 +27,13 @@ Rules that hold throughout:
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
    off `origin/main`. Read its `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `README.md`,
    `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build files before changing anything.
-   If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile` and continue
-   with step 3.
+   If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile` (older
+   records without `repository` get it on this run) and continue with step 3.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
    solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new
-   profile has to be added to ProjectTemplate first (see `README.md`, *Adding a stack*).
-3. **Apply.** From the ProjectTemplate root run
+   profile has to be added to Squad-Spec-Repository-Template first (see `README.md`, *Adding a stack*).
+3. **Apply.** From the template repository's root run
    `python3 tools/apply-template.py --target <path> --profile <profile> --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files and the files in template-owned
    folders the template does not know.
@@ -77,8 +77,8 @@ Rules that hold throughout:
    agents (`.github/agents/`) and path instructions (`.github/instructions/`) stay; align their rules with
    `stack.md` where they contradict it.
 8. **Decision records, settings, CI.**
-   - Add the records from ProjectTemplate's `decision-seeds/` with the next free numbers (date today,
-     *Source* "Squad adopted from ProjectTemplate"), unless the target already has an equivalent record;
+   - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
+     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has an equivalent record;
      add them to the index.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
      exists; keep every other hook.
@@ -92,8 +92,8 @@ Rules that hold throughout:
    target's `squad-reviewer` agent (round 1, full) on the diff and fix its blocking findings; later rounds
    review only the delta.
 10. **Pull request** in the target, from its `.github/pull_request_template.md`: title
-    `[Docs] Adopt the ProjectTemplate squad and agent rules` (refresh:
-    `[Docs] Update the squad from ProjectTemplate`), a description of what was added, replaced, moved and
+    `[Docs] Adopt the Squad-Spec-Repository-Template squad and agent rules` (refresh:
+    `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced, moved and
     deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until CI is green.
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.
@@ -101,6 +101,8 @@ Rules that hold throughout:
 
 ## Updating the template itself
 
-A lesson from a target (a `squad` issue there that concerns a template-managed file) is fixed in this
-repository: change `core/` or the profile, run `python3 tools/template-check.py`, open a PR here, and after
-its merge refresh the targets with this skill.
+A lesson about a template-managed file is filed as a `squad` issue in this repository (or arrives as a
+`squad-upstream` issue in a target and is moved here). It is fixed here: change `core/` or the profile, run
+`python3 tools/template-check.py`, open a PR here, and after its merge refresh every target that has a
+`.squad/template.json` with this skill (README, *Rolling out a change*). On a refresh, also check the
+target for open `squad-upstream` issues and move them here.

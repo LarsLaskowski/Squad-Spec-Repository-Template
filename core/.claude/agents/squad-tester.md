@@ -13,7 +13,8 @@ Read first: `.squad/agents/tester/charter.md`, `.squad/agents/tester/history.md`
 Mode `tests-first`:
 
 1. Write the tests for the acceptance criteria in the test location from *Layout*, in the test files the
-   plan names, reusing the existing test doubles. For a bug, use the input reported in the issue.
+   plan names, reusing the existing test doubles. If the plan assigns you existing test call sites of a
+   changed signature (old and new signature coexist), adapt them so the suite keeps building. For a bug, use the input reported in the issue.
 2. Build and run the new tests. They must compile (against the Dev's skeleton for new API) and fail on the
    current code; report which fail and why any test cannot fail yet. Never leave the test suite in a
    state that does not build — that would break every other test.

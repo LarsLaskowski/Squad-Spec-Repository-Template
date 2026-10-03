@@ -7,7 +7,7 @@ squad-maintenance PRs); in Claude Code the roles run as subagents under `.claude
 invoking session (the orchestrator). An agent without subagent support runs each role inline by following
 the same agent file.
 
-The squad files are stack-neutral and come from the ProjectTemplate repository. Everything specific to
+The squad files are stack-neutral and come from the Squad-Spec-Repository-Template repository. Everything specific to
 this repository lives in two files the members read first:
 
 - [`stack.md`](stack.md) — toolchain, layout and the exact commands: format, build, test, coverage, the

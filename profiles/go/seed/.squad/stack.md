@@ -1,7 +1,7 @@
 # Stack: Go
 
 The toolchain and the exact commands of this repository. Every squad member, skill and instruction file
-refers to the entries below by their *italic name*. Seeded from the ProjectTemplate `go` profile and owned
+refers to the entries below by their *italic name*. Seeded from the Squad-Spec-Repository-Template `go` profile and owned
 by this repository: keep it true when the build changes.
 
 ## Toolchain

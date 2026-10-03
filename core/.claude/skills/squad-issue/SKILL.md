@@ -34,7 +34,10 @@ action yourself — including follow-up issues the Lead decides on.
   push `specs/<folder>/log.md` right after intake (step 1), so a stop hook or a crashed session finds no
   untracked files, and after every further completed step. PRs are merged with *Squash and merge*, so only
   the PR title and description reach `main`; intermediate commit messages may name the step, but never
-  contain secrets. Never commit to `main`.
+  contain secrets. Interim work-in-progress commits — e.g. demanded by a stop hook while a member is still
+  working — are fine for the same reason. Stage with plain `git add -A`: ignored paths such as `TestResults/`
+  are skipped anyway, and an exclusion pathspec for an ignored path makes `git add` fail and stage
+  nothing. Never commit to `main`.
 - **GitHub access:** use the GitHub MCP tools (`mcp__github__*`) for issues, comments, labels and pull
   requests. In these sessions the `gh` CLI only works as `gh api repos/<owner>/<repo>/...`; `gh issue`,
   `gh pr` and `gh search` fail (GraphQL is blocked and search is not scoped to the repository).
@@ -145,11 +148,14 @@ action yourself — including follow-up issues the Lead decides on.
     comment. Never skip, disable or weaken a test to get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself (a rule that was
     unclear or contradictory, a tool that misbehaved, an agent that could not be launched, a step that
-    had to be improvised) and open **one** GitHub issue labelled `squad` (create the label if missing)
-    that lists each lesson with the role it concerns and a concrete proposal; link it from the working
-    record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files — that happens in a
-    separate squad-maintenance PR. Report the branch, the PR URL, the tier, the `squad` issue (or "no
-    lessons") and any escalation or Lead decision to the user. If there is genuinely nothing to learn,
+    had to be improvised), each with the role it concerns and a concrete proposal, and file them as
+    *Squad lessons* in `.squad/routing.md` says: lessons about template-managed files as **one** issue in
+    the template repository named in `.squad/template.json` (attach that repository to the session if
+    needed; without access, file it here with the label `squad-upstream`), lessons about project knowledge
+    as **one** issue labelled `squad` in this repository (create the labels if missing). Link the issues
+    from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
+    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons") and any escalation or
+    Lead decision to the user. If there is genuinely nothing to learn,
     append a `| <date> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
     instead of opening an issue — the step itself is never skipped.
 

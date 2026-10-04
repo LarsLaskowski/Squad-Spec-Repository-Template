@@ -9,3 +9,4 @@ COVERAGE_FORMAT = "cobertura"
 COVERAGE_REPORT_GLOB = "TestResults/**/coverage.cobertura.xml"
 COVERAGE_PATHSPECS = ["src/*.cs", "src/*.razor"]
 COVERAGE_EXCLUDES = []
+COVERAGE_TEST_PATHSPECS = ["tests/*.cs"]  # a diff touching these is gated on overall coverage too

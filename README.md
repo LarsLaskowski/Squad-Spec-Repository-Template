@@ -80,8 +80,10 @@ Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squa
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
 Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where
-to file. A session without access to this repository files the issue in the product repository with the
-label `squad-upstream`; it is moved here, never worked there.
+to file. A general lesson is always filed here: the session attaches this repository first if needed. Only a
+session that is refused access files the issue in the product repository with the label `squad-upstream`; it
+is moved here, never worked there. After the fix is merged here, the product repository adopts it with
+`adopt-template`.
 
 - Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
   details into a project block or `.squad/project.md`.

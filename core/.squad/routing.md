@@ -77,6 +77,18 @@ tier applies; Security or the Reviewer may raise the tier at any point (never lo
 | `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2; step 3 skipped; Security reviews only the diff (step 8) |
 | `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency | Full pipeline, including the plan challenge in step 2 |
 
+### Changes without production or test code
+
+For **any** tier, a plan may declare steps 4 (*Skeleton*), 5 (*Tests first*) and the *Coverage gate* of step 6
+**not applicable** when the change touches no production or test code (for example a workflow, a Dockerfile,
+build or CI configuration, or documentation only). The tier is not lowered by this: a `security` change
+keeps its plan challenge, steps 3 and 8 and every other step. The Lead then names in `plan.md`, under
+*Verification without tests*, where each acceptance criterion is verified instead (a workflow verification
+step, a PR dry run, a build of the image, a read-only check) and who runs it; the orchestrator logs the
+skipped steps with a pointer to that section. The Reviewer checks that the statement exists, that it covers
+every acceptance criterion and that the diff really contains no production or test code — otherwise the
+skip is a blocking finding. If production or test code changes after all, steps 4–6 apply again.
+
 ## Pipeline
 
 | # | Step | Owner | Exit condition |

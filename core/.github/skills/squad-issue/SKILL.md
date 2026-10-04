@@ -83,8 +83,8 @@ action yourself — including follow-up issues the Lead decides on.
    `NO OBJECTIONS`) and the Lead's answer in `log.md`.
 3. **Plan security review** (`security` tier only). Launch `squad-security` in mode `plan`. On
    `CHANGES_REQUIRED`, launch `squad-lead` in mode `revise` and repeat. After the **2nd** rejection launch
-   `squad-lead` in mode `decide` (scope down, split into issues, abort, or escalate).
-4. **Skeleton** (only if the plan adds or changes API). Launch `squad-dev` in mode `skeleton`: the planned
+   `squad-lead` in mode `decide` (scope down, split into issues, abort, escalate, or — for a pure wording defect — accept and fix it followed by exactly one `squad-security` delta confirmation).
+4. **Skeleton** (only if the plan adds or changes API; skipped, like step 5, for a change without production or test code). Launch `squad-dev` in mode `skeleton`: the planned
    signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), plus the existing
    test call sites the plan assigns to the Dev for an incompatible signature change, so the tests of step 5
    compile.
@@ -92,7 +92,8 @@ action yourself — including follow-up issues the Lead decides on.
    that the new tests compile and fail on the current code (unless the Tester justified why one cannot).
    A fix without a reproducing test is only acceptable when the bug genuinely needs a live external
    system — then the PR says so.
-6. **Implement and cover.** Launch `squad-dev` in mode `implement` with the plan and the test names; it
+6. **Implement and cover.** For a change without production or test code this is the Dev's edits alone: no
+   `squad-tester`, no *Test with coverage*, no *Coverage gate*. Launch `squad-dev` in mode `implement` with the plan and the test names; it
    also makes the documentation updates the plan lists. If the Dev disputes a test, launch `squad-lead`
    in mode `decide`; the Tester changes a test only if the Lead says so. Then launch `squad-tester` in
    mode `coverage`; repeat Dev/Tester until the *Coverage gate* (after *Test with coverage*, both in
@@ -102,7 +103,7 @@ action yourself — including follow-up issues the Lead decides on.
    the formatter and clears analyzer diagnostics. Then verify yourself, without formatting, with the
    commands from `.squad/stack.md`: *Format check* exits 0, the *Analyzer gate* passes (no diagnostic of
    any severity in a changed file), *Test* is green with the same tests, and the *Coverage gate* still
-   passes. Record status and index are the Lead's in step 9: treat any status claim in the
+   passes (not run for a change without production or test code). Record status and index are the Lead's in step 9: treat any status claim in the
    Code Officer's report as unverified until you have read the file. Structural items handed back go to `squad-dev` (or
    `squad-tester`), followed by another code check. This is the gate before the PR; CI is not meant to find anything here.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `standard` and `security` —
@@ -126,7 +127,10 @@ action yourself — including follow-up issues the Lead decides on.
    in `docs/decisions/README.md`.
 10. **Pull request** (Dev role, performed by you). First move the working record off the branch: post
     `plan.md` (none for tier `docs`) and `log.md` as one comment on the issue (each inside a collapsed `<details>` block, headed
-    "Squad working record"), then `git rm -r specs/issue-<number>/`, commit ("Remove squad working
+    "Squad working record"). When `plan.md` is so long that re-typing it through a tool call is impractical,
+    post a permalink to the last commit that contains it (`https://github.com/<owner>/<repo>/blob/<sha>/specs/issue-<number>/plan.md`)
+    plus a summary of the tier, acceptance criteria, decisions and challenge outcome instead; that commit
+    stays reachable through the PR's history. Then `git rm -r specs/issue-<number>/`, commit ("Remove squad working
     record"), and push. Later log rows (steps 11–12) are appended by editing that comment. Then open the
     PR from
     [`.github/pull_request_template.md`](../../../.github/pull_request_template.md): title per

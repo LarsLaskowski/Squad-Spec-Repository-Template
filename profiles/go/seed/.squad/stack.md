@@ -36,8 +36,11 @@ profile and owned by this repository: keep it true when the build changes.
 `analyzer-check.py` runs `go vet ./...` (must pass for the whole module) and
 `golangci-lint run --new-from-merge-base=origin/main --whole-files ./...`, which reports every issue
 anywhere in a file changed since the merge base with `origin/main`. Fixable style findings are the Code Officer's; findings that need a
-code change go to the Dev or Tester. SonarQube Cloud has no local Go equivalent here, so its findings
-(and duplication, hotspots) arrive in squad step 11.
+code change go to the Dev or Tester. `.golangci.yml` seeds `gocognit` with `min-complexity: 15` as a stand-in
+for SonarQube `go:S3776` (cognitive complexity above 15), so those findings surface here instead of after the PR
+is open. `gocognit` also counts the bare `if err != nil` check, which SonarQube ignores: where that alone puts an
+existing function over the limit, add a named exclusion in `.golangci.yml` and note it in `.squad/project.md`.
+Other SonarQube Cloud findings (and duplication, hotspots) have no local Go equivalent and arrive in squad step 11.
 
 ## Writing code
 

@@ -95,9 +95,10 @@ action yourself — including follow-up issues the Lead decides on.
 6. **Implement and cover.** For a change without production or test code this is the Dev's edits alone: no
    `squad-tester`, no *Test with coverage*, no *Coverage gate*. Launch `squad-dev` in mode `implement` with the plan and the test names; it
    also makes the documentation updates the plan lists. If the Dev disputes a test, launch `squad-lead`
-   in mode `decide`; the Tester changes a test only if the Lead says so. Then launch `squad-tester` in
-   mode `coverage`; repeat Dev/Tester until the *Coverage gate* (after *Test with coverage*, both in
-   `.squad/stack.md`) passes (≥ 80 % on new/changed production code and overall). Lines reported as not unit-testable go to
+   in mode `decide`; the Tester changes a test only if the Lead says so. Then run *Test with coverage* and
+   the *Coverage gate* yourself (both in `.squad/stack.md`). Launch `squad-tester` in mode `coverage` only
+   when the gate fails or the Dev reports uncovered new lines; if the gate already passes and the only
+   uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes (≥ 80 % on new/changed production code and overall). Lines reported as not unit-testable go to
    `squad-lead` in mode `decide`; an accepted gap is recorded in `log.md`.
 7. **Code check.** Launch `squad-code-officer` with the base ref — the only member that runs
    the formatter and clears analyzer diagnostics. Then verify yourself, without formatting, with the

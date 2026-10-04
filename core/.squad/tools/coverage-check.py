@@ -66,7 +66,8 @@ def run_reports():
     results directory first, so no report of an earlier run can be among them."""
     reports = sorted(glob.glob(settings.COVERAGE_REPORT_GLOB, recursive=True))
     if not reports:
-        sys.exit(f"No coverage report matches {settings.COVERAGE_REPORT_GLOB} - run *Test with coverage* first")
+        sys.exit(f"No coverage report matches {settings.COVERAGE_REPORT_GLOB} - the report was never written or "
+                 "has been deleted; run *Test with coverage* from .squad/stack.md first, then this gate again")
     return reports
 
 
@@ -175,6 +176,20 @@ def new_code_coverage(hits):
     return (covered / coverable * 100 if coverable else 100.0), covered, coverable
 
 
+def warn_untracked():
+    """Name the untracked production files: neither `git diff` nor `git ls-files` sees them, so the gate
+    would silently leave them out of both values and could fail at a false low percentage."""
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "--", *settings.COVERAGE_PATHSPECS,
+         *[f":(exclude){p}" for p in settings.COVERAGE_EXCLUDES]],
+        capture_output=True, text=True, check=True).stdout.splitlines()
+    if untracked:
+        print("WARNING: untracked production files ignored by this gate (stage them with `git add` first):")
+        for path in untracked:
+            print(f"  {path}")
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--threshold", type=float, default=80.0)
@@ -184,6 +199,7 @@ def main():
     loader = LOADERS.get(settings.COVERAGE_FORMAT)
     if loader is None:
         sys.exit(f"Unknown COVERAGE_FORMAT '{settings.COVERAGE_FORMAT}' in squad_settings.py")
+    warn_untracked()
     hits = merged_hits(loader)
     overall, total_hit, total = overall_coverage(hits)
     changed = changed_lines()

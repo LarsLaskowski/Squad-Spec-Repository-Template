@@ -15,7 +15,9 @@ filesystem.
 Usage, from the repository root, after *Test with coverage* from `.squad/stack.md`:
     python3 .squad/tools/coverage-check.py [--threshold 80]
 
-Exit code 0 when both values reach the threshold, 1 otherwise.
+Exit code 0 when both values reach the threshold, 1 otherwise. When the diff contains no production code,
+the overall value is only reported: such a change cannot make coverage worse, so a gap that already exists
+on the base does not fail it.
 """
 import argparse
 import glob
@@ -184,11 +186,15 @@ def main():
         sys.exit(f"Unknown COVERAGE_FORMAT '{settings.COVERAGE_FORMAT}' in squad_settings.py")
     hits = merged_hits(loader)
     overall, total_hit, total = overall_coverage(hits)
+    changed = changed_lines()
     new_code, covered, coverable = new_code_coverage(hits)
 
     print(f"\nNew/changed code: {new_code:.1f}% ({covered}/{coverable} lines)")
     print(f"Overall:          {overall:.1f}% ({total_hit}/{total} lines)")
-    ok = new_code >= args.threshold and overall >= args.threshold
+    gated = bool(changed)
+    if not gated:
+        print("No production code changed: overall coverage is reported, not gated (the change cannot lower it).")
+    ok = not gated or (new_code >= args.threshold and overall >= args.threshold)
     print(f"Threshold {args.threshold:.0f}%: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

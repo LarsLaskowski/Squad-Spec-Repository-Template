@@ -78,4 +78,6 @@ time so results are attributable.
 - `golangci-lint` must be on the PATH; the version in CI (`.github/workflows/ci.yml`) is the reference.
   It refuses to run ("the Go language version used to build golangci-lint is lower than the targeted Go
   version") when it was built with an older Go than `go.mod` targets — install a release built with a
-  matching Go version (`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<version>`).
+  matching Go version (`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<version>` with
+  `GOTOOLCHAIN` set to the toolchain `go.mod` targets). The session-start hook does this for remote
+  sessions, using the version pinned in `.github/workflows/ci.yml`.

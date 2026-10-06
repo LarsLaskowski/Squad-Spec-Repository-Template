@@ -42,6 +42,9 @@ is open. `gocognit` also counts the bare `if err != nil` check, which SonarQube 
 existing function over the limit, add a named exclusion in `.golangci.yml` and note it in `.squad/project.md`.
 Other SonarQube Cloud findings (and duplication, hotspots) have no local Go equivalent and arrive in squad step 11.
 
+Changed shell scripts (`*.sh`) are checked with `shellcheck` when it is installed; the script says so when it
+skips them. Without it, SonarQube Cloud's shell rules (`shelldre:*`) only report in squad step 11.
+
 ## Writing code
 
 - `gofmt` formatting; package names short and lower-case; exported identifiers documented with a comment

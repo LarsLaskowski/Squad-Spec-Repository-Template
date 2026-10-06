@@ -153,7 +153,8 @@ Only one member that builds or runs tests may work at a time: concurrent builds 
 build output and caches and break each other (see *Concurrency* in `.squad/stack.md` for what this stack
 shares). In step 8, `squad-reviewer` and `squad-security` may run together because
 both are read-only and the reviewer builds in a scratch copy. No member experiments (mutation tests,
-trial edits) in the repository working tree — use a scratch `git worktree` instead.
+trial edits, baseline comparisons) in the repository working tree — use a scratch `git worktree` instead;
+`git stash` is a Git write operation and forbidden.
 
 ## Outcome "no change"
 

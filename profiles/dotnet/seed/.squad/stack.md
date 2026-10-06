@@ -51,6 +51,9 @@ SonarQube Cloud's own quality profile can still report `S####` rules the local d
 and its non-Roslyn checks (duplication, hotspots, taint analysis) only run in CI — such findings arrive in
 squad step 11.
 
+Changed shell scripts (`*.sh`) are checked with `shellcheck` when it is installed; the script says so when it
+skips them. Without it, SonarQube Cloud's shell rules (`shelldre:*`) only report in squad step 11.
+
 ## Writing code
 
 - File-scoped namespaces; one top-level type per file; `using` outside the namespace (System first).

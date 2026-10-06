@@ -3,7 +3,7 @@
 - **Status:** Proposed | Accepted | Superseded by NNNN
 - **Date:** YYYY-MM-DD
 - **Source:** Issue #<number> / PR #<number>
-- **Supersedes:** — | NNNN
+- **Supersedes:** — | NNNN (also for a record that only amends NNNN: say what it amends; NNNN stays unedited)
 
 ## Context
 

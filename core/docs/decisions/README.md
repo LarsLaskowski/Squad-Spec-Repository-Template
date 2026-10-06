@@ -18,6 +18,9 @@ links the record.
 - Records are **append-only**: an accepted record is never rewritten. A changed decision gets a new record
   that names the old one under *Supersedes*, and the old record's status becomes
   `Superseded by NNNN` (the only edit allowed).
+- A new record that **amends** an accepted record without superseding it names the older one under
+  *Supersedes* and says there, in one sentence, what it amends. The older record is **not edited** — not even
+  with a pointer; a reader of the older record finds the amendment through the index and the new record.
 - Not for routine changes: a record is needed when a choice between real alternatives was made, a
   trade-off or limitation was accepted, a review finding was deliberately not fixed, a documented
   guarantee was touched, a dependency was added or removed, or work was split into a follow-up issue.

@@ -44,6 +44,9 @@ findings that need a code change go to the Dev or Tester.
 SonarQube Cloud can still report rules the local plugin version does not have, and its non-lint checks
 (duplication, hotspots, taint analysis) only run in CI — such findings arrive in squad step 11.
 
+Changed shell scripts (`*.sh`) are checked with `shellcheck` when it is installed; the script says so when it
+skips them. Without it, SonarQube Cloud's shell rules (`shelldre:*`) only report in squad step 11.
+
 ## Writing code
 
 - ES modules, `strict` TypeScript, no `any` without a comment explaining why, no non-null assertions to

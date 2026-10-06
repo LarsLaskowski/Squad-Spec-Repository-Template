@@ -24,6 +24,7 @@ import fcntl
 import glob
 import json
 import os
+import shutil
 import subprocess
 import sys
 from urllib.parse import unquote, urlparse
@@ -47,6 +48,26 @@ def changed_files():
     names = git("diff", "--name-only", merge_base).splitlines()
     names += git("ls-files", "--others", "--exclude-standard").splitlines()
     return {name.strip() for name in names if name.strip()}
+
+
+def shell_check():
+    """shellcheck on changed shell scripts when it is installed; says so when files are skipped (the gate
+    does not analyse shell otherwise). Returns True when nothing failed."""
+    merge_base = git("merge-base", BASE_REF, "HEAD").strip()
+    names = git("diff", "--name-only", "--diff-filter=d", merge_base).splitlines()
+    names += git("ls-files", "--others", "--exclude-standard").splitlines()
+    files = sorted({n.strip() for n in names if n.strip().endswith(".sh") and os.path.isfile(n.strip())})
+    if not files:
+        return True
+    if shutil.which("shellcheck") is None:
+        print(f"shellcheck: NOT RUN (not installed) - {len(files)} changed shell script(s) are not analysed locally\n")
+        return True
+    result = subprocess.run(["shellcheck", "--", *files], capture_output=True, text=True, check=False)
+    output = (result.stdout + result.stderr).strip()
+    if output:
+        print(output[-6000:])
+    print(f"shellcheck (changed shell scripts): {'PASS' if result.returncode == 0 else 'FAIL'}\n")
+    return result.returncode == 0
 
 
 def to_repo_path(uri, root):
@@ -110,8 +131,9 @@ def run_check():
         print(f"{path}({line}): {level} {rule}: {message}")
     print(f"\nDiagnostics in changed files: {len(in_changed)}")
     print(f"Diagnostics in unchanged files (not gating): {elsewhere}")
-    print("PASS" if not in_changed else "FAIL")
-    return 0 if not in_changed else 1
+    ok = shell_check() and not in_changed
+    print("PASS" if ok else "FAIL")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

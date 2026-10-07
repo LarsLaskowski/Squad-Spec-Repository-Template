@@ -157,7 +157,7 @@ def merge_settings(profile_dirs):
 
     lines = ['"""Per-repository settings for the squad tools (profiles: ' + ", ".join(names) + '). Seeded once by',
              'adopt-template and kept on later refreshes; the scripts that import it are template-managed."""', ""]
-    for name, module in zip(names, modules):
+    for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]
     reports = [(m.COVERAGE_FORMAT, m.COVERAGE_REPORT_GLOB) for m in modules]
@@ -181,7 +181,7 @@ def split_chunks(text, pattern):
     starts = [m.start() for m in re.finditer(pattern, text, re.M)]
     if not starts:
         return text, []
-    return text[:starts[0]], [text[a:b] for a, b in zip(starts, starts[1:] + [len(text)])]
+    return text[:starts[0]], [text[a:b] for a, b in zip(starts, starts[1:] + [len(text)], strict=True)]
 
 
 def merge_dependabot(texts):
@@ -223,7 +223,7 @@ def merge_ci(texts, names):
     taken = set(re.findall(r"^  ([\w-]+):", jobs, re.M))
     permissions = set(re.findall(r"^  ([\w-]+: \w+)$", head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
     out = jobs.rstrip("\n") + "\n"
-    for name, text in zip(names[1:], texts[1:]):
+    for name, text in zip(names[1:], texts[1:], strict=True):
         other_head, other = text.split("\njobs:\n", 1)
         permissions |= set(re.findall(r"^  ([\w-]+: \w+)$", other_head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
         for job in re.findall(r"^  ([\w-]+):", other, re.M):
@@ -341,7 +341,7 @@ def seed_files(profile_dirs, names, report):
     for profile in profile_dirs:
         for rel, src in files_under(os.path.join(profile, "seed")).items():
             sources.setdefault(rel, []).append((os.path.basename(profile), src))
-    result = {rel: src for rel, src in files_under(os.path.join(ROOT, "seed")).items()}
+    result = dict(files_under(os.path.join(ROOT, "seed")))
     for rel, found in sources.items():
         if len(found) == 1:
             result[rel] = found[0][1]
@@ -349,9 +349,9 @@ def seed_files(profile_dirs, names, report):
         texts = [read(src) for _, src in found]
         owners = [name for name, _ in found]
         if rel == ".squad/stack.md":
-            result[rel] = merge_stack_md(list(zip(owners, texts)))
+            result[rel] = merge_stack_md(list(zip(owners, texts, strict=True)))
         elif rel == "docs/UNIT_TESTS.md":
-            result[rel] = merge_unit_tests(list(zip(owners, texts)))
+            result[rel] = merge_unit_tests(list(zip(owners, texts, strict=True)))
         elif rel == ".squad/tools/squad_settings.py":
             result[rel] = merge_settings([os.path.join(ROOT, "profiles", name) for name in names])
         elif rel in MERGERS:
@@ -371,7 +371,7 @@ def managed_files(profile_dirs, names):
         managed.update(files_under(os.path.join(profile_dirs[0], "managed")))
         return core, managed
     dispatchers = files_under(os.path.join(ROOT, "multi"))
-    for name, profile in zip(names, profile_dirs):
+    for name, profile in zip(names, profile_dirs, strict=True):
         for rel, src in files_under(os.path.join(profile, "managed")).items():
             if rel not in dispatchers:
                 managed[rel] = src
@@ -408,7 +408,7 @@ def main():
                  "refresh without --profile to keep the recorded ones, or add --reset-profiles to change them")
     profile_dirs = [os.path.join(ROOT, "profiles", name) for name in names]
     stack = combine_stack_blocks([(name, blocks(read(os.path.join(directory, "instructions.md")), "stack"))
-                                  for name, directory in zip(names, profile_dirs)])
+                                  for name, directory in zip(names, profile_dirs, strict=True)])
     crlf = uses_crlf(target, profile_dirs)
     report = []
 

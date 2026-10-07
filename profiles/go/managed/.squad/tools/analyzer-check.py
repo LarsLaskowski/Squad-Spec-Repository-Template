@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from analyzer_common import BASE_REF, git, shell_check  # noqa: E402  (shared helpers next to this script)
+from analyzer_common import BASE_REF, shell_check  # noqa: E402  (shared helpers next to this script)
 
 STEPS = [
     ("go vet", ["go", "vet", "./..."]),

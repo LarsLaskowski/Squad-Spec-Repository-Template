@@ -12,12 +12,17 @@ Checks, without arguments:
   `squad_settings.py` defines the coverage settings;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
-  filled and the template is applied a second time (a refresh), `config-check.py` passes completely.
+  filled and the template is applied a second time (a refresh), `config-check.py` passes completely;
+- the same smoke test for all profiles together (a repository with several languages): the merged CI,
+  CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
+  without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
+  fails when a profile's analyzer script is missing.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
 import glob
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -45,6 +50,7 @@ COMMANDS = ["*Restore*", "*Format*", "*Format check*", "*Build*", "*Test*", "*Si
             "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*"]
 STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate", "## Writing code",
                   "## Writing tests", "## Skeleton", "## Dependencies", "## Concurrency", "## Known pitfalls"]
+MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
 MARKER = re.compile(r"<!-- (project|stack):(begin|end) ([\w-]+) -->")
 
@@ -167,29 +173,99 @@ def check_profiles(errors):
     return [os.path.basename(p) for p in profiles]
 
 
+def apply(target, *options):
+    return subprocess.run([sys.executable, os.path.join(ROOT, "tools", "apply-template.py"), "--target", target,
+                           *options], capture_output=True, text=True)
+
+
+def profile_options(names):
+    return [option for name in names for option in ("--profile", name)]
+
+
 def smoke_test(profiles, errors):
-    for name in profiles:
+    for names in [[name] for name in profiles] + ([profiles] if len(profiles) > 1 else []):
+        label = "+".join(names)
         with tempfile.TemporaryDirectory() as target:
             subprocess.run(["git", "init", "-q", target], check=True)
-            applied = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "apply-template.py"),
-                                      "--target", target, "--profile", name], capture_output=True, text=True)
+            applied = apply(target, *profile_options(names))
             if applied.returncode != 0:
-                errors.append(f"profile {name}: apply-template failed: {applied.stderr.strip()[-500:]}")
+                errors.append(f"profile {label}: apply-template failed: {applied.stderr.strip()[-500:]}")
                 continue
             checked = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                                      capture_output=True, text=True)
             lines = [line for line in checked.stdout.splitlines()
                      if line and not line.startswith("Checked") and "placeholder" not in line]
             for line in lines:
-                errors.append(f"profile {name}: config-check after apply: {line}")
+                errors.append(f"profile {label}: config-check after apply: {line}")
             fill_placeholders(target)
-            subprocess.run([sys.executable, os.path.join(ROOT, "tools", "apply-template.py"),
-                            "--target", target, "--profile", name], capture_output=True, text=True, check=True)
+            # a refresh names no profile: the recorded ones are kept
+            refresh = apply(target)
+            if refresh.returncode != 0:
+                errors.append(f"profile {label}: refresh failed: {refresh.stderr.strip()[-500:]}")
+                continue
             refreshed = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                                        capture_output=True, text=True)
             if refreshed.returncode != 0:
                 for line in refreshed.stdout.splitlines()[:10]:
-                    errors.append(f"profile {name}: config-check after filling and refreshing: {line}")
+                    errors.append(f"profile {label}: config-check after filling and refreshing: {line}")
+            if len(names) > 1:
+                check_multi(names, target, errors)
+
+
+def check_multi(names, target, errors):
+    label = "+".join(names)
+    with open(os.path.join(target, ".squad", "template.json"), encoding="utf-8") as handle:
+        record = json.load(handle)
+    if record.get("profiles") != names or record.get("profile") != names[0]:
+        errors.append(f"profile {label}: template.json after a refresh records {record.get('profile')} / "
+                      f"{record.get('profiles')}")
+    if apply(target, "--profile", names[0]).returncode == 0:
+        errors.append(f"profile {label}: apply-template accepted a different profile set without --reset-profiles")
+    for rel in MULTI_FILES:
+        if not os.path.isfile(os.path.join(target, rel)):
+            errors.append(f"profile {label}: {rel} (dispatcher) missing")
+    for path in glob.glob(os.path.join(target, ".github", "**", "*.yml"), recursive=True):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                parsed = yaml.safe_load(handle)
+        except yaml.YAMLError as error:
+            errors.append(f"profile {label}: {os.path.relpath(path, target)} is not valid YAML: "
+                          f"{str(error).splitlines()[0]}")
+            continue
+        name = os.path.basename(path)
+        if name == "codeql.yml":
+            languages = [entry["language"] for entry in parsed["jobs"]["analyze"]["strategy"]["matrix"]["include"]]
+            expected = [single_value(n, "codeql.yml", r"- language: (\S+)") for n in names]
+            if languages != expected:
+                errors.append(f"profile {label}: codeql.yml languages {languages}, expected {expected}")
+        elif name == "dependabot.yml":
+            ecosystems = [u["package-ecosystem"] for u in parsed["updates"]]
+            if len(set(ecosystems)) != len(ecosystems):
+                errors.append(f"profile {label}: dependabot.yml repeats an ecosystem: {ecosystems}")
+            for n in names:
+                for ecosystem in re.findall(r"package-ecosystem: *\"?([\w-]+)", profile_file(n, "dependabot.yml")):
+                    if ecosystem not in ecosystems:
+                        errors.append(f"profile {label}: dependabot.yml lacks the {n} ecosystem {ecosystem}")
+        elif name == "ci.yml":
+            jobs = set(parsed["jobs"])
+            for n in names:
+                own = set(re.findall(r"^  ([\w-]+):", profile_file(n, "ci.yml").split("\njobs:\n", 1)[1], re.M))
+                if len(jobs) < len(own):
+                    errors.append(f"profile {label}: ci.yml lost jobs of {n}")
+    os.remove(os.path.join(target, ".squad", "tools", f"analyzer-check-{names[-1]}.py"))
+    broken = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
+                            capture_output=True, text=True)
+    if broken.returncode == 0:
+        errors.append(f"profile {label}: config-check passes although analyzer-check-{names[-1]}.py is missing")
+
+
+def profile_file(name, rel):
+    return read(os.path.join(ROOT, "profiles", name, "seed", ".github", rel if rel == "dependabot.yml"
+                             else os.path.join("workflows", rel)))
+
+
+def single_value(name, rel, pattern):
+    return re.search(pattern, profile_file(name, rel)).group(1)
 
 
 def fill_placeholders(target):

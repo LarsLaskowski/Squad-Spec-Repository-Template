@@ -27,14 +27,16 @@ Rules that hold throughout:
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
    off `origin/main`. Read its `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `README.md`,
    `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build files before changing anything.
-   If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile` (older
+   If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
    records without `repository` get it on this run) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md` and `squad_settings.py` with the
    profile's seeds (`git -C <template> diff <old commit>..main -- profiles/<profile>/seed`) and carry over
    changed commands or settings by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
-   `package.json` → `node`. If several match, the profile of the main product code wins (e.g. a .NET
-   solution with an Angular client is `dotnet`); say which you chose and why. If none matches, stop: a new
+   `package.json` → `node`. If several match and each is product code (e.g. a Go agent and a .NET
+   backend), use all of them — pass `--profile` once per profile, the main product code first; a profile
+   that only builds tooling or a client the main profile already covers stays out. Say which you chose and
+   why. On a refresh keep the recorded `profiles`: run without `--profile`. If none matches, stop: a new
    profile has to be added to Squad-Spec-Repository-Template first (see `README.md`, *Adding a stack*).
 3. **Apply.** First, on a first adoption, move documents the template expects under `docs/` but the target
    keeps elsewhere (e.g. a root-level `ARCHITECTURE.md` or `CONTRIBUTING.md`) there with `git mv` and fix
@@ -42,10 +44,10 @@ Rules that hold throughout:
    lands in the template's file instead of living twice. Then, from the template repository's root, on an
    up-to-date checkout of its `main` (the commit
    is recorded in `.squad/template.json`; a branch commit disappears with the squash merge), run
-   `python3 tools/apply-template.py --target <path> --profile <profile> --dry-run`, read the list, then run
+   `python3 tools/apply-template.py --target <path> [--profile <profile> …] --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
-   and the files in template-owned folders the template does not know.
+   and the files in template-owned folders the template does not know. With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing
    new needs a block). For every file backed up under `.git/adopt-template/backup/` in the target, move its
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:

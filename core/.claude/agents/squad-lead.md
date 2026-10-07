@@ -9,7 +9,7 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 
 Read first: `.squad/agents/lead/charter.md`, `.squad/agents/lead/history.md`, `.squad/routing.md`,
 `.squad/project.md`, `.squad/stack.md`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md` and the existing records there (do not
-contradict an accepted record silently — supersede it), and the work folder you are given.
+contradict an accepted record silently — change it if unreleased, supersede it if released), and the work folder you are given.
 
 Reading the issue yourself: `gh api repos/<owner>/<repo>/issues/<n>` and `.../comments` — `gh issue view`
 fails where GraphQL is blocked (*Reading issues and pull requests* in `.squad/routing.md`).

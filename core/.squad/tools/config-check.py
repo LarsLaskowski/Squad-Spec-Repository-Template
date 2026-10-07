@@ -16,6 +16,7 @@ it. This script checks, without arguments:
   filed) and, for a repository with several stack profiles, lists them in `profiles` (the first one is
   `profile`); then every profile has its `analyzer-check-<profile>.py` and `session-start-<profile>.sh`
   next to the dispatchers, and `squad_settings.py` lists at least one `COVERAGE_REPORTS` entry per profile;
+- `.squad/tools/decision-check.py` passes (decision records consistent, released records frozen);
 - `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
   template seeded or rebuilt still contains a template placeholder (`{{TODO: …}}` — a marker that
   ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain).
@@ -29,6 +30,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 
 CLAUDE_DIR = ".claude"
@@ -186,6 +188,21 @@ def check_project_files(errors):
             errors.append(f"{path}:{line}: template placeholder '{{{{TODO: {first}}}}}' not filled in")
 
 
+def check_decisions(errors):
+    script = os.path.join(SQUAD_DIR, "tools", "decision-check.py")
+    if not os.path.isfile(script):
+        errors.append(f"{script} is missing (written by adopt-template)")
+        return
+    result = subprocess.run([sys.executable, script, "."], capture_output=True, text=True, encoding="utf-8")
+    for line in result.stdout.splitlines():
+        if line.startswith("ERROR: "):
+            errors.append(line[len("ERROR: "):])
+        elif line.startswith("WARNING: "):
+            print(line)
+    if result.returncode != 0 and not any(line.startswith("ERROR: ") for line in result.stdout.splitlines()):
+        errors.append(f"{script} failed: {result.stderr.strip() or 'no output'}")
+
+
 def main():
     # Resolve paths from the repository root, whatever the current directory is.
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -197,6 +214,7 @@ def main():
     check_instructions(errors)
     check_template_record(errors)
     check_project_files(errors)
+    check_decisions(errors)
 
     if not agents or not skills:
         errors.append("no agents or skills found - has the squad been adopted in this repository?")

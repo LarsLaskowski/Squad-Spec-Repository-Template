@@ -13,8 +13,12 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   [`core/.squad/routing.md`](core/.squad/routing.md).
 - **One rule set for three agents** — `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/GPT) and
   `.github/copilot-instructions.md` (GitHub Copilot) are identical from their first `##` heading on; the
-  skills `create-pr`, `review-pr`, `squad-issue` and `squad-spec` exist identically under
+  skills `create-pr`, `review-pr`, `squad-issue`, `squad-spec` and `decision-consolidate` exist identically under
   `.claude/skills/`, `.agents/skills/` and `.github/skills/`.
+- **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
+  then they are append-only (superseded by a new record); a record is added only for a decision with lasting
+  weight and grouped by topic. `decision-check.py` (run by `config-check.py`) enforces consistency and the
+  freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
   file) and *Coverage gate* (≥ 80 % on new/changed lines and overall; Cobertura, lcov or Go coverprofile),
   plus `config-check.py`, which keeps mirrors in sync and finds unfilled placeholders.

@@ -99,14 +99,15 @@ Rules that hold throughout:
    - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
      *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has a
      record that says the same; add them to the index. An existing record on the same subject whose rules
-     the template now changes (e.g. what a product PR may touch, where squad lessons go) is superseded:
-     the seed gets the next number with *Supersedes* set, and the old record's status becomes
-     `Superseded by NNNN`.
+     the template now changes (e.g. what a product PR may touch, where squad lessons go) is replaced:
+     if it is unreleased (no release tag contains it), edit it in place or delete it in favor of the seed;
+     if it is released, the seed gets the next number with *Supersedes* set, and the old record's status
+     becomes `Superseded by NNNN`.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
-   - `.squad/decisions.md`: replace `<date>` and `<profile>` in the seeded entry.
+   - `.squad/decisions.md`: replace the `{{TODO: date}}` and `{{TODO: profile}}` placeholders in the seeded entry.
 9. **Verify** in the target: `python3 .squad/tools/config-check.py` passes (no placeholder left), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
    new `stack.md`. A gate that fails on code this PR did not change (e.g. overall coverage below 80 %) is

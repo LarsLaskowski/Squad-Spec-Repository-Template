@@ -41,9 +41,10 @@ in squad-maintenance PRs, never in a product PR.)
   from the diff alone gets a decision record in `docs/decisions/` (rules and threshold in
   `docs/decisions/README.md`): context, options considered, decision, consequences, and links to the
   issue (whose "Squad working record" comment replaces the removed `specs/` folder). Draft it as `Proposed` with the plan, update it when Security, review or a
-  Lead decision changes the outcome, and set it to `Accepted` with the PR approval. Never rewrite an
-  accepted record — supersede it; a record that only amends one names it under *Supersedes* and leaves the
-  older record untouched (`docs/decisions/README.md`). If an architectural guarantee or flow changes, update
+  Lead decision changes the outcome, and set it to `Accepted` with the PR approval. Before adding a record,
+  extend an existing unreleased record on the same topic. An unreleased record is edited in place; only a
+  released one is never rewritten but superseded, and a record that only amends a released one names it
+  under *Supersedes* and leaves the older record untouched (`docs/decisions/README.md`). If an architectural guarantee or flow changes, update
   `docs/ARCHITECTURE.md` too and link the record from it.
 - **Approve the PR:** confirm the latest review round has no blocking finding that is not covered by a
   recorded decision of yours, and covers every change to production code, tests and `docs/` since it ran except

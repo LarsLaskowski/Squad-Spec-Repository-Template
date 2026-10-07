@@ -16,7 +16,9 @@ Checks, without arguments:
 - the same smoke test for all profiles together (a repository with several languages): the merged CI,
   CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
-  fails when a profile's analyzer script is missing.
+  fails when a profile's analyzer script is missing;
+- `decision-check.py` on a temporary repository: consistent records pass, an unreleased record may be edited
+  in place, and around a release tag a rewritten, deleted or wrongly superseded record fails.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -281,6 +283,88 @@ def fill_placeholders(target):
                     handle.write(filled)
 
 
+RECORD = """# {n}: {title}
+
+- **Status:** {status}
+- **Date:** 2026-01-01
+- **Source:** Issue #1
+- **Supersedes:** {supersedes}
+
+## Decision
+
+{body}
+"""
+
+
+def write_record(repo, number, status="Accepted", supersedes="—", body="Do it.", index=True):
+    path = os.path.join(repo, "docs", "decisions", f"{number}-topic.md")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(RECORD.format(n=number, title="Topic", status=status, supersedes=supersedes, body=body))
+
+
+def write_index(repo, rows):
+    lines = ["# Decision records", "", "<!-- project:begin index -->", "| # | Title | Status | Date |",
+             "| - | ----- | ------ | ---- |"]
+    lines += [f"| {number} | Topic | {status} | 2026-01-01 |" for number, status in rows]
+    lines.append("<!-- project:end index -->")
+    with open(os.path.join(repo, "docs", "decisions", "README.md"), "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
+def check_decision_tool(errors):
+    """decision-check.py: consistency without tags, then the freeze rules around a release tag."""
+    tool = os.path.join(CORE, ".squad", "tools", "decision-check.py")
+    with tempfile.TemporaryDirectory() as repo:
+        def git_in(*args):
+            subprocess.run(["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                           check=True, capture_output=True)
+
+        def passes():
+            return subprocess.run([sys.executable, tool, repo], capture_output=True, text=True).returncode == 0
+
+        def expect(label, wanted):
+            if passes() != wanted:
+                errors.append(f"decision-check: {label}: expected {'PASS' if wanted else 'FAIL'}")
+
+        git_in("init", "-q")
+        os.makedirs(os.path.join(repo, "docs", "decisions"))
+        write_record(repo, "0001")
+        write_record(repo, "0002", body="Second.")
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])
+        git_in("add", "-A")
+        git_in("commit", "-qm", "records")
+        expect("consistent records without tags", True)
+        write_index(repo, [("0001", "Accepted")])
+        expect("record missing in the index", False)
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])
+        write_record(repo, "0002", status="Superseded by 0003")
+        write_index(repo, [("0001", "Accepted"), ("0002", "Superseded by 0003")])
+        expect("Superseded by a record that does not exist", False)
+        git_in("checkout", "-q", "--", ".")
+        write_record(repo, "0001", body="Changed before any release.")
+        expect("unreleased record edited in place", True)
+        git_in("commit", "-qam", "edit")
+        git_in("tag", "v0.1.0")
+        write_record(repo, "0001", body="Changed after the release.")
+        expect("released record rewritten", False)
+        git_in("checkout", "-q", "--", ".")
+        write_record(repo, "0003", supersedes="0001", body="Replaces 0001.")
+        write_record(repo, "0001", status="Superseded by 0003", body="Changed before any release.")
+        write_index(repo, [("0001", "Superseded by 0003"), ("0002", "Accepted"), ("0003", "Accepted")])
+        expect("released record superseded by a new record", True)
+        git_in("add", "-A")
+        git_in("commit", "-qm", "supersede")
+        write_record(repo, "0003", status="Superseded by 0004", supersedes="0001", body="Replaces 0001.")
+        write_record(repo, "0004", supersedes="0003")
+        write_index(repo, [("0001", "Superseded by 0003"), ("0002", "Accepted"), ("0003", "Superseded by 0004"),
+                           ("0004", "Accepted")])
+        expect("unreleased record superseded", False)
+        git_in("checkout", "-q", "--", ".")
+        os.remove(os.path.join(repo, "docs", "decisions", "0002-topic.md"))
+        write_index(repo, [("0001", "Superseded by 0003"), ("0003", "Accepted")])
+        expect("released record deleted", False)
+
+
 def main():
     errors = []
     check_mirrors(ROOT, errors)
@@ -289,6 +373,7 @@ def main():
     check_placeholders(errors)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
+    check_decision_tool(errors)
     for error in errors:
         print(error)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

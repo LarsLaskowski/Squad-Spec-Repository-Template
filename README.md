@@ -31,6 +31,7 @@ profiles/<stack>/
   instructions.md the stack blocks of CLAUDE.md / AGENTS.md / copilot-instructions.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
+multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, decisions.md, histories, .claude/settings.json
 decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
 tools/            apply-template.py (mechanical apply), template-check.py (self-check)
@@ -61,11 +62,33 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 | `node` | `package.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov | OpenHabLogViewer, e-networld |
 | `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base --whole-files` | Go coverprofile | PiMonitor |
 
+## Several profiles (e.g. Go and .NET)
+
+A repository with more than one language gets every fitting profile: `python3 tools/apply-template.py
+--target <path> --profile go --profile dotnet` (the first one is the primary). `.squad/template.json` records
+`"profile"` (primary) and `"profiles"` (all); a refresh without `--profile` keeps them, and a different set
+is refused unless `--reset-profiles` is given. What changes compared with one profile:
+
+- **Instruction files** — each `stack:` block holds one `**Profile `x`**` part per profile.
+- **`.squad/stack.md`** — one section per profile, plus a note that a gate passes only when it passes for
+  every profile; the command names stay the same.
+- **Analyzer gate** — each profile's script is written as `.squad/tools/analyzer-check-<profile>.py`;
+  `analyzer-check.py` runs them all and fails if any fails (a missing tool fails its own script).
+- **Coverage gate** — `squad_settings.py` lists `COVERAGE_REPORTS = [(format, glob), …]`, one report per
+  profile, merged by `coverage-check.py` (so a Go coverprofile and a Cobertura report need no converter);
+  `COVERAGE_PATHSPECS`, `COVERAGE_EXCLUDES` and `COVERAGE_TEST_PATHSPECS` are the union of the profiles'.
+- **SessionStart hook** — `session-start-<profile>.sh` per profile, run by `session-start.sh`.
+- **CI, CodeQL, Dependabot** — the jobs, CodeQL matrix entries and Dependabot ecosystems are merged side by
+  side (a CI job id used twice gets the profile as prefix). Other seed files that exist in several profiles
+  (e.g. `sonar-project.properties`) keep the primary profile's version and are reported as `conflict`: merge
+  those by hand.
+- **`config-check.py`** — validates `profiles`, the per-profile scripts and a `COVERAGE_REPORTS` entry per profile.
+
 ## Using it
 
 In a Claude Code session with this repository and the target repository available, ask for it in plain
 words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
-detects the profile, runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
+detects the profile(s), runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
 and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
 reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
 everything project-specific.
@@ -103,7 +126,8 @@ A local edit of a managed file in a product repository is never the fix: the nex
 ### Adding a stack
 
 Create `profiles/<stack>/` with the files `tools/template-check.py` requires (`PROFILE_FILES`): the
-stack blocks in `instructions.md`, an `analyzer-check.py` and a SessionStart hook under `managed/`, and
+stack blocks in `instructions.md`, an `analyzer-check.py` and a SessionStart hook under `managed/`
+(they are renamed per profile in a multi-profile repository, so keep them self-contained), , and
 `stack.md` (every command name and section), `squad_settings.py`, `UNIT_TESTS.md`, CI, CodeQL and
 Dependabot under `seed/`. Add a coverage loader to `core/.squad/tools/coverage-check.py` if the stack
 writes a new report format, the detection rule to the `adopt-template` skill, and a row to the table above.

@@ -53,5 +53,38 @@ class TestOnlyDiff(unittest.TestCase):
         self.assertEqual(self.script.changed_test_files(), [])
 
 
+class TestSeveralReports(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+        self.previous = os.getcwd()
+        self.dir = tempfile.TemporaryDirectory()
+        os.chdir(self.dir.name)
+        with open("go.mod", "w") as handle:
+            handle.write("module example.com/m\n")
+        with open("coverage.out", "w") as handle:
+            handle.write("mode: set\nexample.com/m/a.go:1.1,2.2 1 1\nexample.com/m/a.go:3.1,3.9 1 0\n")
+        with open("lcov.info", "w") as handle:
+            handle.write("SF:web/app.js\nDA:1,1\nDA:2,0\nend_of_record\n")
+
+    def tearDown(self):
+        os.chdir(self.previous)
+        self.dir.cleanup()
+
+    def test_reports_of_different_formats_are_merged(self):
+        self.script.settings.COVERAGE_REPORTS = [("go", "coverage.out"), ("lcov", "lcov.info")]
+        hits = self.script.merged_hits()
+        self.assertEqual(hits["a.go"], {1: 1, 2: 1, 3: 0})
+        self.assertEqual(hits["web/app.js"], {1: 1, 2: 0})
+
+    def test_single_format_settings_still_work(self):
+        hits = self.script.merged_hits()
+        self.assertEqual(sorted(hits), ["a.go"])
+
+    def test_unknown_format_is_refused(self):
+        self.script.settings.COVERAGE_REPORTS = [("jacoco", "x.xml")]
+        with self.assertRaises(SystemExit):
+            self.script.report_sources()
+
+
 if __name__ == "__main__":
     unittest.main()

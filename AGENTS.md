@@ -7,7 +7,7 @@ Guidance for Codex/GPT and other agents that read AGENTS.md when working in this
 
 Squad-Spec-Repository-Template: the shared squad, AI-agent rules and scaffolding that `adopt-template` applies
 to the other repositories. It contains no product code. See [`README.md`](README.md) for the layout (`core/`,
-`profiles/`, `seed/`, `decision-seeds/`, `tools/`).
+`profiles/`, `multi/`, `seed/`, `decision-seeds/`, `tools/`).
 
 ## Golden rules
 

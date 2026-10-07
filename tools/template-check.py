@@ -320,7 +320,7 @@ def check_decision_tool(errors):
                            check=True, capture_output=True)
 
         def passes():
-            return subprocess.run([sys.executable, tool, repo], capture_output=True, text=True).returncode == 0
+            return subprocess.run([sys.executable, tool], cwd=repo, capture_output=True, text=True).returncode == 0
 
         def expect(label, wanted):
             if passes() != wanted:

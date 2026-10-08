@@ -17,7 +17,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   `.claude/skills/`, `.agents/skills/` and `.github/skills/`.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
-  weight and grouped by topic. `decision-check.py` (run by `config-check.py`) enforces consistency and the
+  weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
+  (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
   freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
   file) and *Coverage gate* (≥ 80 % on new/changed lines and overall; Cobertura, lcov or Go coverprofile),

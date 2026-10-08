@@ -59,7 +59,9 @@ Rules that hold throughout:
      "development process" section the template now provides);
    - `.github/ISSUE_TEMPLATE/bug_report.md`: *environment*, *logs*;
    - `.github/pull_request_template.md`: *checklist* (project-specific checklist items, e.g. a UI section);
-   - `docs/decisions/README.md`: *index* (the existing table rows).
+   - `docs/decisions/README.md`: *index* (the existing table rows);
+   - `docs/areas/README.md`: *area-index* (the areas of the project, one row each; empty on a first adoption —
+     the areas are defined with the project, see `docs/areas/README.md`).
    `SECURITY.md` is seeded, not rebuilt: an existing one stays as it is; a new one gets its placeholders
    filled; on a refresh, remove `<!-- project:… -->` markers left in it from older template versions. A pull
    request or issue template under another name or case (e.g. `.github/PULL_REQUEST_TEMPLATE.md`) is merged

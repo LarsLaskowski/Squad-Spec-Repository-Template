@@ -18,7 +18,8 @@ Checks, without arguments:
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
   fails when a profile's analyzer script is missing;
 - `decision-check.py` on a temporary repository: consistent records pass, an unreleased record may be edited
-  in place, and around a release tag a rewritten, deleted or wrongly superseded record fails.
+  in place, and around a release tag a rewritten, deleted or wrongly superseded record fails; once areas are
+  defined, a record without a listed `Area:` and an area without its document fail.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -126,6 +127,7 @@ BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->
 MARKED = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
           os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
           os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md"),
+          os.path.join("docs", "areas", "README.md"),
           os.path.join(".github", "pull_request_template.md")]
 
 
@@ -296,10 +298,27 @@ RECORD = """# {n}: {title}
 """
 
 
-def write_record(repo, number, status="Accepted", supersedes="—", body="Do it.", index=True):
+def write_record(repo, number, status="Accepted", supersedes="—", body="Do it.", area=None):
     path = os.path.join(repo, "docs", "decisions", f"{number}-topic.md")
+    text = RECORD.format(n=number, title="Topic", status=status, supersedes=supersedes, body=body)
+    if area:
+        text = text.replace("- **Source:**", f"- **Area:** {area}\n- **Source:**")
     with open(path, "w", encoding="utf-8") as handle:
-        handle.write(RECORD.format(n=number, title="Topic", status=status, supersedes=supersedes, body=body))
+        handle.write(text)
+
+
+def write_areas(repo, rows, documents):
+    """`docs/areas/README.md` with an index row per (name, link target) and the documents that exist."""
+    os.makedirs(os.path.join(repo, "docs", "areas"), exist_ok=True)
+    lines = ["# Areas", "", "<!-- project:begin area-index -->", "| Area | Scope | Not here |",
+             "| ---- | ----- | -------- |"]
+    lines += [f"| {name} | Scope. | Elsewhere. |" for name in rows]
+    lines.append("<!-- project:end area-index -->")
+    with open(os.path.join(repo, "docs", "areas", "README.md"), "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+    for document in documents:
+        with open(os.path.join(repo, "docs", "areas", document), "w", encoding="utf-8") as handle:
+            handle.write("# Area\n")
 
 
 def write_index(repo, rows):
@@ -365,6 +384,37 @@ def check_decision_tool(errors):
         expect("released record deleted", False)
 
 
+def check_area_checks(errors):
+    """decision-check.py with areas: records need a listed `Area:`, every area links an existing document."""
+    tool = os.path.join(CORE, ".squad", "tools", "decision-check.py")
+    with tempfile.TemporaryDirectory() as repo:
+        def expect(label, wanted):
+            passed = subprocess.run([sys.executable, tool], cwd=repo, capture_output=True,
+                                    text=True).returncode == 0
+            if passed != wanted:
+                errors.append(f"decision-check areas: {label}: expected {'PASS' if wanted else 'FAIL'}")
+
+        subprocess.run(["git", "init", "-q", repo], check=True)
+        os.makedirs(os.path.join(repo, "docs", "decisions"))
+        write_record(repo, "0001")
+        write_index(repo, [("0001", "Accepted")])
+        write_areas(repo, [], [])
+        expect("no areas defined, record without Area", True)
+        write_areas(repo, ["[Storage](storage.md)"], ["storage.md"])
+        expect("areas defined, record without Area", False)
+        write_record(repo, "0001", area="Network")
+        expect("record names an unlisted area", False)
+        write_record(repo, "0001", area="Storage")
+        expect("record names a listed area", True)
+        write_record(repo, "0001", area="\u2014")
+        expect("record about no area", True)
+        write_areas(repo, ["[Storage](storage.md)"], [])
+        os.remove(os.path.join(repo, "docs", "areas", "storage.md"))
+        expect("area links a document that does not exist", False)
+        write_areas(repo, ["Storage"], ["storage.md"])
+        expect("area without a link", False)
+
+
 def main():
     errors = []
     check_mirrors(ROOT, errors)
@@ -374,6 +424,7 @@ def main():
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
+    check_area_checks(errors)
     for error in errors:
         print(error)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

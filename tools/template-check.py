@@ -17,6 +17,8 @@ Checks, without arguments:
   CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
   fails when a profile's analyzer script is missing;
+- the `sonar-project.properties` seed is skipped in a repository with the `dotnet` profile (its scanner refuses
+  the file) and still written for go+node;
 - `decision-check.py` on a temporary repository: consistent records pass, an unreleased record may be edited
   in place, and around a release tag a rewritten, deleted or wrongly superseded record fails; once areas are
   defined, a record without a listed `Area:` and an area without its document fail.
@@ -384,6 +386,29 @@ def check_decision_tool(errors):
         expect("released record deleted", False)
 
 
+def check_sonar_seed(profiles, errors):
+    """`sonar-project.properties` is seeded by go and node, but not into a repository with dotnet: its scanner refuses it."""
+    for names, wanted in ((["go", "dotnet"], False), (["dotnet", "go"], False), (["go", "node"], True)):
+        if any(name not in profiles for name in names):
+            continue
+        label = "+".join(names)
+        with tempfile.TemporaryDirectory() as target:
+            subprocess.run(["git", "init", "-q", target], check=True)
+            for step in ("apply", "refresh"):
+                applied = apply(target, *profile_options(names)) if step == "apply" else apply(target)
+                if applied.returncode != 0:
+                    errors.append(f"sonar seed {label}: {step} failed: {applied.stderr.strip()[-300:]}")
+                    break
+                exists = os.path.isfile(os.path.join(target, "sonar-project.properties"))
+                if exists != wanted:
+                    errors.append(f"sonar seed {label}: sonar-project.properties "
+                                  f"{'exists' if exists else 'is missing'} after {step}")
+                skipped = "skipped    sonar-project.properties" in applied.stdout
+                if step == "apply" and skipped == wanted:
+                    errors.append(f"sonar seed {label}: apply reports the file as "
+                                  f"{'skipped' if skipped else 'not skipped'}")
+
+
 def check_area_checks(errors):
     """decision-check.py with areas: records need a listed `Area:`, every area links an existing document."""
     tool = os.path.join(CORE, ".squad", "tools", "decision-check.py")
@@ -425,6 +450,7 @@ def main():
     smoke_test(profiles, errors)
     check_decision_tool(errors)
     check_area_checks(errors)
+    check_sonar_seed(profiles, errors)
     for error in errors:
         print(error)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

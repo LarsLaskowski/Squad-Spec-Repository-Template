@@ -24,7 +24,8 @@ instruction files get one labelled part per profile, `.squad/stack.md` one secti
 (`COVERAGE_REPORTS`), and the CI jobs, CodeQL languages and Dependabot ecosystems are merged side by side.
 The profiles' analyzer gates and SessionStart hooks are written as `analyzer-check-<profile>.py` and
 `session-start-<profile>.sh`, run by the dispatchers in `multi/`. A seed file the merge does not know how
-to combine keeps the primary profile's version and is reported as `conflict`. A refresh without
+to combine keeps the primary profile's version and is reported as `conflict`. A seed that another profile's
+tooling refuses (`sonar-project.properties` with `dotnet`, see `SEEDS_REFUSED_WITH`) is skipped. A refresh without
 `--profile` keeps the profiles recorded in `.squad/template.json`; naming a different set needs
 `--reset-profiles`.
 
@@ -66,6 +67,9 @@ MARKED = [
     "docs/areas/README.md",
     ".github/pull_request_template.md",
 ]
+# A seed the tooling of a profile in the repository refuses: the SonarScanner for .NET stops when the repository holds
+# a sonar-project.properties, so its settings are passed as scanner arguments (the dotnet profile's ci.yml does).
+SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
@@ -431,6 +435,9 @@ def main():
     for rel, src in sorted(seeds.items()):
         if os.path.exists(os.path.join(target, rel)):
             report.append(("kept", rel))
+        elif SEEDS_REFUSED_WITH.get(rel) in names:
+            report.append(("skipped", f"{rel} (the profile {SEEDS_REFUSED_WITH[rel]} cannot use it: its Sonar scanner "
+                                      "refuses a repository that has one and takes the settings as arguments)"))
         elif rel == ".gitattributes" and existing:
             # A new .gitattributes renormalizes line endings across the whole repository; that is a decision of
             # its own, not a side effect of adopting the squad.

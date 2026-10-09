@@ -85,8 +85,9 @@ is refused unless `--reset-profiles` is given. What changes compared with one pr
 - **SessionStart hook** — `session-start-<profile>.sh` per profile, run by `session-start.sh`.
 - **CI, CodeQL, Dependabot** — the jobs, CodeQL matrix entries and Dependabot ecosystems are merged side by
   side (a CI job id used twice gets the profile as prefix). Other seed files that exist in several profiles
-  (e.g. `sonar-project.properties`) keep the primary profile's version and are reported as `conflict`: merge
-  those by hand.
+  keep the primary profile's version and are reported as `conflict`: merge those by hand. The exception is
+  `sonar-project.properties` in a repository with the `dotnet` profile: the SonarScanner for .NET refuses a repository
+  that has one, so the seed is skipped (the dotnet `ci.yml` passes the settings as scanner arguments).
 - **`config-check.py`** — validates `profiles`, the per-profile scripts and a `COVERAGE_REPORTS` entry per profile.
 
 ## Using it

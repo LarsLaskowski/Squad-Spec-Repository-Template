@@ -63,6 +63,7 @@ MARKED = [
     "docs/ARCHITECTURE.md",
     ".github/ISSUE_TEMPLATE/bug_report.md",
     "docs/decisions/README.md",
+    "docs/areas/README.md",
     ".github/pull_request_template.md",
 ]
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]

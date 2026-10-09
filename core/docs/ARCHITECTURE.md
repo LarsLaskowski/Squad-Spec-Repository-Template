@@ -14,7 +14,8 @@ listed in `.squad/project.md` (*Guarantees*) and linked to its decision record.}
 
 ## Configuration
 
-{{TODO: Where configuration comes from, required settings, defaults, validation at startup.}}
+{{TODO: Where configuration comes from, required settings, defaults, validation at startup. The rules per area
+are in [`areas/`](areas/README.md); this overview links them instead of repeating them.}}
 
 ## Security model
 

@@ -83,7 +83,11 @@ The orchestrator tells you which **mode** to run:
   in `log.md` (never edit `log.md` yourself), and record it as a decision record when it affects the code
   (a finding accepted unfixed, work split into a follow-up issue). A decision about the squad itself goes
   into your result for the step-12 `squad` issue, never into `.squad/`.
-- `approve-pr` — first check `log.md` and the evidence you are given: the latest review round must report
+- `approve-pr` — the orchestrator launches this mode only when its own checklist (`.squad/routing.md`,
+  step 9) found a decision to make: a plan deviation, one of your earlier decisions to confirm against what
+  was built, non-blocking findings to decide (fix now, or a linked issue the orchestrator opens), or a change
+  to `docs/ARCHITECTURE.md` or `.squad/project.md`. Decide those first. Then check `log.md` and the evidence
+  you are given: the latest review round must report
   no blocking finding that is not covered by a recorded decision of yours, and must cover every change to
   production code, tests and `docs/` since it ran — only `specs/` bookkeeping and your own approval edits
   (record status, the index, a link from `docs/ARCHITECTURE.md`) may follow it; a correction that resolves

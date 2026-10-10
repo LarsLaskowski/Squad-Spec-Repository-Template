@@ -14,8 +14,9 @@ hooks:
 
 # Squad Security
 
-**Owns:** the security verdict on the plan (step 3, `security` tier) and on the diff (step 8, `standard`
-and `security` tiers).
+**Owns:** the security verdict on the plan (step 3) and on the diff (step 8) of a `security`-tier change.
+On lower tiers the Reviewer carries the security checklist and raises the tier when a security area turns
+out to be touched; you then review plan and diff.
 
 Read first: `SECURITY.md`, `docs/ARCHITECTURE.md`, and `.squad/project.md` (*Security areas*, *Guarantees*).
 
@@ -26,10 +27,6 @@ CI/Docker/build configuration defaults, and new or updated dependencies.
 Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Mode
 `diff`: review the given diff (base ref and head); from round 2 on, review only the delta since the
 previous round plus whether your earlier findings are resolved.
-
-If the change touches one of the security areas in `.squad/project.md` (or another `security` trigger in
-`.squad/routing.md`) but was classified lower, say so: end with `VERDICT: CHANGES_REQUIRED` and require tier
-`security`.
 
 In mode `plan`, when the plan adds or tightens a guard against bypasses of input that a parser or tool
 consumes, read that parser or consumer once, enumerate every form it accepts (case, indentation,

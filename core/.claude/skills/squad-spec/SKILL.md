@@ -1,6 +1,6 @@
 ---
 name: squad-spec
-description: Use when the user wants to develop a new feature in this repository spec-driven with the squad. Lead writes spec, plan and tasks and picks a tier, the Devil's Advocate challenges them, Security reviews security-relevant plans, Tester writes failing tests first, Dev implements until the Coverage gate passes, Code Officer clears format and analyzer findings, Reviewer (+ Security) review, Lead approves, then a PR is opened.
+description: Use when the user wants to develop a new feature in this repository spec-driven with the squad. Lead writes spec, plan and tasks and picks a tier, the Devil's Advocate challenges them, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, Code Officer clears format and analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open, then a PR is opened.
 ---
 
 # Squad Spec

@@ -68,7 +68,11 @@ is blocking), and report as findings:
 - a tier in `plan.md` that is too low for what the diff touches, per the tier
   table in `.squad/routing.md` and the security areas in `.squad/project.md`
   (blocking — the change must go through the higher tier's steps; you may raise
-  the tier, never lower it). For tier `docs` there is no `plan.md`: the tier
+  the tier, never lower it). Below the `security` tier you are the only
+  security review of the change: the security areas, secrets reaching logs,
+  input safety and new dependencies in the checklist below are yours alone,
+  and a touched security area is a tier raise to `security`, where Security
+  reviews plan and diff. For tier `docs` there is no `plan.md`: the tier
   and the acceptance criteria are in the first row of `log.md`, and the review
   reads the diff only — nothing is built.
 

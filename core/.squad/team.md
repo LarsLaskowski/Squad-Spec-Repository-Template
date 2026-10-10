@@ -33,8 +33,9 @@ launch (a feature plan on `xhigh`) through the launch's own `model` and `effort`
 
 Where production and test code live is defined in `stack.md` (*Layout*).
 
-The **Lead** decides everything inside the squad, including approving plans and approving the pull
-request. The **Product Manager** is only involved when the Lead escalates: an unclear requirement, a
+The **Lead** decides everything inside the squad, including approving plans; the pull request is approved
+by the orchestrator's checklist (`.squad/routing.md`, step 9) and the Lead is launched only for what is still
+open. The **Product Manager** is only involved when the Lead escalates: an unclear requirement, a
 product decision that cannot be derived from the issue or the existing documentation, or a deadlock the
 Lead cannot resolve.
 

@@ -46,6 +46,16 @@ class TestSquadLog(unittest.TestCase):
             data = handle.read()
         self.assertTrue(data.endswith(b"| - | - | - | - |\r\n| 2026-01-02 | 1 Intake | Orchestrator | branch created |\r\n"))
 
+    def test_resolve_log_matches_a_folder_under_specs_only(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, "specs", "issue-7", "log.md"), "| Date |\n")
+        write(os.path.join(root, "secret", "log.md"), "| Date |\n")
+        expected = os.path.join(root, "specs", "issue-7", "log.md")
+        self.assertEqual(self.script.resolve_log(root, "issue-7"), expected)
+        self.assertEqual(self.script.resolve_log(root, "specs/issue-7/"), expected)
+        for bad in ("../secret", "specs/../secret", "/etc", "issue-8", "..", "secret"):
+            self.assertIsNone(self.script.resolve_log(root, bad), bad)
+
     def test_launch_trailer_and_summary(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
         self.script.append_row(self.path, "2 Plan", "Lead", "plan written", today="2026-01-02",

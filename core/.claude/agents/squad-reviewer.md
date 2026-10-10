@@ -36,6 +36,11 @@ surface, test doubles), `CLAUDE.md` and `docs/UNIT_TESTS.md`.
   read: a test run, a build log line, a `grep` that shows the contradiction,
   a throwaway snippet in the scratchpad directory. Quote the evidence. A
   claim you cannot back up is not a finding — drop it.
+- **Do not repeat what the report already proves.** A verification the Dev or
+  Tester reported with its cases and output (an old-versus-new comparison, a
+  reproduction, a gate run on this head) is evidence; read it against the
+  diff and re-run only the one case you doubt or the report is silent on, and
+  say which spot checks you ran. Your time goes to what nobody has checked yet.
 - **Report what changes the merged code or its documentation.** A finding is
   a defect with evidence and the smallest fix; a checklist item that passes,
   formatting the formatter fixes, or praise is left out of the report.

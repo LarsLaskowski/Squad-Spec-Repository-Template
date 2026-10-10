@@ -26,7 +26,9 @@ CI/Docker/build configuration defaults, and new or updated dependencies.
 
 Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Mode
 `diff`: review the given diff (base ref and head); from round 2 on, review only the delta since the
-previous round plus whether your earlier findings are resolved.
+previous round plus whether your earlier findings are resolved. A verification the Dev reported with its
+cases and output is evidence: read it against the diff and re-run only what bears on a security area and
+you doubt, instead of repeating the whole comparison.
 
 In mode `plan`, when the plan adds or tightens a guard against bypasses of input that a parser or tool
 consumes, read that parser or consumer once, enumerate every form it accepts (case, indentation,

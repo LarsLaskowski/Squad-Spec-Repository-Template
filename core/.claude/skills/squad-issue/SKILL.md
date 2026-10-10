@@ -64,7 +64,10 @@ action yourself — including follow-up issues the Lead decides on.
    `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
    orchestrator) write `log.md`, one row per step, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
-   ending, escapes pipes and control characters, and dates the row. After every member's report, commit and
+   ending, escapes pipes and control characters, and dates the row. For a subagent launch add what the usage
+   block at the end of the launch result reports: `--launch <model>/<effort> --tokens <subagent_tokens>
+   --tool-uses <tool_uses> --seconds <duration_ms / 1000>`, with the model and effort from the agent file (or
+   the launch's own override); the wrap-up sums it per role. After every member's report, commit and
    push the files it left in the work folder (the Lead's records, the Tester's tests) yourself, so the next
    report does not list them as untracked noise.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
@@ -191,8 +194,12 @@ action yourself — including follow-up issues the Lead decides on.
     only if attaching is refused, file it here with the label `squad-upstream`), lessons about project knowledge
     as **one** issue labelled `squad` in this repository (create the labels if missing). Link the issues
     from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
-    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons") and any escalation or
-    Lead decision to the user. If there is genuinely nothing to learn,
+    Then run `python3 .squad/tools/squad-log.py issue-<number> --summary` on the log (restore it from the
+    working record comment if the folder is gone) and append the table to the working record comment under
+    a "Squad run metrics" heading: launches, tokens, tool uses and seconds per role are what tunes the
+    squad's models and effort over time.
+    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons"), the metrics table and any
+    escalation or Lead decision to the user. If there is genuinely nothing to learn,
     append a `| <date> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
     instead of opening an issue — the step itself is never skipped.
 

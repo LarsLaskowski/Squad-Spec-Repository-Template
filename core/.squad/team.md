@@ -29,7 +29,9 @@ specific to this repository lives in two files the members read first:
 
 The model aliases resolve to the current generation of each line; the effort is set per role in the agent
 file so a session's effort setting does not change every role at once. The orchestrator may raise a single
-launch (a feature plan on `xhigh`) through the launch's own `model` and `effort` parameters.
+launch (a feature plan on `xhigh`) through the launch's own `model` and `effort` parameters. Every run
+records launches, tokens, tool uses and seconds per role in its working record (`squad-log.py --summary`);
+a model or effort change for a role is made on that evidence, in the template, and rolled out from there.
 
 Where production and test code live is defined in `stack.md` (*Layout*).
 

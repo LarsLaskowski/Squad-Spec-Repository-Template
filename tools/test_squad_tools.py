@@ -46,6 +46,19 @@ class TestSquadLog(unittest.TestCase):
             data = handle.read()
         self.assertTrue(data.endswith(b"| - | - | - | - |\r\n| 2026-01-02 | 1 Intake | Orchestrator | branch created |\r\n"))
 
+    def test_launch_trailer_and_summary(self):
+        write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        self.script.append_row(self.path, "2 Plan", "Lead", "plan written", today="2026-01-02",
+                               launch=("opus/high", 37445, 6, 57))
+        self.script.append_row(self.path, "2 Plan", "Devil's Advocate", "2 objections | 1 minor", today="2026-01-02",
+                               launch=("sonnet/high", 12000, 3, 20))
+        self.script.append_row(self.path, "2 Plan", "Lead", "revised", today="2026-01-02", launch=("opus/high", 8000, 2, 10))
+        self.script.append_row(self.path, "7 Code check", "Orchestrator", "gates pass", today="2026-01-02")
+        table = self.script.summary(self.path)
+        self.assertIn("| Devil's Advocate | sonnet/high | 1 | 12,000 | 3 | 20 |", table)
+        self.assertIn("| Lead | opus/high | 2 | 45,445 | 8 | 67 |", table)
+        self.assertIn("| **Total** | | 3 | 57,445 | 11 | 87 |", table)
+
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")

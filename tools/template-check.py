@@ -326,10 +326,16 @@ def write_areas(repo, rows, documents):
             handle.write("# Area\n")
 
 
-def write_index(repo, rows):
+def linked(text):
+    """Every record number in text as a link, the way some repositories write their index."""
+    return re.sub(r"\b(\d{4})\b", r"[\1](\1-topic.md)", text)
+
+
+def write_index(repo, rows, link=False):
     lines = ["# Decision records", "", "<!-- project:begin index -->", "| # | Title | Status | Date |",
              "| - | ----- | ------ | ---- |"]
-    lines += [f"| {number} | Topic | {status} | 2026-01-01 |" for number, status in rows]
+    lines += [f"| {linked(number) if link else number} | Topic | {linked(status) if link else status} | 2026-01-01 |"
+              for number, status in rows]
     lines.append("<!-- project:end index -->")
     with open(os.path.join(repo, "docs", "decisions", "README.md"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
@@ -358,6 +364,8 @@ def check_decision_tool(errors):
         git_in("add", "-A")
         git_in("commit", "-qm", "records")
         expect("consistent records without tags", True)
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")], link=True)
+        expect("index rows that link the record", True)
         write_index(repo, [("0001", "Accepted")])
         expect("record missing in the index", False)
         write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])
@@ -376,6 +384,11 @@ def check_decision_tool(errors):
         write_record(repo, "0001", status="Superseded by 0003", body="Changed before any release.")
         write_index(repo, [("0001", "Superseded by 0003"), ("0002", "Accepted"), ("0003", "Accepted")])
         expect("released record superseded by a new record", True)
+        write_record(repo, "0001", status="Superseded by [0003](0003-topic.md)", body="Changed before any release.")
+        write_index(repo, [("0001", "Superseded by 0003"), ("0002", "Accepted"), ("0003", "Accepted")], link=True)
+        expect("linked Superseded by status in the record and the index", True)
+        write_record(repo, "0001", status="Superseded by 0003", body="Changed before any release.")
+        write_index(repo, [("0001", "Superseded by 0003"), ("0002", "Accepted"), ("0003", "Accepted")])
         git_in("add", "-A")
         git_in("commit", "-qm", "supersede")
         write_record(repo, "0003", status="Superseded by 0004", supersedes="0001", body="Replaces 0001.")

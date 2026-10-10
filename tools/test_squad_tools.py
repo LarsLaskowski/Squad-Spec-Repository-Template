@@ -48,7 +48,7 @@ class TestSquadLog(unittest.TestCase):
 
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")
-        row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond ‮ line\tend", today="2026-01-02")
+        row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")
         self.assertEqual(row, "| 2026-01-02 | 2 Plan | Lead | a\\|b<br>second U+202E line end |")
 
 
@@ -97,7 +97,7 @@ class TestScopeCheck(unittest.TestCase):
         self.assertIn("outside its <!-- project:", self.errors()[0])
 
     def test_control_character_in_markdown_is_reported(self):
-        write("docs/decisions/0001-x.md", "# 0001\n\ntext ‮ here\n")
+        write("docs/decisions/0001-x.md", "# 0001\n\ntext \u202e here\n")
         self.assertIn("U+202E", self.errors()[0])
 
     def test_working_record_after_step_10_is_reported(self):

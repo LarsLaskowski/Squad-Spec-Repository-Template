@@ -1,6 +1,6 @@
 ---
 name: adopt-template
-description: Use when the user wants to bring the Squad-Spec-Repository-Template squad and AI rules (Claude, Codex/GPT, Copilot) into another repository, or to refresh a repository that already uses them. Detects the stack profile, applies the template with tools/apply-template.py, moves the repository's own knowledge into the project sections, .squad/stack.md and .squad/project.md, replaces old skills, verifies everything and opens a pull request in the target repository.
+description: Use when the user wants to bring the Squad-Spec-Repository-Template squad and Claude Code rules into another repository, or to refresh a repository that already uses them. Detects the stack profile, applies the template with tools/apply-template.py, moves the repository's own knowledge into the project sections, .squad/stack.md and .squad/project.md, replaces old skills, verifies everything and opens a pull request in the target repository.
 ---
 
 # Adopt Template
@@ -25,8 +25,9 @@ Rules that hold throughout:
 ## Steps
 
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
-   off `origin/main`. Read its `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `README.md`,
-   `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build files before changing anything.
+   off `origin/main`. Read its `CLAUDE.md` (and an `AGENTS.md` or `.github/copilot-instructions.md` an older
+   template version wrote), `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
+   files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
    records without `repository` get it on this run) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md` and `squad_settings.py` with the
@@ -47,7 +48,9 @@ Rules that hold throughout:
    `python3 tools/apply-template.py --target <path> [--profile <profile> …] --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
-   and the files in template-owned folders the template does not know. With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
+   and the files in template-owned folders the template does not know, and the retired files it removed (the
+   Codex and Copilot mirrors an older template version wrote; a project block that only existed in `AGENTS.md`
+   or `.github/copilot-instructions.md` is carried into `CLAUDE.md` first). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing
    new needs a block). For every file backed up under `.git/adopt-template/backup/` in the target, move its
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:
@@ -67,12 +70,11 @@ Rules that hold throughout:
    request or issue template under another name or case (e.g. `.github/PULL_REQUEST_TEMPLATE.md`) is merged
    into the template's file and removed — GitHub would otherwise pick one at random, and the two names
    collide on case-insensitive file systems.
-   Links in the three instruction files are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`)
-   so they resolve from `.github/copilot-instructions.md` too; write the project blocks the same way.
+   Links in `CLAUDE.md` are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`); write the project
+   blocks the same way.
    Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a
    refresh never brings them back. Rules that the stack or core sections already state are dropped from
-   the project blocks rather than kept twice. Copy `CLAUDE.md`'s body to `AGENTS.md` and
-   `.github/copilot-instructions.md` unchanged from the first `##` heading on.
+   the project blocks rather than kept twice.
 5. **Fill `.squad/stack.md` and `.squad/tools/squad_settings.py`** from the target's real build: versions,
    solution or module name, layout, every command, coverage paths. Run each command once to prove it
    works. Where the profile expects a tool the target does not have yet (e.g. ESLint with
@@ -88,15 +90,15 @@ Rules that hold throughout:
    decision records, the integration surface (what must change together), and the test doubles. On a
    first adoption, also read `git diff HEAD` of the **managed** files the apply step overwrote — a
    repository that already had a squad keeps its project knowledge there (e.g. the integration-surface
-   sweep in an old `squad-reviewer.md`, project names in charters or the PR template) — and carry that
+   sweep in an old `squad-reviewer.md`, project names in old charters or the PR template) — and carry that
    knowledge into `project.md` or `stack.md` before it is lost.
 7. **Old skills and agents** (the "not part of the template" list): fold their project-specific content
    into `project.md`, `stack.md` or `docs/`, then delete the ones the template replaces — `fix-issue` →
    `squad-issue`, `publish-pr`/`create-pr` → `create-pr`, `rereview-pr`/`review-pr` → `review-pr`, a
-   repository-specific reviewer agent → `squad-reviewer`. A genuinely project-specific skill stays and is
-   mirrored identically into `.claude/skills/`, `.agents/skills/` and `.github/skills/`. Copilot custom
-   agents (`.github/agents/`) and path instructions (`.github/instructions/`) stay; align their rules with
-   `stack.md` where they contradict it.
+   repository-specific reviewer agent → `squad-reviewer`. A genuinely project-specific skill stays under
+   `.claude/skills/`; a copy of it under `.agents/skills/` or `.github/skills/` is deleted. Copilot custom agents
+   (`.github/agents/`) and path instructions (`.github/instructions/`) stay; align their rules with `stack.md`
+   where they contradict it.
 8. **Decision records, settings, CI.**
    - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
      *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has a
@@ -109,11 +111,17 @@ Rules that hold throughout:
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
-   - `.squad/decisions.md`: replace the `{{TODO: date}}` and `{{TODO: profile}}` placeholders in the seeded entry.
+   - `.squad/decisions.md`, `.squad/agents/*/history.md` and `.squad/agents/*/charter.md` from older template
+     versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
+     the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is
+     still worth keeping becomes a decision record.
 9. **Verify** in the target: `python3 .squad/tools/config-check.py` passes (no placeholder left), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
-   new `stack.md`. A gate that fails on code this PR did not change (e.g. overall coverage below 80 %) is
-   not fixed by lowering a threshold: report it in the PR description and to the user. Then run the
+   new `stack.md`. A gate that fails on code this PR did not change is reported in the PR description and to
+   the user. One exception: when overall coverage is below the threshold before this PR, set
+   `COVERAGE_OVERALL_THRESHOLD` in `squad_settings.py` to the current overall value (rounded down) so the
+   *Coverage gate* holds the line from here on, and say so in the PR; it is raised towards 80 as coverage
+   improves and never lowered again. Then run the
    target's `squad-reviewer` agent (round 1, full) on the diff and fix its blocking findings; later rounds
    review only the delta.
 10. **Pull request** in the target, from its `.github/pull_request_template.md`: title
@@ -122,7 +130,7 @@ Rules that hold throughout:
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until CI is green.
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.
-    coverage below 80 %), and any template change you had to make here first.
+    coverage below the threshold), and any template change you had to make here first.
 
 ## Updating the template itself
 

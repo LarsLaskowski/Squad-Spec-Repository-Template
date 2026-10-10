@@ -19,13 +19,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import squad_settings as settings  # noqa: E402  (per-repository settings next to this script)
-from analyzer_common import BASE_REF, git, shell_check  # noqa: E402  (shared helpers next to this script)
+from analyzer_common import git, merge_base, shell_check  # noqa: E402  (shared helpers next to this script)
 
 
 
 def changed_files():
-    merge_base = git("merge-base", BASE_REF, "HEAD").strip()
-    names = git("diff", "--name-only", "--diff-filter=d", merge_base).splitlines()
+    base = merge_base()
+    names = git("diff", "--name-only", "--diff-filter=d", base).splitlines()
     names += git("ls-files", "--others", "--exclude-standard").splitlines()
     return sorted({n.strip() for n in names
                    if n.strip().endswith(tuple(settings.LINT_EXTENSIONS)) and os.path.isfile(n.strip())})

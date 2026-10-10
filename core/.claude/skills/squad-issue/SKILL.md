@@ -1,6 +1,6 @@
 ---
 name: squad-issue
-description: Use when the user asks to fix a specific GitHub issue in this repository. Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews security-relevant plans, Tester writes failing tests first, Dev implements to 80% coverage, Code Officer clears format and analyzer findings, Reviewer (+ Security) review, Lead approves — and opens a PR referencing the issue.
+description: Use when the user asks to fix a specific GitHub issue in this repository. Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews security-relevant plans, Tester writes failing tests first, Dev implements until the Coverage gate passes, Code Officer clears format and analyzer findings, Reviewer (+ Security) review, Lead approves — and opens a PR referencing the issue.
 ---
 
 # Squad Issue
@@ -11,14 +11,14 @@ loop limits from [`.squad/routing.md`](../../../.squad/routing.md), and perform 
 action yourself — including follow-up issues the Lead decides on.
 
 - **You never do a member's work.** You do not edit production code, tests or documentation the plan
-  assigns to the Dev, do not run the formatter, and do not fix analyzer findings — not even a one-line `sed`.
-  Whatever a check of yours finds goes to its owner (production code → `squad-dev`, tests →
-  `squad-tester`, formatting/analyzer-only edits → `squad-code-officer`) and through the steps that follow
-  it. Besides read-only checks (`--check`, the analyzer and coverage scripts, tests) you only write the
-  squad's bookkeeping: `log.md` and `tasks.md` check marks (features). Never production code, tests or `docs/`.
+  assigns to the Dev, do not run the formatter, and do not fix analyzer findings. Whatever a check of yours
+  finds goes to its owner (production code → `squad-dev`, tests → `squad-tester`, formatting/analyzer-only
+  edits → `squad-code-officer`) and through the steps that follow it. Besides read-only checks (`--check`,
+  the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
+  `python3 .squad/tools/squad-log.py`) and `tasks.md` check marks (features). The one exception is tier
+  `docs`: there you apply the Lead's exact edits yourself (`.squad/routing.md`, *Tiers*).
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
-  (including `history.md` and `decisions.md`), `.claude/`, `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`
-  or `.github/copilot-instructions.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
+  (`team.md`, `routing.md`, tools), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
   change itself genuinely needs one of those files (e.g. a new build command every contributor must know),
   the Lead escalates instead and the Product Manager decides: `.squad/stack.md` and `.squad/project.md` may
@@ -57,19 +57,18 @@ action yourself — including follow-up issues the Lead decides on.
    software involved, image tag or release, host OS, configuration). If it is closed, stop and report that. Start
    from a clean working tree on a new branch off the latest `main`, e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create
-   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it; append one table row
-   per step. Only you
-   (the orchestrator) write `log.md`, one row per append, each row ending in the file's line ending — subagents report and
-   you record, so rows never merge or end up with mixed line endings. Before each commit, check the rows
-   you wrote for characters of the Unicode categories Cc, Cf, Zl and Zp other than tab and newline (e.g. with
-   `python3 -I`); an escape such as `U+202E` stays text and is never pasted as the character. After every
-   member's report, commit and push the files it left in the work folder (the Lead's records, the Tester's
-   tests) yourself, so the next report does not list them as untracked noise.
+   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
+   orchestrator) write `log.md`, one row per step, always with
+   `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
+   ending, escapes pipes and control characters, and dates the row. After every member's report, commit and
+   push the files it left in the work folder (the Lead's records, the Tester's tests) yourself, so the next
+   report does not list them as untracked noise.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
-   - `RESULT: DONE` — for tier **`docs`** (see its definition in `.squad/routing.md`), a short result (tier, the files and lines to change, acceptance
-     criteria) that you record as the first plan row in `log.md`, then continue with step 6 (Dev), the
-     read-only check from the `docs` row in `.squad/routing.md`, one review round in step 8, and step 10
-     directly — no Security, skeleton, tests, coverage, Code Officer or Lead approval. Otherwise:
+   - `RESULT: DONE` — for tier **`docs`** (definition in `.squad/routing.md`), a short result (tier, the
+     exact edits, acceptance criteria) that you record as the first plan row in `log.md`; apply the edits
+     yourself, run `python3 .squad/tools/scope-check.py --tier docs` and *Format check*, then one review
+     round in step 8 and step 10 directly — no Security, skeleton, tests, coverage, Code Officer or Lead
+     approval. Otherwise:
      `plan.md` with the **tier** (`trivial` / `standard` / `security`), acceptance
      criteria, the signatures of new or changed API, the affected area documents (`docs/areas/`), required documentation updates (`README.md`,
      `docs/`), and `Proposed` decision records. Continue with the steps the tier requires.
@@ -107,21 +106,22 @@ action yourself — including follow-up issues the Lead decides on.
    in mode `decide`; the Tester changes a test only if the Lead says so. Then run *Test with coverage* and
    the *Coverage gate* yourself (both in `.squad/stack.md`). Launch `squad-tester` in mode `coverage` only
    when the gate fails or the Dev reports uncovered new lines; if the gate already passes and the only
-   uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes (≥ 80 % on new/changed production code and overall). Lines reported as not unit-testable go to
+   uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes. Lines reported as not unit-testable go to
    `squad-lead` in mode `decide`; an accepted gap is recorded in `log.md`.
-7. **Code check.** Launch `squad-code-officer` with the base ref — the only member that runs
-   the formatter and clears analyzer diagnostics. Then verify yourself, without formatting, with the
-   commands from `.squad/stack.md`: *Format check* exits 0, the *Analyzer gate* passes (no diagnostic of
-   any severity in a changed file), *Test* is green with the same tests, and the *Coverage gate* still
-   passes (not run for a change without production or test code). Record status and index are the Lead's in step 9: treat any status claim in the
-   Code Officer's report as unverified until you have read the file. Structural items handed back go to `squad-dev` (or
-   `squad-tester`), followed by another code check. This is the gate before the PR; CI is not meant to find anything here.
+7. **Code check.** Run the gates yourself first, with the commands from `.squad/stack.md`: *Format check*,
+   the *Analyzer gate* (no diagnostic of any severity in a changed file), *Test*, the *Coverage gate* (not
+   for a change without production or test code) and `python3 .squad/tools/scope-check.py`. Keep the output:
+   the reviewers get it in step 8. If everything passes, step 7 is done without launching anyone. Otherwise
+   launch `squad-code-officer` with the base ref — the only member that runs the formatter and clears
+   analyzer diagnostics; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope
+   finding to its owner — and run the gates again until they pass. This is the gate before the PR; CI is not
+   meant to find anything here.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `standard` and `security` —
    `squad-security` in mode `diff`, in parallel, against the base ref. Pass both the work folder
    (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tier `docs`: the first
-   `log.md` row, since there is no `plan.md`); either may raise the tier. Tier `docs`: a blocking finding
-   goes to `squad-dev`, then the read-only check and a delta round, then step 10. Blocking
-   findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
+   `log.md` row, since there is no `plan.md`) and the gate output of step 7 for this head, so they do not
+   build and test again; either may raise the tier. Tier `docs`: you fix a blocking finding yourself, run
+   the two checks again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
    (coverage) and 7 again → **a new review round on the delta is mandatory** before step 9; never go from
    a blocking finding straight to PR approval. The same holds for a non-blocking finding the Lead decides
    to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. At most **2 fix rounds** after round 1; then `squad-lead`
@@ -146,9 +146,9 @@ action yourself — including follow-up issues the Lead decides on.
     "Squad working record"). When `plan.md` is so long that re-typing it through a tool call is impractical,
     post a permalink to the last commit that contains it (`https://github.com/<owner>/<repo>/blob/<sha>/specs/issue-<number>/plan.md`)
     plus a summary of the tier, acceptance criteria, decisions and challenge outcome instead; that commit
-    stays reachable through the PR's history. Then `git rm -r specs/issue-<number>/`, commit ("Remove squad working
-    record"), and push. Later log rows (steps 11–12) are appended by editing that comment. Then open the
-    PR from
+    stays reachable through the PR's history. Then `git rm -r specs/issue-<number>/`, confirm with
+    `python3 .squad/tools/scope-check.py --no-specs`, commit ("Remove squad working record"), and push. Later
+    log rows (steps 11–12) are appended by editing that comment. Then open the PR from
     [`.github/pull_request_template.md`](../../../.github/pull_request_template.md): title per
     `docs/CONTRIBUTING.md` — `[area] Description`, where `area` is one of the areas
     CONTRIBUTING lists, capitalized — not a lowercase class or file name. It becomes the squash
@@ -165,8 +165,8 @@ action yourself — including follow-up issues the Lead decides on.
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
 
-    Each fix goes through steps 7–8 again (delta review), with at most 2 fix rounds per failure before the
-    Lead decides. A re-approval (step 9) is requested only after CI on the new head has finished and passes,
+    Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), with at
+    most 2 fix rounds per failure before the Lead decides. A re-approval (step 9) is requested only after CI on the new head has finished and passes,
     with the finished check-run list attached. When the plan's acceptance criteria can only be verified in CI
     (for example a container image the sandbox cannot build), a red CI on exactly those criteria is a normal
     outcome of this step: the plan names the owner (Dev for Dockerfile, compose and workflow files), and every

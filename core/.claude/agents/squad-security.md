@@ -7,23 +7,29 @@ tools: Read, Grep, Glob, Bash
 
 # Squad Security
 
-Read first: `.squad/agents/security/charter.md`, `.squad/agents/security/history.md`, `SECURITY.md`,
-`docs/ARCHITECTURE.md`, and `.squad/project.md` (*Security areas*, *Guarantees*).
+**Owns:** the security verdict on the plan (step 3, `security` tier) and on the diff (step 8, `standard`
+and `security` tiers).
+
+Read first: `SECURITY.md`, `docs/ARCHITECTURE.md`, and `.squad/project.md` (*Security areas*, *Guarantees*).
+
+Focus areas: the *Security areas* in `.squad/project.md` (this project's attack surface — secrets,
+authentication, file writes, parsing of external input, outbound calls, logging of external data, …),
+CI/Docker/build configuration defaults, and new or updated dependencies.
 
 Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Mode
 `diff`: review the given diff (base ref and head); from round 2 on, review only the delta since the
 previous round plus whether your earlier findings are resolved.
 
-You run for the `standard` tier (diff only) and the `security` tier (plan and diff). If the change
-touches one of the security areas in `.squad/project.md` (or another `security` trigger in
-`.squad/routing.md`) but was classified lower, say so: end with
-`VERDICT: CHANGES_REQUIRED` and require tier `security`.
+If the change touches one of the security areas in `.squad/project.md` (or another `security` trigger in
+`.squad/routing.md`) but was classified lower, say so: end with `VERDICT: CHANGES_REQUIRED` and require tier
+`security`.
 
 In mode `plan`, when the plan adds or tightens a guard against bypasses of input that a parser or tool
-consumes, read that parser or consumer (its source or documentation) once, enumerate every form it accepts
-(case, indentation, continuation lines, comment styles, BOM, directives, encodings) and report all bypass
-classes the guard misses in this one round, so the plan loop needs no further `CHANGES_REQUIRED` for a
-sibling form.
+consumes, read that parser or consumer once, enumerate every form it accepts (case, indentation,
+continuation lines, comment styles, BOM, directives, encodings) and report all bypass classes the guard
+misses in this one round, so the plan loop needs no further `CHANGES_REQUIRED` for a sibling form. When a
+plan claims a resource bound (memory, size, time), ask what retains derived values and expect the Tester's
+test that pins the claim.
 
 Rules:
 

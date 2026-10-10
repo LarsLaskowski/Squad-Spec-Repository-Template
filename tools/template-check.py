@@ -3,16 +3,16 @@
 
 Checks, without arguments:
 
-- the skill mirrors (`.claude/skills`, `.agents/skills`, `.github/skills`) are identical, both in `core/`
-  and at the repository root, and every agent and skill has valid front matter;
-- `core/CLAUDE.md`, `core/AGENTS.md` and `core/.github/copilot-instructions.md` are identical from their
-  first `## ` heading on, and every `<!-- …:begin X -->` marker in a core file has its matching end marker;
+- every agent and skill, both in `core/` and at the repository root, has valid front matter;
+- `core/CLAUDE.md` uses only repository-rooted links, and every `<!-- …:begin X -->` marker in a core file has
+  its matching end marker;
 - every profile has the same required files, its `instructions.md` provides every stack block the core
   instruction files use, its `stack.md` defines every command name the core refers to, and its
   `squad_settings.py` defines the coverage settings;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
-  filled and the template is applied a second time (a refresh), `config-check.py` passes completely;
+  filled and the template is applied a second time (a refresh), `config-check.py` passes completely and
+  the files the template no longer manages (`RETIRED` in `apply-template.py`) are gone;
 - the same smoke test for all profiles together (a repository with several languages): the merged CI,
   CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
@@ -38,8 +38,8 @@ sys.dont_write_bytecode = True  # importing the profiles' squad_settings.py must
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE = os.path.join(ROOT, "core")
-MIRRORS = [os.path.join(".claude", "skills"), os.path.join(".agents", "skills"), os.path.join(".github", "skills")]
-INSTRUCTIONS = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md")]
+SKILLS = os.path.join(".claude", "skills")
+INSTRUCTIONS = ["CLAUDE.md"]
 PROFILE_FILES = [
     "instructions.md",
     "managed/.claude/hooks/session-start.sh",
@@ -84,30 +84,14 @@ def check_front_matter(path, expected, errors):
         errors.append(f"{path}: name '{data['name']}' does not match '{expected}'")
 
 
-def check_mirrors(base, errors):
-    found = []
-    for mirror in MIRRORS:
-        skills = {}
-        for path in glob.glob(os.path.join(base, mirror, "*", "SKILL.md")):
-            name = os.path.basename(os.path.dirname(path))
-            check_front_matter(path, name, errors)
-            skills[name] = read(path)
-        found.append((mirror, skills))
-    reference_name, reference = found[0]
-    for mirror, skills in found[1:]:
-        if skills != reference:
-            errors.append(f"{os.path.relpath(base, ROOT) or '.'}: {mirror} differs from {reference_name}")
+def check_agents_and_skills(base, errors):
+    for path in glob.glob(os.path.join(base, SKILLS, "*", "SKILL.md")):
+        check_front_matter(path, os.path.basename(os.path.dirname(path)), errors)
     for path in glob.glob(os.path.join(base, ".claude", "agents", "*.md")):
         check_front_matter(path, os.path.splitext(os.path.basename(path))[0], errors)
 
 
 def check_core(errors):
-    bodies = []
-    for rel in INSTRUCTIONS:
-        text = read(os.path.join(CORE, rel))
-        bodies.append(text[text.find("\n## "):])
-    if len(set(bodies)) != 1:
-        errors.append("core instruction files differ after the first '## ' heading")
     relative = re.compile(r"\]\((?!https?:|#|/|mailto:)[^)\s]+\)")
     for rel in INSTRUCTIONS:
         for match in relative.finditer(read(os.path.join(CORE, rel))):
@@ -126,8 +110,7 @@ def check_core(errors):
 
 PLACEHOLDER = re.compile(r"\{\{TODO:[^{}]*\}\}")
 BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->", re.S)
-MARKED = ["CLAUDE.md", "AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
-          os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
+MARKED = ["CLAUDE.md", os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
           os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md"),
           os.path.join("docs", "areas", "README.md"),
           os.path.join(".github", "pull_request_template.md")]
@@ -204,11 +187,15 @@ def smoke_test(profiles, errors):
             for line in lines:
                 errors.append(f"profile {label}: config-check after apply: {line}")
             fill_placeholders(target)
+            plant_retired(target)
             # a refresh names no profile: the recorded ones are kept
             refresh = apply(target)
             if refresh.returncode != 0:
                 errors.append(f"profile {label}: refresh failed: {refresh.stderr.strip()[-500:]}")
                 continue
+            for rel in RETIRED_SAMPLE:
+                if os.path.exists(os.path.join(target, rel)):
+                    errors.append(f"profile {label}: refresh kept the retired file {rel}")
             refreshed = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                                        capture_output=True, text=True)
             if refreshed.returncode != 0:
@@ -272,6 +259,22 @@ def profile_file(name, rel):
 
 def single_value(name, rel, pattern):
     return re.search(pattern, profile_file(name, rel)).group(1)
+
+
+# Files an older template version wrote into every target; a refresh must remove them (RETIRED in apply-template.py).
+RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
+                  os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
+                  os.path.join(".squad", "agents", "dev", "charter.md"),
+                  os.path.join(".agents", "skills", "create-pr", "SKILL.md"),
+                  os.path.join(".github", "skills", "squad-issue", "SKILL.md")]
+
+
+def plant_retired(target):
+    for rel in RETIRED_SAMPLE:
+        path = os.path.join(target, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("old mirror\n")
 
 
 def fill_placeholders(target):
@@ -442,8 +445,8 @@ def check_area_checks(errors):
 
 def main():
     errors = []
-    check_mirrors(ROOT, errors)
-    check_mirrors(CORE, errors)
+    check_agents_and_skills(ROOT, errors)
+    check_agents_and_skills(CORE, errors)
     check_core(errors)
     check_placeholders(errors)
     profiles = check_profiles(errors)

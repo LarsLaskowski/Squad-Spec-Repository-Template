@@ -8,21 +8,23 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 
 - **The squad** (`.squad/`, `.claude/agents/squad-*.md`) — Lead, Devil's Advocate, Security, Tester,
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features)
-  skills: plan → challenge → security review → tests first → implementation to ≥ 80 % coverage → format
-  and analyzer gate → review loop → Lead approval → pull request. Details in
+  skills: plan → challenge → security review → tests first → implementation until the coverage gate passes
+  → format and analyzer gate → review loop → Lead approval → pull request. Details in
   [`core/.squad/routing.md`](core/.squad/routing.md).
-- **One rule set for three agents** — `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/GPT) and
-  `.github/copilot-instructions.md` (GitHub Copilot) are identical from their first `##` heading on; the
-  skills `create-pr`, `review-pr`, `squad-issue`, `squad-spec` and `decision-consolidate` exist identically under
-  `.claude/skills/`, `.agents/skills/` and `.github/skills/`.
+- **One rule set for Claude Code** — `CLAUDE.md` holds the rules, the skills `create-pr`, `review-pr`,
+  `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`. The squad runs on Claude
+  Code subagents; other agents (Codex, Copilot) are not supported, a refresh removes the mirrors older template
+  versions wrote for them.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
   weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
   (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
   freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
-  file) and *Coverage gate* (≥ 80 % on new/changed lines and overall; Cobertura, lcov or Go coverprofile),
-  plus `config-check.py`, which keeps mirrors in sync and finds unfilled placeholders.
+  file) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
+  `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
+  no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
+  template text and leaves no working record behind). `squad-log.py` appends the pipeline's log rows.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.
@@ -33,23 +35,23 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 ```
 core/             stack-neutral files; template-managed, except the "marked" files below
 profiles/<stack>/
-  instructions.md the stack blocks of CLAUDE.md / AGENTS.md / copilot-instructions.md
+  instructions.md the stack blocks of CLAUDE.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
-seed/             written once if missing: .squad/project.md, decisions.md, histories, .claude/settings.json
+seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
 tools/            apply-template.py (mechanical apply), template-check.py (self-check)
-.claude/skills/adopt-template/   the skill (mirrored in .agents/skills/ and .github/skills/)
+.claude/skills/adopt-template/   the skill
 ```
 
 Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md` | overwritten |
-| marked | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
-| seed | `.squad/stack.md`, `.squad/project.md`, `.squad/decisions.md`, histories, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
+| managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
+| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
@@ -96,7 +98,7 @@ In a Claude Code session with this repository and the target repository availabl
 words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
 detects the profile(s), runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
 and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
-reviewers), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
+reviewers, the Codex and Copilot mirrors), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
 everything project-specific.
 
 ## Changing the template
@@ -105,7 +107,7 @@ Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squa
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
-| a managed file or the template part of a marked file (squad rules, charters, agents, skills, tools, shared instruction sections) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `CLAUDE.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
 Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where
@@ -133,7 +135,7 @@ A local edit of a managed file in a product repository is never the fix: the nex
 
 Create `profiles/<stack>/` with the files `tools/template-check.py` requires (`PROFILE_FILES`): the
 stack blocks in `instructions.md`, an `analyzer-check.py` and a SessionStart hook under `managed/`
-(they are renamed per profile in a multi-profile repository, so keep them self-contained), , and
+(they are renamed per profile in a multi-profile repository, so keep them self-contained), and
 `stack.md` (every command name and section), `squad_settings.py`, `UNIT_TESTS.md`, CI, CodeQL and
 Dependabot under `seed/`. Add a coverage loader to `core/.squad/tools/coverage-check.py` if the stack
 writes a new report format, the detection rule to the `adopt-template` skill, and a row to the table above.

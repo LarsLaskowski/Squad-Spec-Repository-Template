@@ -62,8 +62,10 @@ The orchestrator tells you which **mode** to run:
   as `U+202E` as text (`scope-check.py` reports the character itself).
 
   For every decision that meets the threshold in `docs/decisions/README.md`, create a `Proposed` record
-  from `docs/decisions/_template.md` and list it in the plan; extend an existing unreleased record on the
-  same topic instead of adding one. Keep the record to the why: the behavior it leads to is written once
+  from `docs/decisions/_template.md`, add its row to the index in `docs/decisions/README.md` with status
+  `Proposed` right away (`decision-check.py` fails on a record without one), and list it in the plan; extend
+  an existing unreleased record on the same topic instead of adding one. A record you delete takes its
+  index row with it. Keep the record to the why: the behavior it leads to is written once
   in the area document, which the record links and names in its `Area:` field. If a guarantee or flow
   changes, update `docs/ARCHITECTURE.md` too and link the record from it.
   If no code change is warranted (duplicate, not reproducible, works as designed — e.g. covered by an
@@ -95,8 +97,8 @@ The orchestrator tells you which **mode** to run:
   `RESULT: NOT APPROVED — delta review missing`. Then review the final diff (`git diff <base>...HEAD` plus
   uncommitted changes) against the plan and acceptance criteria and the green build/test and *Coverage gate*
   output you are given (or a recorded Lead decision for each accepted gap). Make sure every decision record
-  of this change matches what was built, set it to `Accepted`, add it to the index in
-  `docs/decisions/README.md`, and update `docs/ARCHITECTURE.md` if a guarantee or flow changed. A change in
+  of this change matches what was built, set it and its index row in `docs/decisions/README.md` to
+  `Accepted`, and update `docs/ARCHITECTURE.md` if a guarantee or flow changed. A change in
   behavior without the matching area document, or a missing or stale record, is a reason for
   `NOT APPROVED` until you have fixed it. If you approve on a condition, name the owner of that fix by file
   as in `decide`.

@@ -42,7 +42,9 @@ action yourself — including follow-up issues the Lead decides on.
   untracked files, and after every further completed step. PRs are merged with *Squash and merge*, so only
   the PR title and description reach `main`; intermediate commit messages may name the step, but never
   contain secrets. Interim work-in-progress commits — e.g. demanded by a stop hook while a member is still
-  working — are fine for the same reason; the commit that closes the round gets a final subject. Stage with plain `git add -A`: ignored paths such as `TestResults/`
+  working — are fine for the same reason; the commit that closes the round gets a final subject. Before the
+  PR they cost nothing; after it (step 11) every push re-triggers CI and code analysis, so batch the
+  edits of a round and commit them once. Stage with plain `git add -A`: ignored paths such as `TestResults/`
   are skipped anyway, and an exclusion pathspec for an ignored path makes `git add` fail and stage
   nothing. Never commit to `main`.
 - **GitHub access:** use the GitHub MCP tools (`mcp__github__*`) for issues, comments, labels and pull
@@ -131,17 +133,20 @@ action yourself — including follow-up issues the Lead decides on.
    the two checks again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
    (coverage) and 7 again → **a new review round on the delta is mandatory** before step 9; never go from
    a blocking finding straight to PR approval. The same holds for a non-blocking finding the Lead decides
-   to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. At most **2 fix rounds** after round 1; then `squad-lead`
+   to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. A
+   wording-only fix to a `Proposed` record, applied verbatim as a reviewer proposed it, rides the next delta
+   round when one is due anyway; when none is due, it gets its own delta round by the member that proposed
+   it. At most **2 fix rounds** after round 1; then `squad-lead`
    in mode `decide`. Pass each reviewer the exact commit SHA to review, and do not commit to the work branch
    (log rows included) between launching a round and receiving its report; a reviewer reports the SHA it
    reviewed first, and a report for another head is a stale round. A reviewer or security subagent that stops
-   on an API error (for example `529 Overloaded`) is relaunched unchanged, at most twice; after that report a
-   blocker to the user. Non-blocking findings are collected for step 9.
+   on an API error (for example `529 Overloaded`, or `429` for a rate limit — relaunch it once the limit has
+   reset) is relaunched unchanged, at most twice; after that report a blocker to the user. Non-blocking findings are collected for step 9.
 9. **PR approval.** First run the checklist yourself (`.squad/routing.md`, step 9): the latest review round
    is clean and nothing but `specs/` bookkeeping changed since it ran; the gates of step 7 pass on this head;
    the area documents and documentation updates the plan names are in the diff. Then set each `Proposed`
-   decision record of this change to `Accepted`, add its row to the index in `docs/decisions/README.md` and
-   run `python3 .squad/tools/decision-check.py` (bookkeeping, like `log.md`). Launch `squad-lead` in mode
+   decision record of this change and its index row in `docs/decisions/README.md` (the Lead added it with
+   the record) to `Accepted` and run `python3 .squad/tools/decision-check.py` (bookkeeping, like `log.md`). Launch `squad-lead` in mode
    `approve-pr` — with the base ref, the gate output, the review outcome and the open points — only when a
    decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8, a
    non-blocking finding not yet decided (fix now, or you open a linked GitHub issue now), or a change to

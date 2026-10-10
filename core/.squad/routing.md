@@ -103,14 +103,14 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | # | Step | Owner | Exit condition |
 | - | ---- | ----- | -------------- |
 | 1 | Intake | Orchestrator | Branch off `main`, work folder and `log.md` created (rows appended with `squad-log.py`), committed and pushed |
-| 2 | Plan | Lead, Devil's Advocate | `plan.md` with tier, acceptance criteria, signatures of new/changed API, affected areas (`docs/areas/`), doc updates; decision records `Proposed`. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate, every objection answered by the Lead in the plan's *Challenge* section |
+| 2 | Plan | Lead, Devil's Advocate | `plan.md` with tier, acceptance criteria, signatures of new/changed API, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate, every objection answered by the Lead in the plan's *Challenge* section |
 | 3 | Plan security review | Security | `APPROVED` → 4; `CHANGES_REQUIRED` → Lead revises, back to 3 (`security` tier only) |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Tests for every acceptance criterion; they compile and **fail** on the current code |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents |
 | 7 | Code check | Orchestrator, Code Officer | The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. Only when one of them fails is the Code Officer launched (format and analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
 | 8 | Review | Reviewer (+ Security on `security`) | They get the head SHA and the orchestrator's gate output of step 7 (they do not re-run the gates). No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round |
-| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change to `Accepted` and adds its index row (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md`. Otherwise "approved by checklist" is logged → 10 |
+| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md`. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened (merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green, the CI code analysis (e.g. SonarQube Cloud) passed, review comments worked |
 | 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches, tokens, tool uses and seconds per role, `squad-log.py --summary`) appended to the working record; user informed |
@@ -125,7 +125,9 @@ Commits and pushes to the work branch happen right after intake (`specs/<folder>
 or a crashed session finds no untracked files) and after every further completed step; with *Squash and
 merge* only the PR title and description reach `main`, so intermediate commits may describe the step.
 They never contain secrets. A stop hook may demand a commit while a member is still working; that interim
-commit ("Work in progress: …") is fine, and the commit that closes the round gets a final subject.
+commit ("Work in progress: …") is fine, and the commit that closes the round gets a final subject. Before
+the PR such commits cost nothing; after it every push re-triggers CI and the code analysis, so edits are
+batched and committed once per round.
 
 ## Reading issues and pull requests
 

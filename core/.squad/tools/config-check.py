@@ -10,7 +10,8 @@ it. This script checks, without arguments:
   YAML, with a non-empty `name` and `description`;
 - an agent's `name` equals its file name, a skill's `name` equals its folder name;
 - every squad agent (`squad-*.md`) declares the `PreToolUse` hook `.claude/hooks/git-guard.py` for `Bash`, and
-  that hook exists: it keeps Git and GitHub write operations out of the members' hands;
+  that hook exists: it keeps Git and GitHub write operations out of the members' hands; it also names its
+  `model` as an alias (`haiku`, `sonnet`, `opus`) and an explicit `effort`;
 - `CLAUDE.md` exists;
 - `.squad/template.json` names the template repository (where lessons about template-managed files are
   filed) and, for a repository with several stack profiles, lists them in `profiles` (the first one is
@@ -38,6 +39,8 @@ GITHUB_DIR = ".github"
 SQUAD_DIR = ".squad"
 AGENTS_DIR = os.path.join(CLAUDE_DIR, "agents")
 GIT_GUARD = os.path.join(CLAUDE_DIR, "hooks", "git-guard.py")
+MODELS = ("haiku", "sonnet", "opus")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 SKILLS_DIR = os.path.join(CLAUDE_DIR, "skills")
 INSTRUCTION_FILES = ["CLAUDE.md"]
 REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), os.path.join(SQUAD_DIR, "project.md"),
@@ -85,8 +88,14 @@ def check(path, expected_name, errors, agent=False):
             errors.append(f"{path}: missing '{key}'")
     if data.get("name") and data["name"] != expected_name:
         errors.append(f"{path}: name '{data['name']}' does not match '{expected_name}'")
-    if agent and expected_name.startswith("squad-") and not declares_git_guard(data):
-        errors.append(f"{path}: no PreToolUse hook for Bash running {GIT_GUARD} (squad members never run Git writes)")
+    if agent and expected_name.startswith("squad-"):
+        if not declares_git_guard(data):
+            errors.append(f"{path}: no PreToolUse hook for Bash running {GIT_GUARD} (squad members never run Git writes)")
+        if str(data.get("model") or "") not in MODELS:
+            errors.append(f"{path}: 'model' must be one of {', '.join(MODELS)} (an alias, so a model change rolls out "
+                          "with the template)")
+        if str(data.get("effort") or "") not in EFFORTS:
+            errors.append(f"{path}: 'effort' must be set to one of {', '.join(EFFORTS)}")
 
 
 def declares_git_guard(data):

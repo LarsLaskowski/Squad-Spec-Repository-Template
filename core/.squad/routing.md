@@ -4,8 +4,9 @@ The pipeline is the same for issues and features; only the input differs (a GitH
 `squad-issue`, a feature idea plus `spec.md` for `squad-spec`). The orchestrator — the session that runs
 the skill — launches the members, passes documents between them (subagents cannot talk to each other
 directly), performs every Git and GitHub action (including follow-up issues the Lead decides on) and
-records every step in the work folder's `log.md` with `python3 .squad/tools/squad-log.py` (after step 10,
-in the "Squad working record" comment that replaces it). Step numbers below are the ones the skills use.
+records every step in the work folder's `log.md` with `python3 .squad/tools/squad-log.py` — each subagent
+launch with its model, effort and the usage the launch result reports — (after step 10, in the "Squad
+working record" comment that replaces it). Step numbers below are the ones the skills use.
 
 ## Work folder
 
@@ -76,8 +77,8 @@ tier applies; Security or the Reviewer may raise the tier at any point (never lo
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
 | `docs` | Issues only (never a feature). The diff changes only product documentation: `README.md`, `SECURITY.md`, Markdown under `docs/` except `docs/decisions/` and `docs/areas/`, the project blocks of the marked files, and `.squad/stack.md` or `.squad/project.md` as documentation (see below). Any other file — a code comment, a config or CI file, a decision record, an area document — makes it `trivial` or higher. `scope-check.py --tier docs` checks exactly this. | Lead plans briefly (no `plan.md`: tier, exact edits and acceptance criteria go into its result, recorded as the first `log.md` row); the orchestrator applies the edits itself; `scope-check.py --tier docs` and *Format check* pass; one Reviewer round reads the diff against the first `log.md` row (no build) — a blocking finding is fixed, checked and delta-reviewed the same way; the orchestrator opens the PR once the latest round is clean. Steps 3–7 and 9 are skipped. |
-| `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and Lead approval still run. Tests and coverage are still required if production code changes. |
-| `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2; step 3 skipped; Security reviews only the diff (step 8) |
+| `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and PR approval (step 9) still run. Tests and coverage are still required if production code changes. |
+| `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2; steps 3 and the Security review skipped — the Reviewer covers the security checklist and raises the tier if a security area is touched after all |
 | `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency | Full pipeline, including the plan challenge in step 2 |
 
 `.squad/stack.md` and `.squad/project.md` describe the product, so an issue about them is a product PR and
@@ -108,11 +109,11 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | 5 | Tests first | Tester | Tests for every acceptance criterion; they compile and **fail** on the current code |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents |
 | 7 | Code check | Orchestrator, Code Officer | The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. Only when one of them fails is the Code Officer launched (format and analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
-| 8 | Review | Reviewer + Security | Both get the head SHA and the orchestrator's gate output of step 7 (they do not re-run the gates). No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round (Security only for `standard`/`security`) |
-| 9 | PR approval | Lead | Latest review round without a blocking finding not covered by a recorded Lead decision, and covering every change to production code, tests and `docs/` except `specs/` bookkeeping and the Lead's own approval edits (record status, index, `docs/ARCHITECTURE.md` link); area documents current for every change in behavior; plan fulfilled, coverage met, decision records `Accepted` and indexed → `APPROVED` → 10 |
+| 8 | Review | Reviewer (+ Security on `security`) | They get the head SHA and the orchestrator's gate output of step 7 (they do not re-run the gates). No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round |
+| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change to `Accepted` and adds its index row (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md`. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened (merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green, the CI code analysis (e.g. SonarQube Cloud) passed, review comments worked |
-| 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; user informed |
+| 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches, tokens, tool uses and seconds per role, `squad-log.py --summary`) appended to the working record; user informed |
 
 A change without production or test code (tier `docs`, or any other tier whose plan declares it, see
 *Changes without production or test code*) skips steps 4 and 5; step 6 is the Dev's edits alone (tier
@@ -203,5 +204,5 @@ the PR under Next Steps.
 
 ## Non-blocking findings
 
-Fixed in the same change or opened as a linked GitHub issue now (Lead decides which) — never deferred to
-"a later change".
+Fixed in the same change or opened as a linked GitHub issue now — never deferred to "a later change". The
+Lead decides which in step 9 (one launch for all of them); a finding fixed now gets a delta round.

@@ -90,9 +90,10 @@ Project-specific workflow skills live under `.claude/skills/`:
   then open a PR following [`.github/pull_request_template.md`](/.github/pull_request_template.md).
 - `squad-issue` — fix a GitHub issue with the squad: the Lead plans and picks a tier
   (`docs` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
-  plans once, Security reviews security-relevant plans, the Tester writes failing tests first, the Dev
-  implements until the *Coverage gate* passes, the Code Officer clears format and analyzer diagnostics, Reviewer and
-  Security review the diff, the Lead approves, then a PR referencing the issue is opened.
+  plans once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
+  the Dev implements until the *Coverage gate* passes, the Code Officer clears format and analyzer
+  diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
+  open), then a PR referencing the issue is opened.
 - `squad-spec` — the same squad pipeline for a new feature, planned as `spec.md`, `plan.md` and
   `tasks.md` in a working folder under `specs/`.
 - `decision-consolidate` — merge unreleased decision records (Superseded chains, records on one topic) into
@@ -109,7 +110,7 @@ full review, later rounds review only the delta" rule live in that one file, so 
 way.
 
 The squad skills run a multi-role pipeline defined in [`.squad/`](/.squad/team.md) — Lead (plan, decisions,
-PR approval), Devil's Advocate (one plan challenge), Security (plan and diff), Tester (tests first,
+PR approval decisions), Devil's Advocate (one plan challenge), Security (plan and diff on the `security` tier), Tester (tests first,
 coverage), Dev, Code Officer (format, analyzers) and Reviewer — as subagents under
 `.claude/agents/squad-*.md` (read-only where the role demands it: a hook in each agent denies Git and
 GitHub writes, so only the orchestrating session commits, pushes and posts), with the loop limits and

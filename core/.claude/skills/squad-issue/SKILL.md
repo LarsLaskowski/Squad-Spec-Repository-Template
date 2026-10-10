@@ -1,6 +1,6 @@
 ---
 name: squad-issue
-description: Use when the user asks to fix a specific GitHub issue in this repository. Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews security-relevant plans, Tester writes failing tests first, Dev implements until the Coverage gate passes, Code Officer clears format and analyzer findings, Reviewer (+ Security) review, Lead approves — and opens a PR referencing the issue.
+description: Use when the user asks to fix a specific GitHub issue in this repository. Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, Code Officer clears format and analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open — and opens a PR referencing the issue.
 ---
 
 # Squad Issue
@@ -17,6 +17,10 @@ action yourself — including follow-up issues the Lead decides on.
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
   `python3 .squad/tools/squad-log.py`) and `tasks.md` check marks (features). The one exception is tier
   `docs`: there you apply the Lead's exact edits yourself (`.squad/routing.md`, *Tiers*).
+- **Hand each member only what it needs.** The plan (for a feature: its task rows), the test names, the
+  base ref and the gate output for the head. Not the log, not the issue thread (the Lead and the Devil's
+  Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
+  handed back is enough. Every launch starts with an empty context, so what you pass is what it costs.
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
   (`team.md`, `routing.md`, tools), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
@@ -60,7 +64,10 @@ action yourself — including follow-up issues the Lead decides on.
    `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
    orchestrator) write `log.md`, one row per step, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
-   ending, escapes pipes and control characters, and dates the row. After every member's report, commit and
+   ending, escapes pipes and control characters, and dates the row. For a subagent launch add what the usage
+   block at the end of the launch result reports: `--launch <model>/<effort> --tokens <subagent_tokens>
+   --tool-uses <tool_uses> --seconds <duration_ms / 1000>`, with the model and effort from the agent file (or
+   the launch's own override); the wrap-up sums it per role. After every member's report, commit and
    push the files it left in the work folder (the Lead's records, the Tester's tests) yourself, so the next
    report does not list them as untracked noise.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
@@ -116,8 +123,8 @@ action yourself — including follow-up issues the Lead decides on.
    analyzer diagnostics; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope
    finding to its owner — and run the gates again until they pass. This is the gate before the PR; CI is not
    meant to find anything here.
-8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `standard` and `security` —
-   `squad-security` in mode `diff`, in parallel, against the base ref. Pass both the work folder
+8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `security` only —
+   `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
    (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tier `docs`: the first
    `log.md` row, since there is no `plan.md`) and the gate output of step 7 for this head, so they do not
    build and test again; either may raise the tier. Tier `docs`: you fix a blocking finding yourself, run
@@ -129,18 +136,19 @@ action yourself — including follow-up issues the Lead decides on.
    (log rows included) between launching a round and receiving its report; a reviewer reports the SHA it
    reviewed first, and a report for another head is a stale round. A reviewer or security subagent that stops
    on an API error (for example `529 Overloaded`) is relaunched unchanged, at most twice; after that report a
-   blocker to the user. Non-blocking
-   findings: the Lead decides per finding — fix now, or you open a linked GitHub issue now.
-9. **PR approval.** Launch `squad-lead` in mode `approve-pr` with the base ref, the build/test/coverage
-   output and the review outcome — including the result of the **latest** review round, which must have
-   no blocking finding that is not covered by a recorded Lead decision, and must cover every change to
-   production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the Lead's own approval edits —
-   record status, the index, a link from `docs/ARCHITECTURE.md` — may follow it; a fix for a blocking
-   finding always needs a delta round, also in a decision record). Ask only when CI on the head has finished and
-   passes (after the PR, see step 11), and pass the finished check-run list to the Lead instead of letting it
-   wait for CI. `NOT APPROVED` → back to step 6 or 8 (counting against the review loop
-   limit) or let the Lead decide/escalate. On `APPROVED`, the decision records are `Accepted` and indexed
-   in `docs/decisions/README.md`.
+   blocker to the user. Non-blocking findings are collected for step 9.
+9. **PR approval.** First run the checklist yourself (`.squad/routing.md`, step 9): the latest review round
+   is clean and nothing but `specs/` bookkeeping changed since it ran; the gates of step 7 pass on this head;
+   the area documents and documentation updates the plan names are in the diff. Then set each `Proposed`
+   decision record of this change to `Accepted`, add its row to the index in `docs/decisions/README.md` and
+   run `python3 .squad/tools/decision-check.py` (bookkeeping, like `log.md`). Launch `squad-lead` in mode
+   `approve-pr` — with the base ref, the gate output, the review outcome and the open points — only when a
+   decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8, a
+   non-blocking finding not yet decided (fix now, or you open a linked GitHub issue now), or a change to
+   `docs/ARCHITECTURE.md` or `.squad/project.md`. Otherwise log "approved by checklist" and continue. A fix
+   the Lead orders goes back to step 6 or 8 (counting against the review loop limit); `NOT APPROVED` without
+   a fix means the Lead decides or escalates. After the PR (step 11) a re-approval is asked only once CI on
+   the new head has finished and passes, with the finished check-run list attached.
 10. **Pull request** (Dev role, performed by you). First move the working record off the branch: post
     `plan.md` (none for tier `docs`) and `log.md` as one comment on the issue (each inside a collapsed `<details>` block, headed
     "Squad working record"). When `plan.md` is so long that re-typing it through a tool call is impractical,
@@ -166,8 +174,8 @@ action yourself — including follow-up issues the Lead decides on.
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
 
     Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), with at
-    most 2 fix rounds per failure before the Lead decides. A re-approval (step 9) is requested only after CI on the new head has finished and passes,
-    with the finished check-run list attached. When the plan's acceptance criteria can only be verified in CI
+    most 2 fix rounds per failure before the Lead decides. A re-approval (step 9) runs the same checklist once
+    CI on the new head has finished and passes. When the plan's acceptance criteria can only be verified in CI
     (for example a container image the sandbox cannot build), a red CI on exactly those criteria is a normal
     outcome of this step: the plan names the owner (Dev for Dockerfile, compose and workflow files), and every
     fix gets a delta review round. The work folder is gone by now: give the Reviewer, Security and the Lead the plan (tier
@@ -186,8 +194,12 @@ action yourself — including follow-up issues the Lead decides on.
     only if attaching is refused, file it here with the label `squad-upstream`), lessons about project knowledge
     as **one** issue labelled `squad` in this repository (create the labels if missing). Link the issues
     from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
-    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons") and any escalation or
-    Lead decision to the user. If there is genuinely nothing to learn,
+    Then run `python3 .squad/tools/squad-log.py issue-<number> --summary` on the log (restore it from the
+    working record comment if the folder is gone) and append the table to the working record comment under
+    a "Squad run metrics" heading: launches, tokens, tool uses and seconds per role are what tunes the
+    squad's models and effort over time.
+    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons"), the metrics table and any
+    escalation or Lead decision to the user. If there is genuinely nothing to learn,
     append a `| <date> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
     instead of opening an issue — the step itself is never skipped.
 

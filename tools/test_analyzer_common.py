@@ -89,6 +89,12 @@ class TestSonarShellRules(unittest.TestCase):
         for line, want in cases.items():
             self.assertEqual(len(list(self.script.positional_words(line))), want, repr(line))
 
+    def test_function_heads(self):
+        for head in ("f() {", "function f {", "function f() {", "  my-func () {", "f(){"):
+            self.assertIsNotNone(self.script.FUNCTION_HEAD.match(head), head)
+        for line in ("echo f() {", "if [[ -n x ]]; then", "arr=( a b )", "x={a,b}"):
+            self.assertIsNone(self.script.FUNCTION_HEAD.match(line), line)
+
     def test_single_bracket_detection(self):
         cases = {"if [ -f x ]; then": True, "[[ -f x ]]": False, '! [ -z "$x" ]': True, 'grep "[ " f': False,
                  "  [ -n x ] || exit": True, "a && [ -n x ]": True, "echo x[ ]": False}

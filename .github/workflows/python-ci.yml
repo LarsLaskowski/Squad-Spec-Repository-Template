@@ -49,6 +49,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install pyyaml
+      - run: python -m unittest discover tools
       - run: python tools/template-check.py
 
   codeql:

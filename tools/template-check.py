@@ -91,7 +91,13 @@ def check_agents_and_skills(base, errors):
         check_front_matter(path, os.path.splitext(os.path.basename(path))[0], errors)
 
 
+CORE_HOOKS = [os.path.join(".claude", "hooks", "git-guard.py"), os.path.join(".claude", "hooks", "install-linters.sh")]
+
+
 def check_core(errors):
+    for rel in CORE_HOOKS:
+        if not os.path.isfile(os.path.join(CORE, rel)):
+            errors.append(f"core/{rel} is missing")
     relative = re.compile(r"\]\((?!https?:|#|/|mailto:)[^)\s]+\)")
     for rel in INSTRUCTIONS:
         for match in relative.finditer(read(os.path.join(CORE, rel))):
@@ -145,6 +151,12 @@ def check_profiles(errors):
             provided = set(re.findall(r"<!-- stack:begin ([\w-]+) -->", read(instructions)))
             for block in sorted(stack_blocks - provided):
                 errors.append(f"profile {name}: instructions.md lacks stack block '{block}'")
+        hook = os.path.join(profile, "managed", ".claude", "hooks", "session-start.sh")
+        if os.path.isfile(hook) and "install-linters.sh" not in read(hook):
+            errors.append(f"profile {name}: session-start.sh does not run .claude/hooks/install-linters.sh")
+        gate = os.path.join(profile, "managed", ".squad", "tools", "analyzer-check.py")
+        if os.path.isfile(gate) and "lint_check" not in read(gate):
+            errors.append(f"profile {name}: analyzer-check.py does not call lint_check() from analyzer_common.py")
         stack = os.path.join(profile, "seed", ".squad", "stack.md")
         if os.path.isfile(stack):
             text = read(stack)

@@ -42,8 +42,13 @@ is open. `gocognit` also counts the bare `if err != nil` check, which SonarQube 
 existing function over the limit, add a named exclusion in `.golangci.yml` and note it in `.squad/project.md`.
 Other SonarQube Cloud findings (and duplication, hotspots) have no local Go equivalent and arrive in squad step 11.
 
-Changed shell scripts (`*.sh`) are checked with `shellcheck` when it is installed; the script says so when it
-skips them. Without it, SonarQube Cloud's shell rules (`shelldre:*`) only report in squad step 11.
+Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and Dockerfiles are checked with
+`shellcheck`, `actionlint` and `hadolint`; the SessionStart hook installs the three as pinned, checksum-verified
+binaries (`.claude/hooks/install-linters.sh`), and the gate reports NOT RUN for one that is missing (a refused
+download, for example). The gate itself checks two SonarQube Cloud shell rules shellcheck does not report:
+`shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
+local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
+in squad step 11.
 
 ## Writing code
 

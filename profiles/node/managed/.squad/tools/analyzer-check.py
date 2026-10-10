@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import squad_settings as settings  # noqa: E402  (per-repository settings next to this script)
-from analyzer_common import git, merge_base, shell_check  # noqa: E402  (shared helpers next to this script)
+from analyzer_common import git, merge_base, lint_check  # noqa: E402  (shared helpers next to this script)
 
 
 
@@ -65,7 +65,7 @@ def main():
         print(finding)
     print(f"\nChanged files linted: {len(files)}")
     print(f"Findings in changed files: {len(findings)}")
-    ok = shell_check() and not failed and not findings
+    ok = lint_check() and not failed and not findings
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
 

@@ -136,8 +136,10 @@ A local edit of a managed file in a product repository is never the fix: the nex
 ### Adding a stack
 
 Create `profiles/<stack>/` with the files `tools/template-check.py` requires (`PROFILE_FILES`): the
-stack blocks in `instructions.md`, an `analyzer-check.py` and a SessionStart hook under `managed/`
-(they are renamed per profile in a multi-profile repository, so keep them self-contained), and
+stack blocks in `instructions.md`, an `analyzer-check.py` (which calls `lint_check()` from `analyzer_common.py`
+for shell scripts, workflows and Dockerfiles) and a SessionStart hook under `managed/` (it runs
+`.claude/hooks/install-linters.sh` right after its remote check; both are renamed per profile in a multi-profile
+repository, so keep them self-contained), and
 `stack.md` (every command name and section), `squad_settings.py`, `UNIT_TESTS.md`, CI, CodeQL and
 Dependabot under `seed/`. Add a coverage loader to `core/.squad/tools/coverage-check.py` if the stack
 writes a new report format, the detection rule to the `adopt-template` skill, and a row to the table above.

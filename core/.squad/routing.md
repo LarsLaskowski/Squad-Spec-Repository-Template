@@ -39,7 +39,7 @@ repository, its commit and the stack profile). Three kinds:
 
 - **Managed** — overwritten on every refresh: `.squad/team.md`, `.squad/routing.md`, `.squad/tools/*.py`
   except `squad_settings.py`, `.squad/tools/.gitignore`,
-  `.claude/agents/squad-*.md`, `.claude/hooks/session-start.sh`, the template's skills under `.claude/skills/`,
+  `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's skills under `.claude/skills/`,
   `.github/ISSUE_TEMPLATE/feature_request.md`, `docs/decisions/_template.md`, `docs/areas/_template.md`,
   `specs/README.md` and `specs/_template/`.
 - **Marked** — rebuilt on every refresh, keeping the repository's content inside
@@ -150,7 +150,9 @@ build output and caches and break each other (see *Concurrency* in `.squad/stack
 shares). In step 8, `squad-reviewer` and `squad-security` may run together because
 both are read-only and the reviewer builds in a scratch copy. No member experiments (mutation tests,
 trial edits, baseline comparisons) in the repository working tree — use a scratch `git worktree` instead;
-`git stash` is a Git write operation and forbidden.
+`git stash` is a Git write operation and forbidden. The members' `PreToolUse` hook
+(`.claude/hooks/git-guard.py`) denies Git and GitHub writes and answers with the reason; a member that
+needs one reports it to the orchestrator.
 
 ## Outcome "no change"
 

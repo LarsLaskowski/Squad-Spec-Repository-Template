@@ -3,6 +3,12 @@ name: squad-reviewer
 description: Squad Reviewer. Reviews a change in this repository against its stack conventions (.squad/stack.md), its documented guarantees and integration surface (.squad/project.md), security and unit-test rules, and reports findings. Read-only — never edits files, never posts to GitHub. Used as the in-session review pass before a pull request is opened, and by the review-pr skill.
 model: opus
 tools: Read, Grep, Glob, Bash
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Reviewer

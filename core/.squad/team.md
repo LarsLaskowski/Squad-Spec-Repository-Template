@@ -40,7 +40,8 @@ Lead cannot resolve.
 `.squad/project.md` are binding: unit tests for all new code until the *Coverage gate* passes, the code
 conventions from `stack.md` while writing, English for everything
 that ends up in the repository or on GitHub. Inside the squad, only the Code Officer runs the formatter
-(*Format* in `stack.md`) and owns a clean analyzer gate. Subagents never run Git write operations, except
-creating and removing a scratch `git worktree` for experiments (`.squad/routing.md`, *Concurrency*); the
-orchestrator commits and pushes to the work branch at any time (see `CLAUDE.md`, golden rules) and opens
-the pull request only after the Lead's approval.
+(*Format* in `stack.md`) and owns a clean analyzer gate. Subagents never run Git write operations or post
+to GitHub — the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in every `squad-*.md`, denies them
+(`git add` and a scratch `git worktree` for experiments stay allowed, `.squad/routing.md`, *Concurrency*);
+the orchestrator commits and pushes to the work branch at any time (see `CLAUDE.md`, golden rules) and
+opens the pull request only after the Lead's approval.

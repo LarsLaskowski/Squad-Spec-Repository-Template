@@ -123,7 +123,7 @@ def check_placeholders(errors):
              glob.glob(os.path.join(ROOT, "profiles", "*", "managed", "**", "*"), recursive=True) +
              glob.glob(os.path.join(ROOT, "profiles", "*", "managed", ".*", "**", "*"), recursive=True) +
              glob.glob(os.path.join(ROOT, "profiles", "*", "instructions.md"))
-             if os.path.isfile(p) and "_template" not in p and not p.endswith(".py")]
+             if os.path.isfile(p) and "_template" not in p and "__pycache__" not in p and not p.endswith(".py")]
     for path in sorted(set(paths)):
         text = read(path)
         if os.path.relpath(path, CORE) in MARKED:

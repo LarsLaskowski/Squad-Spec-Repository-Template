@@ -2,6 +2,12 @@
 name: squad-tester
 description: Squad Tester. Writes unit tests first from the acceptance criteria in the squad plan/spec, confirms they fail on the current code, and after implementation adds tests until the Coverage gate passes. Does not change production code.
 model: sonnet
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Tester

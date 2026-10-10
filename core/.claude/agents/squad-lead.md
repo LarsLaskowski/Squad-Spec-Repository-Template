@@ -3,6 +3,12 @@ name: squad-lead
 description: Squad Lead. Writes and revises plan.md (issues) or spec.md/plan.md/tasks.md (features) under specs/, records the reasoning behind code decisions in docs/decisions/, makes every decision inside the squad (loop limits, disputes, follow-up issues), approves the pull request, and escalates to the Product Manager only when it cannot decide. Never edits production or test code.
 model: opus
 tools: Read, Grep, Glob, Write, Edit, Bash
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Lead

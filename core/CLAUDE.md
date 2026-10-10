@@ -111,8 +111,9 @@ way.
 The squad skills run a multi-role pipeline defined in [`.squad/`](/.squad/team.md) — Lead (plan, decisions,
 PR approval), Devil's Advocate (one plan challenge), Security (plan and diff), Tester (tests first,
 coverage), Dev, Code Officer (format, analyzers) and Reviewer — as subagents under
-`.claude/agents/squad-*.md`, with the loop limits and escalation rules in
-[`.squad/routing.md`](/.squad/routing.md). Stack commands live in [`.squad/stack.md`](/.squad/stack.md),
+`.claude/agents/squad-*.md` (read-only where the role demands it: a hook in each agent denies Git and
+GitHub writes, so only the orchestrating session commits, pushes and posts), with the loop limits and
+escalation rules in [`.squad/routing.md`](/.squad/routing.md). Stack commands live in [`.squad/stack.md`](/.squad/stack.md),
 the project's guarantees, security areas and integration surface in
 [`.squad/project.md`](/.squad/project.md). Their working records (`plan.md`, `log.md`, for features also
 `spec.md` and `tasks.md`) live under `specs/` on the work branch only; before the PR they are posted as a

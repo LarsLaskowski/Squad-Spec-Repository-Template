@@ -9,6 +9,8 @@ it. This script checks, without arguments:
 - every `.claude/agents/*.md` and every `SKILL.md` under `.claude/skills/` has front matter that parses as
   YAML, with a non-empty `name` and `description`;
 - an agent's `name` equals its file name, a skill's `name` equals its folder name;
+- every squad agent (`squad-*.md`) declares the `PreToolUse` hook `.claude/hooks/git-guard.py` for `Bash`, and
+  that hook exists: it keeps Git and GitHub write operations out of the members' hands;
 - `CLAUDE.md` exists;
 - `.squad/template.json` names the template repository (where lessons about template-managed files are
   filed) and, for a repository with several stack profiles, lists them in `profiles` (the first one is
@@ -35,6 +37,7 @@ CLAUDE_DIR = ".claude"
 GITHUB_DIR = ".github"
 SQUAD_DIR = ".squad"
 AGENTS_DIR = os.path.join(CLAUDE_DIR, "agents")
+GIT_GUARD = os.path.join(CLAUDE_DIR, "hooks", "git-guard.py")
 SKILLS_DIR = os.path.join(CLAUDE_DIR, "skills")
 INSTRUCTION_FILES = ["CLAUDE.md"]
 REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), os.path.join(SQUAD_DIR, "project.md"),
@@ -71,7 +74,7 @@ def front_matter(path):
     return data
 
 
-def check(path, expected_name, errors):
+def check(path, expected_name, errors, agent=False):
     try:
         data = front_matter(path)
     except (ValueError, yaml.YAMLError) as error:
@@ -82,6 +85,20 @@ def check(path, expected_name, errors):
             errors.append(f"{path}: missing '{key}'")
     if data.get("name") and data["name"] != expected_name:
         errors.append(f"{path}: name '{data['name']}' does not match '{expected_name}'")
+    if agent and expected_name.startswith("squad-") and not declares_git_guard(data):
+        errors.append(f"{path}: no PreToolUse hook for Bash running {GIT_GUARD} (squad members never run Git writes)")
+
+
+def declares_git_guard(data):
+    """True when the front matter's hooks.PreToolUse has a Bash matcher with a command that runs git-guard.py."""
+    groups = (data.get("hooks") or {}).get("PreToolUse") if isinstance(data.get("hooks"), dict) else None
+    for group in groups or []:
+        if not isinstance(group, dict) or "Bash" not in str(group.get("matcher", "")):
+            continue
+        for hook in group.get("hooks") or []:
+            if isinstance(hook, dict) and os.path.basename(GIT_GUARD) in str(hook.get("command", "")):
+                return True
+    return False
 
 
 def check_skills(errors):
@@ -185,7 +202,9 @@ def main():
     errors = []
     agents = sorted(glob.glob(os.path.join(AGENTS_DIR, "*.md")))
     for path in agents:
-        check(path, os.path.splitext(os.path.basename(path))[0], errors)
+        check(path, os.path.splitext(os.path.basename(path))[0], errors, agent=True)
+    if agents and not os.path.isfile(GIT_GUARD):
+        errors.append(f"{GIT_GUARD} is missing (written by adopt-template)")
     skills = check_skills(errors)
     check_instructions(errors)
     check_template_record(errors)

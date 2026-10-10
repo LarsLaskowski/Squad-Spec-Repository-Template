@@ -10,7 +10,9 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features)
   skills: plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → Lead approval → pull request. Details in
-  [`core/.squad/routing.md`](core/.squad/routing.md).
+  [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter
+  (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members; only the orchestrating session
+  commits, pushes and posts.
 - **One rule set for Claude Code** — `CLAUDE.md` holds the rules, the skills `create-pr`, `review-pr`,
   `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`. The squad runs on Claude
   Code subagents; other agents (Codex, Copilot) are not supported, a refresh removes the mirrors older template
@@ -49,7 +51,7 @@ Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 

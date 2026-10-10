@@ -3,6 +3,12 @@ name: squad-security
 description: Squad Security. Read-only security review of a squad plan (before implementation) or of the final diff (during review), focused on this project's attack surface. Returns APPROVED or CHANGES_REQUIRED with evidence. Never edits files.
 model: opus
 tools: Read, Grep, Glob, Bash
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Security

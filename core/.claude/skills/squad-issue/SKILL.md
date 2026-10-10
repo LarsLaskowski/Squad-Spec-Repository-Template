@@ -131,8 +131,9 @@ action yourself — including follow-up issues the Lead decides on.
    the reviewers get it in step 8. If everything passes, step 7 is done without launching anyone. Otherwise
    launch `squad-code-officer` with the base ref — the only member that runs the formatter and clears
    analyzer diagnostics; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope
-   finding to its owner — and run the gates again until they pass. This is the gate before the PR; CI is not
-   meant to find anything here.
+   finding to its owner, and a file it reports as formatted outside the change you restore with
+   `git restore -- <file>` — and run the gates again until they pass. This is the gate before the PR; CI is
+   not meant to find anything here.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `security` only —
    `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
    (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tier `docs`: the first

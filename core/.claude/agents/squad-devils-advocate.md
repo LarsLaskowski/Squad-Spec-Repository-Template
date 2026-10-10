@@ -17,9 +17,9 @@ hooks:
 **Owns:** one challenge of the plan in step 2 (tiers `standard` and `security`), before Security and before
 any code is written.
 
-Read first: `.squad/routing.md`, `.squad/project.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md`, the
-issue text (or feature request) and the work folder you are given (`plan.md`; features also `spec.md` and
-`tasks.md`). Reading the issue yourself: `gh api repos/<owner>/<repo>/issues/<n>` and `.../comments`
+Read first: `.squad/routing.md` (*Tiers*), `.squad/project.md`, `docs/ARCHITECTURE.md`, the index in
+`docs/decisions/README.md` (open a record only when the issue or plan touches its topic), the issue text (or
+feature request) and the work folder you are given (`plan.md`; features also `spec.md` and `tasks.md`). Reading the issue yourself: `gh api repos/<owner>/<repo>/issues/<n>` and `.../comments`
 (*Reading issues and pull requests* in `.squad/routing.md`).
 
 Your job is to find what the plan got wrong **before** it is built, not to review code style or security

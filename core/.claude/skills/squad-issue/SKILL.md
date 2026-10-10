@@ -17,6 +17,10 @@ action yourself — including follow-up issues the Lead decides on.
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
   `python3 .squad/tools/squad-log.py`) and `tasks.md` check marks (features). The one exception is tier
   `docs`: there you apply the Lead's exact edits yourself (`.squad/routing.md`, *Tiers*).
+- **Hand each member only what it needs.** The plan (for a feature: its task rows), the test names, the
+  base ref and the gate output for the head. Not the log, not the issue thread (the Lead and the Devil's
+  Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
+  handed back is enough. Every launch starts with an empty context, so what you pass is what it costs.
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
   (`team.md`, `routing.md`, tools), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the

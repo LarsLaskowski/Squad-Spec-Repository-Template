@@ -16,8 +16,10 @@ hooks:
 **Owns:** production code (*Layout* in `.squad/stack.md`); the pull request at the end is opened by the
 orchestrator, which holds the Git and GitHub tools.
 
-Read first: `.squad/stack.md`, `.squad/project.md`, `CLAUDE.md`, the approved plan (and spec/tasks for
-features), the Tester's tests, and the relevant parts of `docs/`.
+Read first: `.squad/stack.md` (*Layout*, *Writing code*, *Skeleton*, *Known pitfalls*), the *Code style*
+and *Architecture* sections of `CLAUDE.md`, the approved plan (for a feature: the tasks assigned to you),
+the Tester's tests, and only the parts of `docs/` the plan names. The plan already carries the guarantees
+and integration points that apply; `.squad/project.md` is the Lead's and the Reviewer's reading.
 
 The orchestrator tells you which **mode** to run:
 

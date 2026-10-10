@@ -81,6 +81,20 @@ class TestSonarShellRules(unittest.TestCase):
         got = {(int(f.split("(")[1].split(")")[0]), "S7679" if "S7679" in f else "S7688") for f in findings}
         self.assertEqual(got, want, "\n".join(findings))
 
+    def test_positional_word_boundaries(self):
+        cases = {'  docker inspect --format "$1" "$(cid)"': 1, "  docker inspect --format $1": 1,
+                 '  local a="$1" b=$2': 0, '  echo "::error::$1" >&2': 0, '  sed "s/${1}=//"': 0, "  x=${1}": 0,
+                 '  run "${1}"': 1, '  run "$@" "$*"': 0, '  [[ -z "$2" ]] || return': 1, '  echo "$10"': 0,
+                 "  echo ${10}": 1, "  echo $1;": 1, "  echo $1": 1, '  if [ -f "$x" ]; then': 0, "  f $1 $2": 2}
+        for line, want in cases.items():
+            self.assertEqual(len(list(self.script.positional_words(line))), want, repr(line))
+
+    def test_single_bracket_detection(self):
+        cases = {"if [ -f x ]; then": True, "[[ -f x ]]": False, '! [ -z "$x" ]': True, 'grep "[ " f': False,
+                 "  [ -n x ] || exit": True, "a && [ -n x ]": True, "echo x[ ]": False}
+        for line, want in cases.items():
+            self.assertEqual(self.script.SINGLE_BRACKET.search(line) is not None, want, repr(line))
+
     def test_clean_script_has_no_finding(self):
         text = 'f() {\n  local a="$1" b=$2\n  echo "${a}:$b" "$@"\n}\nif [[ -f "$1" ]]; then echo ok; fi\n'
         self.assertEqual(self.script.sonar_shell_findings("x.sh", text), [])

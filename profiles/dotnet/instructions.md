@@ -8,17 +8,12 @@
   un-regioned and never add the regions only after an analyzer warning.
 <!-- stack:end golden-rules -->
 <!-- stack:begin commands -->
-Run from the repository root, where the solution file lives (exact commands, with the solution name, in
-`.squad/stack.md`):
-
-```bash
-dotnet restore
-reihitsu-format ./                                          # dotnet tool install -g Reihitsu.Cli
-dotnet build -c Release --no-restore
-dotnet test -c Release --no-build
-python3 .squad/tools/analyzer-check.py                      # analyzer gate
-python3 .squad/tools/coverage-check.py                      # coverage gate, after a coverage run
-```
+Run from the repository root, where the solution file lives, in this order: *Restore*, *Format*, *Build*,
+*Test*, *Analyzer gate*, and after *Test with coverage* the *Coverage gate*. Use the commands of those names
+in `.squad/stack.md` as they stand, never a copy from memory: they carry the solution name, the build
+configuration the project tests in, and the formatter's `--force` (`reihitsu-format` asks for confirmation
+for more than 25 files and, without a terminal, formats nothing). The formatter is installed with
+`dotnet tool install -g Reihitsu.Cli`.
 <!-- stack:end commands -->
 <!-- stack:begin configuration -->
 - **Target framework** as set in the project files (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and

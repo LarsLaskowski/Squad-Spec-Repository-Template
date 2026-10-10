@@ -90,7 +90,7 @@ Rules that hold throughout:
    decision records, the integration surface (what must change together), and the test doubles. On a
    first adoption, also read `git diff HEAD` of the **managed** files the apply step overwrote — a
    repository that already had a squad keeps its project knowledge there (e.g. the integration-surface
-   sweep in an old `squad-reviewer.md`, project names in charters or the PR template) — and carry that
+   sweep in an old `squad-reviewer.md`, project names in old charters or the PR template) — and carry that
    knowledge into `project.md` or `stack.md` before it is lost.
 7. **Old skills and agents** (the "not part of the template" list): fold their project-specific content
    into `project.md`, `stack.md` or `docs/`, then delete the ones the template replaces — `fix-issue` →
@@ -111,9 +111,10 @@ Rules that hold throughout:
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
-   - `.squad/decisions.md` and `.squad/agents/*/history.md` from older template versions are removed by the
-     apply step (nothing read or wrote them; process decisions are the records in `docs/decisions/`). An entry
-     in `decisions.md` that is still worth keeping becomes a decision record.
+   - `.squad/decisions.md`, `.squad/agents/*/history.md` and `.squad/agents/*/charter.md` from older template
+     versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
+     the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is
+     still worth keeping becomes a decision record.
 9. **Verify** in the target: `python3 .squad/tools/config-check.py` passes (no placeholder left), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
    new `stack.md`. A gate that fails on code this PR did not change is reported in the PR description and to
@@ -129,7 +130,7 @@ Rules that hold throughout:
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until CI is green.
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.
-    coverage below 80 %), and any template change you had to make here first.
+    coverage below the threshold), and any template change you had to make here first.
 
 ## Updating the template itself
 

@@ -45,9 +45,11 @@ To read an issue or pull request yourself use `gh api repos/<owner>/<repo>/issue
 requests* in `.squad/routing.md`).
 
 When invoked by the squad (`squad-issue` / `squad-spec`), the calling session
-also gives you the work folder (`specs/<folder>/`). Then additionally read
-`.squad/agents/reviewer/charter.md` and the folder's `plan.md` (and `spec.md`
-for features), and report as findings:
+also gives you the work folder (`specs/<folder>/`) and the output of the gates
+it ran on the head (step 7). Then additionally read the folder's `plan.md` (and
+`spec.md` for features), run `python3 .squad/tools/scope-check.py` (with
+`--tier docs` for that tier, `--no-specs` after step 10; every line it reports
+is blocking), and report as findings:
 
 - an acceptance criterion from the plan that the diff does not fulfil or that
   no test pins down (blocking) — except in a plan that declares steps 4, 5 and the *Coverage gate* not
@@ -58,18 +60,13 @@ for features), and report as findings:
   that declaration (blocking; *Changes without production or test code* in `.squad/routing.md`);
 - a tier in `plan.md` that is too low for what the diff touches, per the tier
   table in `.squad/routing.md` and the security areas in `.squad/project.md`
-  (blocking — the change must go through the higher tier's steps). For tier
-  `docs` there is no `plan.md`: the tier and the acceptance criteria are in
-  the first row of `log.md`, and you are the only gate confirming the diff
-  really is docs-only — any file outside the `docs` definition is a blocking
-  tier raise;
-- any change to the squad or the agent instructions — `.squad/` (except
-  `stack.md` and `project.md`), `.claude/`, `CLAUDE.md` (blocking — see *Scope of a product PR* in `.squad/routing.md`);
-- in a review round after the PR was opened (squad step 11), a `specs/`
-  working-record folder in the diff — step 10 must have removed it (blocking).
-  Before step 10 the folder is expected; read its `plan.md` as described above.
-  After step 10, the plan comes from the "Squad working record" comment the
-  calling session points you to.
+  (blocking — the change must go through the higher tier's steps; you may raise
+  the tier, never lower it). For tier `docs` there is no `plan.md`: the tier
+  and the acceptance criteria are in the first row of `log.md`, and the review
+  reads the diff only — nothing is built.
+
+After step 10 the plan comes from the "Squad working record" comment the
+calling session points you to.
 
 Outside the squad (e.g. via `create-pr` for a squad-maintenance change), run
 `python3 .squad/tools/config-check.py` whenever the diff touches `.claude/` or
@@ -141,18 +138,20 @@ repository names this thing, and is that statement still true?**
 - **Scope**: unrelated changes bundled in, accidental file inclusions, debug
   leftovers, commented-out code.
 
-### Step 3: build, format and test
+### Step 3: the gates
 
-Run, from the repository root (from the scratch worktree when a squad session
-invoked you), the commands from `.squad/stack.md` in this order: *Restore*
-(if the stack has one), *Format check*, *Build*, *Analyzer gate*, *Test with
-coverage*, *Coverage gate*.
+When the calling session hands you the gate output for the exact head you
+review (a squad session does in step 7), use it: do not run the gates again,
+build or test only where you need evidence for a finding, in the scratch
+worktree. Otherwise (`create-pr`, `review-pr`) run, from the repository root,
+the commands from `.squad/stack.md` in this order: *Restore* (if the stack has
+one), *Format check*, *Build*, *Analyzer gate*, *Test with coverage*,
+*Coverage gate*.
 
 Report failures as blocking findings, and quote the failing line. A formatter
 diff, any diagnostic the analyzer gate reports in a changed file, and a failed
-coverage gate (below 80 % on new/changed lines or overall) are all blocking:
-these gates run before the pull request, so nothing after this review catches
-them.
+*Coverage gate* are all blocking: these gates run before the pull request, so
+nothing after this review catches them.
 
 ## Round 2 and later — delta review only
 
@@ -165,15 +164,16 @@ Answer two questions, and only these two:
 
 Do **not** re-review parts of the diff the fix commits did not touch. A full
 re-review of an unchanged diff will always turn up something new; that is
-what makes the loop endless, not evidence that the change is bad. Re-run
-format, build and tests, since a fix can break them.
+what makes the loop endless, not evidence that the change is bad. The gates
+must have run on the new head (the calling session's output, or your own run).
 
 ## Severity
 
 - **BLOCKING** — wrong behavior; a regression against a guarantee in
-  `.squad/project.md`; a secret reaching a log; a build, formatter, analyzer
-  or test failure; a dependency outside the stack's package management; new or
-  changed logic without a test; a documented claim that contradicts the code.
+  `.squad/project.md`; a secret reaching a log; a build, formatter, analyzer,
+  coverage or scope-check failure; a dependency outside the stack's package
+  management; new or changed logic without a test; a documented claim that
+  contradicts the code.
 - **NON-BLOCKING** — a design or naming choice that is defensible either
   way, a documentation improvement, a test that could be stronger. Report it
   once with a recommendation and mark it clearly. It does not gate the pull

@@ -43,8 +43,10 @@ neighboring test file before inventing a new pattern.
 ## Code coverage
 
 **Threshold: at least 80 % line coverage on new or changed production code, and at least 80 % overall** —
-the same measure as SonarQube's "coverage on new code". Check it locally before a push with *Test with
-coverage* and the *Coverage gate* from [`.squad/stack.md`](../.squad/stack.md). The gate lists every
+the same measure as SonarQube's "coverage on new code". Both values are set in `.squad/tools/squad_settings.py`
+(`COVERAGE_THRESHOLD`, `COVERAGE_OVERALL_THRESHOLD`); the overall one may start lower in a repository adopted
+with a coverage debt and is only ever raised. Check it locally before a push with *Test with coverage* and the
+*Coverage gate* from [`.squad/stack.md`](../.squad/stack.md). The gate lists every
 changed production file with its covered/coverable changed lines and the uncovered line numbers. Lines
 that genuinely cannot be covered by a unit test (for example host startup glue) need an explicit,
 recorded decision — they are not silently accepted.

@@ -33,8 +33,9 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
   never show up as build warnings but that the CI code analysis (e.g. SonarQube Cloud) reports. Check with
   the *Analyzer gate* from `.squad/stack.md` and fix every finding before considering the work done (in
   the squad skills, the Code Officer owns this).
-- New or changed production code needs **at least 80 % line coverage**, and overall coverage must stay
-  at least 80 % (*Coverage gate* in `.squad/stack.md`, see [`UNIT_TESTS.md`](/docs/UNIT_TESTS.md#code-coverage)).
+- New or changed production code needs unit tests until the *Coverage gate* in `.squad/stack.md` passes:
+  **at least 80 % line coverage** on new or changed lines and overall (the thresholds live in
+  `.squad/tools/squad_settings.py`, see [`UNIT_TESTS.md`](/docs/UNIT_TESTS.md#code-coverage)).
 <!-- stack:begin golden-rules -->
 <!-- stack:end golden-rules -->
 
@@ -90,7 +91,7 @@ Project-specific workflow skills live under `.claude/skills/`:
 - `squad-issue` — fix a GitHub issue with the squad: the Lead plans and picks a tier
   (`docs` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
   plans once, Security reviews security-relevant plans, the Tester writes failing tests first, the Dev
-  implements to ≥ 80 % coverage, the Code Officer clears format and analyzer diagnostics, Reviewer and
+  implements until the *Coverage gate* passes, the Code Officer clears format and analyzer diagnostics, Reviewer and
   Security review the diff, the Lead approves, then a PR referencing the issue is opened.
 - `squad-spec` — the same squad pipeline for a new feature, planned as `spec.md`, `plan.md` and
   `tasks.md` in a working folder under `specs/`.
@@ -122,8 +123,8 @@ rules come from the template repository named in `.squad/template.json`: a lesso
 file becomes an issue there and is rolled out with its `adopt-template` skill; a lesson about project
 knowledge (`.squad/stack.md`, `.squad/project.md`, a project block) becomes an issue here and is worked in
 a squad-maintenance PR checked with `python3 .squad/tools/config-check.py` (`.squad/routing.md`,
-*Squad lessons*). The user acts as Product Manager
-and is only asked when the Lead escalates. Pull requests are merged with *Squash and merge*, so only the
+*Squad lessons*); `python3 .squad/tools/scope-check.py` reports a squad file in a product change. The user
+acts as Product Manager and is only asked when the Lead escalates. Pull requests are merged with *Squash and merge*, so only the
 PR title and description reach `main`.
 
 The reasoning behind code decisions — why something was built the way it was — is recorded by the Lead

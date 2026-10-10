@@ -36,8 +36,8 @@ in.
      `stack.md` lists as forbidden
    - *Analyzer gate* — no analyzer diagnostic of any severity in a changed
      file; treat each as a failure
-   - *Test with coverage* and *Coverage gate* — at least 80 % line coverage
-     on new/changed production code and overall
+   - *Test with coverage* and *Coverage gate* — it must pass (the thresholds
+     are in `.squad/tools/squad_settings.py`)
    - `python3 .squad/tools/config-check.py` when the diff touches `.claude/`
      or `CLAUDE.md` — Claude Code silently drops an agent or skill whose front
      matter does not parse

@@ -71,13 +71,15 @@ MARKED = [
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
 # Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the instruction file
-# and of the template's skills (the squad runs on Claude Code subagents only), and the squad's decisions.md and
-# history.md files, which nothing read or wrote (process decisions are the records in docs/decisions/).
+# and of the template's skills (the squad runs on Claude Code subagents only), the squad's decisions.md and
+# history.md files, which nothing read or wrote (process decisions are the records in docs/decisions/), and the
+# charters, which now live in the subagent files under .claude/agents/.
 RETIRED = ["AGENTS.md", ".github/copilot-instructions.md", ".squad/decisions.md"] + [
     f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
     for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")] + [
-    f".squad/agents/{role}/history.md"
-    for role in ("code-officer", "dev", "devils-advocate", "lead", "reviewer", "security", "tester")]
+    f".squad/agents/{role}/{name}"
+    for role in ("code-officer", "dev", "devils-advocate", "lead", "reviewer", "security", "tester")
+    for name in ("history.md", "charter.md")]
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)

@@ -39,7 +39,7 @@ The squad skills (`squad-issue`, `squad-spec`) wrap that review in a larger, bou
 `trivial`, `standard`, `security`) that decides how much of the pipeline runs, and owns every decision
 including PR approval; for `standard` and `security` a Devil's Advocate challenges the plan once (no veto)
 before Security sees it; a Security member reviews the plan (tier `security`) and the diff; tests are
-written first and new/changed code reaches at least 80 % line coverage; a Code Officer clears formatting
+written first and new/changed code is covered until the *Coverage gate* passes; a Code Officer clears formatting
 and analyzer diagnostics *before* the review so the reviewed code is the merged code; and the review loop
 is one full pass plus at most two delta rounds. Every limit ends in a Lead decision, and only a decision
 the Lead cannot make reaches the human. The stack-specific commands live in

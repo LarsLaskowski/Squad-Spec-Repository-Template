@@ -8,8 +8,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 
 - **The squad** (`.squad/`, `.claude/agents/squad-*.md`) — Lead, Devil's Advocate, Security, Tester,
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features)
-  skills: plan → challenge → security review → tests first → implementation to ≥ 80 % coverage → format
-  and analyzer gate → review loop → Lead approval → pull request. Details in
+  skills: plan → challenge → security review → tests first → implementation until the coverage gate passes
+  → format and analyzer gate → review loop → Lead approval → pull request. Details in
   [`core/.squad/routing.md`](core/.squad/routing.md).
 - **One rule set for Claude Code** — `CLAUDE.md` holds the rules, the skills `create-pr`, `review-pr`,
   `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`. The squad runs on Claude
@@ -21,8 +21,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
   freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
-  file) and *Coverage gate* (≥ 80 % on new/changed lines and overall; Cobertura, lcov or Go coverprofile),
-  plus `config-check.py`, which keeps mirrors in sync and finds unfilled placeholders.
+  file) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
+  `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
+  no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
+  template text and leaves no working record behind). `squad-log.py` appends the pipeline's log rows.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.
@@ -47,7 +49,7 @@ Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
@@ -105,7 +107,7 @@ Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squa
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
-| a managed file or the template part of a marked file (squad rules, charters, agents, skills, tools, shared instruction sections) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `CLAUDE.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
 Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where

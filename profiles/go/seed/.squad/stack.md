@@ -59,6 +59,13 @@ skips them. Without it, SonarQube Cloud's shell rules (`shelldre:*`) only report
 See `docs/UNIT_TESTS.md`: the standard `testing` package, table-driven tests with `t.Run`, `t.Helper()` in
 helpers, `t.TempDir()` for files, failure messages that state got and want.
 
+Pitfalls of leak and error-text tests: never put a leak sentinel into a subtest name or any other name that
+becomes a path (a `t.TempDir()` directory) when the error under test prints that path — strip the path from
+the error text before the leak check. Where the plan fixes the error format, compare the exact text instead
+of forbidding substrings, so a forbidden substring never overlaps required text (`yaml:` against the
+required prefix `config: test.yaml:`). A claim of bounded memory gets a heap-bound test (`runtime.MemStats`
+or `testing.AllocsPerRun`) with the smallest input that still detects the failure.
+
 ## Skeleton
 
 New functions and methods with their full signature and doc comment, bodies

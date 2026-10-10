@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash
 
 # Squad Security
 
-Read first: `.squad/agents/security/charter.md`, `.squad/agents/security/history.md`, `SECURITY.md`,
+Read first: `.squad/agents/security/charter.md`, `SECURITY.md`,
 `docs/ARCHITECTURE.md`, and `.squad/project.md` (*Security areas*, *Guarantees*).
 
 Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Mode

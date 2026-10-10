@@ -25,9 +25,10 @@ to the other repositories. It contains no product code. See [`README.md`](README
 ## Commit messages and pull requests
 
 - Subject line: one summary of **no more than 80 characters**, no trailing period, not in the first
-  person; body of **3–5 sentences**.
-- PR title `[area] Description` (areas: `Core`, `Profile`, `Tools`, `Skill`, `Docs`), title and description
-  in **English**. Pull requests are merged with *Squash and merge*.
+  person; a body only where the subject does not explain the change.
+- PR title `[area] Description` (areas: `Core`, `Profile`, `Tools`, `Skill`, `Docs`), description of 3–5
+  sentences, both in **English**. Pull requests are merged with *Squash and merge*, so the PR title and
+  description are what reaches `main`.
 
 ## Skills
 

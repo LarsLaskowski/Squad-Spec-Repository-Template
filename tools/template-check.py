@@ -263,6 +263,7 @@ def single_value(name, rel, pattern):
 
 # Files an older template version wrote into every target; a refresh must remove them (RETIRED in apply-template.py).
 RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
+                  os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
                   os.path.join(".agents", "skills", "create-pr", "SKILL.md"),
                   os.path.join(".github", "skills", "squad-issue", "SKILL.md")]
 

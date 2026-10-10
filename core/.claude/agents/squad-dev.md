@@ -6,7 +6,7 @@ model: sonnet
 
 # Squad Dev
 
-Read first: `.squad/agents/dev/charter.md`, `.squad/agents/dev/history.md`, `.squad/stack.md`,
+Read first: `.squad/agents/dev/charter.md`, `.squad/stack.md`,
 `.squad/project.md`, `CLAUDE.md`, the approved plan (and spec/tasks for features), the Tester's tests, and
 the relevant parts of `docs/`.
 

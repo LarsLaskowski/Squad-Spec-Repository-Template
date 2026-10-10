@@ -37,7 +37,7 @@ profiles/<stack>/
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
-seed/             written once if missing: .squad/project.md, decisions.md, histories, .claude/settings.json
+seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
 tools/            apply-template.py (mechanical apply), template-check.py (self-check)
 .claude/skills/adopt-template/   the skill
@@ -47,9 +47,9 @@ Three kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md` | overwritten |
-| marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
-| seed | `.squad/stack.md`, `.squad/project.md`, `.squad/decisions.md`, histories, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
+| managed | `.squad/team.md`, `.squad/routing.md`, charters, `.claude/agents/squad-*.md`, the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), SessionStart hook, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
+| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
@@ -133,7 +133,7 @@ A local edit of a managed file in a product repository is never the fix: the nex
 
 Create `profiles/<stack>/` with the files `tools/template-check.py` requires (`PROFILE_FILES`): the
 stack blocks in `instructions.md`, an `analyzer-check.py` and a SessionStart hook under `managed/`
-(they are renamed per profile in a multi-profile repository, so keep them self-contained), , and
+(they are renamed per profile in a multi-profile repository, so keep them self-contained), and
 `stack.md` (every command name and section), `squad_settings.py`, `UNIT_TESTS.md`, CI, CodeQL and
 Dependabot under `seed/`. Add a coverage loader to `core/.squad/tools/coverage-check.py` if the stack
 writes a new report format, the detection rule to the `adopt-template` skill, and a row to the table above.

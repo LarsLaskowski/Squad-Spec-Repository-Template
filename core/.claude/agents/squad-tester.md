@@ -6,7 +6,7 @@ model: sonnet
 
 # Squad Tester
 
-Read first: `.squad/agents/tester/charter.md`, `.squad/agents/tester/history.md`, `docs/UNIT_TESTS.md`,
+Read first: `.squad/agents/tester/charter.md`, `docs/UNIT_TESTS.md`,
 `.squad/stack.md` (*Layout*, *Writing tests*), `.squad/project.md` (*Test doubles*), and the approved
 `plan.md` (and `spec.md`/`tasks.md` for features).
 

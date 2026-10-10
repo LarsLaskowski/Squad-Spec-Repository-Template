@@ -71,10 +71,13 @@ MARKED = [
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
 # Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the instruction file
-# and of the template's skills (the squad runs on Claude Code subagents only).
-RETIRED = ["AGENTS.md", ".github/copilot-instructions.md"] + [
+# and of the template's skills (the squad runs on Claude Code subagents only), and the squad's decisions.md and
+# history.md files, which nothing read or wrote (process decisions are the records in docs/decisions/).
+RETIRED = ["AGENTS.md", ".github/copilot-instructions.md", ".squad/decisions.md"] + [
     f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
-    for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")]
+    for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")] + [
+    f".squad/agents/{role}/history.md"
+    for role in ("code-officer", "dev", "devils-advocate", "lead", "reviewer", "security", "tester")]
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
@@ -165,7 +168,9 @@ def merge_settings(profile_dirs):
         return result
 
     lines = ['"""Per-repository settings for the squad tools (profiles: ' + ", ".join(names) + '). Seeded once by',
-             'adopt-template and kept on later refreshes; the scripts that import it are template-managed."""', ""]
+             'adopt-template and kept on later refreshes; the scripts that import it are template-managed."""', "",
+             "# Base branch the gates diff against (merge base with HEAD); fetch it before running the gates.",
+             f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", ""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]
@@ -176,6 +181,10 @@ def merge_settings(profile_dirs):
             if value not in tests:
                 tests.append(value)
     lines += ["# Coverage gate (.squad/tools/coverage-check.py): one (format, glob) report per profile, merged.",
+              "# COVERAGE_OVERALL_THRESHOLD may start below COVERAGE_THRESHOLD in a repository adopted with a coverage debt;",
+              "# it is never lowered and is raised towards COVERAGE_THRESHOLD as coverage improves.",
+              f"COVERAGE_THRESHOLD = {getattr(modules[0], 'COVERAGE_THRESHOLD', 80)!r}",
+              f"COVERAGE_OVERALL_THRESHOLD = {getattr(modules[0], 'COVERAGE_OVERALL_THRESHOLD', 80)!r}",
               "COVERAGE_REPORTS = ["]
     lines += [f"    ({fmt!r}, {pattern!r})," for fmt, pattern in reports]
     lines += ["]",

@@ -38,17 +38,14 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
 <!-- stack:begin golden-rules -->
 <!-- stack:end golden-rules -->
 
-## Commit messages
+## Commit messages and pull requests
 
-- Keep the subject line to a single summary of **no more than 80 characters** and do not end it with a
-  period.
-- Do not write the message in the first person.
-- Keep the body to **3–5 sentences**, depending on the number of changes.
-
-## Pull requests
-
-- Title and description are always written in **English**, regardless of the language used in the
-  conversation.
+- Commit subject: one summary of **no more than 80 characters**, no trailing period, not in the first
+  person. A body only where the subject does not explain the change; pull requests are squash-merged, so
+  branch commits never reach `main` and may simply name the pipeline step.
+- Pull request title `[area] Description` (areas in `docs/CONTRIBUTING.md`), description of **3–5
+  sentences** on what changed and why: they become the commit on `main`. Title and description are always
+  written in **English**, regardless of the language used in the conversation.
 
 ## Commands
 

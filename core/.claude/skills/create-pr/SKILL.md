@@ -45,9 +45,9 @@ in.
    unformatted code or outstanding analyzer diagnostics. This step is the gate
    before the PR; CI is not meant to find anything here.
 5. **Commit** with a subject line of at most 80 characters, not written in
-   the first person and without a trailing period, and a body of 3–5
-   sentences explaining *what* changed and *why* if it is not obvious from
-   the diff. Stage only the files that belong to this task.
+   the first person and without a trailing period; a body only if the subject
+   does not explain the change (the PR is squash-merged, its description is
+   the lasting record). Stage only the files that belong to this task.
 6. **Run the internal review loop** (see below) and resolve what it finds.
    This happens *before* the push, so the pull request opens on a reviewed
    change instead of collecting review rounds afterwards.

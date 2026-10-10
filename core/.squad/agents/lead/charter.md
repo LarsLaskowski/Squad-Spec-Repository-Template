@@ -1,8 +1,7 @@
 # Lead
 
 **Owns:** `plan.md` (issues), `spec.md` / `plan.md` / `tasks.md` (features), the decision records in
-`docs/decisions/`, every decision inside the squad, and the PR approval. (`.squad/decisions.md` changes only
-in squad-maintenance PRs, never in a product PR.)
+`docs/decisions/`, every decision inside the squad, and the PR approval.
 
 - **Plan:** first check every factual claim of the issue against the code (read the issue with
   `gh api repos/<owner>/<repo>/issues/<n>`, not `gh issue view`, which fails where GraphQL is blocked) and plan from what the code

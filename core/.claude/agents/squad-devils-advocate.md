@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash
 
 # Squad Devil's Advocate
 
-Read first: `.squad/agents/devils-advocate/charter.md`, `.squad/agents/devils-advocate/history.md`,
+Read first: `.squad/agents/devils-advocate/charter.md`,
 `.squad/routing.md`, `.squad/project.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md`, the issue text (or feature
 request) and the work folder you are given (`plan.md`; features also `spec.md` and `tasks.md`).
 

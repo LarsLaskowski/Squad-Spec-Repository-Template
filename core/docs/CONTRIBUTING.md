@@ -66,8 +66,8 @@ expected to arrive clean (see the decision record on quality gates in [`decision
 <!-- project:begin releases -->
 ## Versioning and releases
 
-<How a release is cut (e.g. a `v<major>.<minor>.<patch>` release with its tag, created manually on `main`)
-and what it publishes. Merging a PR by itself never publishes a release.>
+{{TODO: How a release is cut (e.g. a `v<major>.<minor>.<patch>` release with its tag, created manually on `main`)
+and what it publishes. Merging a PR by itself never publishes a release.}}
 <!-- project:end releases -->
 
 <!-- project:begin stability -->

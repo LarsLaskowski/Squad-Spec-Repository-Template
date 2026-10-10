@@ -22,7 +22,7 @@ that replaces it). Step numbers below are the ones the skills use.
 ## Scope of a product PR
 
 An issue or feature PR changes the product and its documentation only. It never touches the squad or the
-agent instructions: `.squad/` (charters, `history.md`, `decisions.md`, tools), `.claude/` and `CLAUDE.md`.
+agent instructions: `.squad/` (charters, tools), `.claude/` and `CLAUDE.md`.
 Lessons about the squad are collected in step 12 and filed where they can be fixed (*Squad lessons*
 below), never fixed in the product PR. The Reviewer reports any such file in a product PR as a blocking
 finding.
@@ -40,13 +40,14 @@ repository, its commit and the stack profile). Three kinds:
 - **Managed** — overwritten on every refresh: `.squad/team.md`, `.squad/routing.md`, the charters in
   `.squad/agents/*/charter.md`, `.squad/tools/*.py` except `squad_settings.py`, `.squad/tools/.gitignore`,
   `.claude/agents/squad-*.md`, `.claude/hooks/session-start.sh`, the template's skills under `.claude/skills/`,
-  `.github/ISSUE_TEMPLATE/feature_request.md`, `docs/decisions/_template.md`, `specs/README.md` and
-  `specs/_template/`.
+  `.github/ISSUE_TEMPLATE/feature_request.md`, `docs/decisions/_template.md`, `docs/areas/_template.md`,
+  `specs/README.md` and `specs/_template/`.
 - **Marked** — rebuilt on every refresh, keeping the repository's content inside
   `<!-- project:… -->` blocks: `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
-  `.github/pull_request_template.md` and `docs/decisions/README.md`. Text outside the project blocks is the template's.
+  `.github/pull_request_template.md`, `docs/decisions/README.md` and `docs/areas/README.md`. Text outside the
+  project blocks is the template's.
 - **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`,
-  `.squad/project.md`, `.squad/decisions.md`, the `history.md` files, `.squad/tools/squad_settings.py`,
+  `.squad/project.md`, `.squad/tools/squad_settings.py`,
   `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md` and the stack profile's CI, CodeQL, Dependabot and tool
   configuration files.
 
@@ -113,7 +114,7 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | 8 | Review | Reviewer + Security | No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round (Security only for `standard`/`security`) |
 | 9 | PR approval | Lead | Latest review round without a blocking finding not covered by a recorded Lead decision, and covering every change to production code, tests and `docs/` except `specs/` bookkeeping and the Lead's own approval edits (record status, index, `docs/ARCHITECTURE.md` link); area documents current for every change in behavior; plan fulfilled, coverage met, decision records `Accepted` and indexed → `APPROVED` → 10 |
 | 10 | Pull request | Dev (via orchestrator) | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed, PR opened (merged later with *Squash and merge*) |
-| 11 | After the PR | Dev, Code Officer, Reviewer | CI green, SonarQube Cloud quality gate passed, review comments worked |
+| 11 | After the PR | Dev, Code Officer, Reviewer | CI green, the CI code analysis (e.g. SonarQube Cloud) passed, review comments worked |
 | 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; user informed |
 
 A change without production or test code (tier `docs`, or any other tier whose plan declares it, see

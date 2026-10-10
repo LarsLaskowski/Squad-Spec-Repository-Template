@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 
 # Squad Lead
 
-Read first: `.squad/agents/lead/charter.md`, `.squad/agents/lead/history.md`, `.squad/routing.md`,
+Read first: `.squad/agents/lead/charter.md`, `.squad/routing.md`,
 `.squad/project.md`, `.squad/stack.md`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md` and the existing records there, `docs/areas/README.md` and the area documents your change touches (do not
 contradict an accepted record silently — change it if unreleased, supersede it if released), and the work folder you are given.
 

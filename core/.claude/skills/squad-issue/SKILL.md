@@ -17,7 +17,7 @@ action yourself — including follow-up issues the Lead decides on.
   it. Besides read-only checks (`--check`, the analyzer and coverage scripts, tests) you only write the
   squad's bookkeeping: `log.md` and `tasks.md` check marks (features). Never production code, tests or `docs/`.
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
-  (including `history.md` and `decisions.md`), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
+  (charters, tools), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
   change itself genuinely needs one of those files (e.g. a new build command every contributor must know),
   the Lead escalates instead and the Product Manager decides: `.squad/stack.md` and `.squad/project.md` may

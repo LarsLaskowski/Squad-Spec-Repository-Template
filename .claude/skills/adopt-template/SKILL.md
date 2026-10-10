@@ -111,11 +111,16 @@ Rules that hold throughout:
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
-   - `.squad/decisions.md`: replace the `{{TODO: date}}` and `{{TODO: profile}}` placeholders in the seeded entry.
+   - `.squad/decisions.md` and `.squad/agents/*/history.md` from older template versions are removed by the
+     apply step (nothing read or wrote them; process decisions are the records in `docs/decisions/`). An entry
+     in `decisions.md` that is still worth keeping becomes a decision record.
 9. **Verify** in the target: `python3 .squad/tools/config-check.py` passes (no placeholder left), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
-   new `stack.md`. A gate that fails on code this PR did not change (e.g. overall coverage below 80 %) is
-   not fixed by lowering a threshold: report it in the PR description and to the user. Then run the
+   new `stack.md`. A gate that fails on code this PR did not change is reported in the PR description and to
+   the user. One exception: when overall coverage is below the threshold before this PR, set
+   `COVERAGE_OVERALL_THRESHOLD` in `squad_settings.py` to the current overall value (rounded down) so the
+   *Coverage gate* holds the line from here on, and say so in the PR; it is raised towards 80 as coverage
+   improves and never lowered again. Then run the
    target's `squad-reviewer` agent (round 1, full) on the diff and fix its blocking findings; later rounds
    review only the delta.
 10. **Pull request** in the target, from its `.github/pull_request_template.md`: title

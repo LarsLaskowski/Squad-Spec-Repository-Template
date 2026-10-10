@@ -6,7 +6,7 @@ profile and owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- Node.js `<22+>` (`engines` in `package.json`), npm with a committed `package-lock.json`.
+- Node.js `{{TODO: version, e.g. 22}}` (`engines` in `package.json`), npm with a committed `package-lock.json`.
 - TypeScript (`tsc`), **ESLint** with **eslint-plugin-sonarjs** (the SonarQube JS/TS rules locally, so
   SonarQube issues surface before the push) and **Prettier** as the formatter.
 - The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci` in remote sessions.
@@ -28,7 +28,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | *Format check* | `npm run format:check` (`prettier --check .`) |
 | *Build* | `npm run build` |
 | *Test* | `npm test` |
-| *Single test* | `<e.g. node --import tsx --test --test-name-pattern "<name>" src/x.test.ts>` |
+| *Single test* | `{{TODO: e.g. node --import tsx --test --test-name-pattern "<name>" src/x.test.ts}}` |
 | *Test with coverage* | `npm run coverage:lcov` (overwrites `coverage/lcov.info`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |

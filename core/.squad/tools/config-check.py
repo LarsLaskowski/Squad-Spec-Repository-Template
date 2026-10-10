@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""Config gate for the squad: agent and skill definitions must load, mirrors must match, and the
-per-repository squad files must exist and be filled in.
+"""Config gate for the squad: agent and skill definitions must load, and the per-repository squad files
+must exist and be filled in.
 
 Claude Code silently drops an agent or skill whose YAML front matter does not parse (for example an
 unquoted description containing ": "), so a broken file only shows up when a squad run tries to launch
 it. This script checks, without arguments:
 
-- every `.claude/agents/*.md` and every `SKILL.md` under `.claude/skills/`, `.agents/skills/` and
-  `.github/skills/` has front matter that parses as YAML, with a non-empty `name` and `description`;
+- every `.claude/agents/*.md` and every `SKILL.md` under `.claude/skills/` has front matter that parses as
+  YAML, with a non-empty `name` and `description`;
 - an agent's `name` equals its file name, a skill's `name` equals its folder name;
-- the three skill folders contain the same skills with identical content;
-- `CLAUDE.md`, `AGENTS.md` and `.github/copilot-instructions.md` are identical from their first `## `
-  heading on (only the title and introduction may differ);
+- `CLAUDE.md` exists;
 - `.squad/template.json` names the template repository (where lessons about template-managed files are
   filed) and, for a repository with several stack profiles, lists them in `profiles` (the first one is
   `profile`); then every profile has its `analyzer-check-<profile>.py` and `session-start-<profile>.sh`
@@ -37,8 +35,8 @@ CLAUDE_DIR = ".claude"
 GITHUB_DIR = ".github"
 SQUAD_DIR = ".squad"
 AGENTS_DIR = os.path.join(CLAUDE_DIR, "agents")
-SKILL_ROOTS = [os.path.join(CLAUDE_DIR, "skills"), os.path.join(".agents", "skills"), os.path.join(GITHUB_DIR, "skills")]
-INSTRUCTION_FILES = ["CLAUDE.md", "AGENTS.md", os.path.join(GITHUB_DIR, "copilot-instructions.md")]
+SKILLS_DIR = os.path.join(CLAUDE_DIR, "skills")
+INSTRUCTION_FILES = ["CLAUDE.md"]
 REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), os.path.join(SQUAD_DIR, "project.md"),
                   os.path.join(SQUAD_DIR, "tools", "squad_settings.py")]
 # No quantifier overlaps another one, so matching stays linear (no backtracking).
@@ -87,43 +85,18 @@ def check(path, expected_name, errors):
 
 
 def check_skills(errors):
-    skills = {}
-    for root in SKILL_ROOTS:
-        found = {}
-        for path in sorted(glob.glob(os.path.join(root, "*", "SKILL.md"))):
-            name = os.path.basename(os.path.dirname(path))
-            check(path, name, errors)
-            with open(path, "rb") as handle:
-                found[name] = handle.read().replace(b"\r\n", b"\n")
-        skills[root] = found
-    reference = skills[SKILL_ROOTS[0]]
-    for root in SKILL_ROOTS[1:]:
-        other = skills[root]
-        for name in sorted(set(reference) | set(other)):
-            if name not in reference or name not in other:
-                errors.append(f"skill '{name}' exists in only one of {SKILL_ROOTS[0]} and {root}")
-            elif reference[name] != other[name]:
-                errors.append(f"skill '{name}' differs between {SKILL_ROOTS[0]} and {root}")
-    return reference
-
-
-def body(path):
-    text = read_text(path)
-    start = text.find("\n## ")
-    return text[start:] if start >= 0 else ""
+    skills = []
+    for path in sorted(glob.glob(os.path.join(SKILLS_DIR, "*", "SKILL.md"))):
+        name = os.path.basename(os.path.dirname(path))
+        check(path, name, errors)
+        skills.append(name)
+    return skills
 
 
 def check_instructions(errors):
-    missing = [path for path in INSTRUCTION_FILES if not os.path.isfile(path)]
-    for path in missing:
-        errors.append(f"{path} is missing")
-    present = [path for path in INSTRUCTION_FILES if path not in missing]
-    if len(present) < 2:
-        return
-    reference = body(present[0])
-    for path in present[1:]:
-        if body(path) != reference:
-            errors.append(f"{path} differs from {present[0]} after the first '## ' heading")
+    for path in INSTRUCTION_FILES:
+        if not os.path.isfile(path):
+            errors.append(f"{path} is missing")
 
 
 def check_template_record(errors):

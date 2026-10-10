@@ -3,9 +3,8 @@
 Squad for this repository, used for both GitHub issues (`squad-issue` skill) and new features
 (`squad-spec` skill). The layout follows [bradygaster/squad](https://github.com/bradygaster/squad)
 (`team.md`, `routing.md`, `decisions.md`, `agents/{name}/charter.md` + `history.md`, all changed only in
-squad-maintenance PRs); in Claude Code the roles run as subagents under `.claude/agents/`, driven by the
-invoking session (the orchestrator). An agent without subagent support runs each role inline by following
-the same agent file.
+squad-maintenance PRs); the roles run as Claude Code subagents under `.claude/agents/`, driven by the
+invoking session (the orchestrator).
 
 The squad files are stack-neutral and come from the Squad-Spec-Repository-Template repository. Everything
 specific to this repository lives in two files the members read first:

@@ -16,6 +16,7 @@ with more than one language, see "Several profiles" below:
   template version, so the skill can move its content into the project blocks;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
   them yet;
+- **retired** files (`RETIRED` below) that an older template version wrote are removed from the target;
 - `.squad/template.json` records the template repository, its commit and the profile(s).
 
 Several profiles (`--profile go --profile dotnet`, the first one is the primary): the stack blocks of the
@@ -39,7 +40,7 @@ Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo --profile dotnet [--dry-run]
     python3 tools/apply-template.py --target ../OtherRepo      # refresh with the recorded profile(s)
 
-Prints one line per file (created / updated / unchanged / kept / skipped / backed-up / conflict) and the files in
+Prints one line per file (created / updated / unchanged / kept / skipped / backed-up / conflict / removed) and the files in
 template-owned folders of the target that the template does not know (old skills or agents to review).
 """
 import argparse
@@ -58,8 +59,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
 MARKED = [
     "CLAUDE.md",
-    "AGENTS.md",
-    ".github/copilot-instructions.md",
     "docs/CONTRIBUTING.md",
     "docs/ARCHITECTURE.md",
     ".github/ISSUE_TEMPLATE/bug_report.md",
@@ -71,6 +70,11 @@ MARKED = [
 # a sonar-project.properties, so its settings are passed as scanner arguments (the dotnet profile's ci.yml does).
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
+# Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the instruction file
+# and of the template's skills (the squad runs on Claude Code subagents only).
+RETIRED = ["AGENTS.md", ".github/copilot-instructions.md"] + [
+    f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
+    for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")]
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
@@ -331,6 +335,22 @@ def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
         os.chmod(dest, mode | ((mode & 0o444) >> 2))
 
 
+def retire(target, dry_run, report):
+    """Remove the files an older template version wrote (RETIRED) and the folders that become empty."""
+    for rel in RETIRED:
+        path = os.path.join(target, rel)
+        if not os.path.isfile(path):
+            continue
+        report.append(("removed", rel))
+        if dry_run:
+            continue
+        os.remove(path)
+        folder = os.path.dirname(path)
+        while folder != target and not os.listdir(folder):
+            os.rmdir(folder)
+            folder = os.path.dirname(folder)
+
+
 def backup(target, rel, dry_run, report):
     dest = os.path.join(target, ".git", "adopt-template", "backup", rel)
     report.append(("backed-up", rel + " -> .git/adopt-template/backup/" + rel))
@@ -448,6 +468,8 @@ def main():
                 text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)[ \t]*$", r"\g<1>" + ("crlf" if crlf else "lf"), text,
                               flags=re.M)
             write(target, rel, text, crlf, args.dry_run, report)
+
+    retire(target, args.dry_run, report)
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()

@@ -22,8 +22,7 @@ that replaces it). Step numbers below are the ones the skills use.
 ## Scope of a product PR
 
 An issue or feature PR changes the product and its documentation only. It never touches the squad or the
-agent instructions: `.squad/` (charters, `history.md`, `decisions.md`, tools), `.claude/`,
-`.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`.
+agent instructions: `.squad/` (charters, `history.md`, `decisions.md`, tools), `.claude/` and `CLAUDE.md`.
 Lessons about the squad are collected in step 12 and filed where they can be fixed (*Squad lessons*
 below), never fixed in the product PR. The Reviewer reports any such file in a product PR as a blocking
 finding.
@@ -40,13 +39,11 @@ repository, its commit and the stack profile). Three kinds:
 
 - **Managed** — overwritten on every refresh: `.squad/team.md`, `.squad/routing.md`, the charters in
   `.squad/agents/*/charter.md`, `.squad/tools/*.py` except `squad_settings.py`, `.squad/tools/.gitignore`,
-  `.claude/agents/squad-*.md`, `.claude/hooks/session-start.sh`, the template's skills under
-  `.claude/skills/`, `.agents/skills/` and `.github/skills/`,
+  `.claude/agents/squad-*.md`, `.claude/hooks/session-start.sh`, the template's skills under `.claude/skills/`,
   `.github/ISSUE_TEMPLATE/feature_request.md`, `docs/decisions/_template.md`, `specs/README.md` and
   `specs/_template/`.
 - **Marked** — rebuilt on every refresh, keeping the repository's content inside
-  `<!-- project:… -->` blocks: `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`,
-  `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
+  `<!-- project:… -->` blocks: `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
   `.github/pull_request_template.md` and `docs/decisions/README.md`. Text outside the project blocks is the template's.
 - **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`,
   `.squad/project.md`, `.squad/decisions.md`, the `history.md` files, `.squad/tools/squad_settings.py`,
@@ -77,7 +74,7 @@ tier applies; Security or the Reviewer may raise the tier at any point (never lo
 
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
-| `docs` | Issues only (never a feature). Only product Markdown documentation changes — `README.md`, `docs/` except `docs/decisions/` and `docs/areas/`, `SECURITY.md`, and inside their `<!-- project:… -->` blocks `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, the bug report and the pull request template — and no other file at all, except `.squad/project.md` and `.squad/stack.md` (see below) (template-managed files such as the feature-request template are fixed in Squad-Spec-Repository-Template, see *Template-managed files*): not even a comment in production or test code (that is `trivial`), no build, CI, Docker or config file, and never other squad or instruction files (`.squad/`, `.claude/`, `.github/skills/`, `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`). A change that needs a decision record or an area document update is not `docs` either. | Lead plans briefly (no `plan.md`: tier, change list and acceptance criteria go into its result, recorded as the first `log.md` row); steps 3–7 and 9 skipped; the Dev makes the edits; the orchestrator verifies read-only (*Format check* in `.squad/stack.md`); one Reviewer round, which checks the diff against the first `log.md` row — a blocking finding goes to the Dev, then the read-only check and a delta round; the orchestrator opens the PR once the latest round is clean. |
+| `docs` | Issues only (never a feature). Only product Markdown documentation changes — `README.md`, `docs/` except `docs/decisions/` and `docs/areas/`, `SECURITY.md`, and inside their `<!-- project:… -->` blocks `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, the bug report and the pull request template — and no other file at all, except `.squad/project.md` and `.squad/stack.md` (see below) (template-managed files such as the feature-request template are fixed in Squad-Spec-Repository-Template, see *Template-managed files*): not even a comment in production or test code (that is `trivial`), no build, CI, Docker or config file, and never other squad or instruction files (`.squad/`, `.claude/`, `CLAUDE.md`). A change that needs a decision record or an area document update is not `docs` either. | Lead plans briefly (no `plan.md`: tier, change list and acceptance criteria go into its result, recorded as the first `log.md` row); steps 3–7 and 9 skipped; the Dev makes the edits; the orchestrator verifies read-only (*Format check* in `.squad/stack.md`); one Reviewer round, which checks the diff against the first `log.md` row — a blocking finding goes to the Dev, then the read-only check and a delta round; the orchestrator opens the PR once the latest round is clean. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and Lead approval still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2; step 3 skipped; Security reviews only the diff (step 8) |
 | `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency | Full pipeline, including the plan challenge in step 2 |

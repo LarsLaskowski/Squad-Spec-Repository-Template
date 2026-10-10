@@ -64,9 +64,7 @@ for features), and report as findings:
   really is docs-only — any file outside the `docs` definition is a blocking
   tier raise;
 - any change to the squad or the agent instructions — `.squad/` (except
-  `stack.md` and `project.md`), `.claude/`, `.github/skills/`,
-  `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`
-  (blocking — see *Scope of a product PR* in `.squad/routing.md`);
+  `stack.md` and `project.md`), `.claude/`, `CLAUDE.md` (blocking — see *Scope of a product PR* in `.squad/routing.md`);
 - in a review round after the PR was opened (squad step 11), a `specs/`
   working-record folder in the diff — step 10 must have removed it (blocking).
   Before step 10 the folder is expected; read its `plan.md` as described above.
@@ -74,9 +72,8 @@ for features), and report as findings:
   calling session points you to.
 
 Outside the squad (e.g. via `create-pr` for a squad-maintenance change), run
-`python3 .squad/tools/config-check.py` whenever the diff touches `.claude/`,
-`.github/skills/`, `.agents/skills/` or one of the instruction files; a failure
-is blocking, because Claude Code silently drops an agent or skill whose front
+`python3 .squad/tools/config-check.py` whenever the diff touches `.claude/` or
+`CLAUDE.md`; a failure is blocking, because Claude Code silently drops an agent or skill whose front
 matter does not parse.
 
 ## Round 1 — full review
@@ -104,11 +101,9 @@ hold in every repository:
   password or a URL with secrets in its query string is a finding.
 - **A new dependency** follows *Dependencies* in `.squad/stack.md` (e.g. a
   central version file); a version outside that mechanism is blocking.
-- **A change to project conventions** touches `CLAUDE.md`, `AGENTS.md`,
-  `.github/copilot-instructions.md`, `.squad/stack.md` and the skill files
-  under `.claude/skills/`, `.github/skills/` and `.agents/skills/`, which are
-  meant to stay in sync with each other and with `docs/`. Updating only one of
-  them is a finding.
+- **A change to project conventions** touches `CLAUDE.md`, `.squad/stack.md`,
+  the skill files under `.claude/skills/` and `docs/`, which are meant to stay
+  in sync with each other. Updating only one of them is a finding.
 
 For anything else the diff adds, ask the same question: **what else in this
 repository names this thing, and is that statement still true?**

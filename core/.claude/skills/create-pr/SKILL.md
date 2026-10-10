@@ -38,10 +38,9 @@ in.
      file; treat each as a failure
    - *Test with coverage* and *Coverage gate* — at least 80 % line coverage
      on new/changed production code and overall
-   - `python3 .squad/tools/config-check.py` when the diff touches `.claude/`,
-     `.github/skills/`, `.agents/skills/` or an instruction file — Claude Code
-     silently drops an agent or skill whose front matter does not parse, and
-     the skill copies and instruction files must match
+   - `python3 .squad/tools/config-check.py` when the diff touches `.claude/`
+     or `CLAUDE.md` — Claude Code silently drops an agent or skill whose front
+     matter does not parse
    Fix any failures before proceeding — do not open a PR with failing checks,
    unformatted code or outstanding analyzer diagnostics. This step is the gate
    before the PR; CI is not meant to find anything here.
@@ -89,8 +88,7 @@ The review happens here, in this session, against the local branch — not as
 a round trip through pull request comments. Each pass is delegated to the
 `squad-reviewer` subagent, which runs on Opus with a fresh
 context and the repository's full review checklist. That checklist lives in
-`.claude/agents/squad-reviewer.md`; an agent without subagent
-support follows the same file inline, so the review is the same either way.
+`.claude/agents/squad-reviewer.md`.
 
 1. **Pass 1** — launch `squad-reviewer` (subagent_type
    `squad-reviewer`, model `opus`). Tell it the base ref, the

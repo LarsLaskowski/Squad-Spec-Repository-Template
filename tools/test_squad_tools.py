@@ -69,6 +69,43 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("| Lead | opus/high | 2 | 45,445 | 8 | 67 |", table)
         self.assertIn("| **Total** | | 3 | 57,445 | 11 | 87 |", table)
 
+    def test_amend_last_adds_the_trailer_once(self):
+        write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        self.script.append_row(self.path, "2 Plan", "Lead", "plan written", today="2026-01-02")
+        self.script.append_row(self.path, "2 Plan", "Devil's Advocate", "a|b", today="2026-01-02")
+        self.script.append_row(self.path, "2 Plan revise", "Lead", "revised", today="2026-01-02")
+        row = self.script.amend_last(self.path, "Lead", ("opus/high", 8000, 2, 10))
+        self.assertEqual(row, "| 2026-01-02 | 2 Plan revise | Lead | revised (opus/high · 8,000 tokens · 2 tool uses · 10 s) |")
+        self.assertIsNone(self.script.amend_last(self.path, "Lead", ("opus/high", 1, 1, 1)), "amended twice")
+        self.assertIsNone(self.script.amend_last(self.path, "Tester", ("sonnet/medium", 1, 1, 1)), "no such row")
+        row = self.script.amend_last(self.path, "Devil's Advocate", ("sonnet/high", 12000, 3, 20))
+        self.assertEqual(row, "| 2026-01-02 | 2 Plan | Devil's Advocate | a\\|b "
+                              "(sonnet/high · 12,000 tokens · 3 tool uses · 20 s) |")
+        with open(self.path, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("| 2026-01-02 | 2 Plan | Lead | plan written |\n", text)
+        self.assertIn("| Lead | opus/high | 1 | 8,000 | 2 | 10 |", self.script.summary(self.path))
+        self.assertIn("| **Total** | | 2 | 20,000 | 5 | 30 |", self.script.summary(self.path))
+
+    def test_amend_last_keeps_crlf(self):
+        write(self.path, "| Date |\r\n| - |\r\n| 2026-01-02 | 6 Implement | Dev | done |\r\n", newline="")
+        self.script.amend_last(self.path, "Dev", ("sonnet/medium", 500, 1, 2))
+        with open(self.path, "rb") as handle:
+            data = handle.read()
+        self.assertEqual(data, b"| Date |\r\n| - |\r\n| 2026-01-02 | 6 Implement | Dev | done "
+                               b"(sonnet/medium \xc2\xb7 500 tokens \xc2\xb7 1 tool uses \xc2\xb7 2 s) |\r\n")
+
+    def test_agent_launch_reads_the_agent_file(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"),
+              "---\nname: squad-lead\ndescription: Lead.\nmodel: opus\neffort: high\n---\n\n# Lead\n")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nname: squad-dev\nmodel: sonnet\n---\n")
+        self.assertEqual(self.script.agent_launch(root, "squad-lead"), "opus/high")
+        self.assertEqual(self.script.agent_launch(root, "squad-lead.md"), "opus/high")
+        self.assertIsNone(self.script.agent_launch(root, "squad-dev"), "no effort")
+        for bad in ("squad-tester", "../agents/squad-lead", "/etc/passwd", ".."):
+            self.assertIsNone(self.script.agent_launch(root, bad), bad)
+
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")

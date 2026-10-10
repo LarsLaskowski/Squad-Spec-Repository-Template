@@ -61,6 +61,11 @@ Which guarantees from `docs/ARCHITECTURE.md` are touched and how they are preser
 
 ## Security considerations
 
+- [ ] Every byte or length limit on parsed input says whether it applies before or after decoding (a
+  replacement such as U+FFFD can multiply the size of raw bytes) — or "no limits".
+- [ ] Every exception that can reach a user-visible failure reason or message is listed, with the text
+  that reaches the user (never a raw runtime exception message) — or "none".
+
 ## Decision records
 
 - `docs/decisions/NNNN-title.md` (Proposed) — or "none: no decision beyond the obvious fix"

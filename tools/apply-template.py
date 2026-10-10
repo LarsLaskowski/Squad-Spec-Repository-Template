@@ -30,18 +30,23 @@ tooling refuses (`sonar-project.properties` with `dotnet`, see `SEEDS_REFUSED_WI
 `--profile` keeps the profiles recorded in `.squad/template.json`; naming a different set needs
 `--reset-profiles`.
 
-Line endings follow the target: its `.gitattributes` decides (CRLF for `* text=auto eol=crlf`); an existing
-repository without one keeps the line endings of its index and gets no seeded `.gitattributes` (that would
-renormalize the whole repository — a decision of its own); only an empty repository follows the profile's
-seeds. A seeded `.editorconfig` gets an `end_of_line` that matches the line endings chosen here.
-Shell scripts always keep LF and the executable bit.
+Line endings follow the target, file by file: a file is written with the line ending Git checks it out
+with, read from the target's `.gitattributes` with `git check-attr eol` (so `*.md text eol=crlf` under
+`* text=auto eol=lf` is honored). A file without an `eol` attribute gets the repository-wide default: CRLF
+when the global rule is `* text=auto eol=crlf`; an existing repository without a `.gitattributes` keeps the
+majority line ending of its index and gets no seeded `.gitattributes` (that would renormalize the whole
+repository — a decision of its own); only an empty repository follows the profile's seeds. A seeded
+`.editorconfig` gets an `end_of_line` that matches that default. Shell scripts always keep LF and the
+executable bit. A file whose content is unchanged but whose line endings in the working copy differ from
+what Git would check out is rewritten and reported as `renormalized`.
 
 Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo --profile dotnet [--dry-run]
     python3 tools/apply-template.py --target ../OtherRepo      # refresh with the recorded profile(s)
 
-Prints one line per file (created / updated / unchanged / kept / skipped / backed-up / conflict / removed) and the files in
-template-owned folders of the target that the template does not know (old skills or agents to review).
+Prints one line per file (created / updated / renormalized / unchanged / kept / skipped / backed-up / conflict /
+removed) and the files in template-owned folders of the target that the template does not know (old skills or
+agents to review).
 """
 import argparse
 import glob
@@ -324,16 +329,45 @@ def uses_crlf(target, profile_dirs):
                for path in paths)
 
 
+def eol_attributes(target, rels):
+    """The `eol` attribute Git resolves for each path from the target's `.gitattributes`: {rel: "crlf" | "lf"};
+    a path without one (unspecified, or a pattern that sets neither) is left out."""
+    rels = [rel for rel in rels if rel]
+    if not rels:
+        return {}
+    listing = subprocess.run(["git", "-C", target, "check-attr", "--stdin", "-z", "eol"], input="\0".join(rels) + "\0",
+                             capture_output=True, text=True, check=False).stdout.split("\0")
+    # -z output: path, attribute, value, repeated; the trailing empty field after the last value is dropped.
+    triples = zip(listing[0::3], listing[1::3], listing[2::3], strict=False)
+    return {path: value for path, attribute, value in triples if attribute == "eol" and value in ("crlf", "lf")}
+
+
+def crlf_for(rel, eols, default):
+    """CRLF for one file: its `eol` attribute decides, a file without one takes the repository-wide default;
+    shell scripts always stay LF (bash fails on carriage returns)."""
+    if rel.endswith(".sh"):
+        return False
+    eol = eols.get(rel)
+    return default if eol is None else eol == "crlf"
+
+
+def status_of(old, data):
+    """unchanged when the file already has these bytes, renormalized when only the line endings differ."""
+    if old == data:
+        return "unchanged"
+    if old.replace(b"\r\n", b"\n") == data.replace(b"\r\n", b"\n"):
+        return "renormalized"
+    return "updated"
+
+
 def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
     dest = os.path.join(target, rel)
-    if rel.endswith(".sh"):
-        crlf = False
     data = (text.replace("\n", "\r\n") if crlf else text).encode("utf-8")
     old = None
     if os.path.isfile(dest):
         with open(dest, "rb") as existing:
             old = existing.read()
-    status = status_if_new if old is None else ("unchanged" if old == data else "updated")
+    status = status_if_new if old is None else status_of(old, data)
     report.append((status, rel))
     if dry_run or status == "unchanged":
         return
@@ -449,8 +483,9 @@ def main():
     report = []
 
     core, managed = managed_files(profile_dirs, names)
+    eols = eol_attributes(target, [*managed, *MARKED, ".squad/template.json"])
     for rel, src in sorted(managed.items()):
-        write(target, rel, read(src), crlf, args.dry_run, report)
+        write(target, rel, read(src), crlf_for(rel, eols, crlf), args.dry_run, report)
 
     for rel in MARKED:
         template = read(core[rel])
@@ -459,9 +494,10 @@ def main():
         project = blocks(current, "project")
         if current and not project:
             backup(target, rel, args.dry_run, report)
-        write(target, rel, fill(template, project, stack), crlf, args.dry_run, report)
+        write(target, rel, fill(template, project, stack), crlf_for(rel, eols, crlf), args.dry_run, report)
 
     seeds = seed_files(profile_dirs, names, report)
+    eols.update(eol_attributes(target, seeds))
     existing = is_existing_repository(target)
     for rel, src in sorted(seeds.items()):
         if os.path.exists(os.path.join(target, rel)):
@@ -478,7 +514,7 @@ def main():
             if rel == ".editorconfig":
                 text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)[ \t]*$", r"\g<1>" + ("crlf" if crlf else "lf"), text,
                               flags=re.M)
-            write(target, rel, text, crlf, args.dry_run, report)
+            write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
 
     retire(target, args.dry_run, report)
 
@@ -486,7 +522,7 @@ def main():
                             check=False).stdout.strip()
     record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": names[0],
                          "profiles": names}, indent=2) + "\n"
-    write(target, ".squad/template.json", record, crlf, args.dry_run, report)
+    write(target, ".squad/template.json", record, crlf_for(".squad/template.json", eols, crlf), args.dry_run, report)
 
     known = set(managed) | set(seeds) | {".squad/template.json"}
     unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))

@@ -95,6 +95,40 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(data, b"| Date |\r\n| - |\r\n| 2026-01-02 | 6 Implement | Dev | done "
                                b"(sonnet/medium \xc2\xb7 500 tokens \xc2\xb7 1 tool uses \xc2\xb7 2 s) |\r\n")
 
+    def test_replace_last_corrects_an_existing_trailer(self):
+        write(self.path, "| Date |\r\n| - |\r\n", newline="")
+        self.script.append_row(self.path, "2 Plan", "Lead", "plan written", today="2026-01-02",
+                               launch=("opus/high", 1, 0, 0))
+        self.script.append_row(self.path, "6 Implement", "Dev", "done", today="2026-01-02")
+        self.assertIsNone(self.script.amend_last(self.path, "Dev", ("sonnet/medium", 5, 1, 1), replace=True),
+                          "no trailer to replace")
+        row = self.script.amend_last(self.path, "Lead", ("opus/high", 37445, 6, 57), replace=True)
+        self.assertEqual(row, "| 2026-01-02 | 2 Plan | Lead | plan written (opus/high · 37,445 tokens · 6 tool uses · 57 s) |")
+        with open(self.path, "rb") as handle:
+            self.assertIn(row.encode() + b"\r\n| 2026-01-02 | 6 Implement | Dev | done |\r\n", handle.read())
+        self.assertIn("| **Total** | | 1 | 37,445 | 6 | 57 |", self.script.summary(self.path))
+
+    def test_cli_refuses_placeholder_metrics_and_replaces_a_trailer(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: high\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan (opus/high · 9 tokens · 0 tool uses · 0 s) |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        metrics = ["--agent", "squad-lead", "--tool-uses", "0", "--seconds", "0"]
+        self.assertEqual(run("3 Review", "Lead", "x", "--tokens", "0", *metrics).returncode, 2)
+        self.assertEqual(run("--amend-last", "Lead", "--tokens", "500", *metrics).returncode, 1)
+        both = run("--amend-last", "Lead", "--replace-last", "Lead", "--tokens", "500", *metrics)
+        self.assertEqual(both.returncode, 2)
+        done = run("--replace-last", "Lead", "--tokens", "500", *metrics)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan "
+                                            "(opus/high · 500 tokens · 0 tool uses · 0 s) |\n")
+
     def test_agent_launch_reads_the_agent_file(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"),

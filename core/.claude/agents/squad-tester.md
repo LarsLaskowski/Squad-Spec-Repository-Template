@@ -26,8 +26,8 @@ Mode `tests-first`:
    the input reported in the issue. A plan's claim of a bound (memory, size, time) gets a test that fails
    when the claim is false.
 2. Build and run the new tests. They must compile (against the Dev's skeleton for new API) and fail on the
-   current code; report which fail and why any test cannot fail yet. Never leave the test suite in a state
-   that does not build. If a skeleton body aborts the whole test run, report which tests could not run
+   current code; report which fail and why any test cannot fail yet. Leave the suite building, so the
+   other tests keep running. If a skeleton body aborts the whole test run, report which tests could not run
    because of it instead of counting them as failing, and ask (via the orchestrator) for skeleton bodies that
    return a zero value or an error where the signature allows it.
 

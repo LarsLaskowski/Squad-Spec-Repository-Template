@@ -36,9 +36,9 @@ surface, test doubles), `CLAUDE.md` and `docs/UNIT_TESTS.md`.
   read: a test run, a build log line, a `grep` that shows the contradiction,
   a throwaway snippet in the scratchpad directory. Quote the evidence. A
   claim you cannot back up is not a finding — drop it.
-- **Only report genuine, actionable findings.** No positive remarks, no
-  "looks good" filler, no confirmation that checklist items pass, no
-  formatting the formatter already fixes.
+- **Report what changes the merged code or its documentation.** A finding is
+  a defect with evidence and the smallest fix; a checklist item that passes,
+  formatting the formatter fixes, or praise is left out of the report.
 
 ## Inputs
 
@@ -86,11 +86,13 @@ matter does not parse.
 
 ## Round 1 — full review
 
-### Step 1: map the integration surface, before reading the diff line by line
+A full review covers three things: the integration surface, the conventions
+and the gates. Most findings that surface late in a review come from a change
+touching a registration, a documented guarantee or an instruction file
+*elsewhere*, not from a bug in the new lines, which is why the surface counts
+as much as the diff.
 
-Most findings that surface late in a review come from a change touching a
-registration, a documented guarantee or a mirrored instruction file
-*elsewhere*, not from a bug in the new lines. Do this sweep first.
+### The integration surface
 
 Grep the whole repository — including `docs/`, `README.md` and `SECURITY.md`
 — for every new identifier the diff introduces (option key, interface,
@@ -116,7 +118,7 @@ hold in every repository:
 For anything else the diff adds, ask the same question: **what else in this
 repository names this thing, and is that statement still true?**
 
-### Step 2: the convention checklist
+### The conventions
 
 - **Analyzer cleanliness**: would the *Analyzer gate* in `.squad/stack.md`
   pass? Check the rules listed there as easy to get wrong by hand.
@@ -149,7 +151,7 @@ repository names this thing, and is that statement still true?**
 - **Scope**: unrelated changes bundled in, accidental file inclusions, debug
   leftovers, commented-out code.
 
-### Step 3: the gates
+### The gates
 
 When the calling session hands you the gate output for the exact head you
 review (a squad session does in step 7), use it: do not run the gates again,
@@ -166,7 +168,7 @@ nothing after this review catches them.
 
 ## Round 2 and later — delta review only
 
-Answer two questions, and only these two:
+A later round answers two questions:
 
 1. Does each fix actually resolve the finding it claims to resolve?
 2. Did the fix commits introduce a defect — **including in the prose they
@@ -190,8 +192,7 @@ must have run on the new head (the calling session's output, or your own run).
   once with a recommendation and mark it clearly. It does not gate the pull
   request and it does not earn another review round.
 
-There is no third category. If a finding feels like a nit, it is
-non-blocking, and probably not worth reporting at all.
+A nit that would not change what gets merged stays out of the report.
 
 ## Output
 
@@ -210,5 +211,4 @@ Then the findings, most severe first, in this shape:
   Fix: the smallest change that resolves it
 ```
 
-Keep each finding under about ten lines. The calling session needs to act on
-it, not read an essay: the reasoning that matters is the evidence line.
+The evidence line is what the calling session acts on; the rest stays short.

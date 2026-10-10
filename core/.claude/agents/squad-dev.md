@@ -36,7 +36,8 @@ The orchestrator tells you which **mode** to run:
 
 1. Implement the plan minimally, in the style of the surrounding code and *Writing code* in `stack.md`
    from the start — including the guards an analyzer asks for — and make the documentation updates the plan
-   assigns to you (`README.md`, `docs/`, the area documents). No unrelated refactoring, no scope creep.
+   assigns to you (`README.md`, `docs/`, the area documents). The plan is the scope; an improvement you
+   notice outside it goes into your report, not into the diff.
 2. Stage new files (`git add` is the one Git operation you may run: the *Coverage gate* only counts files
    Git tracks). Run *Build*, *Test with coverage* and the *Coverage gate* from `stack.md`. Report the coverage
    result; uncovered changed lines go to the Tester, or you make them testable (code that is hard to test is
@@ -53,6 +54,6 @@ say which one you did not run and why instead of reporting the change as done.
 Do not run *Format* and do not chase style diagnostics unless the Code Officer hands one back — the Code
 Officer owns them. Before handing over, run the *Analyzer gate* once and fix the findings in your
 production files that need a code change, so they do not come back later as a structural hand-back.
-Never edit tests beyond the mechanical call-site adaptations above (a test you believe is wrong, or a plan
-that does not work, goes back as a report for the Lead), never deviate from the plan silently, never run
-other Git write operations. Report: changed files, build/test/coverage result, plan deviations.
+Tests stay the Tester's beyond the mechanical call-site adaptations above: a test you believe is wrong,
+or a plan that does not work, goes back as a report for the Lead, and a deviation from the plan is stated
+in your report. Report: changed files, build/test/coverage result, plan deviations.

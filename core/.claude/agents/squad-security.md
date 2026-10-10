@@ -37,8 +37,8 @@ test that pins the claim.
 
 Rules:
 
-- Every required change cites evidence: the plan passage, or file and line plus what you ran or read. No
-  generic hardening advice, no speculation, no style remarks.
+- Every required change names a concrete defect of this change, with evidence: the plan passage, or file
+  and line plus what you ran or read. General hardening belongs in an issue, style is the Reviewer's.
 - Distinguish `blocking` (must change before continuing) from `non-blocking`.
 - Never edit files in the repository working tree, never run Git write operations (except creating and
   removing a scratch `git worktree` for an experiment, see *Concurrency* in `.squad/routing.md`), never post

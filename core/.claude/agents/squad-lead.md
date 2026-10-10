@@ -38,7 +38,7 @@ The orchestrator tells you which **mode** to run:
   - the **tier** with a one-sentence justification — when in doubt, the higher tier;
   - acceptance criteria the Tester can turn into unit tests;
   - the exact **signatures** of every new or changed member (for the Dev's skeleton) and the existing files
-    the skeleton must rewrite — never describe a file as already final unless you verified that in the code;
+    the skeleton must rewrite — a file you call final is one you read and found so;
   - the **test files**, named strictly by *Layout* in `.squad/stack.md` and `docs/UNIT_TESTS.md`, and the
     existing test call sites a changed signature affects, with who adapts them (*Loop limits* in
     `.squad/routing.md`);

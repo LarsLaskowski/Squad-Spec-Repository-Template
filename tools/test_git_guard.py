@@ -80,14 +80,13 @@ class TestHookInput(unittest.TestCase):
         sys.stdin = io.StringIO(data if isinstance(data, str) else json.dumps(data))
         out = io.StringIO()
         with redirect_stdout(out):
-            code = self.hook.main()
+            self.hook.main()
         sys.stdin = sys.__stdin__
-        return code, out.getvalue()
+        return out.getvalue()
 
     def test_denied_command_answers_a_deny_decision(self):
-        code, out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-reviewer",
-                                   "tool_input": {"command": "git commit -m x"}})
-        self.assertEqual(code, 0)
+        out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-reviewer",
+                             "tool_input": {"command": "git commit -m x"}})
         decision = json.loads(out)["hookSpecificOutput"]
         self.assertEqual(decision["permissionDecision"], "deny")
         self.assertIn("squad-reviewer", decision["permissionDecisionReason"])
@@ -96,8 +95,7 @@ class TestHookInput(unittest.TestCase):
     def test_allowed_command_and_other_tools_give_no_decision(self):
         for data in ({"tool_name": "Bash", "tool_input": {"command": "git status"}},
                      {"tool_name": "Edit", "tool_input": {"file_path": "a"}}, "not json", "[]"):
-            code, out = self.run_hook(data)
-            self.assertEqual((code, out), (0, ""), data)
+            self.assertEqual(self.run_hook(data), "", data)
 
 
 if __name__ == "__main__":

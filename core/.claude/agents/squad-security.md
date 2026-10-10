@@ -2,6 +2,7 @@
 name: squad-security
 description: Squad Security. Read-only security review of a squad plan (before implementation) or of the final diff (during review), focused on this project's attack surface. Returns APPROVED or CHANGES_REQUIRED with evidence. Never edits files.
 model: opus
+effort: medium
 tools: Read, Grep, Glob, Bash
 hooks:
   PreToolUse:

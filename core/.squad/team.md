@@ -16,16 +16,20 @@ specific to this repository lives in two files the members read first:
 
 ## Members
 
-| Role             | Subagent (charter)                                                    | Model  | Writes                                                           |
-| ---------------- | --------------------------------------------------------------------- | ------ | ---------------------------------------------------------------- |
-| Lead             | [`squad-lead`](../.claude/agents/squad-lead.md)                       | Opus   | plans, decisions, area documents                                 |
-| Devil's Advocate | [`squad-devils-advocate`](../.claude/agents/squad-devils-advocate.md) | Opus   | nothing (read-only)                                              |
-| Security         | [`squad-security`](../.claude/agents/squad-security.md)               | Opus   | nothing (read-only)                                              |
-| Tester           | [`squad-tester`](../.claude/agents/squad-tester.md)                   | Sonnet | test code                                                        |
-| Dev              | [`squad-dev`](../.claude/agents/squad-dev.md)                         | Sonnet | production code                                                  |
-| Code Officer     | [`squad-code-officer`](../.claude/agents/squad-code-officer.md)       | Sonnet | production and test code (format, analyzer and style fixes only) |
-| Reviewer         | [`squad-reviewer`](../.claude/agents/squad-reviewer.md)               | Opus   | nothing (read-only)                                              |
-| Product Manager  | —                                                                     | —      | answers escalations (the human user)                             |
+| Role             | Subagent (charter)                                                    | Model, effort  | Writes                                                           |
+| ---------------- | --------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------- |
+| Lead             | [`squad-lead`](../.claude/agents/squad-lead.md)                       | Opus, high     | plans, decisions, area documents                                 |
+| Devil's Advocate | [`squad-devils-advocate`](../.claude/agents/squad-devils-advocate.md) | Sonnet, high   | nothing (read-only)                                              |
+| Security         | [`squad-security`](../.claude/agents/squad-security.md)               | Opus, medium   | nothing (read-only)                                              |
+| Tester           | [`squad-tester`](../.claude/agents/squad-tester.md)                   | Sonnet, medium | test code                                                        |
+| Dev              | [`squad-dev`](../.claude/agents/squad-dev.md)                         | Sonnet, medium | production code                                                  |
+| Code Officer     | [`squad-code-officer`](../.claude/agents/squad-code-officer.md)       | Haiku, medium  | production and test code (format, analyzer and style fixes only) |
+| Reviewer         | [`squad-reviewer`](../.claude/agents/squad-reviewer.md)               | Opus, medium   | nothing (read-only)                                              |
+| Product Manager  | —                                                                     | —              | answers escalations (the human user)                             |
+
+The model aliases resolve to the current generation of each line; the effort is set per role in the agent
+file so a session's effort setting does not change every role at once. The orchestrator may raise a single
+launch (a feature plan on `xhigh`) through the launch's own `model` and `effort` parameters.
 
 Where production and test code live is defined in `stack.md` (*Layout*).
 

@@ -1,7 +1,8 @@
 ---
 name: squad-code-officer
 description: "Squad Code Officer. The only squad member that runs the formatter and owns a clean analyzer gate: no analyzer diagnostic of any severity in changed files, as defined in .squad/stack.md. Applies style and analyzer fixes to the changed files without structural or behavioral change, so nothing is left for CI or the code analysis to find."
-model: sonnet
+model: haiku
+effort: medium
 hooks:
   PreToolUse:
     - matcher: Bash

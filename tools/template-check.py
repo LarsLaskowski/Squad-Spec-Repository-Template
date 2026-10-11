@@ -246,6 +246,9 @@ def smoke_test(profiles, errors):
             if f"{STALE_REFERENCE}:1: " not in refresh.stdout or "References to removed files" not in refresh.stdout:
                 errors.append(f"profile {label}: refresh does not report the reference to a retired file in "
                               f"{STALE_REFERENCE}")
+            if HISTORICAL_REFERENCE in refresh.stdout:
+                errors.append(f"profile {label}: refresh lists the decision record {HISTORICAL_REFERENCE}")
+            os.remove(os.path.join(target, HISTORICAL_REFERENCE))
             refreshed = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                                        capture_output=True, text=True)
             if refreshed.returncode != 0:
@@ -341,6 +344,8 @@ RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".squad", "decisions.md"), os.path.j
 
 # A project file that still links a retired file after the refresh removed it; the refresh must list the line.
 STALE_REFERENCE = "docs/build-notes.md"
+# A decision record naming a retired file; records state history, so the refresh must not list it.
+HISTORICAL_REFERENCE = "docs/decisions/0099-old-instructions.md"
 
 
 def plant_retired(target):
@@ -351,6 +356,9 @@ def plant_retired(target):
             handle.write("old mirror\n")
     with open(os.path.join(target, STALE_REFERENCE), "w", encoding="utf-8") as handle:
         handle.write("Coding conventions: [`AGENTS.md`](/AGENTS.md).\nNot a reference: MY_AGENTS.md.\n")
+    os.makedirs(os.path.dirname(os.path.join(target, HISTORICAL_REFERENCE)), exist_ok=True)
+    with open(os.path.join(target, HISTORICAL_REFERENCE), "w", encoding="utf-8") as handle:
+        handle.write("The rules then lived in `AGENTS.md`.\n")
 
 
 def fill_placeholders(target):

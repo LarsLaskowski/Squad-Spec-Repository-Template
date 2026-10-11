@@ -97,6 +97,8 @@ RETIRED = ["AGENTS.md", ".squad/decisions.md"] + [
     for name in ("history.md", "charter.md")]
 # What a reference to a retired file looks like: the file's path, a retired skill mirror's folder, or the charter and
 # history folder .squad/agents/ (written with a wildcard as often as with a role).
+# Decision records state history and a released one is append-only, so a retired file named there stays.
+DECISION_RECORD = re.compile(r"^docs/decisions/\d{4}-[^/]*\.md$")
 RETIRED_REFERENCES = sorted(set(RETIRED) | {os.path.dirname(rel) for rel in RETIRED if rel.endswith("/SKILL.md")}
                             | {".squad/agents/"})
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
@@ -412,7 +414,8 @@ def retire(target, dry_run, report):
 
 def retired_references(target):
     """Lines of the target's files (tracked or untracked, not ignored) that name a retired file: [(path, line, text)].
-    Project blocks and build files are never rewritten by the apply step, so a reference there outlives the file."""
+    Project blocks and build files are never rewritten by the apply step, so a reference there outlives the file.
+    Decision records (DECISION_RECORD) are left out: they describe what was true when they were written."""
     terms = [arg for term in RETIRED_REFERENCES for arg in ("-e", term)]
     listing = subprocess.run(["git", "-C", target, "grep", "-n", "-I", "-F", "--untracked", "--no-color", *terms],
                              capture_output=True, text=True, encoding="utf-8", errors="replace", check=False).stdout
@@ -421,7 +424,7 @@ def retired_references(target):
     hits = []
     for line in listing.splitlines():
         path, number, text = (line.split(":", 2) + ["", ""])[:3]
-        if path not in RETIRED and number.isdigit() and boundary.search(text):
+        if path not in RETIRED and DECISION_RECORD.match(path) is None and number.isdigit() and boundary.search(text):
             hits.append((path, int(number), text.strip()))
     return hits
 

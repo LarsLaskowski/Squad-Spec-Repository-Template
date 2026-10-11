@@ -103,7 +103,7 @@ action yourself — including follow-up issues the Lead decides on.
    `NO OBJECTIONS`) and the Lead's answer in `log.md`.
 3. **Plan security review** (`security` tier only). Launch `squad-security` in mode `plan`. On
    `CHANGES_REQUIRED`, launch `squad-lead` in mode `revise` and repeat. After the **2nd** rejection launch
-   `squad-lead` in mode `decide` (scope down, split into issues, abort, escalate, or — for a pure wording defect — accept and fix it followed by exactly one `squad-security` delta confirmation).
+   `squad-lead` in mode `decide` (scope down, split into issues, abort, escalate, or — for a pure wording defect, or a defect confined to the plan's resource section that changes no scope — accept and fix it followed by exactly one `squad-security` delta confirmation).
 4. **Skeleton** (only if the plan adds or changes API; not applicable when the plan declares the change free of
    production and test code — see *Changes without production or test code* in `.squad/routing.md`, which also
    skips step 5 and the *Coverage gate* in step 6 and requires the plan's *Verification without tests* section;
@@ -226,5 +226,10 @@ that pins it down. Plan revisions, review rounds and their findings never appear
 
 ## Notes
 
+- Only you call the session-management tools (`create_session`, `send_message`, `archive_session`); members
+  never do, and a member that called one anyway is reported in the step-12 lessons.
+- A plan or fixture with escapes (`\u0041`, an escaped surrogate pair): before you commit it, check the
+  bytes on disk (`grep -n '\\u' <file>`); the Write and Edit tools resolve single-backslash escapes
+  (*Escapes in files* in `.squad/team.md`).
 - Prefer non-interactive commands only. If push or PR creation fails, stop and report it.
 - Never close the issue manually; `Closes #<number>` closes it on merge.

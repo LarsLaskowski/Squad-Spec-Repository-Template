@@ -58,7 +58,8 @@ Rules that hold throughout:
    change in `.github/copilot-instructions.md`) so the two bodies stay identical.
    The output ends with **References to removed files**: every line of the target (project blocks, `README.md`,
    `docs/`, `*.sln`/`*.slnx`/`*.csproj`, workflows, …) that still names a retired file. The apply step never
-   rewrites those files, so fix every listed line by hand — link the replacement (`CLAUDE.md`,
+   rewrites those files (decision records under `docs/decisions/` are not listed: they state history, and a
+   released one is append-only), so fix every listed line by hand — link the replacement (`CLAUDE.md`,
    `.claude/agents/squad-*.md`, `docs/decisions/`) or drop it — and rerun the apply step until the list is
    empty; step 9 is not reached before.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing

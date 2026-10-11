@@ -193,7 +193,9 @@ def merge_settings(profile_dirs):
     lines = ['"""Per-repository settings for the squad tools (profiles: ' + ", ".join(names) + '). Seeded once by',
              'adopt-template and kept on later refreshes; the scripts that import it are template-managed."""', "",
              "# Base branch the gates diff against (merge base with HEAD); fetch it before running the gates.",
-             f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", ""]
+             f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", "",
+             "# Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.",
+             f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", ""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]

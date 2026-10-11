@@ -27,7 +27,7 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
   when a session ends. Force-pushing or otherwise rewriting published history, deleting branches, and
   creating tags (a `v*` tag may trigger a release) still need explicit user approval.
 - **Pull requests are only opened by the squad or by the user.** The `squad-issue` and `squad-spec`
-  skills open a PR after the Lead's approval (tier `docs`: after a clean review); outside the squad, a PR
+  skills open a PR after the Lead's approval (tiers `docs` and `patch`: after a clean review); outside the squad, a PR
   is opened only when the user explicitly asks for one (e.g. by running the `create-pr` skill). Never open
   a PR on your own initiative.
 - Run *Format* from [`.squad/stack.md`](/.squad/stack.md) after editing code and before building; CI is
@@ -92,8 +92,8 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
 - `create-pr` — verify (format, build, tests, analyzer and coverage gates), review the change locally,
   then open a PR following [`.github/pull_request_template.md`](/.github/pull_request_template.md).
 - `squad-issue` — fix a GitHub issue with the squad: the Lead plans and picks a tier
-  (`docs` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
-  plans once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
+  (`docs` / `patch` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
+  plans that weigh options once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
   the Dev implements until the *Coverage gate* passes, the Code Officer clears format and analyzer
   diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
   open), then a PR referencing the issue is opened.

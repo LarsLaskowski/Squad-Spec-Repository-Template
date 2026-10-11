@@ -35,6 +35,11 @@ neighboring test file before inventing a new pattern.
 - No real network, no real clock (inject a clock or use the runner's mock timers), temporary directories
   for file-system tests, cleaned up afterwards.
 - Every promise is awaited; a test never relies on timing.
+- **Time bounds as a ratio.** A time bound that cannot be tested as a count (allocations, iterations) — a
+  quadratic check that must stay linear, say — is the one exception to the real clock: measure two durations
+  in the same test (the base input and a multiple of it) and assert their **ratio**, never an absolute
+  duration; set the limit to at least three times the highest ratio measured, with the coverage
+  instrumentation of *Test with coverage* included.
 
 ## Code coverage
 
@@ -51,5 +56,5 @@ cannot be covered by a unit test (for example process startup glue) need an expl
 - [ ] The *Analyzer gate* reports nothing in a changed test file.
 - [ ] At least 80 % line coverage on new/changed production code and overall (*Coverage gate*).
 - [ ] File and test names as above; Arrange / Act / Assert; one act; assertion messages.
-- [ ] No real network or clock.
+- [ ] No real network or clock (a time bound only as a ratio of two durations).
 - [ ] *Format* from `.squad/stack.md` run before committing.

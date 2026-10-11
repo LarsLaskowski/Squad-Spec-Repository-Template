@@ -26,5 +26,6 @@ the identifier's name; errors returned and wrapped with `%w`, never ignored; no 
 <!-- stack:begin testing -->
 **Unit tests are mandatory for newly written code.** Standard `testing` package, colocated `_test.go`
 files, table-driven tests with `t.Run`, `t.Helper()` in helpers, `t.TempDir()` for files, failure messages
-that state got and want; no real network or clock.
+that state got and want; no real network or clock (the one exception, a time bound tested as the ratio of
+two durations, never an absolute one, is in `docs/UNIT_TESTS.md`).
 <!-- stack:end testing -->

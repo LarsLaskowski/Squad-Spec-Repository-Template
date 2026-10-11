@@ -176,7 +176,8 @@ told so.
   objection (accept and revise, or reject with a reason); a rejected objection is not raised again.
 - **Plan ↔ Security (steps 2–3):** at most 2 rejections. After the 2nd `CHANGES_REQUIRED` the Lead
   decides: narrow the scope, split into separate issues, escalate to the Product Manager, or — when the
-  remaining defect is a pure wording defect — accept and fix it, followed by exactly one Security delta
+  remaining defect is a pure wording defect, or a defect confined to the plan's resource section (limits,
+  bounds, sizes) whose fix changes no scope — accept and fix it, followed by exactly one Security delta
   confirmation of the fix (a further rejection then goes to the Product Manager).
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review; at most **2 further fix-and-review
   rounds**, each reviewing only the delta. Blocking findings still open after that go to the Lead, who

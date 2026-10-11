@@ -28,5 +28,6 @@ formatting is Prettier's, never hand-tuned.
 <!-- stack:begin testing -->
 **Unit tests are mandatory for newly written code.** One test file per module under test
 (`<module>.test.ts`), test names describing scenario and expected result, an assertion message where the
-assertion API accepts one, no real network or clock.
+assertion API accepts one, no real network or clock (the one exception, a time bound tested as a ratio of
+two durations, is in `docs/UNIT_TESTS.md`).
 <!-- stack:end testing -->

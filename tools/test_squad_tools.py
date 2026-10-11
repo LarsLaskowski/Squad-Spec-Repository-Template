@@ -163,6 +163,106 @@ class TestSquadLog(unittest.TestCase):
         write(self.path, "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan (opus/high · 9,000 tokens · 1 tool uses · 5 s) |\n")
         self.assertNotIn("Wall time", self.script.summary(self.path), "date-only record has no orchestrator table")
 
+    def test_continued_launch_logs_the_rounds_share(self):
+        write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        self.assertIsNone(self.script.previous_totals(self.path, "Reviewer"), "no launch yet")
+        self.assertIsNone(self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 5000, 1, 1)))
+        self.script.append_row(self.path, "8 Review", "Reviewer", "2 findings", today="2026-01-02 13:00",
+                               launch=("opus/medium", 137666, 38, 279))
+        self.script.append_row(self.path, "8 Security diff", "Security", "APPROVED", today="2026-01-02 13:00",
+                               launch=("opus/medium", 89977, 16, 120))
+        # The notification of a continued agent reports its totals: 139,230 tokens, 40 tool uses, 300 s.
+        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 139230, 40, 300))
+        self.assertEqual(share, ("opus/medium", 1564, 2, 21, True))
+        row = self.script.append_row(self.path, "8 Review delta", "Reviewer", "APPROVE (continued)",
+                                     today="2026-01-02 13:05", launch=share)
+        self.assertTrue(row.endswith("(opus/medium · 1,564 tokens · 2 tool uses · 21 s · continued) |"), row)
+        # A second continuation subtracts the fresh launch and the first continuation together.
+        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 150000, 45, 400))
+        self.assertEqual(share, ("opus/medium", 10770, 5, 100, True))
+        self.script.append_row(self.path, "8 Review delta 2", "Reviewer", "APPROVE", today="2026-01-02 13:10",
+                               launch=share)
+        # A figure below the earlier total was already the round alone and is kept (here tool uses and seconds).
+        share = self.script.continued_launch(self.path, "Security", ("opus/medium", 98025, 2, 12))
+        self.assertEqual(share, ("opus/medium", 8048, 2, 12, True))
+        self.script.append_row(self.path, "3 Confirm", "Security", "APPROVED", today="2026-01-02 13:10", launch=share)
+        table = self.script.summary(self.path)
+        self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 150,000 | 45 | 400 |", table)
+        self.assertIn("| Security | opus/medium | 2 (1 continued) | 98,025 | 18 | 132 |", table)
+        self.assertIn("| **Total** | | 5 (3 continued) | 248,025 | 63 | 532 |", table)
+        self.assertNotIn("Incomplete", table)
+
+    def test_cli_logs_a_continuation_and_refuses_two_members_in_one_row(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-reviewer.md"), "---\nmodel: opus\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n| 2026-01-02 13:00 | 8 Review | Reviewer | 1 finding "
+                   "(opus/medium · 100,000 tokens · 30 tool uses · 200 s) |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        usage = ["--agent", "squad-reviewer", "--tokens", "101500", "--tool-uses", "32", "--seconds", "230"]
+        two = run("8 Review", "Reviewer / Security", "both approve", *usage)
+        self.assertEqual(two.returncode, 2, two.stderr)
+        self.assertIn("one row per launch", two.stderr)
+        self.assertEqual(run("8 Review", "Reviewer, Security", "x").returncode, 2)
+        self.assertEqual(run("8 Review", "Reviewer and Security", "x").returncode, 2)
+        self.assertEqual(run("8 Review delta", "Reviewer", "APPROVE", "--continued").returncode, 2, "no usage")
+        self.assertEqual(run("3 Confirm", "Security", "APPROVED", "--continued", *usage).returncode, 1,
+                         "no earlier usage of Security")
+        done = run("8 Review delta", "Reviewer", "APPROVE", "--continued", *usage)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(done.stdout.rstrip().endswith("(opus/medium · 1,500 tokens · 2 tool uses · 30 s · continued) |"),
+                        done.stdout)
+        self.assertEqual(run("8 Review delta 2", "Reviewer", "APPROVE").returncode, 0)
+        amended = run("--amend-last", "Reviewer", "--continued", "--agent", "squad-reviewer", "--tokens", "103000",
+                      "--tool-uses", "33", "--seconds", "240")
+        self.assertEqual(amended.returncode, 0, amended.stderr)
+        self.assertIn("(opus/medium · 1,500 tokens · 1 tool uses · 10 s · continued) |", amended.stdout)
+        complete = run("--summary")
+        self.assertEqual(complete.returncode, 0, complete.stdout)
+        self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 103,000 | 33 | 240 |", complete.stdout)
+        # A wrong continued trailer is replaced against the totals before it, not against itself.
+        replaced = run("--replace-last", "Reviewer", "--continued", "--agent", "squad-reviewer", "--tokens", "104000",
+                       "--tool-uses", "34", "--seconds", "250")
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        self.assertIn("(opus/medium · 2,500 tokens · 2 tool uses · 20 s · continued) |", replaced.stdout)
+        self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 104,000 | 34 | 250 |", run("--summary").stdout)
+
+    def test_summary_lists_launch_rows_without_usage(self):
+        root = os.path.join(self.dir.name, "repo")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n"
+                   "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
+                   "| 2026-01-02 13:10 | 2 Plan | squad-lead | done (opus/medium · 50,000 tokens · 9 tool uses · 500 s) |\n"
+                   "| 2026-01-02 13:12 | 2 Challenge | squad-devils-advocate, squad-security | both fine |\n"
+                   "| 2026-01-02 13:20 | 8 Review | squad-reviewer | APPROVE (23,965 tokens · 6 tool uses · 27 s) |\n"
+                   "| 2026-01-02 13:21 | 9 PR approval | Orchestrator | approved by checklist |\n")
+        result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary"],
+                                cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 3, result.stdout)
+        self.assertIn("| **Total** | | 1 | 50,000 | 9 | 500 |", result.stdout)
+        self.assertIn("**Incomplete:** 2 launch row(s) without usage", result.stdout)
+        self.assertIn("`2 Challenge · squad-devils-advocate, squad-security`, `8 Review · squad-reviewer`", result.stdout)
+        self.assertIn("| Orchestrator | 1,260 | 760 | 0 |", result.stdout, "a trailer without model/effort counts as missing")
+
+    def test_orchestrator_counts_parallel_launches_once(self):
+        write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch", today="2026-01-02 13:00")
+        self.script.append_row(self.path, "2 Challenge", "Devil's Advocate", "minor", today="2026-01-02 13:10",
+                               launch=("sonnet/medium", 40000, 10, 600))
+        self.script.append_row(self.path, "3 Plan security", "Security", "APPROVED", today="2026-01-02 13:10",
+                               launch=("opus/medium", 60000, 12, 300))
+        self.script.append_row(self.path, "4 Skeleton", "Dev", "built", today="2026-01-02 13:18",
+                               launch=("sonnet/medium", 50000, 8, 240))
+        self.script.append_row(self.path, "9 PR approval", "Orchestrator", "approved", today="2026-01-02 13:20")
+        table = self.script.summary(self.path)
+        self.assertIn("| **Total** | | 3 | 150,000 | 30 | 1140 |", table)
+        # 13:00–13:10 the two parallel launches (600 s once), 13:14–13:18 the Dev (240 s): 360 s uncovered.
+        self.assertIn("| Orchestrator | 1,200 | 360 | 0 |", table)
+
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")

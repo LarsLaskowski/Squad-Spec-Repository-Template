@@ -234,6 +234,16 @@ class TestScopeCheck(unittest.TestCase):
         found = self.errors(tier="docs")
         self.assertEqual([e.split(":")[0] for e in found], ["docs/areas/core.md", "src/a.go"])
 
+    def test_patch_tier_checks_the_line_budget(self):
+        write("src/a.go", "package a\n\nvar X = 1\n")
+        write("specs/issue-1/log.md", "".join(f"| row {n} |\n" for n in range(50)))
+        self.assertEqual(self.errors(tier="patch"), [])
+        write("src/b.go", "".join(f"var V{n} = {n}\n" for n in range(29)))
+        found = self.errors(tier="patch")
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("31 changed lines outside specs/", found[0])
+        self.assertEqual(self.errors(tier="standard"), [], "the budget applies to tier patch only")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -61,7 +61,7 @@ When invoked by the squad (`squad-issue` / `squad-spec`), the calling session
 also gives you the work folder (`specs/<folder>/`) and the output of the gates
 it ran on the head (step 7). Then additionally read the folder's `plan.md` (and
 `spec.md` for features), run `python3 .squad/tools/scope-check.py` (with
-`--tier docs` for that tier, `--no-specs` after step 10; every line it reports
+`--tier docs` or `--tier patch` for those tiers, `--no-specs` after step 10; every line it reports
 is blocking), and report as findings:
 
 - an acceptance criterion from the plan that the diff does not fulfil or that
@@ -78,9 +78,17 @@ is blocking), and report as findings:
   security review of the change: the security areas, secrets reaching logs,
   input safety and new dependencies in the checklist below are yours alone,
   and a touched security area is a tier raise to `security`, where Security
-  reviews plan and diff. For tier `docs` there is no `plan.md`: the tier
-  and the acceptance criteria are in the first row of `log.md`, and the review
-  reads the diff only — nothing is built.
+  reviews plan and diff. For tiers `docs` and `patch` there is no `plan.md`: the
+  tier, the exact edits and the acceptance criteria are in the first row of
+  `log.md`. For `docs` the review reads the diff only — nothing is built. For
+  `patch` confirm the tier's claim: the diff holds only the named edits, no
+  production logic or control flow changed, no dependency, permission or
+  schema was added, and each edit is covered by the test or check the row
+  names; otherwise raise the tier (blocking).
+- in a plan with a *Challenge notes* section (minor objections of the plan
+  challenge, not answered by the Lead): a note the diff ignores without a
+  deviation reported for it (blocking when it changes behavior, non-blocking
+  otherwise).
 
 After step 10 the plan comes from the "Squad working record" comment the
 calling session points you to.

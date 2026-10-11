@@ -22,7 +22,7 @@ profile and owned by this repository: keep it true when the build changes.
 | Name | Command |
 | ---- | ------- |
 | *Restore* | `go mod download` |
-| *Format* (Code Officer only in the squad) | `gofmt -w .` |
+| *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `gofmt -w .` |
 | *Format check* | `test -z "$(gofmt -l .)"` |
 | *Build* | `go build ./...` |
 | *Test* | `go test ./... -race` |

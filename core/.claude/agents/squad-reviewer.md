@@ -51,7 +51,11 @@ surface, test doubles), `CLAUDE.md` and `docs/UNIT_TESTS.md`.
 The calling session gives you: the base ref and the head to review, the
 round number, and — from round 2 on — the previous round's findings and the
 commits that were supposed to fix them. If no round number is given, assume
-round 1.
+round 1. The head is a code SHA: commits after it that touch only `specs/`
+(log rows a stop hook made the session commit) are bookkeeping — review the
+SHA you were given and report it first; a later commit outside `specs/` is
+a stale round. A delta round may continue your earlier launch: then review
+only the delta since the SHA of your last round.
 
 To read an issue or pull request yourself use `gh api repos/<owner>/<repo>/issues/<n>` (`.../comments`,
 `.../pulls/<n>`); `gh issue view` and `gh pr view` fail where GraphQL is blocked (*Reading issues and pull

@@ -110,11 +110,11 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | 2 | Plan | Lead, Devil's Advocate | `plan.md` with tier, acceptance criteria, signatures of new/changed API, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate, every objection answered by the Lead in the plan's *Challenge* section |
 | 3 | Plan security review | Security | `APPROVED` → 4; `CHANGES_REQUIRED` → Lead revises, back to 3 (`security` tier only) |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
-| 5 | Tests first | Tester | Tests for every acceptance criterion; they compile and **fail** on the current code |
-| 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents |
-| 7 | Code check | Orchestrator, Code Officer | The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. Only when one of them fails is the Code Officer launched (format and analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
-| 8 | Review | Reviewer (+ Security on `security`) | They get the head SHA and the orchestrator's gate output of step 7 (they do not re-run the gates). No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round |
-| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md`. Otherwise "approved by checklist" is logged → 10 |
+| 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A test that cannot fail yet is not written here: guards, pins of existing behavior, determinism and bound tests wait for step 6 |
+| 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents. The Tester's coverage pass adds tests only for lines the gate reports uncovered, a resource bound the plan names, or a test a reviewer asks for |
+| 7 | Code check | Orchestrator, Code Officer | Dev and Tester ran *Format* on their files before handing back. The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. A *Format check* failure the orchestrator clears itself (*Format*, then `git restore` of every file outside the change); only analyzer diagnostics or style findings that need reading launch the Code Officer (analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
+| 8 | Review | Reviewer (+ Security on `security`) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round |
+| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened (merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green, the CI code analysis (e.g. SonarQube Cloud) passed, review comments worked |
 | 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches, tokens, tool uses and seconds per role, `squad-log.py --summary`) appended to the working record; user informed |
@@ -124,6 +124,14 @@ A change without production or test code (tier `docs`, or any other tier whose p
 `docs`: the orchestrator's), and the *Coverage gate* is not run, because such a change cannot alter
 coverage. Step 7 still runs *Format check*, the *Analyzer gate* and `scope-check.py`; for tier `docs` only
 *Format check* and `scope-check.py --tier docs`.
+
+**Continuing a member.** A fix round or a delta round of the same member within the same run continues
+that member's last launch (the harness keeps a launched subagent's context: `SendMessage` to its agent id,
+or the Agent tool's resume) with the findings and the new head SHA, instead of a fresh launch that reloads
+`CLAUDE.md`, `stack.md`, `project.md`, the plan and the code. A fresh launch stays the rule for the first
+launch of a mode, after a session restart (the agent id is gone) and when the previous launch ended on an
+API error. The log records a continuation as a launch of that member with the usage its notification
+reports, marked "(continued)" in the result.
 
 Commits and pushes to the work branch happen right after intake (`specs/<folder>/log.md`, so a stop hook
 or a crashed session finds no untracked files) and after every further completed step; with *Squash and
@@ -211,5 +219,11 @@ the PR under Next Steps.
 
 ## Non-blocking findings
 
-Fixed in the same change or opened as a linked GitHub issue now — never deferred to "a later change". The
-Lead decides which in step 9 (one launch for all of them); a finding fixed now gets a delta round.
+Fixed in the same change or opened as a linked GitHub issue now — never deferred to "a later change".
+
+- A finding whose fix the reviewer states verbatim and that touches only documentation, a decision record
+  or an area document is applied by the orchestrator (as in tier `docs`), logged, and rides the next delta
+  round — or, when none is due, gets one delta round by the reviewer that proposed it. No Lead launch.
+- Every other non-blocking finding — one that touches code, or one the orchestrator would turn into a
+  follow-up issue — is decided by the Lead in step 9 (one launch for all of them); a finding fixed now gets
+  a delta round.

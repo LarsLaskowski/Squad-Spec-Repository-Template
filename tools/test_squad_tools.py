@@ -119,15 +119,16 @@ class TestSquadLog(unittest.TestCase):
             return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
                                   text=True, check=False)
         metrics = ["--agent", "squad-lead", "--tool-uses", "0", "--seconds", "0"]
-        self.assertEqual(run("3 Review", "Lead", "x", "--tokens", "0", *metrics).returncode, 2)
-        self.assertEqual(run("--amend-last", "Lead", "--tokens", "500", *metrics).returncode, 1)
-        both = run("--amend-last", "Lead", "--replace-last", "Lead", "--tokens", "500", *metrics)
+        for placeholder in ("0", "1", "999"):
+            self.assertEqual(run("3 Review", "Lead", "x", "--tokens", placeholder, *metrics).returncode, 2, placeholder)
+        self.assertEqual(run("--amend-last", "Lead", "--tokens", "1500", *metrics).returncode, 1)
+        both = run("--amend-last", "Lead", "--replace-last", "Lead", "--tokens", "1500", *metrics)
         self.assertEqual(both.returncode, 2)
-        done = run("--replace-last", "Lead", "--tokens", "500", *metrics)
+        done = run("--replace-last", "Lead", "--tokens", "1500", *metrics)
         self.assertEqual(done.returncode, 0, done.stderr)
         with open(log, encoding="utf-8") as handle:
             self.assertEqual(handle.read(), "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan "
-                                            "(opus/high · 500 tokens · 0 tool uses · 0 s) |\n")
+                                            "(opus/high · 1,500 tokens · 0 tool uses · 0 s) |\n")
 
     def test_agent_launch_reads_the_agent_file(self):
         root = os.path.join(self.dir.name, "repo")
@@ -139,6 +140,28 @@ class TestSquadLog(unittest.TestCase):
         self.assertIsNone(self.script.agent_launch(root, "squad-dev"), "no effort")
         for bad in ("squad-tester", "../agents/squad-lead", "/etc/passwd", ".."):
             self.assertIsNone(self.script.agent_launch(root, bad), bad)
+
+    def test_row_carries_the_time_of_day(self):
+        write(self.path, "| Date |\n")
+        row = self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch created")
+        self.assertRegex(row, r"^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| 1 Intake \| Orchestrator \| branch created \|$")
+        self.assertIsNotNone(self.script.amend_last(self.path, "Orchestrator", ("opus/high", 5000, 1, 2)))
+
+    def test_summary_measures_the_orchestrator_from_timed_rows(self):
+        write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n"
+                         "| 2026-01-01 | 0 Old | Orchestrator | date-only row, not timed |\n")
+        self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch", today="2026-01-02 13:05")
+        self.script.append_row(self.path, "2 Plan", "Lead", "plan", today="2026-01-02 13:20",
+                               launch=("opus/medium", 50000, 9, 600))
+        self.script.append_row(self.path, "7 Code check", "Orchestrator", "format check fails", today="2026-01-02 13:30")
+        self.script.append_row(self.path, "7 Code check", "Orchestrator", "gates pass", today="2026-01-02 13:40")
+        self.script.append_row(self.path, "8 Review", "Reviewer", "clean", today="2026-01-02 13:45",
+                               launch=("opus/medium", 30000, 5, 300))
+        table = self.script.summary(self.path)
+        self.assertIn("| **Total** | | 2 | 80,000 | 14 | 900 |", table)
+        self.assertIn("| Orchestrator | 2,400 | 1,500 | 2 |", table)
+        write(self.path, "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan (opus/high · 9,000 tokens · 1 tool uses · 5 s) |\n")
+        self.assertNotIn("Wall time", self.script.summary(self.path), "date-only record has no orchestrator table")
 
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")

@@ -66,7 +66,8 @@ action yourself — including follow-up issues the Lead decides on.
    `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
    orchestrator) write `log.md`, one row per step, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
-   ending, escapes pipes and control characters, and dates the row. For a subagent launch add the metrics:
+   ending, escapes pipes and control characters, and stamps the row with date and time of day (UTC), so the
+   wrap-up can measure your own share of the run. For a subagent launch add the metrics:
    `--agent squad-<role> --tokens <subagent_tokens> --tool-uses <tool_uses> --seconds <duration_ms / 1000>`
    (`--agent` reads the model and effort from the agent file; `--launch <model>/<effort>` only when the launch
    overrode them). The three numbers come from the usage block of the launch's **task notification**, not
@@ -74,8 +75,8 @@ action yourself — including follow-up issues the Lead decides on.
    report: write the row as soon as the report is in, **without any metric option** (no `--agent`,
    `--tokens`, `--tool-uses` or `--seconds`), and add the metrics when the notification arrives with
    `python3 .squad/tools/squad-log.py issue-<number> --amend-last "<member>" --agent squad-<role> --tokens …
-   --tool-uses … --seconds …` — never by editing `log.md` by hand or with placeholder numbers (the script
-   refuses `--tokens 0`). A trailer with wrong numbers is corrected with `--replace-last "<member>"` and the
+   --tool-uses … --seconds …` — `--amend-last` is the only way to add them later, never editing `log.md` by
+   hand or placeholder numbers (the script refuses fewer than 1,000 tokens). A trailer with wrong numbers is corrected with `--replace-last "<member>"` and the
    same options, never with an extra row, which would count the launch twice. The wrap-up sums the trailers
    per role. After every member's report, commit and push the files it left in the work
    folder (the Lead's records, the Tester's tests) yourself, so the next report does not list them as
@@ -209,12 +210,13 @@ action yourself — including follow-up issues the Lead decides on.
     as **one** issue labelled `squad` in this repository (create the labels if missing). Link the issues
     from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
     Then run `python3 .squad/tools/squad-log.py issue-<number> --summary` on the log (restore it from the
-    working record comment if the folder is gone) and append the table to the working record comment under
+    working record comment if the folder is gone) and append the tables to the working record comment under
     a "Squad run metrics" heading: launches, tokens, tool uses and seconds per role are what tunes the
-    squad's models and effort over time.
-    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons"), the metrics table and any
-    escalation or Lead decision to the user. If there is genuinely nothing to learn,
-    append a `| <date> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
+    squad's models and effort over time, and the **Orchestrator** row (wall time from the first to the last
+    row, the part no launch covers, the gate runs) shows your own share.
+    Report the branch, the PR URL, the tier, the `squad` issues (or "no lessons"), the metrics tables with the
+    Orchestrator row and any escalation or Lead decision to the user. If there is genuinely nothing to learn,
+    append a `| <date> <time> | 12 Wrap-up | Orchestrator | no lessons |` row to the working record comment
     instead of opening an issue — the step itself is never skipped.
 
 ## What the pull request says — and what it doesn't

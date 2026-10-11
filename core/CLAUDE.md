@@ -93,8 +93,8 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
 - `create-pr` — verify (format, build, tests, analyzer and coverage gates), review the change locally,
   then open a PR following [`.github/pull_request_template.md`](/.github/pull_request_template.md).
 - `squad-issue` — fix a GitHub issue with the squad: the Lead plans and picks a tier
-  (`docs` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
-  plans once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
+  (`docs` / `patch` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
+  plans that weigh options once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
   the Dev implements until the *Coverage gate* passes, the Code Officer clears format and analyzer
   diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
   open), then a PR referencing the issue is opened.

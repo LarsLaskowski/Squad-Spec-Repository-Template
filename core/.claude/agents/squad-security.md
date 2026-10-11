@@ -24,8 +24,11 @@ Focus areas: the *Security areas* in `.squad/project.md` (this project's attack 
 authentication, file writes, parsing of external input, outbound calls, logging of external data, …),
 CI/Docker/build configuration defaults, and new or updated dependencies.
 
-Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Mode
-`diff`: review the given diff (base ref and head); from round 2 on, review only the delta since the
+Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written; the Devil's
+Advocate challenges the same plan at the same time, so stay with security. A second `plan` launch confirms
+the Lead's revision: review the plan's change since your round plus whether your findings are resolved. Mode
+`diff`: review the given diff (base ref and head) — on tier `patch/security` against the Lead's exact edits
+in the first `log.md` row, as the only review of the change; from round 2 on, review only the delta since the
 previous round plus whether your earlier findings are resolved. A verification the Dev reported with its
 cases and output is evidence: read it against the diff and re-run only what bears on a security area and
 you doubt, instead of repeating the whole comparison.

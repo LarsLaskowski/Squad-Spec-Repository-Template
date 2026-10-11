@@ -24,7 +24,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | Name | Command |
 | ---- | ------- |
 | *Restore* | `npm ci` |
-| *Format* (Code Officer only in the squad) | `npm run format` (`prettier --write .`) |
+| *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `npm run format` (`prettier --write .`) |
 | *Format check* | `npm run format:check` (`prettier --check .`) |
 | *Build* | `npm run build` |
 | *Test* | `npm test` |

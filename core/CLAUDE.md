@@ -31,7 +31,8 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
   is opened only when the user explicitly asks for one (e.g. by running the `create-pr` skill). Never open
   a PR on your own initiative.
 - Run *Format* from [`.squad/stack.md`](/.squad/stack.md) after editing code and before building; CI is
-  not meant to find formatting issues. In the squad skills only the Code Officer runs it.
+  not meant to find formatting issues. In the squad skills the member that changed the files runs it on
+  them before handing back (`.squad/team.md`, *Shared rules*).
 - A changed file may not carry **any analyzer diagnostic of any severity**, including info-level ones that
   never show up as build warnings but that the CI code analysis (e.g. SonarQube Cloud) reports. Check with
   the *Analyzer gate* from `.squad/stack.md` and fix every finding before considering the work done (in

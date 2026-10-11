@@ -26,7 +26,7 @@ profile and owned by this repository: keep it true when the build changes.
 | Name | Command |
 | ---- | ------- |
 | *Restore* | `dotnet restore {{TODO: Solution}}.slnx` |
-| *Format* (Code Officer only in the squad) | `reihitsu-format --force ./` |
+| *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `reihitsu-format --force ./` |
 | *Format check* | `reihitsu-format --check ./` |
 | *Build* | `dotnet build {{TODO: Solution}}.slnx -c Release --no-restore` |
 | *Test* | `dotnet test {{TODO: Solution}}.slnx -c Release --no-build` |

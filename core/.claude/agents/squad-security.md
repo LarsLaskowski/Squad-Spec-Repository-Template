@@ -45,6 +45,9 @@ Rules:
 - Every required change names a concrete defect of this change, with evidence: the plan passage, or file
   and line plus what you ran or read. General hardening belongs in an issue, style is the Reviewer's.
 - Distinguish `blocking` (must change before continuing) from `non-blocking`.
+- In mode `diff`, review the code SHA you are given and report it first; commits after it that touch only
+  `specs/` are bookkeeping and do not make your round stale. A later round may continue your earlier launch:
+  then review only the delta since the SHA of your last round.
 - Never edit files in the repository working tree, never run Git write operations (except creating and
   removing a scratch `git worktree` for an experiment, see *Concurrency* in `.squad/routing.md`), never post
   to GitHub, never call session-management tools (`create_session`, `send_message`, `archive_session`).

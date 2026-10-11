@@ -15,8 +15,9 @@ action yourself — including follow-up issues the Lead decides on.
   finds goes to its owner (production code → `squad-dev`, tests → `squad-tester`, formatting/analyzer-only
   edits → `squad-code-officer`) and through the steps that follow it. Besides read-only checks (`--check`,
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
-  `python3 .squad/tools/squad-log.py`) and `tasks.md` check marks (features). The one exception is tier
-  `docs`: there you apply the Lead's exact edits yourself (`.squad/routing.md`, *Tiers*).
+  `python3 .squad/tools/squad-log.py`), `tasks.md` check marks (features) and the *Challenge notes* you
+  append to `plan.md` verbatim (step 2). The one exception is tiers `docs` and `patch`: there you apply the
+  Lead's exact edits yourself (`.squad/routing.md`, *Tiers*).
 - **Hand each member only what it needs.** The plan (for a feature: its task rows), the test names, the
   base ref and the gate output for the head. Not the log, not the issue thread (the Lead and the Devil's
   Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
@@ -51,7 +52,7 @@ action yourself — including follow-up issues the Lead decides on.
   requests. In these sessions the `gh` CLI only works as `gh api repos/<owner>/<repo>/...`; `gh issue`,
   `gh pr` and `gh search` fail (GraphQL is blocked and search is not scoped to the repository).
 - **Pull request:** invoking this skill is the user's approval for opening the PR in step 10, once the
-  Lead has approved it (tier `docs`: once the latest review round is clean).
+  Lead has approved it (tiers `docs` and `patch`: once the latest review round is clean).
 - **Product Manager:** the user is only contacted when the Lead returns `RESULT: ESCALATE` (relay the
   question verbatim with its options and wait) or for confirming a public issue comment on
   `RESULT: NO CHANGE`.
@@ -85,7 +86,15 @@ action yourself — including follow-up issues the Lead decides on.
      exact edits, acceptance criteria) that you record as the first plan row in `log.md`; apply the edits
      yourself, run `python3 .squad/tools/scope-check.py --tier docs` and *Format check*, then one review
      round in step 8 and step 10 directly — no Security, skeleton, tests, coverage, Code Officer or Lead
-     approval. Otherwise:
+     approval.
+     For tier **`patch`** the result also names, per edit, the existing test or check that covers it, and
+     `patch/security` when a security area, CI or build file is touched: apply the edits yourself; when the
+     Lead named a test to add, launch `squad-tester` in mode `coverage` with that test name once; run the
+     gates the touched files need (step 7 — *Format* on your own edits, *Test* and the *Coverage gate* only
+     when production code changed) and `python3 .squad/tools/scope-check.py --tier patch`; then one review
+     round in step 8 — `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead of
+     it — and step 10 directly. No challenge, plan security review, skeleton, tests first, Code Officer or
+     step 9. Otherwise:
      `plan.md` with the **tier** (`trivial` / `standard` / `security`), acceptance
      criteria, the signatures of new or changed API, the affected area documents (`docs/areas/`), required documentation updates (`README.md`,
      `docs/`), and `Proposed` decision records. Continue with the steps the tier requires.
@@ -94,15 +103,25 @@ action yourself — including follow-up issues the Lead decides on.
      and push, and stop. No PR; the branch stays as it is, and you tell the user so.
    - `RESULT: ESCALATE` — ask the user, then relaunch the Lead with the answer.
 
-   **Plan challenge** (`standard` and `security` only, once). Launch `squad-devils-advocate` with the issue
-   text and the work folder. On `VERDICT: OBJECTIONS …`, launch `squad-lead` in mode `revise` with the
-   objections; it answers each one in the plan's *Challenge* section (accepted and the plan revised, or
-   rejected with a reason) and may narrow the scope, raise the tier or switch to `RESULT: NO CHANGE`.
-   `RESULT: NO CHANGE` and `RESULT: ESCALATE` are handled as above; after a raised tier, continue with that
-   tier's steps. There is no second challenge round and no veto. Record the verdict (also a clean
-   `NO OBJECTIONS`) and the Lead's answer in `log.md`.
-3. **Plan security review** (`security` tier only). Launch `squad-security` in mode `plan`. On
-   `CHANGES_REQUIRED`, launch `squad-lead` in mode `revise` and repeat. After the **2nd** rejection launch
+   **Plan challenge** (`standard` and `security` only, at most once; `.squad/routing.md`, *Plan challenge*).
+   Launch `squad-devils-advocate` with the issue text and the work folder only when the plan changes
+   production code **and** its *Options considered* names an alternative, it adds or extends a decision
+   record, or the tier is `security`; otherwise log "challenge skipped: no options". On `security`, launch
+   it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …`, append the minor
+   objections verbatim to `plan.md` as a *Challenge notes* section and go on without a Lead launch; Dev and
+   Tester get that section with the plan. On a major objection, launch `squad-lead` in mode `revise` with
+   all objections (on `security` together with Security's `CHANGES_REQUIRED` findings, if any); it answers
+   each one in the plan's *Challenge* section (accepted and the plan revised, or rejected with a reason) and
+   may narrow the scope, raise the tier or switch to `RESULT: NO CHANGE`. `RESULT: NO CHANGE` and
+   `RESULT: ESCALATE` are handled as above; after a raised tier, continue with that tier's steps. There is
+   no second challenge round and no veto. Record the verdict (also a clean `NO OBJECTIONS`) and the Lead's
+   answer in `log.md`.
+3. **Plan security review** (`security` tier only). Launch `squad-security` in mode `plan`, in parallel with
+   the plan challenge when there is one (both are read-only). On `CHANGES_REQUIRED`, launch **one**
+   `squad-lead` in mode `revise` with the findings and the challenge's major and minor objections, then
+   `squad-security` once more to confirm the revision (a delta round); a Lead revision made only for a major
+   objection is confirmed the same way. A further `CHANGES_REQUIRED` gets one more revision. After the
+   **2nd** rejection launch
    `squad-lead` in mode `decide` (scope down, split into issues, abort, escalate, or — for a pure wording defect, or a defect confined to the plan's resource section that changes no scope — accept and fix it followed by exactly one `squad-security` delta confirmation).
 4. **Skeleton** (only if the plan adds or changes API; not applicable when the plan declares the change free of
    production and test code — see *Changes without production or test code* in `.squad/routing.md`, which also
@@ -136,10 +155,10 @@ action yourself — including follow-up issues the Lead decides on.
    not meant to find anything here.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `security` only —
    `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
-   (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tier `docs`: the first
+   (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tiers `docs` and `patch`: the first
    `log.md` row, since there is no `plan.md`) and the gate output of step 7 for this head, so they do not
-   build and test again; either may raise the tier. Tier `docs`: you fix a blocking finding yourself, run
-   the two checks again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
+   build and test again; either may raise the tier. Tiers `docs` and `patch`: you fix a blocking finding
+   yourself, run the checks of step 2 again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
    (coverage) and 7 again → **a new review round on the delta is mandatory** before step 9; never go from
    a blocking finding straight to PR approval. The same holds for a non-blocking finding the Lead decides
    to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. A
@@ -164,7 +183,7 @@ action yourself — including follow-up issues the Lead decides on.
    a fix means the Lead decides or escalates. After the PR (step 11) a re-approval is asked only once CI on
    the new head has finished and passes, with the finished check-run list attached.
 10. **Pull request** (Dev role, performed by you). First move the working record off the branch: post
-    `plan.md` (none for tier `docs`) and `log.md` as one comment on the issue (each inside a collapsed `<details>` block, headed
+    `plan.md` (none for tiers `docs` and `patch`) and `log.md` as one comment on the issue (each inside a collapsed `<details>` block, headed
     "Squad working record"). When `plan.md` is so long that re-typing it through a tool call is impractical,
     post a permalink to the last commit that contains it (`https://github.com/<owner>/<repo>/blob/<sha>/specs/issue-<number>/plan.md`)
     plus a summary of the tier, acceptance criteria, decisions and challenge outcome instead; that commit
@@ -192,8 +211,8 @@ action yourself — including follow-up issues the Lead decides on.
     CI on the new head has finished and passes. When the plan's acceptance criteria can only be verified in CI
     (for example a container image the sandbox cannot build), a red CI on exactly those criteria is a normal
     outcome of this step: the plan names the owner (Dev for Dockerfile, compose and workflow files), and every
-    fix gets a delta review round. The work folder is gone by now: give the Reviewer, Security and the Lead the plan (tier
-    `docs`: the first log row; features:
+    fix gets a delta review round. The work folder is gone by now: give the Reviewer, Security and the Lead the plan (tiers
+    `docs` and `patch`: the first log row; features:
     also `spec.md` and `tasks.md`) from the "Squad working record" comment, or via
     `git show <commit-before-removal>:specs/<folder>/<file>`, and record each log row by editing that
     comment. Edit a restored working record in one batch: interim commits that a stop hook demands while it

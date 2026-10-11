@@ -14,9 +14,14 @@ with more than one language, see "Several profiles" below:
   `profiles/<profile>/instructions.md`, everything else comes from the template. A target file that has no
   project markers yet (first adoption) is backed up to `.git/adopt-template/backup/` and replaced by the
   template version, so the skill can move its content into the project blocks;
+- the **generated** `.github/copilot-instructions.md` (`GENERATED` below) is the title and introduction of
+  `core/.github/copilot-instructions.md` followed by the rebuilt `CLAUDE.md` from its first `## ` heading on,
+  without Claude Code's `@path` import lines (GitHub Copilot does not read `CLAUDE.md`). A target file without
+  project markers (written by hand) is backed up first, like a marked file;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
   them yet;
-- **retired** files (`RETIRED` below) that an older template version wrote are removed from the target;
+- **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
+  every line of the target that still refers to one is listed for fixing by hand;
 - `.squad/template.json` records the template repository, its commit and the profile(s).
 
 Several profiles (`--profile go --profile dotnet`, the first one is the primary): the stack blocks of the
@@ -45,8 +50,8 @@ Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo      # refresh with the recorded profile(s)
 
 Prints one line per file (created / updated / renormalized / unchanged / kept / skipped / backed-up / conflict /
-removed) and the files in template-owned folders of the target that the template does not know (old skills or
-agents to review).
+removed), the files in template-owned folders of the target that the template does not know (old skills or
+agents to review) and the lines that still refer to a retired file.
 """
 import argparse
 import glob
@@ -74,17 +79,26 @@ MARKED = [
 # A seed the tooling of a profile in the repository refuses: the SonarScanner for .NET stops when the repository holds
 # a sonar-project.properties, so its settings are passed as scanner arguments (the dotnet profile's ci.yml does).
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
+# Generated from CLAUDE.md: {target path: core file holding its title and introduction}.
+GENERATED = {".github/copilot-instructions.md": ".github/copilot-instructions.md"}
+# A Claude Code memory import on a line of its own (`@.github/instructions/csharp.instructions.md`); GitHub Copilot
+# reads `.github/instructions/*.instructions.md` through their `applyTo` front matter, so the mirror leaves it out.
+IMPORT_LINE = re.compile(r"^@[^\s@]\S*[ \t]*\n", re.M)
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
-# Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the instruction file
-# and of the template's skills (the squad runs on Claude Code subagents only), the squad's decisions.md and
-# history.md files, which nothing read or wrote (process decisions are the records in docs/decisions/), and the
-# charters, which now live in the subagent files under .claude/agents/.
-RETIRED = ["AGENTS.md", ".github/copilot-instructions.md", ".squad/decisions.md"] + [
+# Written by older template versions and removed on a refresh: the Codex mirror of the instruction file, the Codex
+# and Copilot mirrors of the template's skills (the squad runs on Claude Code subagents only), the squad's
+# decisions.md and history.md files, which nothing read or wrote (process decisions are the records in
+# docs/decisions/), and the charters, which now live in the subagent files under .claude/agents/.
+RETIRED = ["AGENTS.md", ".squad/decisions.md"] + [
     f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
     for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")] + [
     f".squad/agents/{role}/{name}"
     for role in ("code-officer", "dev", "devils-advocate", "lead", "reviewer", "security", "tester")
     for name in ("history.md", "charter.md")]
+# What a reference to a retired file looks like: the file's path, a retired skill mirror's folder, or the charter and
+# history folder .squad/agents/ (written with a wildcard as often as with a role).
+RETIRED_REFERENCES = sorted(set(RETIRED) | {os.path.dirname(rel) for rel in RETIRED if rel.endswith("/SKILL.md")}
+                            | {".squad/agents/"})
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
 RENAMES = {"gitattributes": ".gitattributes"}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
@@ -396,6 +410,35 @@ def retire(target, dry_run, report):
             folder = os.path.dirname(folder)
 
 
+def retired_references(target):
+    """Lines of the target's files (tracked or untracked, not ignored) that name a retired file: [(path, line, text)].
+    Project blocks and build files are never rewritten by the apply step, so a reference there outlives the file."""
+    terms = [arg for term in RETIRED_REFERENCES for arg in ("-e", term)]
+    listing = subprocess.run(["git", "-C", target, "grep", "-n", "-I", "-F", "--untracked", "--no-color", *terms],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False).stdout
+    # A term inside a longer name (MY_AGENTS.md, docs.agents/skills) is not a reference.
+    boundary = re.compile(r"(?<![\w.-])(?:" + "|".join(re.escape(term) for term in RETIRED_REFERENCES) + ")")
+    hits = []
+    for line in listing.splitlines():
+        path, number, text = (line.split(":", 2) + ["", ""])[:3]
+        if path not in RETIRED and number.isdigit() and boundary.search(text):
+            hits.append((path, int(number), text.strip()))
+    return hits
+
+
+def instruction_body(text):
+    """The part of an instruction file both CLAUDE.md and its Copilot mirror share: from the first `## ` heading on,
+    without Claude Code import lines."""
+    start = text.find("\n## ")
+    return IMPORT_LINE.sub("", text[start:]) if start >= 0 else ""
+
+
+def generated_files(core, claude):
+    """{rel: text} of the files generated from the rebuilt CLAUDE.md: the core file's title and introduction, then the
+    body."""
+    return {rel: read(core[source]).rstrip("\n") + "\n" + instruction_body(claude) for rel, source in GENERATED.items()}
+
+
 def backup(target, rel, dry_run, report):
     dest = os.path.join(target, ".git", "adopt-template", "backup", rel)
     report.append(("backed-up", rel + " -> .git/adopt-template/backup/" + rel))
@@ -436,7 +479,7 @@ def managed_files(profile_dirs, names):
     """core/ (minus the marked files) plus every profile's managed files. With several profiles the files of
     the same name are written per profile (`analyzer-check-go.py`) next to the dispatcher from multi/."""
     core = files_under(os.path.join(ROOT, "core"))
-    managed = {rel: src for rel, src in core.items() if rel not in MARKED}
+    managed = {rel: src for rel, src in core.items() if rel not in MARKED and rel not in GENERATED.values()}
     if len(profile_dirs) == 1:
         managed.update(files_under(os.path.join(profile_dirs[0], "managed")))
         return core, managed
@@ -483,10 +526,11 @@ def main():
     report = []
 
     core, managed = managed_files(profile_dirs, names)
-    eols = eol_attributes(target, [*managed, *MARKED, ".squad/template.json"])
+    eols = eol_attributes(target, [*managed, *MARKED, *GENERATED, ".squad/template.json"])
     for rel, src in sorted(managed.items()):
         write(target, rel, read(src), crlf_for(rel, eols, crlf), args.dry_run, report)
 
+    rebuilt = {}
     for rel in MARKED:
         template = read(core[rel])
         dest = os.path.join(target, rel)
@@ -494,7 +538,14 @@ def main():
         project = blocks(current, "project")
         if current and not project:
             backup(target, rel, args.dry_run, report)
-        write(target, rel, fill(template, project, stack), crlf_for(rel, eols, crlf), args.dry_run, report)
+        rebuilt[rel] = fill(template, project, stack)
+        write(target, rel, rebuilt[rel], crlf_for(rel, eols, crlf), args.dry_run, report)
+
+    for rel, text in generated_files(core, rebuilt["CLAUDE.md"]).items():
+        dest = os.path.join(target, rel)
+        if os.path.isfile(dest) and not blocks(read(dest), "project"):
+            backup(target, rel, args.dry_run, report)
+        write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
 
     seeds = seed_files(profile_dirs, names, report)
     eols.update(eol_attributes(target, seeds))
@@ -517,6 +568,7 @@ def main():
             write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
 
     retire(target, args.dry_run, report)
+    references = retired_references(target)
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()
@@ -536,6 +588,10 @@ def main():
         print("\nNot part of the template (review: migrate, keep as project-specific, or delete):")
         for rel in unknown:
             print(f"  {rel}")
+    if references:
+        print("\nReferences to removed files - fix by hand (link the replacement or drop the line):")
+        for path, number, text in references:
+            print(f"  {path}:{number}: {text[:120]}")
     if args.dry_run:
         print("\nDry run: nothing was written.")
     return 0

@@ -35,9 +35,9 @@ action yourself — including follow-up issues the Lead decides on.
   the lasting reasoning lives in `docs/decisions/`.
 - **One build at a time.** Never run two members that build or test (`squad-dev`, `squad-tester`,
   `squad-code-officer`, the reviewers' verification runs) in parallel: they share `bin/` and `obj/` and
-  break each other (`.squad/routing.md`). Launch them one after another; only `squad-reviewer` and
-  `squad-security` may run together in step 8, because both are read-only and the reviewer's own build
-  happens in a scratch copy.
+  break each other (`.squad/routing.md`). Launch them one after another; only `squad-devils-advocate` and
+  `squad-security` may run together in steps 2–3, and `squad-reviewer` and `squad-security` in step 8,
+  because they are read-only and the reviewer's own build happens in a scratch copy.
 - **Commits and pushes** to the work branch are always allowed (`CLAUDE.md`, golden rules): commit and
   push `specs/<folder>/log.md` right after intake (step 1), so a stop hook or a crashed session finds no
   untracked files, and after every further completed step. PRs are merged with *Squash and merge*, so only
@@ -108,9 +108,9 @@ action yourself — including follow-up issues the Lead decides on.
    Launch `squad-devils-advocate` with the issue text and the work folder only when the plan changes
    production code **and** its *Options considered* names an alternative, it adds or extends a decision
    record, or the tier is `security`; otherwise log "challenge skipped: no options". On `security`, launch
-   it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …`, append the minor
-   objections verbatim to `plan.md` as a *Challenge notes* section and go on without a Lead launch; Dev and
-   Tester get that section with the plan. On a major objection, launch `squad-lead` in mode `revise` with
+   it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …` (on `security`: and
+   Security's `APPROVED`), append the minor objections verbatim to `plan.md` as a *Challenge notes* section
+   and go on without a Lead launch; Dev and Tester get that section with the plan. On a major objection, launch `squad-lead` in mode `revise` with
    all objections (on `security` together with Security's `CHANGES_REQUIRED` findings, if any); it answers
    each one in the plan's *Challenge* section (accepted and the plan revised, or rejected with a reason) and
    may narrow the scope, raise the tier or switch to `RESULT: NO CHANGE`. `RESULT: NO CHANGE` and

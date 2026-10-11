@@ -146,7 +146,7 @@ options" and goes on; the Reviewer still checks the plan's assumptions in step 8
 The Devil's Advocate classifies every objection as `major` (the plan would build the wrong thing or miss the
 defect) or `minor`, each with one sentence why, so the orchestrator routes without judgment:
 
-- **Only minor objections:** no Lead launch. The orchestrator appends them verbatim to `plan.md` as a
+- **Only minor objections** (on `security`: and Security approved): no Lead launch. The orchestrator appends them verbatim to `plan.md` as a
   *Challenge notes* section (bookkeeping, like `log.md`); Dev and Tester follow them or report a deviation,
   and the Reviewer checks them in round 1.
 - **A major objection:** the Lead is launched in mode `revise` with all objections and answers each one in

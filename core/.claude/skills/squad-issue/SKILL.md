@@ -22,7 +22,7 @@ action yourself — including follow-up issues the Lead decides on.
   Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
   handed back is enough. Every launch starts with an empty context, so what you pass is what it costs.
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
-  (`team.md`, `routing.md`, tools), `.claude/` or `CLAUDE.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
+  (`team.md`, `routing.md`, tools), `.claude/`, `CLAUDE.md` or `.github/copilot-instructions.md`. Lessons about the squad are filed in step 12 as `.squad/routing.md`,
   *Squad lessons*, says — template-managed files in the template repository, project knowledge here. If the
   change itself genuinely needs one of those files (e.g. a new build command every contributor must know),
   the Lead escalates instead and the Product Manager decides: `.squad/stack.md` and `.squad/project.md` may

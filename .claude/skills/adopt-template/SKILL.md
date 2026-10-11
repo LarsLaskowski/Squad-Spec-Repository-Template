@@ -25,7 +25,7 @@ Rules that hold throughout:
 ## Steps
 
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
-   off `origin/main`. Read its `CLAUDE.md` (and an `AGENTS.md` or `.github/copilot-instructions.md` an older
+   off `origin/main`. Read its `CLAUDE.md`, `.github/copilot-instructions.md` (and an `AGENTS.md` an older
    template version wrote), `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
    files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
@@ -49,8 +49,18 @@ Rules that hold throughout:
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
    and the files in template-owned folders the template does not know, and the retired files it removed (the
-   Codex and Copilot mirrors an older template version wrote; a project block that only existed in `AGENTS.md`
-   or `.github/copilot-instructions.md` is carried into `CLAUDE.md` first). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
+   Codex mirrors and the skill copies an older template version wrote; a project block that only existed in
+   `AGENTS.md` is carried into `CLAUDE.md` first). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
+   `.github/copilot-instructions.md` is generated from the rebuilt `CLAUDE.md` (its own title and introduction,
+   then the body of `CLAUDE.md` without Claude Code `@` import lines); a target whose file was removed by an
+   earlier refresh gets it back, and a hand-written one without project markers is backed up like a marked file
+   (step 4). After step 4 changed a project block of `CLAUDE.md`, run the apply step once more (or make the same
+   change in `.github/copilot-instructions.md`) so the two bodies stay identical.
+   The output ends with **References to removed files**: every line of the target (project blocks, `README.md`,
+   `docs/`, `*.sln`/`*.slnx`/`*.csproj`, workflows, …) that still names a retired file. The apply step never
+   rewrites those files, so fix every listed line by hand — link the replacement (`CLAUDE.md`,
+   `.claude/agents/squad-*.md`, `docs/decisions/`) or drop it — and rerun the apply step until the list is
+   empty; step 9 is not reached before.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing
    new needs a block). For every file backed up under `.git/adopt-template/backup/` in the target, move its
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:
@@ -115,7 +125,9 @@ Rules that hold throughout:
      versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
      the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is
      still worth keeping becomes a decision record.
-9. **Verify** in the target: `python3 .squad/tools/config-check.py` passes (no placeholder left), then
+9. **Verify** in the target, once the apply step lists no reference to a removed file (step 3):
+   `python3 .squad/tools/config-check.py` passes (no placeholder left, `CLAUDE.md` and
+   `.github/copilot-instructions.md` identical from the first `##` heading on), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
    new `stack.md`. A gate that fails on code this PR did not change is reported in the PR description and to
    the user. One exception: when overall coverage is below the threshold before this PR, set

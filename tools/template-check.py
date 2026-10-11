@@ -6,13 +6,17 @@ Checks, without arguments:
 - every agent and skill, both in `core/` and at the repository root, has valid front matter;
 - `core/CLAUDE.md` uses only repository-rooted links, and every `<!-- …:begin X -->` marker in a core file has
   its matching end marker;
+- no Markdown file under `core/`, `profiles/`, `seed/`, `multi/` or `decision-seeds/` contains a character
+  `scope-check.py` rejects (a zero width joiner in an emoji, for example);
 - every profile has the same required files, its `instructions.md` provides every stack block the core
   instruction files use, its `stack.md` defines every command name the core refers to, and its
   `squad_settings.py` defines the coverage settings;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
-  filled and the template is applied a second time (a refresh), `config-check.py` passes completely and
-  the files the template no longer manages (`RETIRED` in `apply-template.py`) are gone;
+  filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
+  files the template no longer manages (`RETIRED` in `apply-template.py`) are gone and a line that still refers
+  to one is reported; `.github/copilot-instructions.md` carries the body of `CLAUDE.md`, and `config-check.py`
+  fails once the two differ;
 - the same smoke test for all profiles together (a repository with several languages): the merged CI,
   CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
@@ -33,13 +37,15 @@ import re
 import subprocess
 import sys
 import tempfile
+import types
 
 sys.dont_write_bytecode = True  # importing the profiles' squad_settings.py must not leave __pycache__ behind
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE = os.path.join(ROOT, "core")
 SKILLS = os.path.join(".claude", "skills")
-INSTRUCTIONS = ["CLAUDE.md"]
+INSTRUCTIONS = ["CLAUDE.md", os.path.join(".github", "copilot-instructions.md")]
+COPILOT = os.path.join(".github", "copilot-instructions.md")
 PROFILE_FILES = [
     "instructions.md",
     "managed/.claude/hooks/session-start.sh",
@@ -95,6 +101,8 @@ CORE_HOOKS = [os.path.join(".claude", "hooks", "git-guard.py"), os.path.join(".c
 
 
 def check_core(errors):
+    if "\n## " in read(os.path.join(CORE, COPILOT)):
+        errors.append(f"core/{COPILOT}: holds only the title and introduction, the body is generated from CLAUDE.md")
     for rel in CORE_HOOKS:
         if not os.path.isfile(os.path.join(CORE, rel)):
             errors.append(f"core/{rel} is missing")
@@ -112,6 +120,33 @@ def check_core(errors):
                 errors.append(f"{os.path.relpath(path, ROOT)}: unbalanced marker {kind}:{edge} {name}")
         if open_blocks:
             errors.append(f"{os.path.relpath(path, ROOT)}: unclosed markers {open_blocks}")
+
+
+def load_scope_check():
+    """core/.squad/tools/scope-check.py as a module; it imports the target's squad_settings, which is stubbed here."""
+    tools = os.path.join(CORE, ".squad", "tools")
+    sys.modules.setdefault("squad_settings", types.SimpleNamespace(BASE_REF="origin/main"))
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    spec = importlib.util.spec_from_file_location("scope_check", os.path.join(tools, "scope-check.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_control_characters(errors):
+    """A Markdown file the template writes must pass scope-check.py's control-character check: it checks the whole
+    file, so a joiner in template text would fail every product change that edits the file's project blocks."""
+    scope_check = load_scope_check()
+    paths = []
+    for base in ("core", "profiles", "seed", "multi", "decision-seeds"):
+        paths += glob.glob(os.path.join(ROOT, base, "**", "*.md"), recursive=True)
+        paths += glob.glob(os.path.join(ROOT, base, "**", ".*", "**", "*.md"), recursive=True)
+    for path in sorted(set(paths)):
+        found = scope_check.control_characters(path)
+        if found:
+            errors.append(f"{os.path.relpath(path, ROOT)}: control characters {', '.join(found)} that scope-check.py "
+                          "rejects (use an emoji of a single code point, or a text escape)")
 
 
 PLACEHOLDER = re.compile(r"\{\{TODO:[^{}]*\}\}")
@@ -208,13 +243,37 @@ def smoke_test(profiles, errors):
             for rel in RETIRED_SAMPLE:
                 if os.path.exists(os.path.join(target, rel)):
                     errors.append(f"profile {label}: refresh kept the retired file {rel}")
+            if f"{STALE_REFERENCE}:1: " not in refresh.stdout or "References to removed files" not in refresh.stdout:
+                errors.append(f"profile {label}: refresh does not report the reference to a retired file in "
+                              f"{STALE_REFERENCE}")
             refreshed = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                                        capture_output=True, text=True)
             if refreshed.returncode != 0:
                 for line in refreshed.stdout.splitlines()[:10]:
                     errors.append(f"profile {label}: config-check after filling and refreshing: {line}")
+            check_copilot_mirror(label, target, errors)
             if len(names) > 1:
                 check_multi(names, target, errors)
+
+
+def check_copilot_mirror(label, target, errors):
+    """The refresh wrote the Copilot mirror with CLAUDE.md's body, and config-check.py fails once the two drift."""
+    mirror = os.path.join(target, COPILOT)
+    if not os.path.isfile(mirror):
+        errors.append(f"profile {label}: refresh did not write {COPILOT}")
+        return
+    claude = read(os.path.join(target, "CLAUDE.md"))
+    if read(mirror).split("\n## ", 1)[-1] != claude.split("\n## ", 1)[-1]:
+        errors.append(f"profile {label}: {COPILOT} differs from CLAUDE.md after the first '## ' heading")
+    original = read(mirror)
+    with open(mirror, "a", encoding="utf-8") as handle:
+        handle.write("\nA rule only Copilot knows.\n")
+    drifted = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
+                             capture_output=True, text=True)
+    if drifted.returncode == 0 or "copilot-instructions.md differs" not in drifted.stdout:
+        errors.append(f"profile {label}: config-check passes although {COPILOT} drifted from CLAUDE.md")
+    with open(mirror, "w", encoding="utf-8", newline="") as handle:
+        handle.write(original)
 
 
 def check_multi(names, target, errors):
@@ -274,11 +333,14 @@ def single_value(name, rel, pattern):
 
 
 # Files an older template version wrote into every target; a refresh must remove them (RETIRED in apply-template.py).
-RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".github", "copilot-instructions.md"),
-                  os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
+RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
                   os.path.join(".squad", "agents", "dev", "charter.md"),
                   os.path.join(".agents", "skills", "create-pr", "SKILL.md"),
                   os.path.join(".github", "skills", "squad-issue", "SKILL.md")]
+
+
+# A project file that still links a retired file after the refresh removed it; the refresh must list the line.
+STALE_REFERENCE = "docs/build-notes.md"
 
 
 def plant_retired(target):
@@ -287,6 +349,8 @@ def plant_retired(target):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
             handle.write("old mirror\n")
+    with open(os.path.join(target, STALE_REFERENCE), "w", encoding="utf-8") as handle:
+        handle.write("Coding conventions: [`AGENTS.md`](/AGENTS.md).\nNot a reference: MY_AGENTS.md.\n")
 
 
 def fill_placeholders(target):
@@ -473,6 +537,7 @@ def main():
     check_agents_and_skills(ROOT, errors)
     check_agents_and_skills(CORE, errors)
     check_core(errors)
+    check_control_characters(errors)
     check_placeholders(errors)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)

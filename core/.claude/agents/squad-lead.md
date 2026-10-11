@@ -117,7 +117,7 @@ Escalate only for an ambiguous requirement, a product decision (user-visible beh
 guarantee from `docs/ARCHITECTURE.md`), or a deadlock where no option is clearly right.
 
 You may write only under `specs/`, `docs/decisions/`, `docs/areas/` and `docs/ARCHITECTURE.md` — never
-`.squad/`, `.claude/` or `CLAUDE.md` in a product change. Bash is for read-only commands (`git diff`,
+`.squad/`, `.claude/`, `CLAUDE.md` or `.github/copilot-instructions.md` in a product change. Bash is for read-only commands (`git diff`,
 `git log`, `git status`, `grep`, *Test* from `.squad/stack.md` to inspect behavior). Never edit production or
 test code, never run Git write operations, never post to GitHub — follow-up issues you decide on are created
 by the orchestrator; describe them (title, body) in your result.

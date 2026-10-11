@@ -13,10 +13,13 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter
   (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members; only the orchestrating session
   commits, pushes and posts.
-- **One rule set for Claude Code** — `CLAUDE.md` holds the rules, the skills `create-pr`, `review-pr`,
-  `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`. The squad runs on Claude
-  Code subagents; other agents (Codex, Copilot) are not supported, a refresh removes the mirrors older template
-  versions wrote for them.
+- **One rule set for Claude Code, mirrored for GitHub Copilot** — `CLAUDE.md` holds the rules, the skills
+  `create-pr`, `review-pr`, `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`.
+  `.github/copilot-instructions.md` is generated from `CLAUDE.md` (its own title and introduction, then the same
+  body), so Copilot's code review, chat and coding agent follow the same rules; `config-check.py` fails when the
+  two drift apart. The squad runs on Claude Code subagents; a refresh removes the Codex mirror (`AGENTS.md`) and
+  the skill copies under `.agents/skills/` and `.github/skills/` that older template versions wrote, and lists
+  every line of the repository that still refers to a removed file.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
   weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
@@ -47,12 +50,13 @@ tools/            apply-template.py (mechanical apply), template-check.py (self-
 .claude/skills/adopt-template/   the skill
 ```
 
-Three kinds of files in a target repository:
+Four kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
 | managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
+| generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `CLAUDE.md` |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
@@ -100,7 +104,7 @@ In a Claude Code session with this repository and the target repository availabl
 words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
 detects the profile(s), runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
 and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
-reviewers, the Codex and Copilot mirrors), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
+reviewers, the Codex mirror and the skill copies of older template versions), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
 everything project-specific.
 
 ## Changing the template

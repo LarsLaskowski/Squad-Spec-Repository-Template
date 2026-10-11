@@ -1,4 +1,5 @@
-"""Unit tests for tools/apply-template.py (line endings per file): run `python3 -m unittest discover tools`."""
+"""Unit tests for tools/apply-template.py (line endings, Copilot mirror, references to retired files):
+run `python3 -m unittest discover tools`."""
 import importlib.util
 import os
 import subprocess
@@ -76,6 +77,47 @@ class TestLineEndings(unittest.TestCase):
         self.assertEqual(report, [("renormalized", rel)])
         with open(os.path.join(self.target, rel), "rb") as handle:
             self.assertEqual(handle.read(), b"old\n")
+
+
+class TestCopilotMirror(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    def test_instruction_body_starts_at_the_first_section_and_drops_import_lines(self):
+        claude = ("# CLAUDE.md\n\nIntro.\n\n## Code style\n\n<!-- project:begin code-style -->\n"
+                  "@.github/instructions/csharp.instructions.md\nUse tabs; mail @someone.\n"
+                  "<!-- project:end code-style -->\n")
+        self.assertEqual(self.script.instruction_body(claude),
+                         "\n## Code style\n\n<!-- project:begin code-style -->\nUse tabs; mail @someone.\n"
+                         "<!-- project:end code-style -->\n")
+
+    def test_generated_mirror_is_the_core_introduction_plus_the_claude_body(self):
+        with tempfile.TemporaryDirectory() as folder:
+            header = os.path.join(folder, "copilot.md")
+            write(header, "# Copilot instructions\n\nFor Copilot.\n")
+            generated = self.script.generated_files({".github/copilot-instructions.md": header},
+                                                    "# CLAUDE.md\n\nFor Claude.\n\n## Rules\n\nRule.\n")
+        self.assertEqual(generated, {".github/copilot-instructions.md":
+                                     "# Copilot instructions\n\nFor Copilot.\n\n## Rules\n\nRule.\n"})
+
+
+class TestRetiredReferences(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.target = self.dir.name
+        subprocess.run(["git", "init", "-q", self.target], check=True)
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_lists_lines_naming_a_retired_file_and_ignores_longer_names(self):
+        write(os.path.join(self.target, "docs", "ARCHITECTURE.md"), "# A\n\nConventions: [AGENTS.md](/AGENTS.md).\n")
+        write(os.path.join(self.target, "App.slnx"), '<File Path=".squad/agents/lead/charter.md" />\n')
+        write(os.path.join(self.target, "README.md"), "See MY_AGENTS.md and .github/copilot-instructions.md.\n")
+        write(os.path.join(self.target, "AGENTS.md"), "AGENTS.md mirror\n")
+        hits = self.script.retired_references(self.target)
+        self.assertEqual([(path, number) for path, number, _ in hits], [("App.slnx", 1), ("docs/ARCHITECTURE.md", 3)])
 
 
 if __name__ == "__main__":

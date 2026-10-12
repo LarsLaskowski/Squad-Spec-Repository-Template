@@ -141,6 +141,13 @@ class TestLinters(unittest.TestCase):
         self.fake_tool("hadolint", 1)
         self.assertFalse(self.script.run_linter("hadolint", "changed Dockerfiles", ["hadolint"], ["Dockerfile"]))
 
+    def test_lint_only_is_the_one_flag_the_gates_accept(self):
+        self.assertFalse(self.script.lint_only_requested([]))
+        self.assertTrue(self.script.lint_only_requested(["--lint-only"]))
+        for bad in (["--lint-only", "x"], ["x"], ["--lint-only=1"], ["--lint-only", "--lint-only"]):
+            with self.assertRaises(SystemExit, msg=bad):
+                self.script.lint_only_requested(bad)
+
 
 if __name__ == "__main__":
     unittest.main()

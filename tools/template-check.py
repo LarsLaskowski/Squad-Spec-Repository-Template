@@ -192,6 +192,8 @@ def check_profiles(errors):
         gate = os.path.join(profile, "managed", ".squad", "tools", "analyzer-check.py")
         if os.path.isfile(gate) and "lint_check" not in read(gate):
             errors.append(f"profile {name}: analyzer-check.py does not call lint_check() from analyzer_common.py")
+        if os.path.isfile(gate) and "lint_only_requested()" not in read(gate):
+            errors.append(f"profile {name}: analyzer-check.py does not offer --lint-only (lint_only_requested())")
         stack = os.path.join(profile, "seed", ".squad", "stack.md")
         if os.path.isfile(stack):
             text = read(stack)

@@ -258,10 +258,12 @@ told so.
 
 ## Escalation to the Product Manager
 
-The Lead escalates only when it cannot decide responsibly on its own: the requirement is ambiguous, the
-fix needs a product decision (behavior change visible to users, breaking a documented guarantee in
-`docs/ARCHITECTURE.md` or an accepted decision record), or a loop limit was hit and none of the Lead's
-options is clearly right. The escalation is one concise question with the options and the Lead's
+The Lead escalates only when it cannot decide responsibly on its own: the requirement is ambiguous (a
+parser, decoder or reader of an external format without a real sample of that format in the test data or
+on the issue is one — the Lead asks for the sample, or for the confirmation to build from the description
+with the risk recorded, before it plans), the fix needs a product decision (behavior change visible to
+users, breaking a documented guarantee in `docs/ARCHITECTURE.md` or an accepted decision record), or a loop
+limit was hit and none of the Lead's options is clearly right. The escalation is one concise question with the options and the Lead's
 recommendation. Follow-up GitHub issues the Lead decides on are created by the orchestrator and listed in
 the PR under Next Steps.
 

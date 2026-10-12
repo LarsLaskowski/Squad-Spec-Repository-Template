@@ -108,8 +108,10 @@ action yourself — including follow-up issues the Lead decides on.
      For tier **`patch`** the result also names, per edit, the existing test or check that covers it, and
      `patch/security` when a security area, CI or build file is touched: apply the edits yourself; when the
      Lead named a test to add, launch `squad-tester` in mode `coverage` with that test name once; run the
-     gates the touched files need (step 7 — *Format* on your own edits, *Test* and the *Coverage gate* only
-     when production code changed) and `python3 .squad/tools/scope-check.py --tier patch`; then one review
+     gates of *Gates of a patch* in `.squad/routing.md` for the kinds of file the diff touches and nothing
+     more (*Format* on your own edits; a script, workflow or Dockerfile gets the *Analyzer gate* with
+     `--lint-only` and no build; code gets *Test (project)* for its test project, not the whole suite) and
+     `python3 .squad/tools/scope-check.py --tier patch`, and log which rows applied; then one review
      round in step 8 — `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead of
      it — and step 10 directly. No challenge, plan security review, skeleton, tests first, Code Officer or
      step 9. Otherwise:

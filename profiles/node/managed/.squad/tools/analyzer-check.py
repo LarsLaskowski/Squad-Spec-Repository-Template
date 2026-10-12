@@ -4,11 +4,13 @@ eslint-plugin-sonarjs so the SonarQube rules run locally — must report nothing
 changed since the merge base with origin/main (working tree and untracked files included).
 
 The base (origin/main), the npm scripts and the linted extensions are fixed here and in
-`.squad/tools/squad_settings.py`: the script takes no arguments, so nothing user-supplied reaches the
+`.squad/tools/squad_settings.py`: the script accepts one flag, `--lint-only` (the lint pass over changed shell
+scripts, workflows and Dockerfiles without the type check and ESLint, for a `patch` that touches no
+TypeScript — `.squad/routing.md`, *Gates of a patch*), and no value, so nothing user-supplied reaches the
 shell, git or the filesystem.
 
 Usage, from the repository root (after `npm ci`):
-    python3 .squad/tools/analyzer-check.py
+    python3 .squad/tools/analyzer-check.py [--lint-only]
 
 Exit code 0 when the type check passes and no changed file has a finding, 1 otherwise.
 """
@@ -19,7 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import squad_settings as settings  # noqa: E402  (per-repository settings next to this script)
-from analyzer_common import git, merge_base, lint_check  # noqa: E402  (shared helpers next to this script)
+from analyzer_common import git, merge_base, lint_check, lint_only_requested, lint_only_main  # noqa: E402  (shared helpers next to this script)
 
 
 
@@ -33,6 +35,8 @@ def changed_files():
 
 def main():
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    if lint_only_requested():
+        return lint_only_main()
     failed = False
 
     for script in settings.CHECK_SCRIPTS:

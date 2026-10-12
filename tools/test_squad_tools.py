@@ -263,6 +263,75 @@ class TestSquadLog(unittest.TestCase):
         # 13:00–13:10 the two parallel launches (600 s once), 13:14–13:18 the Dev (240 s): 360 s uncovered.
         self.assertIn("| Orchestrator | 1,200 | 360 | 0 |", table)
 
+    def test_amend_with_step_reaches_an_earlier_row_of_the_member(self):
+        write(self.path, "| Date |\n")
+        self.script.append_row(self.path, "2 Plan", "Lead", "plan", today="2026-01-02 13:00",
+                               launch=("opus/medium", 50000, 9, 500))
+        self.script.append_row(self.path, "2 Challenge", "Devil's Advocate", "minor", today="2026-01-02 13:05")
+        self.script.append_row(self.path, "3 Plan security", "Security", "CHANGES_REQUIRED", today="2026-01-02 13:05")
+        self.script.append_row(self.path, "2 Plan revise", "Lead", "revised", today="2026-01-02 13:09")
+        self.script.append_row(self.path, "3 Plan security delta", "Security", "APPROVED", today="2026-01-02 13:10")
+        self.assertIsNone(self.script.amend_last(self.path, "Security", ("opus/medium", 1500, 1, 1), step="3 Review"),
+                          "no row of that step")
+        row = self.script.amend_last(self.path, "Security", ("opus/medium", 45751, 7, 108), step="3 Plan security")
+        self.assertEqual(row, "| 2026-01-02 13:05 | 3 Plan security | Security | CHANGES_REQUIRED "
+                              "(opus/medium · 45,751 tokens · 7 tool uses · 108 s) |")
+        self.assertIsNone(self.script.amend_last(self.path, "Security", ("opus/medium", 1500, 1, 1), step="3 Plan security"),
+                          "amended twice")
+        # The member's last row is untouched and can still be amended without a selector, as a continuation
+        # whose share is computed from the rows before it.
+        share = self.script.continued_launch(self.path, "Security", ("opus/medium", 70000, 11, 160), step="3 Plan security delta")
+        self.assertEqual(share, ("opus/medium", 24249, 4, 52, True))
+        row = self.script.amend_last(self.path, "Security", share, step="3 Plan security delta")
+        self.assertIn("APPROVED (opus/medium · 24,249 tokens · 4 tool uses · 52 s · continued) |", row)
+        row = self.script.amend_last(self.path, "Lead", ("opus/medium", 20000, 5, 60), step="2 Plan revise")
+        self.assertIn("| 2 Plan revise | Lead | revised (opus/medium · 20,000 tokens · 5 tool uses · 60 s) |", row)
+        with open(self.path, encoding="utf-8") as handle:
+            self.assertIn("| 2 Plan | Lead | plan (opus/medium · 50,000 tokens · 9 tool uses · 500 s) |", handle.read())
+        self.assertIn("| Security | opus/medium | 2 (1 continued) | 70,000 | 11 | 160 |", self.script.summary(self.path))
+
+    def test_unreported_launch_is_counted_and_named_not_summed(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-devils-advocate.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n"
+                   "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
+                   "| 2026-01-02 13:10 | 2 Plan | Lead | done (opus/medium · 50,000 tokens · 9 tool uses · 500 s) |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        self.assertEqual(run("2 Challenge", "Devil's Advocate", "0 major, 2 minor", "--unreported", "--agent",
+                             "squad-devils-advocate").returncode, 2, "--unreported is an amend option")
+        self.assertEqual(run("2 Challenge", "Devil's Advocate", "0 major, 2 minor", "--step", "2 Plan").returncode, 2,
+                         "--step is an amend option")
+        self.assertEqual(run("2 Challenge", "Devil's Advocate", "0 major, 2 minor").returncode, 0)
+        self.assertEqual(run("--amend-last", "Devil's Advocate", "--unreported", "--agent", "squad-devils-advocate",
+                             "--tokens", "5000", "--tool-uses", "1", "--seconds", "1").returncode, 2, "no numbers")
+        self.assertEqual(run("--amend-last", "Devil's Advocate", "--unreported").returncode, 2, "needs the model")
+        self.assertEqual(run("--replace-last", "Devil's Advocate", "--unreported", "--agent",
+                             "squad-devils-advocate").returncode, 2, "replace needs numbers")
+        marked = run("--amend-last", "Devil's Advocate", "--unreported", "--agent", "squad-devils-advocate")
+        self.assertEqual(marked.returncode, 0, marked.stderr)
+        self.assertIn("| 2 Challenge | Devil's Advocate | 0 major, 2 minor (sonnet/medium · usage not reported) |",
+                      marked.stdout)
+        self.assertEqual(run("--amend-last", "Devil's Advocate", "--unreported", "--agent",
+                             "squad-devils-advocate").returncode, 1, "marked once")
+        complete = run("--summary")
+        self.assertEqual(complete.returncode, 0, complete.stdout)
+        self.assertIn("| Devil's Advocate | sonnet/medium | 1 | 0 | 0 | 0 |", complete.stdout)
+        self.assertIn("| **Total** | | 2 | 50,000 | 9 | 500 |", complete.stdout)
+        self.assertIn("**Without reported usage:** 1 launch(es)", complete.stdout)
+        self.assertIn("`2 Challenge · Devil's Advocate`", complete.stdout)
+        self.assertNotIn("**Incomplete:**", complete.stdout)
+        replaced = run("--replace-last", "Devil's Advocate", "--agent", "squad-devils-advocate", "--tokens", "33612",
+                       "--tool-uses", "9", "--seconds", "20")
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        self.assertIn("(sonnet/medium · 33,612 tokens · 9 tool uses · 20 s) |", replaced.stdout)
+        self.assertNotIn("Without reported usage", run("--summary").stdout)
+        self.assertIn("| **Total** | | 2 | 83,612 | 18 | 520 |", run("--summary").stdout)
+
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")

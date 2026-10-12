@@ -6,9 +6,10 @@ the skill — launches the members, passes documents between them (subagents can
 directly), performs every Git and GitHub action (including follow-up issues the Lead decides on) and
 records every step in the work folder's `log.md` with `python3 .squad/tools/squad-log.py` — each subagent
 launch with its model and effort (`--agent`) and the usage its task notification reports, one row per launch,
-added later with `--amend-last` when the notification follows the hand-back, corrected with `--replace-last`
-and reduced to the round's share with `--continued` for a continued member — (after step 10, in the "Squad working record"
-comment that replaces it). Step numbers below are the ones the skills use.
+added later with `--amend-last` when the notification follows the hand-back (`--step "<step>"` reaches a row
+that is no longer the member's last, as after parallel launches; `--unreported` marks a launch whose
+notification never came), corrected with `--replace-last` and reduced to the round's share with `--continued`
+for a continued member — (after step 10, in the "Squad working record" comment that replaces it). Step numbers below are the ones the skills use.
 
 ## Work folder
 
@@ -139,7 +140,7 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the verbatim documentation fixes of that round, *Non-blocking findings*, may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green and the CI code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then the PR marked ready for review (*Draft until green*); review comments worked |
-| 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches with their continuations, tokens, tool uses and seconds per role, plus the Orchestrator row: wall time, time not covered by launches, gate runs — `squad-log.py --summary`; exit code 3 names launch rows still without usage, which are amended first) appended to the working record and reported to the user |
+| 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches with their continuations, tokens, tool uses and seconds per role, plus the Orchestrator row: wall time, time not covered by launches, gate runs — `squad-log.py --summary`; exit code 3 names launch rows still without usage, which are amended first with `--amend-last`, `--step` for an earlier row, or marked `--unreported`; the table is posted as printed, never summed by hand or left out) appended to the working record and reported to the user |
 
 A change without production or test code (tier `docs`, or any other tier whose plan declares it, see
 *Changes without production or test code*) skips steps 4 and 5; step 6 is the Dev's edits alone (tier

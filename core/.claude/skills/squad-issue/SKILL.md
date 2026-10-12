@@ -18,9 +18,9 @@ action yourself — including follow-up issues the Lead decides on.
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
   `python3 .squad/tools/squad-log.py`), `tasks.md` check marks (features) and the *Challenge notes* you
   append to `plan.md` verbatim (step 2). The exceptions are tiers `docs` and `patch`, where you apply the
-  Lead's exact edits yourself (`.squad/routing.md`, *Tiers*), and a non-blocking finding whose fix a
-  reviewer states verbatim and that touches only documentation, a decision record or an area document
-  (step 8).
+  Lead's exact edits yourself (`.squad/routing.md`, *Tiers*), and a review finding, blocking or not, whose
+  fix a reviewer states verbatim and that touches only documentation, a decision record, an area document,
+  `README.md` or a configuration example (step 8, *Verbatim documentation fixes*).
 - **Hand each member only what it needs.** The plan (for a feature: its task rows), the test names, the
   base ref and the gate output for the head. Not the log, not the issue thread (the Lead and the Devil's
   Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
@@ -191,13 +191,18 @@ action yourself — including follow-up issues the Lead decides on.
    yourself, run the checks of step 2 again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
    (coverage) and 7 again → **a new review round on the delta is mandatory** before step 9; never go from
    a blocking finding straight to PR approval. The same holds for a non-blocking finding the Lead decides
-   to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. A
-   non-blocking finding whose fix the reviewer states verbatim and that touches only documentation, a
-   decision record or an area document you apply yourself, without a Lead launch: apply exactly the text the
-   reviewer proposed, confirm with `git diff` that the file changed in nothing else, and log the finding, the
-   file and the commit. That is the reviewer's own text from the reviewer's own round, so it needs no
-   confirming delta round; it is read again only when a delta round is due anyway for another change.
-   Anything you changed beyond the proposed text is an ordinary fix with a delta round. At most **2 fix
+   to fix now: any change to production code, tests or `docs/` after a review round needs a delta round. The
+   one exception, blocking or not, is a finding the reviewer marks `verbatim`: its fix is the reviewer's
+   complete replacement text and touches only documentation, a decision record, an area document,
+   `README.md` or a configuration example. You apply it yourself, without a Dev, Tester or Lead launch and
+   without a build: apply exactly the text the reviewer proposed, confirm with `git diff` that the file
+   changed in nothing else, run the documentation gates (*Format check*, `scope-check.py`,
+   `decision-check.py`) and log the finding, the file and the commit. That is the reviewer's own text from
+   the reviewer's own round, so it needs no confirming delta round; it is read again only when a delta round
+   is due anyway for another change, and a blocking finding resolved this way makes the round clean. A
+   verbatim fix the reviewer flags as changing a behavior statement an acceptance criterion relies on is
+   not applied: launch `squad-lead` in mode `decide`. Anything you changed beyond the proposed text is an
+   ordinary fix with a delta round. At most **2 fix
    rounds** after round 1; then `squad-lead`
    in mode `decide`. Delta rounds continue the reviewer's earlier launch (*Continue a member*). Pass each
    reviewer the exact code SHA to review and tell it that later commits may only touch `specs/`. Avoid

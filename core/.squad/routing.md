@@ -136,8 +136,8 @@ skip is a blocking finding. If production or test code changes after all, steps 
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A test that cannot fail yet is not written here: guards, pins of existing behavior, determinism and bound tests wait for step 6 |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents. The Tester's coverage pass adds tests only for lines the gate reports uncovered, a resource bound the plan names, or a test a reviewer asks for |
 | 7 | Code check | Orchestrator, Code Officer | Dev and Tester ran *Format* on their files before handing back. The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. A *Format check* failure the orchestrator clears itself (*Format*, then `git restore` of every file outside the change); only analyzer diagnostics or style findings that need reading launch the Code Officer (analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
-| 8 | Review | Reviewer (+ Security on `security`) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round |
-| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the verbatim documentation fixes of that round, *Non-blocking findings*, may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
+| 8 | Review | Reviewer (+ Security on `security`) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round — except a finding, blocking or not, whose fix is a verbatim documentation edit: the orchestrator applies it (*Verbatim documentation fixes*), no launch, no build, no delta round |
+| 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the verbatim documentation fixes of that round, *Verbatim documentation fixes*, may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | CI green and the CI code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then the PR marked ready for review (*Draft until green*); review comments worked |
 | 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches with their continuations, tokens, tool uses and seconds per role, plus the Orchestrator row: wall time, time not covered by launches, gate runs — `squad-log.py --summary`; exit code 3 names launch rows still without usage, which are amended first with `--amend-last`, `--step` for an earlier row, or marked `--unreported`; the table is posted as printed, never summed by hand or left out) appended to the working record and reported to the user |
@@ -284,17 +284,29 @@ options is clearly right. The escalation is one concise question with the option
 recommendation. Follow-up GitHub issues the Lead decides on are created by the orchestrator and listed in
 the PR under Next Steps.
 
+## Verbatim documentation fixes
+
+A review finding — blocking or non-blocking — whose fix the reviewer states verbatim (file, the sentence as it
+stands, the sentence as it should read, marked `verbatim` in the report) and that touches only documentation,
+a decision record, an area document, `README.md` or a configuration example (never production or test code)
+is applied by the orchestrator exactly as proposed (as in tier `docs`), checked with `git diff` to contain
+nothing else, and logged with file and commit. It needs no Dev, Tester or Lead launch, no build and no
+confirming delta round: the text is the reviewer's own, from the reviewer's own round (Vandox#194 and
+Vandox#19 each spent an Opus launch on confirming two commas and one sentence; in the 14 Vandox runs after
+that, 6 of 8 blocking findings were such documentation edits, each worked by a Dev launch, a gate run and a
+delta round). It is read again only when a delta round is due anyway for another change; any edit beyond the
+proposed text, and a fix the reviewer cannot state verbatim, is an ordinary fix for its owner with a delta
+round. One exception: a fix that changes a behavior statement an acceptance criterion or a guarantee in
+`.squad/project.md` relies on is not applied; the reviewer says so, and the Lead decides (mode `decide`).
+The step 7 gates that apply to documentation (*Format check*, `scope-check.py`, `decision-check.py`) run
+before the PR; the blocking finding counts as resolved once the text is in and logged.
+
 ## Non-blocking findings
 
 Fixed in the same change or opened as a linked GitHub issue now — never deferred to "a later change".
 
-- A finding whose fix the reviewer states verbatim and that touches only documentation, a decision record
-  or an area document is applied by the orchestrator exactly as proposed (as in tier `docs`), checked with
-  `git diff` to contain nothing else, and logged with file and commit. It needs no confirming delta round:
-  the text is the reviewer's own, from the reviewer's own round (Vandox#194 and Vandox#19 each spent an Opus
-  launch on confirming two commas and one sentence). It is read again only when a delta round is due anyway
-  for another change; any edit beyond the proposed text is an ordinary fix with a delta round. No Lead
-  launch.
+- A non-blocking finding with a verbatim documentation fix goes the way of *Verbatim documentation fixes*
+  above: applied by the orchestrator, no launch, no delta round.
 - Every other non-blocking finding — one that touches code, or one the orchestrator would turn into a
   follow-up issue — is decided by the Lead in step 9 (one launch for all of them); a finding fixed now gets
   a delta round.

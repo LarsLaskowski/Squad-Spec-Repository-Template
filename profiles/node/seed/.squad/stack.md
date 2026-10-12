@@ -29,7 +29,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | *Build* | `npm run build` |
 | *Test* | `npm test` |
 | *Single test* | `{{TODO: e.g. node --import tsx --test --test-name-pattern "<name>" src/x.test.ts}}` |
-| *Test (project)* | `{{TODO: e.g. node --import tsx --test src/<dir>/*.test.ts}}` (the tests of the changed code; a `patch`, `.squad/routing.md` *Gates of a patch*) |
+| *Test (project)* | `{{TODO: e.g. node --import tsx --test src/<dir>/*.test.ts}}` (the tests of the changed code; a `patch` that changes only test code, `.squad/routing.md` *Gates of a patch* — it writes no coverage report, so a `patch` that changes production code runs *Test with coverage* instead) |
 | *Test with coverage* | `npm run coverage:lcov` (overwrites `coverage/lcov.info`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |

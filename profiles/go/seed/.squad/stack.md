@@ -27,6 +27,7 @@ profile and owned by this repository: keep it true when the build changes.
 | *Build* | `go build ./...` |
 | *Test* | `go test ./... -race` |
 | *Single test* | `go test ./<package> -run '^TestName$'` |
+| *Test (project)* | `go test ./<package>/... -race` (the package of the changed code; a `patch`, `.squad/routing.md` *Gates of a patch*) |
 | *Test with coverage* | `go test ./... -race -coverprofile=coverage.out` (overwrites `coverage.out`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |

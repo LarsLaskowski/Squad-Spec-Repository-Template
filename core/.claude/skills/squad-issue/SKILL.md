@@ -94,9 +94,14 @@ action yourself — including follow-up issues the Lead decides on.
    hand or placeholder numbers (the script refuses fewer than 1,000 tokens). A trailer with wrong numbers is corrected with `--replace-last "<member>"` and the
    same options, never with an extra row, which would count the launch twice. One row per launch, also for
    two members that ran in parallel: the script refuses a member cell that names two, because `--amend-last`
-   could not tell their usage apart. A continued launch (*Continue a member*) is logged with the same
-   options plus `--continued`. The wrap-up sums the trailers
-   per role. After every member's report, commit and push the files it left in the work
+   could not tell their usage apart. When the notification of a parallel launch arrives after you have
+   written a later row of that member (the Security plan review's notification after its delta row, the
+   Devil's Advocate's after the Lead's revision), add `--step "<step>"` with the exact step cell of the
+   launch's row: `--amend-last "<member>" --step "<step>" …` amends that row instead of the member's last one.
+   A notification that never arrives (the launch ended on an error, the session was resumed) is marked with
+   `--amend-last "<member>" --unreported --agent squad-<role>` and no numbers, so the summary counts the
+   launch and names it instead of refusing the table. A continued launch (*Continue a member*) is logged
+   with the same options plus `--continued`. The wrap-up sums the trailers per role. After every member's report, commit and push the files it left in the work
    folder (the Lead's records, the Tester's tests) yourself, so the next report does not list them as
    untracked noise.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
@@ -108,8 +113,10 @@ action yourself — including follow-up issues the Lead decides on.
      For tier **`patch`** the result also names, per edit, the existing test or check that covers it, and
      `patch/security` when a security area, CI or build file is touched: apply the edits yourself; when the
      Lead named a test to add, launch `squad-tester` in mode `coverage` with that test name once; run the
-     gates the touched files need (step 7 — *Format* on your own edits, *Test* and the *Coverage gate* only
-     when production code changed) and `python3 .squad/tools/scope-check.py --tier patch`; then one review
+     gates of *Gates of a patch* in `.squad/routing.md` for the kinds of file the diff touches and nothing
+     more (*Format* on your own edits; a script, workflow or Dockerfile gets the *Analyzer gate* with
+     `--lint-only` and no build; code gets *Test (project)* for its test project, not the whole suite) and
+     `python3 .squad/tools/scope-check.py --tier patch`, and log which rows applied; then one review
      round in step 8 — `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead of
      it — and step 10 directly. No challenge, plan security review, skeleton, tests first, Code Officer or
      step 9. Otherwise:
@@ -270,8 +277,10 @@ action yourself — including follow-up issues the Lead decides on.
     from the working record comment. Do **not** edit `.squad/`, `.claude/` or the instruction files.
     Then run `python3 .squad/tools/squad-log.py issue-<number> --summary` on the log (restore it from the
     working record comment if the folder is gone). Exit code 3 means the summary ends with launch rows that
-    carry no usage: add it with `--amend-last` from each launch's task notification and run the summary
-    again — a table is posted only as the script prints it, never typed from memory or with rows left out.
+    carry no usage: add it with `--amend-last` (with `--step "<step>"` for a row that is no longer the
+    member's last) from each launch's task notification, or mark a launch whose notification never arrived
+    with `--unreported`, and run the summary again — a table is posted only as the script prints it, never
+    typed from memory, summed by hand or with rows left out, and a run without a table is not wrapped up.
     Append the tables to the working record comment under
     a "Squad run metrics" heading: launches, tokens, tool uses and seconds per role are what tunes the
     squad's models and effort over time, and the **Orchestrator** row (wall time from the first to the last

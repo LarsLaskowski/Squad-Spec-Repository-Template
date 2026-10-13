@@ -141,8 +141,10 @@ Rules that hold throughout:
     `.github/pull_request_template.md`: title `[Docs] Adopt the Squad-Spec-Repository-Template squad and agent rules` (refresh:
     `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced,
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
-    Subscribe to the PR's activity and stay with it until CI is green and the code analysis lists no new
-    issue, then mark it ready for review (the target's `.squad/routing.md`, *Draft until green*).
+    Subscribe to the PR's activity and stay with it until it merges cleanly, CI is green and the code
+    analysis lists no new issue, then mark it ready for review (the target's `.squad/routing.md`, *Draft
+    until green*). Read its mergeability on every look at the PR: a conflict with the target's base branch
+    keeps CI from starting and is merged and resolved first (*Merge conflicts* there).
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.
     coverage below the threshold), and any template change you had to make here first.
 

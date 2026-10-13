@@ -31,6 +31,7 @@ profile and owned by this repository: keep it true when the build changes.
 | *Test with coverage* | `go test ./... -race -coverprofile=coverage.out` (overwrites `coverage.out`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
+| *Image build check* | `docker build -f {{TODO: Dockerfile, or "none" when the repository builds no image}} .` where Docker runs; otherwise the reproduction under *Image build check* below (`.squad/routing.md`, *Criteria verified only in CI*) |
 
 ## Analyzer gate
 
@@ -50,6 +51,23 @@ download, for example). The gate itself checks two SonarQube Cloud shell rules s
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
 local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
 in squad step 11.
+
+## Image build check
+
+The Dockerfile copies `go.mod` and `go.sum` first, runs `go mod download`, then copies the sources and builds
+without network. Where Docker runs, build the image. Where it does not (the sandbox), reproduce that order:
+`go mod download`, then `GOFLAGS=-mod=readonly GOPROXY=off go build ./...` — a module the build needs that
+`go.sum` does not pin, or an embedded file (`//go:embed`) the Dockerfile's `COPY` lines leave out, fails here
+as it would in the image. Every change to `go.mod`, `go.sum`, an embedded file or the Dockerfile runs it
+before the review; a build from the full working tree with network does not replace it.
+
+## Coverage exclusions
+
+Two places compute coverage and must agree (`.squad/routing.md`, *Code a unit test cannot cover*): the
+*Coverage gate* reads `COVERAGE_PATHSPECS` and `COVERAGE_EXCLUDES` in `.squad/tools/squad_settings.py`, and
+SonarQube Cloud reads `sonar.coverage.exclusions` in `sonar-project.properties`. A file no unit test can cover
+(a generated file, `main.go` startup glue) is added to both with a decision record — never to
+`sonar.exclusions`, which would drop it from the analysis too.
 
 ## Writing code
 

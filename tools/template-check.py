@@ -58,9 +58,10 @@ PROFILE_FILES = [
     "seed/.github/dependabot.yml",
 ]
 COMMANDS = ["*Restore*", "*Format*", "*Format check*", "*Build*", "*Test*", "*Single test*",
-            "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*"]
-STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate", "## Writing code",
-                  "## Writing tests", "## Skeleton", "## Dependencies", "## Concurrency", "## Known pitfalls"]
+            "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*", "*Image build check*"]
+STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate", "## Image build check",
+                  "## Coverage exclusions", "## Writing code", "## Writing tests", "## Skeleton", "## Dependencies",
+                  "## Concurrency", "## Known pitfalls"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
 MARKER = re.compile(r"<!-- (project|stack):(begin|end) ([\w-]+) -->")

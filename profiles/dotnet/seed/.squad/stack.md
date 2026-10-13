@@ -35,6 +35,7 @@ profile and owned by this repository: keep it true when the build changes.
 | *Test with coverage* | `rm -rf TestResults && dotnet test {{TODO: Solution}}.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults` (clears earlier runs: the coverage gate merges every report it finds) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
+| *Image build check* | `docker build -f {{TODO: Dockerfile}} .` where Docker runs; otherwise the restore-order reproduction under *Image build check* below (`.squad/routing.md`, *Criteria verified only in CI*) |
 
 ## Analyzer gate
 
@@ -52,6 +53,11 @@ SonarQube Cloud's own quality profile can still report `S####` rules the local d
 and its non-Roslyn checks (duplication, hotspots, taint analysis) only run in CI — such findings arrive in
 squad step 11.
 
+Own browser scripts (`wwwroot/js/*.js`, no Node build) have no local analyzer: SonarQube Cloud's JavaScript
+rules report on them only in squad step 11, so write them to those rules from the start. The one that bit
+(`javascript:S2486`): a `catch` block that ignores the exception holds exactly one whole-line comment and
+nothing else — a comment before a `return` inside the block is still flagged.
+
 Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and Dockerfiles are checked with
 `shellcheck`, `actionlint` and `hadolint`; the SessionStart hook installs the three as pinned, checksum-verified
 binaries (`.claude/hooks/install-linters.sh`), and the gate reports NOT RUN for one that is missing (a refused
@@ -59,6 +65,41 @@ download, for example). The gate itself checks two SonarQube Cloud shell rules s
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
 local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
 in squad step 11.
+
+## Image build check
+
+The Dockerfile copies the project files first, restores, then copies the sources and publishes with
+`--no-restore`. The .NET SDK decides at restore time what the publish output holds (content items, static web
+assets, the `_framework/` scripts of a Blazor app), so a publish from the full working tree can contain files
+the image never gets (Vandox#24: `_framework/blazor.web.js` was in the local publish and missing from the
+image, because no `.razor` file existed at restore time). Where Docker runs, build the image. Where it does not
+(the sandbox), reproduce the Dockerfile's order in a scratch directory; every change to a `.csproj`,
+`Directory.*.props`, a `.razor` or other content item, a static web asset or the Dockerfile runs it before the
+review:
+
+```bash
+scratch="$(mktemp -d)"
+git ls-files -z -- '*.slnx' '*.sln' '*.csproj' '*.props' '*.targets' 'nuget.config' 'global.json' \
+  | xargs -0 -I{} cp --parents {} "$scratch"
+(cd "$scratch" && dotnet restore {{TODO: Solution}}.slnx)
+git ls-files -z | xargs -0 -I{} cp --parents {} "$scratch"
+(cd "$scratch" && dotnet publish {{TODO: src/App/App.csproj}} -c Release --no-restore -o ./publish)
+ls "$scratch"/publish/{{TODO: wwwroot/_framework, or another output the image needs}}
+```
+
+Keep the first copy equal to the `COPY` lines before `RUN dotnet restore` in the Dockerfile. A `--no-restore`
+publish that fails, or an output that is missing, is the defect the CI release build would report after the
+PR is open.
+
+## Coverage exclusions
+
+Two places compute coverage and must agree (`.squad/routing.md`, *Code a unit test cannot cover*): the
+*Coverage gate* reads `COVERAGE_PATHSPECS` and `COVERAGE_EXCLUDES` in `.squad/tools/squad_settings.py` (by
+default `src/*.cs` and `src/*.razor`, so own browser scripts do not count locally), and SonarQube Cloud reads
+`sonar.coverage.exclusions`, passed as `/d:sonar.coverage.exclusions=…` in the *Begin SonarQube analysis*
+step of `.github/workflows/ci.yml`. A file no unit test can cover (`wwwroot/js/**`, a generated file) is added
+to that argument with a decision record — never to `sonar.exclusions`, which would drop it from the analysis
+too.
 
 ## Writing code
 

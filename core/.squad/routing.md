@@ -126,6 +126,34 @@ skipped steps with a pointer to that section. The Reviewer checks that the state
 every acceptance criterion and that the diff really contains no production or test code — otherwise the
 skip is a blocking finding. If production or test code changes after all, steps 4–6 apply again.
 
+### Criteria verified only in CI
+
+A criterion that only CI can verify in full — a container image the sandbox cannot build, a release build
+on another platform — is still checked here as far as the sandbox allows, before the review and not after
+the PR. A change that touches an input the image build is sensitive to (the project or manifest files, a
+content item the SDK discovers at restore time, a static web asset, the Dockerfile itself; *Image build
+check* in `.squad/stack.md` names them for the stack) runs the *Image build check* from `stack.md`, which
+reproduces the Dockerfile's own order — manifests first, restore, then the sources, build or publish
+without a restore — and the plan names that check as the criterion's verification with the Dev as its
+owner. A build or publish from the full working tree does not count: it restores with every source present
+and can hold an output the image's restore from the project files alone never produces (Vandox#24: a
+framework script the plan had seen in a full-tree publish was missing from the image, and only the CI
+release build caught it after the PR was open). A red CI on such a criterion after that check is worked in
+step 11 as usual.
+
+### Code a unit test cannot cover
+
+A file of the change that no unit test can cover — a browser script the stack has no test runner for, a
+generated file, process startup glue — is found in the plan, not after the PR: the Lead lists such files in
+`plan.md` with the reason, the Tester confirms or contests the list in its report, and the Lead's decision
+is a decision record. Such a file is excluded from the coverage **measure** only, in every place that
+computes it (`sonar.coverage.exclusions` for the CI code analysis, and `COVERAGE_EXCLUDES` in
+`.squad/tools/squad_settings.py` where `COVERAGE_PATHSPECS` includes the file; *Coverage exclusions* in
+`.squad/stack.md` names where the repository sets them) — never from the analysis (`sonar.exclusions`, a
+suppression): its rules still apply, and those no local gate reports arrive in step 11 (Vandox#24: own
+browser scripts without a Node build counted as new code without coverage, 66.8 %, and failed the CI
+quality gate after the PR was open).
+
 ## Pipeline
 
 | # | Step | Owner | Exit condition |
@@ -174,9 +202,13 @@ review (`update_pull_request` with `draft: false`) only when all of this holds o
 
 - every CI check run and commit status has finished, and none failed or was cancelled (a pending check is
   waited for, not counted as passed);
-- the CI code analysis (e.g. SonarQube Cloud) has reported on this head, its quality gate passed and it lists
-  **no new issue** on the pull request — a passed gate with open new issues (bugs, code smells, security
-  hotspots to review) is still rework, worked like a failing check;
+- the CI code analysis (e.g. SonarQube Cloud) has reported on **this** head, its quality gate passed and it
+  lists **no new issue** on the pull request — a passed gate with open new issues (bugs, code smells,
+  security hotspots to review) is still rework, worked like a failing check. "This head" is checked, not
+  assumed: the commit SHA of the analysis (SonarQube Cloud: `api/project_pull_requests/list?project=<key>`,
+  or the `head_sha` of its check run) equals the PR head; a `Quality Gate passed` comment or an issue list
+  without that match may belong to an earlier head while the newest analysis still runs, and settles
+  nothing about this one;
 - no commit for a known failure or finding is still to be pushed, and after a fix in the squad skills the
   re-approval of step 9 has passed on this head.
 
@@ -271,7 +303,9 @@ told so.
   and the item goes to the Dev (or Tester for tests), then the code check runs again. Not counted
   against a loop limit.
 - **Coverage gate fails:** Dev and Tester iterate; lines that cannot be covered by a unit test go to the
-  Lead, whose decision is recorded in `log.md`.
+  Lead, whose decision is recorded in `log.md`. A whole file no unit test can cover was listed in the plan
+  (*Code a unit test cannot cover*); one that surfaces only here, or only in the CI code analysis, is a
+  plan defect the Lead records with the decision.
 - **After the PR (step 11):** CI or quality-gate failures and review comments are fixed on the same
   branch and go through steps 7–8 again (delta review). The same limit of 2 fix rounds applies per
   failure; after that the Lead decides.

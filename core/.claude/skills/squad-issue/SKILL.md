@@ -246,7 +246,9 @@ action yourself — including follow-up issues the Lead decides on.
     without a real external system, say so.
 11. **After the PR.** Subscribe to the PR's activity right after opening it (`subscribe_pr_activity` when
     available; otherwise check the CI and code-analysis (e.g. SonarQube Cloud) results yourself before finishing) — a session
-    that ends with an unwatched PR has not completed this step. Stay with the PR until CI is green and the
+    that ends with an unwatched PR has not completed this step. On every look at the PR, read its mergeability
+    first: a conflict with the base branch keeps CI from starting and is merged and resolved before anything
+    else (`.squad/routing.md`, *Merge conflicts*). Stay with the PR until it merges cleanly, CI is green and the
     code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then mark it ready for review
     (`update_pull_request` with `draft: false`) — never earlier, and after a fix only once its re-approval
     (step 9) has passed on the new head, see `.squad/routing.md`, *Draft until green*:

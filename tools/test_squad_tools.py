@@ -301,6 +301,23 @@ class TestSquadLog(unittest.TestCase):
                       amended.stdout)
         self.assertIn("| Dev | sonnet/medium | 4 (2 continued) | 155,000 | 46 | 1190 |", run("--summary").stdout)
 
+    def test_first_row_replaces_the_placeholder_heading(self):
+        for folder, heading in (("issue-3", "issue #3"), ("feature-incidents-view", "feature incidents-view")):
+            path = os.path.join(self.dir.name, folder, "log.md")
+            write(path, "# Log: <issue #number | feature name>\n\nIntro\n\n| Date |\n")
+            self.script.append_row(path, "1 Intake", "Orchestrator", "branch")
+            self.script.append_row(path, "2 Plan", "Orchestrator", "plan")
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertTrue(text.startswith(f"# Log: {heading}\n\nIntro"), text)
+            self.assertEqual(text.count("# Log:"), 1)
+
+    def test_a_log_with_its_own_heading_is_left_alone(self):
+        write(self.path, "# Log: custom\n\n| Date |\n")
+        self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch")
+        with open(self.path, encoding="utf-8") as handle:
+            self.assertTrue(handle.read().startswith("# Log: custom\n"))
+
     def test_product_manager_and_user_rows_are_not_launches(self):
         write(self.path, "| Date |\n"
                          "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
@@ -441,6 +458,16 @@ class TestScopeCheck(unittest.TestCase):
     def errors(self, tier=None, no_specs=False):
         base = self.script.merge_base()
         return self.script.check(self.script.changed_files(base), base, tier, no_specs)
+
+    def test_base_that_is_not_an_ancestor_of_head_is_stale(self):
+        self.assertFalse(self.script.base_is_stale())
+        git("checkout", "-q", "main")
+        write("README.md", "# Readme\n\nmain moved on\n")
+        git("commit", "-q", "-am", "main moved")
+        git("checkout", "-q", "work")
+        write("src/a.go", "package a\n\nvar X = 1\n")
+        git("commit", "-q", "-am", "work")
+        self.assertTrue(self.script.base_is_stale())
 
     def test_clean_product_change_passes(self):
         write("src/a.go", "package a\n\nvar X = 1\n")

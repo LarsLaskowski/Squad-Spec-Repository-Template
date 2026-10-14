@@ -16,6 +16,8 @@ mechanics out of the orchestrator's hands:
   so nothing is typed from memory) or `--launch MODEL/EFFORT`, with `--tokens N --tool-uses N --seconds N` from
   the usage block of the launch's task notification, appends a trailer `(opus/high · 37,445 tokens · 6 tool
   uses · 57 s)` the summary can read back;
+- the first row replaces the template's heading `# Log: <issue #number | feature name>` with the work folder's
+  (`# Log: issue #3`, `# Log: feature incidents-view`), so the posted record carries no placeholder;
 - one row names one member: a member cell that lists two (`squad-reviewer / squad-security`, a comma, `and`)
   is refused, because the trailer of a parallel launch belongs to one row each, or `--amend-last` cannot tell
   them apart;
@@ -253,9 +255,23 @@ def amend_last(path, member, launch, replace=False, step=None):
     return None
 
 
+PLACEHOLDER_HEADING = b"# Log: <issue #number | feature name>"
+
+
+def log_heading(path):
+    """`issue #3` for `specs/issue-3/log.md`, `feature x` for `specs/feature-x/log.md`, else the folder name."""
+    name = os.path.basename(os.path.dirname(os.path.abspath(path)))
+    kind, _, rest = name.partition("-")
+    if kind == "issue" and rest.isdigit():
+        return f"issue #{rest}"
+    return f"{kind} {rest}" if rest else name
+
+
 def append_row(path, step, member, result, today=None, launch=None):
     with open(path, "rb") as handle:
         data = handle.read()
+    if data.startswith(PLACEHOLDER_HEADING):
+        data = f"# Log: {log_heading(path)}".encode() + data[len(PLACEHOLDER_HEADING):]
     eol = b"\r\n" if b"\r\n" in data else b"\n"
     date = today or datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M")
     text = cell(result) if launch is None else f"{cell(result)} {trailer(*launch)}"

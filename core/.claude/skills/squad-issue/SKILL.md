@@ -79,9 +79,11 @@ action yourself — including follow-up issues the Lead decides on.
 
 1. **Intake.** Read the issue in full, including comments; note the reported environment (versions of the
    software involved, image tag or release, host OS, configuration). If it is closed, stop and report that. Start
-   from a clean working tree on a new branch off the latest `main`, e.g.
+   from a clean working tree on a new branch off the latest `main` (run `git fetch origin main` first: a
+   stale local `origin/main` makes `scope-check.py` report files that are not yours), e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create
-   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
+   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it (the first `squad-log.py` row replaces the heading placeholder with
+   the work folder's name). Only you (the
    orchestrator) write `log.md`, one row per step, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
    ending, escapes pipes and control characters, and stamps the row with date and time of day (UTC), so the
@@ -91,7 +93,10 @@ action yourself — including follow-up issues the Lead decides on.
    overrode them). The three numbers come from the usage block of the launch's **task notification**, not
    from the member's hand-back message, and that notification may arrive after you have already read the
    report: write the row as soon as the report is in, **without any metric option** (no `--agent`,
-   `--tokens`, `--tool-uses` or `--seconds`), and add the metrics when the notification arrives with
+   `--tokens`, `--tool-uses` or `--seconds`). `--agent` (or `--launch`) is rejected without `--tokens`,
+   `--tool-uses` and `--seconds`, so the first row of a launch carries none of them; model and effort are
+   recorded by the later `--amend-last`. Never use placeholder numbers to get past that check. Add the
+   metrics when the notification arrives with
    `python3 .squad/tools/squad-log.py issue-<number> --amend-last "<member>" --agent squad-<role> --tokens …
    --tool-uses … --seconds …` — `--amend-last` is the only way to add them later, never editing `log.md` by
    hand or placeholder numbers (the script refuses fewer than 1,000 tokens). **Every number you pass is
@@ -161,7 +166,8 @@ action yourself — including follow-up issues the Lead decides on.
    production and test code — see *Changes without production or test code* in `.squad/routing.md`, which also
    skips step 5 and the *Coverage gate* in step 6 and requires the plan's *Verification without tests* section;
    log the skipped steps and run the verification named there instead). Launch `squad-dev` in mode `skeleton`: the planned
-   signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), plus the existing
+   signatures built as *Skeleton* in `.squad/stack.md` describes (the profile's body is the default; a zero-value stub only where it would break a passing
+   test, with the new tests still failing on it, reported by the Dev as a deviation), plus the existing
    test call sites the plan assigns to the Dev for an incompatible signature change, so the tests of step 5
    compile.
 5. **Tests first** (skipped for `trivial`). Launch `squad-tester` in mode `tests-first`: only the tests the
@@ -269,6 +275,11 @@ action yourself — including follow-up issues the Lead decides on.
     - code-analysis findings → `squad-code-officer` (structural ones → `squad-dev`);
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
+
+    While a member is running, wait for its hand-back before ending your turn: after the PR every push costs a
+    CI cycle. When a stop hook still forces a commit and push of a half-finished tree, log that head as work in
+    progress (a row naming the SHA) and do not judge CI or the code analysis on it; the commit that closes the
+    round is the head to judge.
 
     Continue the member that made the change and the reviewer of the last round where their agent ids are
     still known (*Continue a member*). Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), with at

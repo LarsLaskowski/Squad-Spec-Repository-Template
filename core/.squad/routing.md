@@ -201,7 +201,9 @@ merge* only the PR title and description reach `main`, so intermediate commits m
 They never contain secrets. A stop hook may demand a commit while a member is still working; that interim
 commit ("Work in progress: …") is fine, and the commit that closes the round gets a final subject. Before
 the PR such commits cost nothing; after it every push re-triggers CI and the code analysis, so edits are
-batched and committed once per round.
+batched and committed once per round. After the PR the orchestrator waits for the running member's hand-back
+before it ends its turn; when a hook still forces a push of a half-finished tree, that head is logged as work in
+progress and neither CI nor the code analysis is judged on it.
 
 ### Draft until green
 

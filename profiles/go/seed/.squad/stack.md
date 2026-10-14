@@ -107,6 +107,10 @@ New functions and methods with their full signature and doc comment, bodies
 return a zero value or an error (`errors.New("not implemented")`) where the signature allows it, and
 `panic("not implemented")` only where it does not (a `panic` aborts the whole test binary), so the module
 builds and the tests compile and fail.
+A constructor (`New…`) only stores its arguments and returns the value without an error or a panic, so a test
+harness that builds the type does not fail before its assertion.
+The `Skeleton` body above is the default. A zero-value stub is allowed only where it would break a test that
+exists and passes today: the new tests must still fail on the stub, and the Dev reports it as a deviation.
 
 ## Dependencies
 

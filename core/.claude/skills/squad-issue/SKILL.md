@@ -91,7 +91,10 @@ action yourself — including follow-up issues the Lead decides on.
    overrode them). The three numbers come from the usage block of the launch's **task notification**, not
    from the member's hand-back message, and that notification may arrive after you have already read the
    report: write the row as soon as the report is in, **without any metric option** (no `--agent`,
-   `--tokens`, `--tool-uses` or `--seconds`), and add the metrics when the notification arrives with
+   `--tokens`, `--tool-uses` or `--seconds`). `--agent` (or `--launch`) is rejected without `--tokens`,
+   `--tool-uses` and `--seconds`, so the first row of a launch carries none of them; model and effort are
+   recorded by the later `--amend-last`. Never use placeholder numbers to get past that check. Add the
+   metrics when the notification arrives with
    `python3 .squad/tools/squad-log.py issue-<number> --amend-last "<member>" --agent squad-<role> --tokens …
    --tool-uses … --seconds …` — `--amend-last` is the only way to add them later, never editing `log.md` by
    hand or placeholder numbers (the script refuses fewer than 1,000 tokens). **Every number you pass is

@@ -31,7 +31,9 @@ commit/push rules and the orchestrator role are identical to the `squad-issue` s
 - **Steps 4–6** run per task or group of tasks from `tasks.md`; tick tasks off as they are done. Run
   Tester and Dev one after another, never in parallel (see *Concurrency* in `.squad/routing.md`). Continue
   a member for the fix and delta rounds of its task group (*Continue a member* in `squad-issue`); the next
-  task group starts with a fresh launch, so a member's context does not grow over the whole feature.
+  task group starts with a fresh launch, so a member's context does not grow over the whole feature. A fix
+  round for an earlier task group whose agent is no longer the member's last fresh launch is logged with
+  `--continued-from "<step cell of that group's launch>"`, so its tokens are subtracted from the right agent.
 - **Step 10 — pull request:** the working record (`spec.md`, `plan.md`, `tasks.md`, `log.md`) is posted
   to the feature request issue if one exists (`Closes #<n>` in the PR), otherwise as the first comment on
   the PR right after opening it; the folder is removed before the PR as in `squad-issue`. The PR opens as a

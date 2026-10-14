@@ -78,6 +78,17 @@ SonarQube Cloud reads `sonar.coverage.exclusions` in `sonar-project.properties`.
 - `context.Context` is the first parameter of anything that does I/O or can block, and is honored.
 - {{TODO: project-specific conventions}}
 
+## Logger arguments
+
+CodeQL's *Clear-text logging of sensitive information* (`go/clear-text-logging`) judges a value by its
+**name**: a variable, field or call whose name contains `secret` (not `issecret`), `trusted` (not `untrusted`,
+`istrusted`), `puid`, `username`, `userid`, `password`, `passwd`, `passcode`, `passphrase` (unless followed by
+`question`) or `authkey`, `authenticationkey`, `authorizationkey`, `apikey`, `secretkey` counts as sensitive,
+unless the name also contains `test`, `redact`, `censor`, `obfuscate`, `hash`, `md5`, `mask`, `sha`, `crypt` or
+`code` (`go/ql/lib/semmle/go/security/SensitiveActions.qll` in `github/codeql`, `HeuristicNames`). Such a name
+passed to a log call fails the PR in CI, also when it holds only a label, and no local gate reports it. The
+remedy is a neutral name for the value whose text a test pins, never a suppression.
+
 ## Writing tests
 
 See `docs/UNIT_TESTS.md`: the standard `testing` package, table-driven tests with `t.Run`, `t.Helper()` in

@@ -61,6 +61,10 @@ The orchestrator tells you which **mode** to run:
   - the files of the change no unit test can cover (a browser script without a test runner, a generated
     file), each with the reason — or "none" — so the exclusion from the coverage measure is decided now
     and not after the PR (*Code a unit test cannot cover* in `.squad/routing.md`);
+  - for a security property that rests on measured or library behavior (a deadline that interrupts a query
+    step, a limit a parser enforces): the claim marked *unverified* with the scratch measurement that
+    settles it, run once by the Dev before the claim goes into a record, an area document or the docs;
+    Security verifies it in its review. A claim no one measured is never repeated as fact;
   - for a guard against bypasses (a validation or allow-list on input that a parser or tool consumes): the
     forms that parser really accepts, enumerated from its source or documentation, and the guard's behavior
     on each — not only the example the issue names;

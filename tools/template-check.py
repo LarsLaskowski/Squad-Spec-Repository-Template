@@ -23,9 +23,10 @@ Checks, without arguments:
   fails when a profile's analyzer script is missing;
 - the `sonar-project.properties` seed is skipped in a repository with the `dotnet` profile (its scanner refuses
   the file) and still written for go+node;
-- `decision-check.py` on a temporary repository: consistent records pass, an unreleased record may be edited
-  in place, and around a release tag a rewritten, deleted or wrongly superseded record fails; once areas are
-  defined, a record without a listed `Area:` and an area without its document fail.
+- `decision-check.py` on a temporary repository: consistent records pass, a duplicate number and a link to a
+  renamed record fail, an unreleased record may be edited in place, and around a release tag a rewritten,
+  deleted or wrongly superseded record fails; once areas are defined, a record without a listed `Area:` and an
+  area without its document fail.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -453,6 +454,19 @@ def check_decision_tool(errors):
         expect("consistent records without tags", True)
         write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")], link=True)
         expect("index rows that link the record", True)
+        write_record(repo, "0002", body="Second, extends [0001](0001-topic.md#decision) and "
+                                        "[0001](../decisions/0001-topic.md).")
+        expect("links to existing records", True)
+        write_record(repo, "0002", body="Second, extends [0001](0001-renamed.md).")
+        expect("link to a renamed record", False)
+        write_record(repo, "0002", body="Second.")
+        write_index(repo, [("[0001](0001-old.md)", "Accepted"), ("0002", "Accepted")])
+        expect("index row linking a renamed record", False)
+        with open(os.path.join(repo, "docs", "decisions", "0002-other.md"), "w", encoding="utf-8") as handle:
+            handle.write(RECORD.format(n="0002", title="Other", status="Accepted", supersedes="—", body="Other."))
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])
+        expect("two records with one number", False)
+        os.remove(os.path.join(repo, "docs", "decisions", "0002-other.md"))
         write_index(repo, [("0001", "Accepted")])
         expect("record missing in the index", False)
         write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])

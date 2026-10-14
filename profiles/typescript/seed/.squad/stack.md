@@ -96,6 +96,19 @@ imports still counts as uncovered instead of missing from the report.
 - Exported functions declare their return type.
 - {{TODO: project-specific conventions: naming, module layout, error handling}}
 
+## Logger arguments
+
+CodeQL's *Clear-text logging of sensitive information* (`js/clear-text-logging`) judges a value by its
+**name**: a variable, property or call whose name contains `secret`, `trusted`, `confidential`,
+`account`/`accnt`, `puid`, `uid`, `username`/`userid`, `sessionid`/`sessionkey`, `password`, `passwd`,
+`passcode`, `passphrase`, `authkey`, `oauth`, `apikey`/`apitoken`, `mfa`, `cert`, or names private data
+(`ssn`, `zipcode`, `phone`, `creditcard`, `iban`, `birthdate`, `gender`, `medical`, …) counts as sensitive,
+unless it also contains `hash`, `md5`, `sha`, `random`, `crypt`, `encode`, `redact`, `censor`, `obfuscate`,
+`file`, `path`, `url` (or `accounting`, `certain`, `concert`, `secretary`, `wildcard`, `coauthor`)
+(`shared/concepts/codeql/concepts/internal/SensitiveDataHeuristics.qll` in `github/codeql`, `HeuristicNames`).
+Such a name passed to a log call fails the PR in CI, also when it holds only a label, and no local gate
+reports it. The remedy is a neutral name for the value whose text a test pins, never a suppression.
+
 ## Writing tests
 
 See `docs/UNIT_TESTS.md`. Tests follow the same type check and ESLint rules as production code; every

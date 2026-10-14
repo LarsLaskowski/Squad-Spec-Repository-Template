@@ -115,6 +115,18 @@ too.
 - Guards an analyzer asks for (e.g. `if (_logger.IsEnabled(...))` for CA1873) are written by the Dev,
   not added later by the Code Officer.
 
+## Logger arguments
+
+CodeQL's *Clear text storage of sensitive information* (`cs/cleartext-storage-of-sensitive-information`) judges
+a value by its **name**: a variable, field, constant, property or parameter whose lower-case name contains
+`password`, `passwd`, `trusted`, `account…id`, `accnt…id`, `account…key`, `accnt…key`, `license…key`,
+`licence…key` or `voucher…code` counts as sensitive (`csharp/ql/lib/semmle/code/csharp/security/SensitiveActions.qll`
+in `github/codeql`). For names there is no exemption: `PasswordHash` and a constant `EnvWebPasswordHash` that
+holds only the name of an environment variable count too (the `hashed`/`encrypted`/`crypt` exemption applies
+to string values, not to names). Such a name passed to a log call fails the PR in CI, and no local gate
+reports it. The remedy is a neutral name for the value (a constant `WebLoginHashVariable` for the variable
+name, for example) whose text a test pins, never a suppression.
+
 ## Writing tests
 
 See `docs/UNIT_TESTS.md`. The rules the MSTest and Sonar analyzers enforce and the Code Officer cannot fix
@@ -144,3 +156,8 @@ itself with a lock (`obj/analyzer-check.lock`), plain builds do not.
   `DOTNET_ROOT="$(dirname "$(readlink -f "$(command -v dotnet)")")"`.
 - `reihitsu-format` asks for confirmation for more than 25 files; `--force` skips the prompt, which a
   non-interactive session cannot answer.
+- `reihitsu-format` rewrites a `\u` escape in a C# string literal into the character it names, so a literal
+  U+2028 then breaks the compilation and a test about an escape tests the wrong input. After *Format*, check
+  the escapes of the changed files on disk (`grep -n '\\u' <file>`, *Escapes in files* in `.squad/team.md`);
+  where the formatter keeps rewriting one, build the character at run time (`char.ConvertFromUtf32(0x2028)`)
+  instead of writing it as an escape in a literal.

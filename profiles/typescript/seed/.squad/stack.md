@@ -119,6 +119,8 @@ interface (`satisfies`, or `vi.fn<…>()` with the signature), never `as any`.
 
 New exports with their full signature, return type and TSDoc, bodies `throw new Error("Not implemented");`,
 so `typecheck` passes and the tests load and fail.
+Constructors store their arguments and never throw: a test harness builds these types, so only member bodies
+fail.
 
 ## Dependencies
 

@@ -79,9 +79,11 @@ action yourself — including follow-up issues the Lead decides on.
 
 1. **Intake.** Read the issue in full, including comments; note the reported environment (versions of the
    software involved, image tag or release, host OS, configuration). If it is closed, stop and report that. Start
-   from a clean working tree on a new branch off the latest `main`, e.g.
+   from a clean working tree on a new branch off the latest `main` (run `git fetch origin main` first: a
+   stale local `origin/main` makes `scope-check.py` report files that are not yours), e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create
-   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it. Only you (the
+   `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it (the first `squad-log.py` row replaces the heading placeholder with
+   the work folder's name). Only you (the
    orchestrator) write `log.md`, one row per step, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — it keeps the line
    ending, escapes pipes and control characters, and stamps the row with date and time of day (UTC), so the
@@ -272,6 +274,11 @@ action yourself — including follow-up issues the Lead decides on.
     - code-analysis findings → `squad-code-officer` (structural ones → `squad-dev`);
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
+
+    While a member is running, wait for its hand-back before ending your turn: after the PR every push costs a
+    CI cycle. When a stop hook still forces a commit and push of a half-finished tree, log that head as work in
+    progress (a row naming the SHA) and do not judge CI or the code analysis on it; the commit that closes the
+    round is the head to judge.
 
     Continue the member that made the change and the reviewer of the last round where their agent ids are
     still known (*Continue a member*). Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), with at

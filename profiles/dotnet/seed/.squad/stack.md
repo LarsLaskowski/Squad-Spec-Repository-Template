@@ -138,6 +138,8 @@ without handing back: pass `TestContext.CancellationToken` to every call that ac
 
 New members with their full signature, XML docs and `#region` blocks, bodies
 `throw new NotImplementedException();`, so the solution builds and the tests compile and fail.
+Constructors store their arguments and never throw: a test harness builds these types, so only member bodies
+fail.
 
 ## Dependencies
 

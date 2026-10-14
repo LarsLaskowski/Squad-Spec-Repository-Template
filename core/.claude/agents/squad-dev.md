@@ -24,7 +24,9 @@ and integration points that apply; `.squad/project.md` is the Lead's and the Rev
 The orchestrator tells you which **mode** to run:
 
 - `skeleton` — add exactly the signatures listed in the plan, built as *Skeleton* in `stack.md` describes,
-  nothing else, and make sure *Build* passes. Bodies return a zero value or an error where the signature
+  nothing else, and make sure *Build* passes. Constructors store their arguments and never throw — a test
+  harness builds these types, and a throwing constructor fails every test at construction instead of at its
+  assertion; only member bodies throw or abort. Bodies return a zero value or an error where the signature
   allows it and abort only where it does not, so one skeleton call does not stop the remaining tests. Rewrite
   the existing files the plan lists, and adapt exactly the existing test call sites the plan assigns to you
   for an incompatible signature change (mechanically, no assertion touched), so the suite builds. This lets

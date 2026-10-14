@@ -104,6 +104,8 @@ New exports with their full signature and JSDoc, bodies `throw new Error("Not im
 `typecheck` passes and the tests load and fail.
 Constructors store their arguments and never throw: a test harness builds these types, so only member bodies
 fail.
+The `Skeleton` body above is the default. A zero-value stub is allowed only where it would break a test that
+exists and passes today: the new tests must still fail on the stub, and the Dev reports it as a deviation.
 
 ## Dependencies
 

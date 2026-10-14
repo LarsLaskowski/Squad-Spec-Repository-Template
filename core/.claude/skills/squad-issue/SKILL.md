@@ -166,7 +166,8 @@ action yourself — including follow-up issues the Lead decides on.
    production and test code — see *Changes without production or test code* in `.squad/routing.md`, which also
    skips step 5 and the *Coverage gate* in step 6 and requires the plan's *Verification without tests* section;
    log the skipped steps and run the verification named there instead). Launch `squad-dev` in mode `skeleton`: the planned
-   signatures built as *Skeleton* in `.squad/stack.md` describes (bodies fail when called), plus the existing
+   signatures built as *Skeleton* in `.squad/stack.md` describes (the profile's body is the default; a zero-value stub only where it would break a passing
+   test, with the new tests still failing on it, reported by the Dev as a deviation), plus the existing
    test call sites the plan assigns to the Dev for an incompatible signature change, so the tests of step 5
    compile.
 5. **Tests first** (skipped for `trivial`). Launch `squad-tester` in mode `tests-first`: only the tests the

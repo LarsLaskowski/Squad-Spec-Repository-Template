@@ -140,6 +140,8 @@ New members with their full signature, XML docs and `#region` blocks, bodies
 `throw new NotImplementedException();`, so the solution builds and the tests compile and fail.
 Constructors store their arguments and never throw: a test harness builds these types, so only member bodies
 fail.
+The `Skeleton` body above is the default. A zero-value stub is allowed only where it would break a test that
+exists and passes today: the new tests must still fail on the stub, and the Dev reports it as a deviation.
 
 ## Dependencies
 

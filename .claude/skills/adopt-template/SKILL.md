@@ -34,7 +34,8 @@ Rules that hold throughout:
    profile's seeds (`git -C <template> diff <old commit>..main -- profiles/<profile>/seed`) and carry over
    changed commands or settings by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
-   `package.json` → `node`. If several match and each is product code (e.g. a Go agent and a .NET
+   `tsconfig.json` → `typescript`, `package.json` without `tsconfig.json` → `node` (a repository already on
+   `node` keeps it on a refresh). If several match and each is product code (e.g. a Go agent and a .NET
    backend), use all of them — pass `--profile` once per profile, the main product code first; a profile
    that only builds tooling or a client the main profile already covers stays out. Say which you chose and
    why. On a refresh keep the recorded `profiles`: run without `--profile`. If none matches, stop: a new
@@ -90,7 +91,8 @@ Rules that hold throughout:
    solution or module name, layout, every command, coverage paths. Run each command once to prove it
    works. Where the profile expects a tool the target does not have yet (e.g. ESLint with
    eslint-plugin-sonarjs, Prettier and the npm scripts `format`, `format:check`, `lint`, `typecheck`,
-   `coverage:lcov` for `node`; Reihitsu or SonarAnalyzer.CSharp for `dotnet`), add it — a new dev
+   `coverage:lcov` for `node`; the same scripts with typescript-eslint's type-aware configs, Vitest and
+   `@vitest/coverage-v8` for `typescript`; Reihitsu or SonarAnalyzer.CSharp for `dotnet`), add it — a new dev
    dependency is part of this PR and is named in its description. If adding it would change a lot of
    unrelated code (a formatter's first run), keep the gate limited to changed files and say so in the PR.
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`

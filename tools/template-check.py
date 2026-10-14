@@ -305,7 +305,7 @@ def check_multi(names, target, errors):
         name = os.path.basename(path)
         if name == "codeql.yml":
             languages = [entry["language"] for entry in parsed["jobs"]["analyze"]["strategy"]["matrix"]["include"]]
-            expected = [single_value(n, "codeql.yml", r"- language: (\S+)") for n in names]
+            expected = list(dict.fromkeys(single_value(n, "codeql.yml", r"- language: (\S+)") for n in names))
             if languages != expected:
                 errors.append(f"profile {label}: codeql.yml languages {languages}, expected {expected}")
         elif name == "dependabot.yml":

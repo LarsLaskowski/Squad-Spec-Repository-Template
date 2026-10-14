@@ -72,8 +72,9 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 | Profile | Detected by | Formatter | Analyzer gate | Coverage | Repositories |
 | ------- | ----------- | --------- | ------------- | -------- | ------------ |
 | `dotnet` | `*.slnx`, `*.sln`, `*.csproj` | `reihitsu-format` | Roslyn SARIF of a full build: Reihitsu, SonarAnalyzer.CSharp, MSTest, CA | Cobertura (coverlet) | PlexToJellyfinSync, DockerUpdateGuard, F1-Telemetry |
-| `node` | `package.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov | OpenHabLogViewer, e-networld |
+| `node` | `package.json` without `tsconfig.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov | OpenHabLogViewer, e-networld |
 | `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base --whole-files` | Go coverprofile | PiMonitor |
+| `typescript` | `tsconfig.json` | Prettier | `tsc --noEmit` + type-aware ESLint (typescript-eslint `strictTypeChecked`, eslint-plugin-sonarjs) on changed files | lcov (Vitest, v8) | — (first repository refines it) |
 
 ## Several profiles (e.g. Go and .NET)
 

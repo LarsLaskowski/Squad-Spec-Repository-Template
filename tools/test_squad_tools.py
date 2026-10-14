@@ -165,26 +165,29 @@ class TestSquadLog(unittest.TestCase):
 
     def test_continued_launch_logs_the_rounds_share(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
-        self.assertIsNone(self.script.previous_totals(self.path, "Reviewer"), "no launch yet")
+        self.assertIsNone(self.script.previous_tokens(self.path, "Reviewer"), "no launch yet")
         self.assertIsNone(self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 5000, 1, 1)))
         self.script.append_row(self.path, "8 Review", "Reviewer", "2 findings", today="2026-01-02 13:00",
                                launch=("opus/medium", 137666, 38, 279))
         self.script.append_row(self.path, "8 Security diff", "Security", "APPROVED", today="2026-01-02 13:00",
                                launch=("opus/medium", 89977, 16, 120))
-        # The notification of a continued agent reports its totals: 139,230 tokens, 40 tool uses, 300 s.
-        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 139230, 40, 300))
-        self.assertEqual(share, ("opus/medium", 1564, 2, 21, True))
+        # The notification of a continued agent reports its tokens since the first launch (139,230), its tool
+        # uses and seconds for the round alone.
+        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 139230, 2, 21))
+        self.assertEqual(share, ("opus/medium", 1564, 2, 21, True, None))
         row = self.script.append_row(self.path, "8 Review delta", "Reviewer", "APPROVE (continued)",
                                      today="2026-01-02 13:05", launch=share)
         self.assertTrue(row.endswith("(opus/medium · 1,564 tokens · 2 tool uses · 21 s · continued) |"), row)
         # A second continuation subtracts the fresh launch and the first continuation together.
-        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 150000, 45, 400))
-        self.assertEqual(share, ("opus/medium", 10770, 5, 100, True))
+        share = self.script.continued_launch(self.path, "Reviewer", ("opus/medium", 150000, 5, 100))
+        self.assertEqual(share, ("opus/medium", 10770, 5, 100, True, None))
         self.script.append_row(self.path, "8 Review delta 2", "Reviewer", "APPROVE", today="2026-01-02 13:10",
                                launch=share)
-        # A figure below the earlier total was already the round alone and is kept (here tool uses and seconds).
         share = self.script.continued_launch(self.path, "Security", ("opus/medium", 98025, 2, 12))
-        self.assertEqual(share, ("opus/medium", 8048, 2, 12, True))
+        self.assertEqual(share, ("opus/medium", 8048, 2, 12, True, None))
+        # A token figure below the earlier total was already the round alone and is kept.
+        self.assertEqual(self.script.continued_launch(self.path, "Security", ("opus/medium", 5000, 1, 9)),
+                         ("opus/medium", 5000, 1, 9, True, None))
         self.script.append_row(self.path, "3 Confirm", "Security", "APPROVED", today="2026-01-02 13:10", launch=share)
         table = self.script.summary(self.path)
         self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 150,000 | 45 | 400 |", table)
@@ -203,7 +206,7 @@ class TestSquadLog(unittest.TestCase):
         def run(*args):
             return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
                                   text=True, check=False)
-        usage = ["--agent", "squad-reviewer", "--tokens", "101500", "--tool-uses", "32", "--seconds", "230"]
+        usage = ["--agent", "squad-reviewer", "--tokens", "101500", "--tool-uses", "2", "--seconds", "30"]
         two = run("8 Review", "Reviewer / Security", "both approve", *usage)
         self.assertEqual(two.returncode, 2, two.stderr)
         self.assertIn("one row per launch", two.stderr)
@@ -218,7 +221,7 @@ class TestSquadLog(unittest.TestCase):
                         done.stdout)
         self.assertEqual(run("8 Review delta 2", "Reviewer", "APPROVE").returncode, 0)
         amended = run("--amend-last", "Reviewer", "--continued", "--agent", "squad-reviewer", "--tokens", "103000",
-                      "--tool-uses", "33", "--seconds", "240")
+                      "--tool-uses", "1", "--seconds", "10")
         self.assertEqual(amended.returncode, 0, amended.stderr)
         self.assertIn("(opus/medium · 1,500 tokens · 1 tool uses · 10 s · continued) |", amended.stdout)
         complete = run("--summary")
@@ -226,10 +229,87 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 103,000 | 33 | 240 |", complete.stdout)
         # A wrong continued trailer is replaced against the totals before it, not against itself.
         replaced = run("--replace-last", "Reviewer", "--continued", "--agent", "squad-reviewer", "--tokens", "104000",
-                       "--tool-uses", "34", "--seconds", "250")
+                       "--tool-uses", "2", "--seconds", "20")
         self.assertEqual(replaced.returncode, 0, replaced.stderr)
         self.assertIn("(opus/medium · 2,500 tokens · 2 tool uses · 20 s · continued) |", replaced.stdout)
         self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 104,000 | 34 | 250 |", run("--summary").stdout)
+
+    def test_continued_from_subtracts_the_continued_launch_only(self):
+        write(self.path, "| Date |\n")
+        implement, docs = "6 Implement (rows 9-14)", "6 Docs (rows 15-18)"
+        self.script.append_row(self.path, "4 Skeleton", "Dev", "built", today="2026-01-02 13:00",
+                               launch=("sonnet/medium", 60000, 10, 300))
+        self.script.append_row(self.path, implement, "Dev", "done", today="2026-01-02 14:00",
+                               launch=("sonnet/medium", 400000, 80, 1800))
+        self.script.append_row(self.path, docs, "Dev", "done", today="2026-01-02 14:30",
+                               launch=("sonnet/medium", 181167, 20, 275))
+        # The implement agent is continued: its tokens since its first launch are 404,178.
+        self.assertIsNone(self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 404178, 5, 317),
+                                                       origin="6 Review"), "no fresh launch of that step")
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 404178, 5, 317), origin=implement)
+        self.assertEqual(share, ("sonnet/medium", 4178, 5, 317, True, implement))
+        row = self.script.append_row(self.path, "7 Fix", "Dev", "fixed", today="2026-01-02 15:00", launch=share)
+        self.assertTrue(row.endswith("(sonnet/medium · 4,178 tokens · 5 tool uses · 317 s · continued from "
+                                     "6 Implement (rows 9-14)) |"), row)
+        # A plain continuation still belongs to the last fresh launch (docs), not to the implement chain …
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 190000, 3, 40))
+        self.assertEqual(share[1], 8833)
+        self.script.append_row(self.path, "8 Fix docs", "Dev", "fixed", today="2026-01-02 15:10", launch=share)
+        # … and the next continuation of the implement agent subtracts that chain with its own continuation.
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 410000, 4, 90), origin=implement)
+        self.assertEqual(share[1], 5822)
+        self.script.append_row(self.path, "8 Fix 2", "Dev", "fixed", today="2026-01-02 15:20", launch=share)
+        self.assertIn("| Dev | sonnet/medium | 6 (3 continued) | 660,000 | 122 | 2822 |", self.script.summary(self.path))
+        # A replaced continuation is computed against its chain without itself.
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 411000, 4, 90), skip_last=True,
+                                             origin=implement)
+        self.assertEqual(share[1], 6822)
+        self.assertIn("continued from 6 Implement (rows 9-14)) |",
+                      self.script.amend_last(self.path, "Dev", share, replace=True))
+        # A step with a pipe stays one cell, in the row and in the trailer.
+        self.script.append_row(self.path, "6 A | B", "Dev", "done", today="2026-01-02 16:00",
+                               launch=("sonnet/medium", 50000, 5, 50))
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 52000, 1, 5), origin="6 A | B")
+        row = self.script.append_row(self.path, "7 Fix", "Dev", "a | b", today="2026-01-02 16:05", launch=share)
+        self.assertTrue(row.endswith("| a \\| b (sonnet/medium · 2,000 tokens · 1 tool uses · 5 s · continued from "
+                                     "6 A \\| B) |"), row)
+        self.assertEqual(self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 53000, 1, 5),
+                                                      origin="6 A | B")[1], 1000)
+
+    def test_cli_continued_from(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n"
+                   "| 2026-01-02 13:00 | 6 Implement | Dev | done (sonnet/medium · 100,000 tokens · 30 tool uses · 900 s) |\n"
+                   "| 2026-01-02 14:00 | 6 Docs | Dev | done (sonnet/medium · 50,000 tokens · 10 tool uses · 200 s) |\n")
+
+        def run(*args):
+            return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", *args], cwd=root,
+                                  capture_output=True, text=True, check=False)
+        usage = ["--agent", "squad-dev", "--tokens", "104000", "--tool-uses", "4", "--seconds", "60"]
+        missing = run("7 Fix", "Dev", "fixed", "--continued-from", "6 Review", *usage)
+        self.assertEqual(missing.returncode, 1)
+        self.assertIn("no fresh launch of Dev with usage at step '6 Review'", missing.stdout)
+        done = run("7 Fix", "Dev", "fixed", "--continued-from", "6 Implement", *usage)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("(sonnet/medium · 4,000 tokens · 4 tool uses · 60 s · continued from 6 Implement) |", done.stdout)
+        self.assertEqual(run("7 Fix 2", "Dev", "fixed").returncode, 0)
+        amended = run("--amend-last", "Dev", "--continued-from", "6 Implement", "--agent", "squad-dev", "--tokens",
+                      "105000", "--tool-uses", "2", "--seconds", "30")
+        self.assertIn("(sonnet/medium · 1,000 tokens · 2 tool uses · 30 s · continued from 6 Implement) |",
+                      amended.stdout)
+        self.assertIn("| Dev | sonnet/medium | 4 (2 continued) | 155,000 | 46 | 1190 |", run("--summary").stdout)
+
+    def test_product_manager_and_user_rows_are_not_launches(self):
+        write(self.path, "| Date |\n"
+                         "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
+                         "| 2026-01-02 13:05 | 2 Plan | Lead | plan (opus/high · 50,000 tokens · 9 tool uses · 300 s) |\n"
+                         "| 2026-01-02 13:30 | 2 Escalation | Product Manager | option B |\n"
+                         "| 2026-01-02 14:00 | 7 Reference host | User | 1.4 s on the reference host |\n")
+        table = self.script.summary(self.path)
+        self.assertNotIn("Incomplete", table)
+        self.assertIn("| **Total** | | 1 | 50,000 | 9 | 300 |", table)
 
     def test_summary_lists_launch_rows_without_usage(self):
         root = os.path.join(self.dir.name, "repo")
@@ -280,8 +360,8 @@ class TestSquadLog(unittest.TestCase):
                           "amended twice")
         # The member's last row is untouched and can still be amended without a selector, as a continuation
         # whose share is computed from the rows before it.
-        share = self.script.continued_launch(self.path, "Security", ("opus/medium", 70000, 11, 160), step="3 Plan security delta")
-        self.assertEqual(share, ("opus/medium", 24249, 4, 52, True))
+        share = self.script.continued_launch(self.path, "Security", ("opus/medium", 70000, 4, 52), step="3 Plan security delta")
+        self.assertEqual(share, ("opus/medium", 24249, 4, 52, True, None))
         row = self.script.amend_last(self.path, "Security", share, step="3 Plan security delta")
         self.assertIn("APPROVED (opus/medium · 24,249 tokens · 4 tool uses · 52 s · continued) |", row)
         row = self.script.amend_last(self.path, "Lead", ("opus/medium", 20000, 5, 60), step="2 Plan revise")

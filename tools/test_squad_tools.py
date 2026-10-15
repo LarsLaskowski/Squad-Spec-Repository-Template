@@ -447,7 +447,9 @@ class TestSquadLog(unittest.TestCase):
                      ("--amend-last", "product manager", "--unreported", "--agent", "squad-lead"),
                      ("--replace-last", "User", "--agent", "squad-lead", "--tokens", "5000", "--tool-uses", "1",
                       "--seconds", "1"),
-                     ("--amend-last", "Orchestrator", "--unreported", "--agent", "squad-lead")):
+                     ("--amend-last", "Orchestrator", "--unreported", "--agent", "squad-lead"),
+                     ("3 Intake", "Orchestrator", "x", "--tool-uses", "3"),
+                     ("3 Intake", "User", "x", "--seconds", "9")):
             result = run(*args)
             self.assertEqual(result.returncode, 2, args)
             self.assertIn("is no launch", result.stderr)
@@ -464,6 +466,19 @@ class TestSquadLog(unittest.TestCase):
                                 check=False)
         self.assertEqual(result.returncode, 2)
         self.assertIn("without any metric option (no --agent either)", result.stderr)
+
+    def test_tool_uses_or_seconds_alone_are_an_incomplete_set(self):
+        root = os.path.join(self.dir.name, "repo")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n")
+        for extra in (("--tool-uses", "4"), ("--seconds", "9"), ("--tool-uses", "4", "--seconds", "9")):
+            result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "3 Test",
+                                     "squad-tester", "t", *extra], cwd=root, capture_output=True, text=True,
+                                    check=False)
+            self.assertEqual(result.returncode, 2, extra)
+            self.assertIn("go together", result.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), "| Date |\n")
 
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")

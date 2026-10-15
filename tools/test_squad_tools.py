@@ -413,8 +413,9 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(marked.returncode, 0, marked.stderr)
         self.assertIn("| 2 Challenge | Devil's Advocate | 0 major, 2 minor (sonnet/medium · usage not reported) |",
                       marked.stdout)
-        self.assertEqual(run("--amend-last", "Devil's Advocate", "--unreported", "--agent",
-                             "squad-devils-advocate").returncode, 1, "marked once")
+        again = run("--amend-last", "Devil's Advocate", "--unreported", "--agent", "squad-devils-advocate")
+        self.assertEqual(again.returncode, 1, "marked once")
+        self.assertIn("--replace-last", again.stdout)
         complete = run("--summary")
         self.assertEqual(complete.returncode, 0, complete.stdout)
         self.assertIn("| Devil's Advocate | sonnet/medium | 1 | 0 | 0 | 0 |", complete.stdout)
@@ -428,6 +429,41 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("(sonnet/medium · 33,612 tokens · 9 tool uses · 20 s) |", replaced.stdout)
         self.assertNotIn("Without reported usage", run("--summary").stdout)
         self.assertIn("| **Total** | | 2 | 83,612 | 18 | 520 |", run("--summary").stdout)
+
+    def test_rows_of_members_that_are_no_launch_take_no_metrics(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        self.assertEqual(run("2 Escalation", "Product Manager", "option B").returncode, 0)
+        for args in (("2 Escalation", "Product Manager", "option B", "--agent", "squad-lead", "--tokens", "5000",
+                      "--tool-uses", "1", "--seconds", "1"),
+                     ("--amend-last", "Product Manager", "--unreported"),
+                     ("--amend-last", "product manager", "--unreported", "--agent", "squad-lead"),
+                     ("--replace-last", "User", "--agent", "squad-lead", "--tokens", "5000", "--tool-uses", "1",
+                      "--seconds", "1"),
+                     ("--amend-last", "Orchestrator", "--unreported", "--agent", "squad-lead")):
+            result = run(*args)
+            self.assertEqual(result.returncode, 2, args)
+            self.assertIn("is no launch", result.stderr)
+        summary = run("--summary")
+        self.assertEqual(summary.returncode, 0, summary.stdout)
+        self.assertNotIn("Incomplete", summary.stdout)
+
+    def test_metric_options_without_numbers_name_the_row_without_metrics(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
+        write(os.path.join(root, "specs", "issue-1", "log.md"), "| Date |\n")
+        result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "2 Plan", "Lead",
+                                 "plan", "--agent", "squad-lead"], cwd=root, capture_output=True, text=True,
+                                check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("without any metric option (no --agent either)", result.stderr)
 
     def test_controls_pipes_and_newlines_are_escaped(self):
         write(self.path, "| Date |\n")

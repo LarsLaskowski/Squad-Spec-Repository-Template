@@ -124,7 +124,8 @@ The orchestrator tells you which **mode** to run:
   objections you are given; on `security` both arrive together in one launch. Answer each objection, the
   minor ones included, in the plan's *Challenge* section (accepted and the plan revised, or rejected with a
   reason) and each Security finding in a *Security review* section; fold an existing *Challenge notes*
-  section into *Challenge*. Because of an objection you may narrow the scope, raise the tier or return
+  section into *Challenge* and decide every choice a *Security notes* entry leaves the plan (the option
+  taken and why), folding the section into *Security review*. Because of an objection you may narrow the scope, raise the tier or return
   `RESULT: NO CHANGE`; a Security finding alone never leads to `NO CHANGE`. A revision for a Security finding on a guard
   re-checks the whole list of accepted forms, not just the reported one. Update the affected decision
   records (a rejected option and the reason belong under *Options considered*).

@@ -4,7 +4,8 @@
 Checks, without arguments:
 
 - every agent and skill, both in `core/` and at the repository root, has valid front matter;
-- `core/CLAUDE.md` uses only repository-rooted links, and every `<!-- …:begin X -->` marker in a core file has
+- `core/AGENTS.md` and `core/CLAUDE.md` use only repository-rooted links, `core/CLAUDE.md` only imports
+  `AGENTS.md` (no section, no marker of its own), and every `<!-- …:begin X -->` marker in a core file has
   its matching end marker;
 - no Markdown file under `core/`, `profiles/`, `seed/`, `multi/` or `decision-seeds/` contains a character
   `scope-check.py` rejects (a zero width joiner in an emoji, for example);
@@ -15,8 +16,10 @@ Checks, without arguments:
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
   filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
   files the template no longer manages (`RETIRED` in `apply-template.py`) are gone and a line that still refers
-  to one is reported; `.github/copilot-instructions.md` carries the body of `CLAUDE.md`, and `config-check.py`
-  fails once the two differ;
+  to one is reported; a `CLAUDE.md` that still holds the rules (the layout before `AGENTS.md` held them) has its
+  project blocks carried into `AGENTS.md` and is replaced by the core one; `.github/copilot-instructions.md`
+  carries the body of `AGENTS.md`, and `config-check.py` fails once the two differ or `CLAUDE.md` stops importing
+  `AGENTS.md`;
 - the same smoke test for all profiles together (a repository with several languages): the merged CI,
   CodeQL and Dependabot files are valid YAML with every profile's jobs, languages and ecosystems, a refresh
   without `--profile` keeps the recorded profiles, naming another set is refused, and `config-check.py`
@@ -45,7 +48,9 @@ sys.dont_write_bytecode = True  # importing the profiles' squad_settings.py must
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORE = os.path.join(ROOT, "core")
 SKILLS = os.path.join(".claude", "skills")
-INSTRUCTIONS = ["CLAUDE.md", os.path.join(".github", "copilot-instructions.md")]
+RULES = "AGENTS.md"
+CLAUDE = "CLAUDE.md"
+INSTRUCTIONS = [RULES, CLAUDE, os.path.join(".github", "copilot-instructions.md")]
 COPILOT = os.path.join(".github", "copilot-instructions.md")
 PROFILE_FILES = [
     "instructions.md",
@@ -104,7 +109,10 @@ CORE_HOOKS = [os.path.join(".claude", "hooks", "git-guard.py"), os.path.join(".c
 
 def check_core(errors):
     if "\n## " in read(os.path.join(CORE, COPILOT)):
-        errors.append(f"core/{COPILOT}: holds only the title and introduction, the body is generated from CLAUDE.md")
+        errors.append(f"core/{COPILOT}: holds only the title and introduction, the body is generated from {RULES}")
+    claude = read(os.path.join(CORE, CLAUDE))
+    if not re.search(r"^@AGENTS\.md$", claude, re.M) or "\n## " in claude or MARKER.search(claude):
+        errors.append(f"core/{CLAUDE}: only imports {RULES} ('@{RULES}' on a line of its own, no section or marker)")
     for rel in CORE_HOOKS:
         if not os.path.isfile(os.path.join(CORE, rel)):
             errors.append(f"core/{rel} is missing")
@@ -153,7 +161,7 @@ def check_control_characters(errors):
 
 PLACEHOLDER = re.compile(r"\{\{TODO:[^{}]*\}\}")
 BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->", re.S)
-MARKED = ["CLAUDE.md", os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
+MARKED = [RULES, os.path.join("docs", "CONTRIBUTING.md"), os.path.join("docs", "ARCHITECTURE.md"),
           os.path.join(".github", "ISSUE_TEMPLATE", "bug_report.md"), os.path.join("docs", "decisions", "README.md"),
           os.path.join("docs", "areas", "README.md"),
           os.path.join(".github", "pull_request_template.md")]
@@ -176,7 +184,7 @@ def check_placeholders(errors):
 
 
 def check_profiles(errors):
-    stack_blocks = set(re.findall(r"<!-- stack:begin ([\w-]+) -->", read(os.path.join(CORE, "CLAUDE.md"))))
+    stack_blocks = set(re.findall(r"<!-- stack:begin ([\w-]+) -->", read(os.path.join(CORE, RULES))))
     profiles = sorted(p for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
     for profile in profiles:
         name = os.path.basename(profile)
@@ -239,6 +247,7 @@ def smoke_test(profiles, errors):
                 errors.append(f"profile {label}: config-check after apply: {line}")
             fill_placeholders(target)
             plant_retired(target)
+            plant_legacy_rules(target)
             # a refresh names no profile: the recorded ones are kept
             refresh = apply(target)
             if refresh.returncode != 0:
@@ -258,28 +267,63 @@ def smoke_test(profiles, errors):
             if refreshed.returncode != 0:
                 for line in refreshed.stdout.splitlines()[:10]:
                     errors.append(f"profile {label}: config-check after filling and refreshing: {line}")
+            check_legacy_rules(label, target, errors)
             check_copilot_mirror(label, target, errors)
             if len(names) > 1:
                 check_multi(names, target, errors)
 
 
+# A project block's content in the rules of the layout before AGENTS.md held them; the refresh carries it over.
+LEGACY_BLOCK = "Legacy overview kept in CLAUDE.md."
+
+
+def plant_legacy_rules(target):
+    """Turn the target into the old layout: the rules, with a filled project block, in CLAUDE.md and no AGENTS.md."""
+    rules = os.path.join(target, RULES)
+    text = re.sub(r"(<!-- project:begin overview -->\n).*?(<!-- project:end overview -->)",
+                  lambda m: m.group(1) + LEGACY_BLOCK + "\n" + m.group(2), read(rules), count=1, flags=re.S)
+    with open(os.path.join(target, CLAUDE), "w", encoding="utf-8") as handle:
+        handle.write(text.replace(f"# {RULES}", f"# {CLAUDE}", 1))
+    os.remove(rules)
+
+
+def check_legacy_rules(label, target, errors):
+    """The refresh of the old layout moved CLAUDE.md's project blocks into AGENTS.md and wrote the core CLAUDE.md."""
+    rules = os.path.join(target, RULES)
+    if not os.path.isfile(rules) or LEGACY_BLOCK not in read(rules):
+        errors.append(f"profile {label}: refresh did not carry the project blocks of the old {CLAUDE} into {RULES}")
+    if read(os.path.join(target, CLAUDE)) != read(os.path.join(CORE, CLAUDE)):
+        errors.append(f"profile {label}: refresh did not replace the old {CLAUDE} with core/{CLAUDE}")
+
+
 def check_copilot_mirror(label, target, errors):
-    """The refresh wrote the Copilot mirror with CLAUDE.md's body, and config-check.py fails once the two drift."""
+    """The refresh wrote the Copilot mirror with AGENTS.md's body, and config-check.py fails once the two drift or
+    CLAUDE.md stops importing AGENTS.md."""
     mirror = os.path.join(target, COPILOT)
     if not os.path.isfile(mirror):
         errors.append(f"profile {label}: refresh did not write {COPILOT}")
         return
-    claude = read(os.path.join(target, "CLAUDE.md"))
-    if read(mirror).split("\n## ", 1)[-1] != claude.split("\n## ", 1)[-1]:
-        errors.append(f"profile {label}: {COPILOT} differs from CLAUDE.md after the first '## ' heading")
+    rules = read(os.path.join(target, RULES))
+    if read(mirror).split("\n## ", 1)[-1] != rules.split("\n## ", 1)[-1]:
+        errors.append(f"profile {label}: {COPILOT} differs from {RULES} after the first '## ' heading")
     original = read(mirror)
     with open(mirror, "a", encoding="utf-8") as handle:
         handle.write("\nA rule only Copilot knows.\n")
     drifted = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
                              capture_output=True, text=True)
     if drifted.returncode == 0 or "copilot-instructions.md differs" not in drifted.stdout:
-        errors.append(f"profile {label}: config-check passes although {COPILOT} drifted from CLAUDE.md")
+        errors.append(f"profile {label}: config-check passes although {COPILOT} drifted from {RULES}")
     with open(mirror, "w", encoding="utf-8", newline="") as handle:
+        handle.write(original)
+    claude = os.path.join(target, CLAUDE)
+    original = read(claude)
+    with open(claude, "w", encoding="utf-8") as handle:
+        handle.write(original.replace(f"@{RULES}", f"See {RULES}."))
+    unlinked = subprocess.run([sys.executable, os.path.join(target, ".squad", "tools", "config-check.py")],
+                              capture_output=True, text=True)
+    if unlinked.returncode == 0 or f"does not import {RULES}" not in unlinked.stdout:
+        errors.append(f"profile {label}: config-check passes although {CLAUDE} no longer imports {RULES}")
+    with open(claude, "w", encoding="utf-8", newline="") as handle:
         handle.write(original)
 
 
@@ -340,7 +384,7 @@ def single_value(name, rel, pattern):
 
 
 # Files an older template version wrote into every target; a refresh must remove them (RETIRED in apply-template.py).
-RETIRED_SAMPLE = ["AGENTS.md", os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
+RETIRED_SAMPLE = [os.path.join(".squad", "decisions.md"), os.path.join(".squad", "agents", "lead", "history.md"),
                   os.path.join(".squad", "agents", "dev", "charter.md"),
                   os.path.join(".agents", "skills", "create-pr", "SKILL.md"),
                   os.path.join(".github", "skills", "squad-issue", "SKILL.md")]
@@ -359,10 +403,11 @@ def plant_retired(target):
         with open(path, "w", encoding="utf-8") as handle:
             handle.write("old mirror\n")
     with open(os.path.join(target, STALE_REFERENCE), "w", encoding="utf-8") as handle:
-        handle.write("Coding conventions: [`AGENTS.md`](/AGENTS.md).\nNot a reference: MY_AGENTS.md.\n")
+        handle.write("Process decisions: [`decisions.md`](/.squad/decisions.md).\n"
+                     "Not a reference: my.squad/decisions.md.\n")
     os.makedirs(os.path.dirname(os.path.join(target, HISTORICAL_REFERENCE)), exist_ok=True)
     with open(os.path.join(target, HISTORICAL_REFERENCE), "w", encoding="utf-8") as handle:
-        handle.write("The rules then lived in `AGENTS.md`.\n")
+        handle.write("Process decisions then lived in `.squad/decisions.md`.\n")
 
 
 def fill_placeholders(target):

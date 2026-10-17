@@ -13,13 +13,15 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter
   (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members; only the orchestrating session
   commits, pushes and posts.
-- **One rule set for Claude Code, mirrored for GitHub Copilot** — `CLAUDE.md` holds the rules, the skills
-  `create-pr`, `review-pr`, `squad-issue`, `squad-spec` and `decision-consolidate` live under `.claude/skills/`.
-  `.github/copilot-instructions.md` is generated from `CLAUDE.md` (its own title and introduction, then the same
-  body), so Copilot's code review, chat and coding agent follow the same rules; `config-check.py` fails when the
-  two drift apart. The squad runs on Claude Code subagents; a refresh removes the Codex mirror (`AGENTS.md`) and
-  the skill copies under `.agents/skills/` and `.github/skills/` that older template versions wrote, and lists
-  every line of the repository that still refers to a removed file.
+- **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
+  Copilot's coding agent read directly. `CLAUDE.md` only imports it (`@AGENTS.md`): Claude Code reads
+  `AGENTS.md` by itself only where no `CLAUDE.md` exists, and the import also works where that fallback is off.
+  `.github/copilot-instructions.md` is generated from `AGENTS.md` (its own title and introduction, then the same
+  body) for Copilot's code review and chat; `config-check.py` fails when the two drift apart or `CLAUDE.md` stops
+  importing `AGENTS.md`. So one file is edited by hand. The skills `create-pr`, `review-pr`, `squad-issue`,
+  `squad-spec` and `decision-consolidate` live under `.claude/skills/`, and the squad runs on Claude Code
+  subagents; a refresh removes the skill copies under `.agents/skills/` and `.github/skills/` that older template
+  versions wrote, and lists every line of the repository that still refers to a removed file.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
   weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
@@ -40,7 +42,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 ```
 core/             stack-neutral files; template-managed, except the "marked" files below
 profiles/<stack>/
-  instructions.md the stack blocks of CLAUDE.md
+  instructions.md the stack blocks of AGENTS.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
@@ -54,9 +56,9 @@ Four kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
-| marked | `CLAUDE.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile |
-| generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `CLAUDE.md` |
+| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
+| generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
@@ -105,7 +107,7 @@ In a Claude Code session with this repository and the target repository availabl
 words ("bring Squad-Spec-Repository-Template into DockerUpdateGuard") or run `/adopt-template`. The skill
 detects the profile(s), runs `tools/apply-template.py`, moves the target's own knowledge into the project blocks
 and the two `.squad` files, replaces old skills (`fix-issue`, `publish-pr`, `rereview-pr`, repository-specific
-reviewers, the Codex mirror and the skill copies of older template versions), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
+reviewers, the skill copies of older template versions), verifies every gate and opens a pull request in the target. A refresh works the same way and keeps
 everything project-specific.
 
 ## Changing the template
@@ -114,7 +116,7 @@ Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squa
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
-| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `CLAUDE.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
 Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where

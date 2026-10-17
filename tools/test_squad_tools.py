@@ -528,11 +528,12 @@ class TestScopeCheck(unittest.TestCase):
     def test_squad_files_are_reported_but_stack_and_project_are_allowed(self):
         write(".squad/routing.md", "# Routing\n")
         write(".squad/stack.md", "# Stack\n\nchanged\n")
+        write("AGENTS.md", "# x\n")
         write("CLAUDE.md", "# x\n")
         write(".github/copilot-instructions.md", "# x\n")
         found = self.errors()
         self.assertEqual([e.split(":")[0] for e in found],
-                         [".github/copilot-instructions.md", ".squad/routing.md", "CLAUDE.md"])
+                         [".github/copilot-instructions.md", ".squad/routing.md", "AGENTS.md", "CLAUDE.md"])
 
     def test_marked_file_edit_inside_project_block_passes_outside_fails(self):
         write("docs/CONTRIBUTING.md", "# Contributing\n\ntemplate text\n<!-- project:begin areas -->\nnew\n"

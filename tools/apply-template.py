@@ -14,10 +14,15 @@ with more than one language, see "Several profiles" below:
   `profiles/<profile>/instructions.md`, everything else comes from the template. A target file that has no
   project markers yet (first adoption) is backed up to `.git/adopt-template/backup/` and replaced by the
   template version, so the skill can move its content into the project blocks;
+- the rules live in the marked `AGENTS.md` (`RULES` below), which Codex, Kimi Code and GitHub Copilot's coding
+  agent read directly; the managed `CLAUDE.md` only imports it (`@AGENTS.md`). A target whose `CLAUDE.md` still
+  holds the rules (it has project blocks: written by a template version before the rules moved) has those project
+  blocks carried into `AGENTS.md`; a hand-written `CLAUDE.md` (no project blocks) is backed up before it is
+  replaced, like a marked file;
 - the **generated** `.github/copilot-instructions.md` (`GENERATED` below) is the title and introduction of
-  `core/.github/copilot-instructions.md` followed by the rebuilt `CLAUDE.md` from its first `## ` heading on,
-  without Claude Code's `@path` import lines (GitHub Copilot does not read `CLAUDE.md`). A target file without
-  project markers (written by hand) is backed up first, like a marked file;
+  `core/.github/copilot-instructions.md` followed by the rebuilt `AGENTS.md` from its first `## ` heading on,
+  without Claude Code's `@path` import lines (the file GitHub Copilot's code review and chat read). A target file
+  without project markers (written by hand) is backed up first, like a marked file;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
   them yet;
 - **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
@@ -67,8 +72,11 @@ import sys
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
+# The instruction file every agent reads (marked) and the one Claude Code reads, which only imports it (managed).
+RULES = "AGENTS.md"
+CLAUDE = "CLAUDE.md"
 MARKED = [
-    "CLAUDE.md",
+    RULES,
     "docs/CONTRIBUTING.md",
     "docs/ARCHITECTURE.md",
     ".github/ISSUE_TEMPLATE/bug_report.md",
@@ -79,17 +87,17 @@ MARKED = [
 # A seed the tooling of a profile in the repository refuses: the SonarScanner for .NET stops when the repository holds
 # a sonar-project.properties, so its settings are passed as scanner arguments (the dotnet profile's ci.yml does).
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
-# Generated from CLAUDE.md: {target path: core file holding its title and introduction}.
+# Generated from AGENTS.md: {target path: core file holding its title and introduction}.
 GENERATED = {".github/copilot-instructions.md": ".github/copilot-instructions.md"}
 # A Claude Code memory import on a line of its own (`@.github/instructions/csharp.instructions.md`); GitHub Copilot
 # reads `.github/instructions/*.instructions.md` through their `applyTo` front matter, so the mirror leaves it out.
 IMPORT_LINE = re.compile(r"^@[^\s@]\S*[ \t]*\n", re.M)
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
-# Written by older template versions and removed on a refresh: the Codex mirror of the instruction file, the Codex
-# and Copilot mirrors of the template's skills (the squad runs on Claude Code subagents only), the squad's
-# decisions.md and history.md files, which nothing read or wrote (process decisions are the records in
-# docs/decisions/), and the charters, which now live in the subagent files under .claude/agents/.
-RETIRED = ["AGENTS.md", ".squad/decisions.md"] + [
+# Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the template's skills
+# (the squad runs on Claude Code subagents only), the squad's decisions.md and history.md files, which nothing read or
+# wrote (process decisions are the records in docs/decisions/), and the charters, which now live in the subagent
+# files under .claude/agents/.
+RETIRED = [".squad/decisions.md"] + [
     f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
     for skill in ("create-pr", "review-pr", "squad-issue", "squad-spec", "decision-consolidate")] + [
     f".squad/agents/{role}/{name}"
@@ -432,16 +440,29 @@ def retired_references(target):
 
 
 def instruction_body(text):
-    """The part of an instruction file both CLAUDE.md and its Copilot mirror share: from the first `## ` heading on,
+    """The part of an instruction file both AGENTS.md and its Copilot mirror share: from the first `## ` heading on,
     without Claude Code import lines."""
     start = text.find("\n## ")
     return IMPORT_LINE.sub("", text[start:]) if start >= 0 else ""
 
 
-def generated_files(core, claude):
-    """{rel: text} of the files generated from the rebuilt CLAUDE.md: the core file's title and introduction, then the
+def generated_files(core, rules):
+    """{rel: text} of the files generated from the rebuilt AGENTS.md: the core file's title and introduction, then the
     body."""
-    return {rel: read(core[source]).rstrip("\n") + "\n" + instruction_body(claude) for rel, source in GENERATED.items()}
+    return {rel: read(core[source]).rstrip("\n") + "\n" + instruction_body(rules) for rel, source in GENERATED.items()}
+
+
+def legacy_rules(target, template, dry_run, report):
+    """The project blocks of a target CLAUDE.md that still holds the rules (template versions before AGENTS.md held
+    them), to carry into AGENTS.md; a hand-written CLAUDE.md (no project blocks, not the template's) is backed up
+    before the managed one replaces it."""
+    if not os.path.isfile(os.path.join(target, CLAUDE)):
+        return {}
+    current = read(os.path.join(target, CLAUDE))
+    project = blocks(current, "project")
+    if not project and current != template:
+        backup(target, CLAUDE, dry_run, report)
+    return project
 
 
 def backup(target, rel, dry_run, report):
@@ -531,6 +552,7 @@ def main():
     report = []
 
     core, managed = managed_files(profile_dirs, names)
+    legacy = legacy_rules(target, read(core[CLAUDE]), args.dry_run, report)
     eols = eol_attributes(target, [*managed, *MARKED, *GENERATED, ".squad/template.json"])
     for rel, src in sorted(managed.items()):
         write(target, rel, read(src), crlf_for(rel, eols, crlf), args.dry_run, report)
@@ -543,10 +565,12 @@ def main():
         project = blocks(current, "project")
         if current and not project:
             backup(target, rel, args.dry_run, report)
+        if rel == RULES and legacy:
+            project = legacy
         rebuilt[rel] = fill(template, project, stack)
         write(target, rel, rebuilt[rel], crlf_for(rel, eols, crlf), args.dry_run, report)
 
-    for rel, text in generated_files(core, rebuilt["CLAUDE.md"]).items():
+    for rel, text in generated_files(core, rebuilt[RULES]).items():
         dest = os.path.join(target, rel)
         if os.path.isfile(dest) and not blocks(read(dest), "project"):
             backup(target, rel, args.dry_run, report)

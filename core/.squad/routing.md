@@ -280,13 +280,17 @@ defect) or `minor`, each with one sentence why, so the orchestrator routes witho
 - **Only minor objections** (on `security`: and Security approved): no Lead launch. The orchestrator appends them verbatim to `plan.md` as a
   *Challenge notes* section (bookkeeping, like `log.md`); Dev and Tester follow them or report a deviation,
   and the Reviewer checks them in round 1.
+- **Non-blocking Security findings of an `APPROVED` plan review** are appended verbatim to `plan.md` as a
+  *Security notes* section, like minor objections. A note that leaves the plan a choice ("document it, or
+  reject") is not for the orchestrator or a member to decide: the Lead is launched in mode `revise` before
+  the skeleton (one launch together with any major objection) and decides it in the plan.
 - **A major objection:** the Lead is launched in mode `revise` with all objections and answers each one in
   the plan's *Challenge* section, the minor ones included.
 
 On `security` the plan challenge and the Security plan review (step 3) run **in parallel** on the same plan
 commit; one Lead revision then answers the major objections and the `CHANGES_REQUIRED` findings together,
-followed by one Security delta confirmation of the revision. When Security approves and the objections are
-minor, neither the Lead nor Security is launched again.
+followed by one Security delta confirmation of the revision. When Security approves, the objections are
+minor and no Security note leaves the plan a choice, neither the Lead nor Security is launched again.
 
 ## Reading issues and pull requests
 
@@ -329,7 +333,8 @@ told so.
 ## Loop limits
 
 - **Plan challenge (step 2):** at most one Devil's Advocate round, no veto. Minor objections alone go into
-  the plan's *Challenge notes* without a Lead launch; after a major one the Lead answers every objection
+  the plan's *Challenge notes* without a Lead launch (non-blocking Security findings go into *Security notes*
+  the same way, except a note that leaves the plan a choice, which goes to the Lead); after a major one the Lead answers every objection
   (accept and revise, or reject with a reason); a rejected objection is not raised again.
 - **Plan ↔ Security (steps 2–3):** at most 2 rejections; on `security` the first revision answers the plan
   challenge and the first `CHANGES_REQUIRED` together. After the 2nd `CHANGES_REQUIRED` the Lead

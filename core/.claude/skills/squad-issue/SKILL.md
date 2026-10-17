@@ -153,7 +153,10 @@ action yourself — including follow-up issues the Lead decides on.
    record, or the tier is `security`; otherwise log "challenge skipped: no options". On `security`, launch
    it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …` (on `security`: and
    Security's `APPROVED`), append the minor objections verbatim to `plan.md` as a *Challenge notes* section
-   and go on without a Lead launch; Dev and Tester get that section with the plan. On a major objection, launch `squad-lead` in mode `revise` with
+   and go on without a Lead launch; Dev and Tester get that section with the plan. Non-blocking findings of Security's
+   `APPROVED` plan review are appended verbatim as a *Security notes* section the same way; a note that leaves the
+   plan a choice goes to `squad-lead` in mode `revise` before step 4 (one launch together with any major
+   objection), so neither a member nor you decide it. On a major objection, launch `squad-lead` in mode `revise` with
    all objections (on `security` together with Security's `CHANGES_REQUIRED` findings, if any); it answers
    each one in the plan's *Challenge* section (accepted and the plan revised, or rejected with a reason) and
    may narrow the scope, raise the tier or switch to `RESULT: NO CHANGE`. `RESULT: NO CHANGE` and
@@ -177,7 +180,8 @@ action yourself — including follow-up issues the Lead decides on.
    compile.
 5. **Tests first** (skipped for `trivial`). Launch `squad-tester` in mode `tests-first`: only the tests the
    plan names for its acceptance criteria, each failing on the current code or the skeleton; guards and pins
-   of existing behavior wait for the coverage pass. Confirm yourself that the new tests compile and fail on
+   of existing behavior wait for the coverage pass. A plan-named acceptance-criterion test that cannot fail on the
+   skeleton comes back in the hand-back as **deferred**. Confirm yourself that the new tests compile and fail on
    the current code (unless the Tester justified why one cannot).
    A fix without a reproducing test is only acceptable when the bug genuinely needs a live external
    system — then the PR says so.
@@ -189,7 +193,8 @@ action yourself — including follow-up issues the Lead decides on.
    in mode `decide`; the Tester changes a test only if the Lead says so. Then run *Test with coverage* and
    the *Coverage gate* yourself (both in `.squad/stack.md`). Launch `squad-tester` in mode `coverage` only
    when the gate fails, the Dev reports uncovered new lines, the plan names a resource bound still without
-   its test, or a reviewer asks for a test — and pass that reason; if the gate already passes and the only
+   its test, a deferred plan test of step 5 is still open (also when the gate already passes), or a reviewer
+   asks for a test — and pass that reason; if the gate already passes, no deferred plan test is open and the only
    uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes. Lines reported as not unit-testable go to
    `squad-lead` in mode `decide`; an accepted gap is recorded in `log.md`.
 7. **Code check.** Before the first review round, fetch `main` and merge it when the work branch lacks its

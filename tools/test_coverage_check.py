@@ -53,6 +53,43 @@ class TestOnlyDiff(unittest.TestCase):
         self.assertEqual(self.script.changed_test_files(), [])
 
 
+class TestExcludeMatchingNoFile(unittest.TestCase):
+    """An exclude that matches no tracked file (`*.d.ts` without declaration files under `src/`) must not
+    empty the production file list: `git ls-files` with such an `:(exclude)` pathspec lists nothing."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.script.settings.COVERAGE_PATHSPECS = ["src/*.ts"]
+        self.script.settings.COVERAGE_EXCLUDES = ["*.test.ts", "*.d.ts"]
+        self.previous = os.getcwd()
+        self.dir = tempfile.TemporaryDirectory()
+        os.chdir(self.dir.name)
+        os.makedirs("src/setup")
+        for name in ("src/a.ts", "src/a.test.ts", "src/setup/cookies.ts", "worker.d.ts"):
+            with open(name, "w") as handle:
+                handle.write("export {};\n")
+        git("init", "-q", "-b", "main")
+        git("add", ".")
+        git("commit", "-q", "-m", "base")
+
+    def tearDown(self):
+        os.chdir(self.previous)
+        self.dir.cleanup()
+
+    def test_tracked_production_files_are_listed(self):
+        self.assertEqual(self.script.production_files(), {"src/a.ts", "src/setup/cookies.ts"})
+
+    def test_overall_coverage_measures_the_tracked_files(self):
+        hits = {"src/a.ts": {1: 1, 2: 0}, "src/setup/cookies.ts": {1: 1}, "src/a.test.ts": {1: 1}}
+        self.assertEqual(self.script.overall_coverage(hits), (2 / 3 * 100, 2, 3))
+
+    def test_untracked_production_files_are_listed(self):
+        for name in ("src/new.ts", "src/new.test.ts"):
+            with open(name, "w") as handle:
+                handle.write("export {};\n")
+        self.assertEqual(self.script.production_files("--others", "--exclude-standard"), {"src/new.ts"})
+
+
 class TestSeveralReports(unittest.TestCase):
     def setUp(self):
         self.script = load_script()

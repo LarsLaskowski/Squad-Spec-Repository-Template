@@ -111,7 +111,9 @@ The orchestrator tells you which **mode** to run:
   For every decision that meets the threshold in `docs/decisions/README.md`, create a `Proposed` record
   from `docs/decisions/_template.md`, add its row to the index in `docs/decisions/README.md` with status
   `Proposed` right away (`decision-check.py` fails on a record without one), and list it in the plan; extend
-  an existing unreleased record on the same topic instead of adding one. A record you delete takes its
+  an existing unreleased record on the same topic instead of adding one. Confirm that a record is unreleased
+  with `git ls-remote --tags origin` (or after `git fetch --tags`) before you edit it in place; an empty local
+  `git tag --list 'v*'` proves nothing, because a cloud checkout does not fetch tags. A record you delete takes its
   index row with it. Keep the record to the why: the behavior it leads to is written once
   in the area document, which the record links and names in its `Area:` field. If a guarantee or flow
   changes, update `docs/ARCHITECTURE.md` too and link the record from it.

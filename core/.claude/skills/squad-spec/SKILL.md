@@ -11,7 +11,8 @@ commit/push rules and the orchestrator role are identical to the `squad-issue` s
 
 - **Step 1 — work folder and branch:** `specs/feature-<short-slug>/` with `log.md` from
   `specs/_template/log.md`; branch `feature-<short-slug>` off the latest `main` (or the branch the session
-  prescribes); run `git fetch origin main` first (`scope-check.py` compares against the local `origin/main`).
+  prescribes); run `git fetch origin main --tags` first (`scope-check.py` compares against the local `origin/main`; the
+  release tags tell `decision-check.py` and the Lead which decision records are released).
   Log rows exactly as `squad-issue` step 1 says: a launch row is written without any metric option — no
   `--agent` either, which `squad-log.py` rejects without numbers — and completed with `--amend-last` once
   the task notification is in; never with placeholder numbers.

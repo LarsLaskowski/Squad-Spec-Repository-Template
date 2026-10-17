@@ -130,6 +130,24 @@ class TestSquadLog(unittest.TestCase):
             self.assertEqual(handle.read(), "| Date |\n| 2026-01-02 | 2 Plan | Lead | plan "
                                             "(opus/high · 1,500 tokens · 0 tool uses · 0 s) |\n")
 
+    def test_cli_rounds_decimal_seconds_and_refuses_non_numbers(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: high\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(seconds):
+            return subprocess.run([sys.executable, script, "issue-1", "2 Plan", "Lead", "plan", "--agent", "squad-lead",
+                                   "--tokens", "1500", "--tool-uses", "1", "--seconds", seconds], cwd=root,
+                                  capture_output=True, text=True, check=False)
+        done = run("495.4")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("· 495 s)", done.stdout)
+        self.assertIn("· 496 s)", run("495.6").stdout)
+        for bad in ("abc", "nan", "inf", "-1"):
+            self.assertEqual(run(bad).returncode, 2, bad)
+
     def test_agent_launch_reads_the_agent_file(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"),

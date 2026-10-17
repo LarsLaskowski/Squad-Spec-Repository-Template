@@ -89,7 +89,7 @@ action yourself — including follow-up issues the Lead decides on.
    ending, escapes pipes and control characters, and stamps the row with date and time of day (UTC), so the
    wrap-up can measure your own share of the run. For a subagent launch add the metrics:
    `--agent squad-<role> --tokens <subagent_tokens> --tool-uses <tool_uses> --seconds <duration_ms / 1000>`
-   (`--agent` reads the model and effort from the agent file; `--launch <model>/<effort>` only when the launch
+   (a decimal such as `495.4` is rounded to whole seconds; `--agent` reads the model and effort from the agent file; `--launch <model>/<effort>` only when the launch
    overrode them). The three numbers come from the usage block of the launch's **task notification**, not
    from the member's hand-back message, and that notification may arrive after you have already read the
    report: write the row as soon as the report is in, **without any metric option** (no `--agent`,

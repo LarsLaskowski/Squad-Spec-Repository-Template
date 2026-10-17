@@ -45,7 +45,13 @@ The orchestrator tells you which **mode** to run:
   - the **tier** with a one-sentence justification — when in doubt, the higher tier;
   - acceptance criteria the Tester can turn into unit tests, each with the name of its test (one or a few
     per criterion) — the Tester writes exactly those first, so a criterion without a testable statement is
-    a plan defect;
+    a plan defect. A criterion that words a condition for user-visible text (a status line, a message) is
+    derived from the code path that decides it, and the plan names that path — not a paraphrase of the
+    trigger, which can hold while the code path does not (or the reverse);
+  - the **documentation updates**, found by a sweep before they are listed: search the area documents and
+    `docs/ARCHITECTURE.md` for every enumeration or "only these …" statement the change extends (routes,
+    rules, settings, tables, limits) and list each hit as an update, besides the documents you already know
+    the change touches;
   - for a feature, the **Behavior coverage**: every bullet of `spec.md`'s *Behavior* mapped to the acceptance
     criterion that covers it, or marked "out of scope" — a bullet no criterion names is never asserted by the
     Tester and never built by the Dev;

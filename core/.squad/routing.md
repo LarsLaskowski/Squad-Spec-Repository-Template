@@ -334,9 +334,11 @@ told so.
 - **Plan ↔ Security (steps 2–3):** at most 2 rejections; on `security` the first revision answers the plan
   challenge and the first `CHANGES_REQUIRED` together. After the 2nd `CHANGES_REQUIRED` the Lead
   decides: narrow the scope, split into separate issues, escalate to the Product Manager, or — when the
-  remaining defect is a pure wording defect, or a defect confined to the plan's resource section (limits,
-  bounds, sizes) whose fix changes no scope — accept and fix it, followed by exactly one Security delta
-  confirmation of the fix (a further rejection then goes to the Product Manager).
+  remaining defect is a pure wording defect, a defect confined to the plan's resource section (limits,
+  bounds, sizes) whose fix changes no scope, or a defect whose failure Security has **measured** and whose
+  **complete fix** (the exact statements or edits) Security supplied, where the fix changes no scope and no
+  acceptance criterion — accept and fix it, followed by exactly one Security delta confirmation of the fix
+  (a further rejection then goes to the Product Manager).
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review; at most **2 further fix-and-review
   rounds**, each reviewing only the delta. Blocking findings still open after that go to the Lead, who
   decides: accept with justification, split into a follow-up issue, abort, or escalate. A round is counted

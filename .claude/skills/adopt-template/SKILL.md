@@ -25,8 +25,7 @@ Rules that hold throughout:
 ## Steps
 
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
-   off `origin/main`. Read its `CLAUDE.md`, `.github/copilot-instructions.md` (and an `AGENTS.md` an older
-   template version wrote), `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
+   off `origin/main`. Read its `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
    files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
    records without `repository` get it on this run) and continue with step 3. Seeded files are not
@@ -50,24 +49,28 @@ Rules that hold throughout:
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
    and the files in template-owned folders the template does not know, and the retired files it removed (the
-   Codex mirrors and the skill copies an older template version wrote; a project block that only existed in
-   `AGENTS.md` is carried into `CLAUDE.md` first). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
-   `.github/copilot-instructions.md` is generated from the rebuilt `CLAUDE.md` (its own title and introduction,
-   then the body of `CLAUDE.md` without Claude Code `@` import lines); a target whose file was removed by an
+   skill copies an older template version wrote). The rules live in `AGENTS.md`; `CLAUDE.md` is managed and only
+   imports it. A `CLAUDE.md` that still holds the rules (it has project blocks: an older template version) has
+   its project blocks carried into `AGENTS.md`; a hand-written `CLAUDE.md` or `AGENTS.md` without project markers
+   is backed up like a marked file (step 4). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
+   `.github/copilot-instructions.md` is generated from the rebuilt `AGENTS.md` (its own title and introduction,
+   then the body of `AGENTS.md` without Claude Code `@` import lines); a target whose file was removed by an
    earlier refresh gets it back, and a hand-written one without project markers is backed up like a marked file
-   (step 4). After step 4 changed a project block of `CLAUDE.md`, run the apply step once more (or make the same
+   (step 4). After step 4 changed a project block of `AGENTS.md`, run the apply step once more (or make the same
    change in `.github/copilot-instructions.md`) so the two bodies stay identical.
    The output ends with **References to removed files**: every line of the target (project blocks, `README.md`,
    `docs/`, `*.sln`/`*.slnx`/`*.csproj`, workflows, …) that still names a retired file. The apply step never
    rewrites those files (decision records under `docs/decisions/` are not listed: they state history, and a
-   released one is append-only), so fix every listed line by hand — link the replacement (`CLAUDE.md`,
+   released one is append-only), so fix every listed line by hand — link the replacement (`AGENTS.md`,
    `.claude/agents/squad-*.md`, `docs/decisions/`) or drop it — and rerun the apply step until the list is
    empty; step 9 is not reached before.
 4. **Move the knowledge into the project blocks** (first adoption; on a refresh only check that nothing
    new needs a block). For every file backed up under `.git/adopt-template/backup/` in the target, move its
    project-specific content into the matching `<!-- project:begin … -->` block of the new file:
-   - instruction files: *overview*, *architecture*, *configuration*, *code-style* (only what goes beyond
-     the stack block);
+   - instruction files (a backed-up `CLAUDE.md`, `AGENTS.md` or `.github/copilot-instructions.md`), all into
+     `AGENTS.md`: *overview*, *architecture*, *configuration*, *code-style* (only what goes beyond the stack
+     block); a Claude Code `@path` import line moves along — Claude Code follows it through `CLAUDE.md`'s import,
+     and the Copilot mirror leaves it out;
    - `docs/CONTRIBUTING.md`: *getting-started*, *areas* (the PR title areas), *releases*, *stability*,
      *license*;
    - `docs/ARCHITECTURE.md`: *architecture* (normally the whole former document, minus a former
@@ -82,7 +85,7 @@ Rules that hold throughout:
    request or issue template under another name or case (e.g. `.github/PULL_REQUEST_TEMPLATE.md`) is merged
    into the template's file and removed — GitHub would otherwise pick one at random, and the two names
    collide on case-insensitive file systems.
-   Links in `CLAUDE.md` are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`); write the project
+   Links in `AGENTS.md` are repository-rooted (`/docs/ARCHITECTURE.md`, `/.squad/stack.md`); write the project
    blocks the same way.
    Replace every `{{TODO: …}}` placeholder — they only occur inside project blocks and seeded files, so a
    refresh never brings them back. Rules that the stack or core sections already state are dropped from
@@ -129,8 +132,8 @@ Rules that hold throughout:
      the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is
      still worth keeping becomes a decision record.
 9. **Verify** in the target, once the apply step lists no reference to a removed file (step 3):
-   `python3 .squad/tools/config-check.py` passes (no placeholder left, `CLAUDE.md` and
-   `.github/copilot-instructions.md` identical from the first `##` heading on), then
+   `python3 .squad/tools/config-check.py` passes (no placeholder left, `AGENTS.md` and
+   `.github/copilot-instructions.md` identical from the first `##` heading on, `CLAUDE.md` importing `AGENTS.md`), then
    *Restore*, *Format check*, *Build*, *Analyzer gate*, *Test with coverage* and *Coverage gate* from the
    new `stack.md`. A gate that fails on code this PR did not change is reported in the PR description and to
    the user. One exception: when overall coverage is below the threshold before this PR, set

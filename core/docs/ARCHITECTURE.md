@@ -29,9 +29,9 @@ are in [`areas/`](areas/README.md); this overview links them instead of repeatin
 
 ## Development process
 
-This repository is developed with Claude Code: `CLAUDE.md` holds the rules (mirrored for GitHub Copilot in
-`.github/copilot-instructions.md`), the skills live under `.claude/skills/` and the squad roles under
-`.claude/agents/`. Every pull request is reviewed before it is opened by the read-only reviewer in `.claude/agents/squad-reviewer.md`
+This repository is developed with Claude Code: `AGENTS.md` holds the rules every AI coding agent reads
+(imported by `CLAUDE.md`, mirrored for GitHub Copilot in `.github/copilot-instructions.md`), the skills
+live under `.claude/skills/` and the squad roles under `.claude/agents/`. Every pull request is reviewed before it is opened by the read-only reviewer in `.claude/agents/squad-reviewer.md`
 — round 1 is a full review, every later round looks only at the delta, and only blocking findings earn
 another round, because a fresh full re-review of unchanged code always finds something new.
 

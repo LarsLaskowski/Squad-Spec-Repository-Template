@@ -1,4 +1,5 @@
-"""Unit tests for tools/apply-template.py (line endings, Copilot mirror, references to retired files):
+"""Unit tests for tools/apply-template.py (line endings, Copilot mirror, rules moved out of CLAUDE.md, references to
+retired files):
 run `python3 -m unittest discover tools`."""
 import importlib.util
 import os
@@ -84,21 +85,55 @@ class TestCopilotMirror(unittest.TestCase):
         self.script = load_script()
 
     def test_instruction_body_starts_at_the_first_section_and_drops_import_lines(self):
-        claude = ("# CLAUDE.md\n\nIntro.\n\n## Code style\n\n<!-- project:begin code-style -->\n"
-                  "@.github/instructions/csharp.instructions.md\nUse tabs; mail @someone.\n"
-                  "<!-- project:end code-style -->\n")
-        self.assertEqual(self.script.instruction_body(claude),
+        rules = ("# AGENTS.md\n\nIntro.\n\n## Code style\n\n<!-- project:begin code-style -->\n"
+                 "@.github/instructions/csharp.instructions.md\nUse tabs; mail @someone.\n"
+                 "<!-- project:end code-style -->\n")
+        self.assertEqual(self.script.instruction_body(rules),
                          "\n## Code style\n\n<!-- project:begin code-style -->\nUse tabs; mail @someone.\n"
                          "<!-- project:end code-style -->\n")
 
-    def test_generated_mirror_is_the_core_introduction_plus_the_claude_body(self):
+    def test_generated_mirror_is_the_core_introduction_plus_the_rules_body(self):
         with tempfile.TemporaryDirectory() as folder:
             header = os.path.join(folder, "copilot.md")
             write(header, "# Copilot instructions\n\nFor Copilot.\n")
             generated = self.script.generated_files({".github/copilot-instructions.md": header},
-                                                    "# CLAUDE.md\n\nFor Claude.\n\n## Rules\n\nRule.\n")
+                                                    "# AGENTS.md\n\nFor agents.\n\n## Rules\n\nRule.\n")
         self.assertEqual(generated, {".github/copilot-instructions.md":
                                      "# Copilot instructions\n\nFor Copilot.\n\n## Rules\n\nRule.\n"})
+
+
+class TestLegacyRules(unittest.TestCase):
+    TEMPLATE = "# CLAUDE.md\n\n@AGENTS.md\n"
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.target = self.dir.name
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def legacy(self, text=None):
+        if text is not None:
+            write(os.path.join(self.target, "CLAUDE.md"), text, newline="\r\n")
+        report = []
+        return self.script.legacy_rules(self.target, self.TEMPLATE, False, report), report
+
+    def test_project_blocks_of_a_claude_md_holding_the_rules_are_carried_over(self):
+        project, report = self.legacy("# CLAUDE.md\n\n## What\n\n<!-- project:begin overview -->\nOurs.\n"
+                                      "<!-- project:end overview -->\n")
+        self.assertEqual(project, {"overview": "Ours.\n"})
+        self.assertEqual(report, [])
+
+    def test_hand_written_claude_md_is_backed_up_and_the_template_one_is_not(self):
+        project, report = self.legacy("# Our notes\n\nUse tabs.\n")
+        self.assertEqual(project, {})
+        self.assertEqual([status for status, _ in report], ["backed-up"])
+        self.assertTrue(os.path.isfile(os.path.join(self.target, ".git", "adopt-template", "backup", "CLAUDE.md")))
+        self.assertEqual(self.legacy(self.TEMPLATE), ({}, []))
+
+    def test_no_claude_md_carries_nothing(self):
+        self.assertEqual(self.legacy(), ({}, []))
 
 
 class TestRetiredReferences(unittest.TestCase):
@@ -112,10 +147,12 @@ class TestRetiredReferences(unittest.TestCase):
         self.dir.cleanup()
 
     def test_lists_lines_naming_a_retired_file_and_ignores_longer_names(self):
-        write(os.path.join(self.target, "docs", "ARCHITECTURE.md"), "# A\n\nConventions: [AGENTS.md](/AGENTS.md).\n")
+        write(os.path.join(self.target, "docs", "ARCHITECTURE.md"),
+              "# A\n\nDecisions: [decisions.md](/.squad/decisions.md).\n")
         write(os.path.join(self.target, "App.slnx"), '<File Path=".squad/agents/lead/charter.md" />\n')
-        write(os.path.join(self.target, "README.md"), "See MY_AGENTS.md and .github/copilot-instructions.md.\n")
-        write(os.path.join(self.target, "AGENTS.md"), "AGENTS.md mirror\n")
+        write(os.path.join(self.target, "README.md"), "See my.squad/decisions.md, AGENTS.md and "
+                                                      ".github/copilot-instructions.md.\n")
+        write(os.path.join(self.target, ".squad", "decisions.md"), "See .squad/decisions.md\n")
         hits = self.script.retired_references(self.target)
         self.assertEqual([(path, number) for path, number, _ in hits], [("App.slnx", 1), ("docs/ARCHITECTURE.md", 3)])
 

@@ -1,7 +1,7 @@
 # Copilot instructions
 
 Project guidance for GitHub Copilot when working in this repository. These rules mirror
-[`CLAUDE.md`](/CLAUDE.md): everything from the first `##` heading on is generated from it by the template's
+[`AGENTS.md`](/AGENTS.md): everything from the first `##` heading on is generated from it by the template's
 `adopt-template` skill (Claude Code's `@` import lines aside — Copilot reads
 `.github/instructions/*.instructions.md` through their `applyTo` front matter), and
 `.squad/tools/config-check.py` fails when the two differ. Change both files together. This file is a

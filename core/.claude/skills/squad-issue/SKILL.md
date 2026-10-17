@@ -79,8 +79,9 @@ action yourself — including follow-up issues the Lead decides on.
 
 1. **Intake.** Read the issue in full, including comments; note the reported environment (versions of the
    software involved, image tag or release, host OS, configuration). If it is closed, stop and report that. Start
-   from a clean working tree on a new branch off the latest `main` (run `git fetch origin main` first: a
-   stale local `origin/main` makes `scope-check.py` report files that are not yours), e.g.
+   from a clean working tree on a new branch off the latest `main` (run `git fetch origin main --tags` first: a
+   stale local `origin/main` makes `scope-check.py` report files that are not yours, and a checkout without the
+   release tags makes every decision record look unreleased), e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create
    `specs/issue-<number>/log.md` from `specs/_template/log.md`, commit and push it (the first `squad-log.py` row replaces the heading placeholder with
    the work folder's name). Only you (the

@@ -95,8 +95,8 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
 - `squad-issue` — fix a GitHub issue with the squad: the Lead plans and picks a tier
   (`docs` / `patch` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
   plans that weigh options once, Security reviews plan and diff of `security` changes, the Tester writes failing tests first,
-  the Dev implements until the *Coverage gate* passes, the Code Officer clears format and analyzer
-  diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
+  the Dev implements until the *Coverage gate* passes, each member formats the files it changed, the Code
+  Officer clears analyzer diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
   open), then a PR referencing the issue is opened.
 - `squad-spec` — the same squad pipeline for a new feature, planned as `spec.md`, `plan.md` and
   `tasks.md` in a working folder under `specs/`.
@@ -115,7 +115,7 @@ way.
 
 The squad skills run a multi-role pipeline defined in [`.squad/`](/.squad/team.md) — Lead (plan, decisions,
 PR approval decisions), Devil's Advocate (one plan challenge), Security (plan and diff on the `security` tier), Tester (tests first,
-coverage), Dev, Code Officer (format, analyzers) and Reviewer — as Claude Code subagents under
+coverage), Dev, Code Officer (analyzer gate) and Reviewer — as Claude Code subagents under
 `.claude/agents/squad-*.md` (read-only where the role demands it: a hook in each agent denies Git and
 GitHub writes, so only the orchestrating session commits, pushes and posts), with the loop limits and
 escalation rules in [`.squad/routing.md`](/.squad/routing.md). Stack commands live in [`.squad/stack.md`](/.squad/stack.md),

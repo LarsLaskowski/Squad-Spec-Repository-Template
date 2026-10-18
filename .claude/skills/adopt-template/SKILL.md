@@ -31,7 +31,8 @@ Rules that hold throughout:
    records without `repository` get it on this run) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
-   changed commands, settings and rule sentences by hand.
+   changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
+   becomes "in the squad: by the member that changed the files, `.squad/team.md`").
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `tsconfig.json` → `typescript`, `package.json` without `tsconfig.json` → `node` (a repository already on
    `node` keeps it on a refresh). If several match and each is product code (e.g. a Go agent and a .NET

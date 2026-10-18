@@ -23,6 +23,11 @@ to the other repositories. It contains no product code. See [`README.md`](README
   complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass.
 - A lesson from a squad run in another repository that concerns a template-managed file is fixed here and
   rolled out with `adopt-template`, never patched in the target only.
+- **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md` and `core/.squad/team.md`);
+  other files point to it. The squad's rule files have word budgets (`WORD_BUDGETS` in
+  `tools/template-check.py`): a rule that grows a file over its budget replaces or shortens another. The
+  evidence behind a rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target
+  receives.
 
 ## Commit messages and pull requests
 

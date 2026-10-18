@@ -52,6 +52,7 @@ multi/            dispatchers (analyzer gate, SessionStart hook) written when a 
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
 tools/            apply-template.py (mechanical apply), template-check.py (self-check)
+docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 .claude/skills/adopt-template/   the skill
 ```
 
@@ -130,7 +131,12 @@ is moved here, never worked there. After the fix is merged here, the product rep
 
 - Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
   details into a project block or `.squad/project.md`.
-- Run `python3 tools/template-check.py` before every pull request.
+- Keep every squad rule in one place and keep the rule files short: the operative rule goes into `core/`, the
+  evidence behind it (incidents, measured numbers) into [`docs/squad-rationale.md`](docs/squad-rationale.md),
+  which stays in this repository and is never rolled out.
+- Run `python3 tools/template-check.py` before every pull request. Besides the profiles and the smoke test it
+  holds each squad rule file to a word budget (`WORD_BUDGETS`): a rule that would grow a file over it replaces
+  or shortens another.
 
 ### Rolling out a change
 

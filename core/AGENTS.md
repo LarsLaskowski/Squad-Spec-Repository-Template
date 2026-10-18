@@ -115,18 +115,15 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
 - `review-pr` — review an open pull request against this project's stack, analyzer, security and
   unit-test conventions, and post the findings with an explicit verdict.
 
-Every review — `create-pr` and the squad skills before the push, `review-pr` on an open pull request — runs
-the read-only subagent `.claude/agents/squad-reviewer.md`, which holds the checklist, the severity model and
-the round semantics. The squad's members (`.squad/team.md`) run as subagents under
+Every review — before the push in `create-pr` and the squad skills, on an open pull request in `review-pr` —
+runs the read-only subagent `.claude/agents/squad-reviewer.md`, which holds the checklist, the severity model
+and the round semantics. The squad's members (`.squad/team.md`) run as subagents under
 `.claude/agents/squad-*.md`; a hook denies them Git and GitHub writes, so only the orchestrating session
-commits, pushes and posts. The pipeline, its loop limits and escalations are in
-[`.squad/routing.md`](/.squad/routing.md), the stack's commands in [`.squad/stack.md`](/.squad/stack.md), the
-project's guarantees, security areas and integration surface in [`.squad/project.md`](/.squad/project.md).
-Working records live under `specs/` on the work branch only and leave it as a comment before the PR. A product
-PR never changes the squad or these instructions (`scope-check.py` reports it); squad lessons are filed as
-`squad` issues where they can be fixed — here or in the template repository named in `.squad/template.json`
-(`.squad/routing.md`, *Squad lessons*). The user acts as Product Manager and is asked only when the Lead
-escalates.
+commits, pushes and posts. The pipeline, its limits and escalations are in [`.squad/routing.md`](/.squad/routing.md),
+the project's guarantees, security areas and integration surface in [`.squad/project.md`](/.squad/project.md).
+Working records stay under `specs/` on the work branch. A product PR never changes the squad or these
+instructions; squad lessons become `squad` issues where they can be fixed (`.squad/routing.md`, *Squad
+lessons*). The user acts as Product Manager and is asked only when the Lead escalates.
 
 The reasoning behind code decisions — why something was built the way it was — is recorded by the Lead
 as one decision record per decision in [`docs/decisions/`](/docs/decisions/README.md) (unreleased records are

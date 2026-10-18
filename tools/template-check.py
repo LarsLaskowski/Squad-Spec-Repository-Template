@@ -31,7 +31,12 @@ Checks, without arguments:
   deleted or wrongly superseded record fails; once areas are defined, a record without a listed `Area:` and an
   area without its document fail;
 - every Python tool a target receives (`core/`, `profiles/`, `multi/`, `seed/`) stays at or below SonarQube Cloud's
-  cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it).
+  cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it);
+- every squad rule file in `WORD_BUDGETS` (the squad's rules, skills and agents, the template parts of
+  `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) stays within its word
+  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words). Every member reads these files on
+  every launch, so a rule that would grow a file over its budget replaces or shortens another one there; the
+  evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -75,6 +80,28 @@ MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
 DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
+# Word ceilings of the squad's rule files under core/ (paths relative to core/).
+WORD_BUDGETS = {
+    ".squad/routing.md": 6000,
+    ".squad/team.md": 1180,
+    ".claude/skills/squad-issue/SKILL.md": 2640,
+    ".claude/skills/squad-spec/SKILL.md": 960,
+    ".claude/skills/create-pr/SKILL.md": 1370,
+    ".claude/skills/review-pr/SKILL.md": 830,
+    ".claude/agents/squad-code-officer.md": 590,
+    ".claude/agents/squad-dev.md": 840,
+    ".claude/agents/squad-devils-advocate.md": 770,
+    ".claude/agents/squad-lead.md": 2200,
+    ".claude/agents/squad-reviewer.md": 2100,
+    ".claude/agents/squad-security.md": 690,
+    ".claude/agents/squad-tester.md": 1150,
+    "AGENTS.md": 1430,
+    "docs/ARCHITECTURE.md": 330,
+    "specs/_template/log.md": 55,
+    "specs/_template/plan.md": 880,
+    "specs/_template/spec.md": 440,
+    "specs/_template/tasks.md": 100,
+}
 MARKER = re.compile(r"<!-- (project|stack):(begin|end) ([\w-]+) -->")
 
 try:
@@ -607,6 +634,25 @@ def check_area_checks(errors):
         expect("area without a link", False)
 
 
+def word_count(path):
+    """Words as `wc -w` counts them in a UTF-8 locale: runs of non-whitespace characters."""
+    return len(read(path).split())
+
+
+def check_word_budgets(errors, base=CORE, budgets=None):
+    """No squad rule file grows past its budget: a new rule replaces or shortens another one in the same file."""
+    for rel, budget in (WORD_BUDGETS if budgets is None else budgets).items():
+        path = os.path.join(base, rel)
+        if not os.path.isfile(path):
+            errors.append(f"core/{rel}: listed in WORD_BUDGETS but missing")
+            continue
+        words = word_count(path)
+        if words > budget:
+            errors.append(f"core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
+                          "tools/template-check.py) — replace or shorten another rule, move evidence to "
+                          "docs/squad-rationale.md")
+
+
 def check_complexity(errors):
     """The Python tools a target receives stay below SonarQube Cloud's cognitive-complexity limit (python:S3776,
     15): every refresh puts them under the target's code analysis, so a finding there would cost a template PR
@@ -635,6 +681,7 @@ def main():
     check_core(errors)
     check_control_characters(errors)
     check_placeholders(errors)
+    check_word_budgets(errors)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)

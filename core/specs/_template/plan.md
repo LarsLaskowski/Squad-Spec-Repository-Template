@@ -3,8 +3,10 @@
 Source: Issue #<number> | [spec.md](spec.md)
 Status: Draft | Revised (n) | Approved by Security
 Tier: trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
-Security areas touched: none | <each security area of `.squad/project.md`, Docker/CI or build configuration, or
-dependency the change touches — the Security plan review runs whenever this is not "none">
+Security areas touched: none | <areas>
+<!-- Each security area of `.squad/project.md`, Docker/CI or build configuration and dependency the change
+touches, or "none" — in every plan, whatever the tier. Security reviews the plan (step 3) whenever this is not
+"none" (`.squad/routing.md`, *Tiers*). -->
 
 ## Problem / root cause
 

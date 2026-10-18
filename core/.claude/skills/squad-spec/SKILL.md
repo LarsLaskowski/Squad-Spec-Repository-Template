@@ -61,7 +61,7 @@ changes listed after them.
      it adds or extends a decision record): `squad-devils-advocate` in mode `plan` as `squad-issue` step 2
      says. The spec challenge already questioned what is built; a `security` plan without options gets its
      scrutiny from Security.
-3. **Plan security review** on `security`, and on `standard` whose plan lists *Security areas touched*:
+3. **Plan security review** whenever the plan's *Security areas touched* is not "none":
    `squad-security` in mode `plan` reviews `spec.md` and `plan.md`
    together, in parallel with the plan challenge when there is one, and the loop of `squad-issue` step 3
    applies. Run `plan-check.py` again after every Lead revision.

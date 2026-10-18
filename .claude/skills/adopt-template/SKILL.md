@@ -29,9 +29,9 @@ Rules that hold throughout:
    files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
    records without `repository` get it on this run) and continue with step 3. Seeded files are not
-   refreshed, so on a refresh compare the target's `.squad/stack.md` and `squad_settings.py` with the
-   profile's seeds (`git -C <template> diff <old commit>..main -- profiles/<profile>/seed`) and carry over
-   changed commands or settings by hand.
+   refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
+   with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
+   changed commands, settings and rule sentences by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `tsconfig.json` → `typescript`, `package.json` without `tsconfig.json` → `node` (a repository already on
    `node` keeps it on a refresh). If several match and each is product code (e.g. a Go agent and a .NET

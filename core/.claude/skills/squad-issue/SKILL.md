@@ -176,8 +176,8 @@ action yourself — including follow-up issues the Lead decides on.
    `RESULT: ESCALATE` are handled as above; after a raised tier, continue with that tier's steps. There is
    no second challenge round and no veto. Record the verdict (also a clean `NO OBJECTIONS`) and the Lead's
    answer in `log.md`.
-3. **Plan security review** (tier `security`, and `standard` whose plan lists *Security areas touched* — anything
-   but "none"; `.squad/routing.md`, *Tiers*). Launch `squad-security` in mode `plan`, in parallel with
+3. **Plan security review** (whenever the plan's *Security areas touched* is not "none", whatever the tier;
+   `.squad/routing.md`, *Tiers*). Launch `squad-security` in mode `plan`, in parallel with
    the plan challenge when there is one (both are read-only). On `CHANGES_REQUIRED`, launch **one**
    `squad-lead` in mode `revise` with the findings and the challenge's major and minor objections, then
    `squad-security` once more to confirm the revision (a delta round); a Lead revision made only for a major
@@ -235,11 +235,14 @@ action yourself — including follow-up issues the Lead decides on.
    owner, and a file it reports as formatted outside the change you restore — and run the gates again until
    they pass. This is the gate before the PR; CI is
    not meant to find anything here.
-8. **Review.** Launch `squad-reviewer` (round 1, full) and — for tier `security` only, not for `standard`
-   with *Security areas touched* — `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
+8. **Review.** Launch `squad-reviewer` (round 1, full) and — for tier `security` only — `squad-security` in
+   mode `diff`, in parallel, against the base ref. Pass them the work folder
    (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tiers `docs` and `patch`: the first
    `log.md` row, since there is no `plan.md`) and the gate output of step 7 for this head, so they do not
-   build and test again; either may raise the tier. Tiers `docs` and `patch`: you fix a blocking finding
+   build and test again; either may raise the tier (a raise to `security` adds Security's diff review now, *Tiers*
+   in `.squad/routing.md`). A Reviewer finding *unlisted security area* is no fix round: add the area to the
+   plan's *Security areas touched* and launch `squad-security` in mode `diff` on the same SHA, scoped to that
+   area (*Unlisted security areas* in `.squad/routing.md`). Tiers `docs` and `patch`: you fix a blocking finding
    yourself, run the checks of step 2 again, then a delta round, then step 10. Blocking findings → their owner fixes them (`squad-dev` for production code, `squad-tester` for tests) → steps 6
    (coverage) and 7 again → **a new review round on the delta is mandatory** before step 9; never go from
    a blocking finding straight to PR approval. The same holds for a non-blocking finding the Lead decides

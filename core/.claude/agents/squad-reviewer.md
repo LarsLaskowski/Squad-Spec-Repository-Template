@@ -90,12 +90,14 @@ is blocking), and report as findings:
   tests* section covering every acceptance criterion, or a diff that contains production or test code despite
   that declaration (blocking; *Changes without production or test code* in `.squad/routing.md`);
 - a tier in `plan.md` that is too low for what the diff touches, per the tier
-  table in `.squad/routing.md` and the security areas in `.squad/project.md`
+  table in `.squad/routing.md` (the `security` row's list of security controls)
   (blocking — the change must go through the higher tier's steps; you may raise
   the tier, never lower it): a diff that creates, changes or removes a security
   control is `security`. A security area the diff touches that *Security areas
-  touched* does not list is blocking too: Security reviews that part of the
-  diff in mode `diff` before step 9, since its plan review never saw it. Below
+  touched* does not list is a finding *unlisted security area*: Security
+  reviews that part of the diff (*Unlisted security areas* in
+  `.squad/routing.md`); a touch that changes nothing an attacker could use you
+  clear yourself. Below
   the `security` tier you are the only review of the diff for security: the
   security areas, secrets reaching logs, input safety and new dependencies in
   the checklist below are yours. For tiers `docs` and `patch` there is no `plan.md`: the

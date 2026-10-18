@@ -63,9 +63,10 @@ The orchestrator tells you which **mode** to run:
   the Tester — name that verification, with its cases, and leave running it to its owner. The plan states:
   - the **tier** with a one-sentence justification — when in doubt, the higher tier — and the *Security
     areas touched* line: every security area of `.squad/project.md`, Docker/CI or build configuration and
-    dependency the change touches, or "none". A change that touches a security area without creating,
-    changing or removing a security control is `standard` with those areas listed (Security reviews the
-    plan); `security` is for a change to a control itself (`.squad/routing.md`, *Tiers*);
+    dependency the change touches, or "none" — in every plan, whatever the tier: Security reviews the plan
+    whenever it is not "none". A change that touches a security area without creating, changing or removing
+    a security control is not `security`; that tier is for a change to a control itself (`.squad/routing.md`,
+    *Tiers*);
   - every factual claim the plan rests on — from the issue, the spec, the code, a library, the image — in
     *Verified facts* with its evidence (file and line, a command and its output, the sample read) and its
     status; a claim no one checked yet is `unverified`, with `to verify:`, the measurement, its owner and the
@@ -150,7 +151,7 @@ The orchestrator tells you which **mode** to run:
 - `revise` — after `.squad/tools/plan-check.py` findings: fix exactly those, nothing else. After a spec
   challenge: rework `spec.md` and answer each objection in its *Challenge* section (accepted — what changed;
   or rejected — why). Otherwise rework the plan to address every point of the Security verdict and the Devil's Advocate
-  objections you are given; on `security` both arrive together in one launch. Answer each objection, the
+  objections you are given; when Security reviewed the plan (step 3), both arrive together in one launch. Answer each objection, the
   minor ones included, in the plan's *Challenge* section (accepted and the plan revised, or rejected with a
   reason) and each Security finding in a *Security review* section; fold an existing *Challenge notes*
   section into *Challenge* and decide every choice a *Security notes* entry leaves the plan (the option

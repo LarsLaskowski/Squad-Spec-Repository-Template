@@ -51,11 +51,12 @@ Easy to get wrong by hand: `#region` blocks on every type, XML documentation on 
 underscores in member names, a region for an interface implementation named after the interface.
 
 SonarQube Cloud's own quality profile can still report `S####` rules the local default profile does not,
-and its non-Roslyn checks (duplication, hotspots, taint analysis) only run in CI — such findings arrive in
-squad step 11.
+and its non-Roslyn checks (hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate*
+below is the first to report their issues and hotspots, and squad step 11 reads the quality gate,
+duplication included.
 
 Own browser scripts (`wwwroot/js/*.js`, no Node build) have no local analyzer: SonarQube Cloud's JavaScript
-rules report on them only in squad step 11, so write them to those rules from the start. The one that bit
+rules report on them first in the *Sonar gate* below, so write them to those rules from the start. The one that bit
 (`javascript:S2486`): a `catch` block that ignores the exception holds exactly one whole-line comment and
 nothing else — a comment before a `return` inside the block is still flagged.
 
@@ -64,8 +65,8 @@ Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and
 binaries (`.claude/hooks/install-linters.sh`), and the gate reports NOT RUN for one that is missing (a refused
 download, for example). The gate itself checks two SonarQube Cloud shell rules shellcheck does not report:
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
-local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
-in squad step 11.
+local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings are first
+reported by the *Sonar gate* below.
 
 *Sonar gate* runs SonarQube Cloud's own analysis on the work branch before the pull request (squad step 7):
 `sonar-check.py` runs the scanner with the branch name, waits for the analysis and fails on every open issue or

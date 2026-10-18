@@ -30,11 +30,12 @@ action yourself — including follow-up issues the Lead decides on.
   handed back is enough. Every fresh launch starts with an empty context, so what you pass is what it
   costs.
 - **Continue a member for its next round.** For a fix round or a delta round of a member already launched
-  in this run (Dev, Tester, Reviewer, Security), continue that agent — `SendMessage` to its agent id, or
+  in this run (Dev, Tester, Reviewer, Security — and the Lead within step 2: its `revise` rounds after
+  `plan-check.py` or a challenge, and for a feature its mode `plan` after mode `spec`), continue that agent — `SendMessage` to its agent id, or
   the Agent tool's resume — with the findings and the new head SHA, instead of a fresh launch that reloads
   40 k to 50 k tokens of instructions and code it already knows (`.squad/routing.md`, *Continuing a
-  member*). Keep the agent id of each member's last launch. Launch fresh for the first launch of a mode,
-  after a session restart, and when the previous launch ended on an API error. Log a continuation as a
+  member*). Keep the agent id of each member's last launch. Launch fresh for the first launch of any other
+  mode, after a session restart, and when the previous launch ended on an API error. Log a continuation as a
   launch of that member with its notification's usage and `--continued`: the usage block reports the agent's
   tokens since its first launch (tool uses and duration for the round alone), the script writes this round's
   share and marks the trailer. When the agent you continue is not the member's last fresh launch (a member
@@ -152,7 +153,8 @@ action yourself — including follow-up issues the Lead decides on.
      affected area documents (`docs/areas/`), required documentation updates (`README.md`, `docs/`), and
      `Proposed` decision records. Run `python3 .squad/tools/plan-check.py issue-<number>` before anyone else
      reads the plan, and after every Lead revision; a finding goes back to `squad-lead` in mode `revise` with
-     the findings only, without a challenge round. Continue with the steps the tier requires.
+     the findings only, continuing its launch, without a challenge round — at most twice, then mode `decide`
+     (*Loop limits*). Continue with the steps the tier requires.
    - `RESULT: NO CHANGE` — show the proposed issue comment to the user, post it only after confirmation
      (append the log as a collapsed "Squad working record" block), remove the work folder with a commit
      and push, and stop. No PR; the branch stays as it is, and you tell the user so.

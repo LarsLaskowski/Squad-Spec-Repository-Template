@@ -243,6 +243,19 @@ class TestPlanCheck(unittest.TestCase):
         write("specs/issue-34/plan.md", plan)
         self.assertEqual(self.errors("specs/issue-34"), [])
 
+    def test_dash_with_a_number_is_no_range_and_other_columns_are_not_criteria(self):
+        spec = SPEC.replace("(E1, E2)", "(E1 \u2013 10 s at most)")
+        self.assertTrue(any("E2 is named by no" in e for e in self.errors(self.feature(spec=spec))))
+        tasks = TASKS.replace("| # | Task | Files | Criteria |", "| # | Action | Files | Criteria |")
+        self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
+
+    def test_sub_bullet_and_prose_questions(self):
+        spec = SPEC.replace("- [ ] AC1: an export writes one row per item (S1)",
+                            "- [ ] AC1: an export writes one row per item (S1)\n  - complements AC2 for empty input")
+        self.assertEqual(self.errors(self.feature(spec=spec)), [])
+        prose = SPEC.replace("- Which delimiter? Answered: comma, as the issue's example shows.", "Which delimiter?")
+        self.assertTrue(any("Open questions" in e for e in self.errors(self.feature(spec=prose))))
+
     def test_folder_name_never_becomes_a_path(self):
         self.feature()
         for bad in ("../specs/feature-12-export", "/etc", "_template", "feature-99"):

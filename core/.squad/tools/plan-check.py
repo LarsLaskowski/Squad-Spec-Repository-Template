@@ -46,13 +46,15 @@ SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functiona
                  "Acceptance criteria", "Out of scope", "Open questions", "Area documents"]
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC\d+):", re.M)
 CASE = re.compile(r"^\s*- (?:\*\*)?([SE]\d+)(?:\*\*)?:", re.M)
-RANGE = re.compile(r"\b(AC|S|E)(\d+)\s*(?:[-–—]|\.\.)\s*(?:\1)?(\d+)\b")
+# A range repeats the prefix (`AC1\u2013AC3`, `S2 .. S4`) or joins the numbers without spaces (`AC1-3`), so
+# that "E1 \u2013 10 s at most" stays one id and a number.
+RANGE = re.compile(r"\b(AC|S|E)(\d+)(?:\s*(?:[-\u2013\u2014]|\.\.)\s*\1(\d+)|[-\u2013](\d+))\b")
 ID = re.compile(r"\b(AC|S|E)(\d+)\b")
-ELLIPSIS = r"(?:\.\.\.|…)"
+ELLIPSIS = r"(?:\.\.\.|\u2026)"
 PLACEHOLDERS = [re.compile(p) for p in (r"<title>", r"Issue #<number>", r"<one-sentence justification>",
                                          r"NNNN-title", rf"\bAC\d+: {ELLIPSIS}\s*$",
                                          rf"^\s*- [SE]\d+: {ELLIPSIS}\s*$", rf"^\|.*\|\s*{ELLIPSIS}\s*\|")]
-EMPTY_CELLS = {"", "-", "–", "—", "...", "…", "none", "n/a", "tbd", "todo"}
+EMPTY_CELLS = {"", "-", "\u2013", "\u2014", "...", "\u2026", "none", "n/a", "tbd", "todo"}
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 EMPHASIS = re.compile(r"^[`*_]+|[`*_]+$")
 NONE = re.compile(r"^\s*(?:[-*]\s+)?none\.?\s*$", re.I)
@@ -86,7 +88,8 @@ def resolve_folder(root, folder):
 def ids(text, kind=None):
     """Every id the text names (`AC1`, `S2`, `E3`), ranges expanded; only those of `kind` when given."""
     found = set()
-    for prefix, low, high in RANGE.findall(text):
+    for prefix, low, spaced, joined in RANGE.findall(text):
+        high = spaced or joined
         found.update(f"{prefix}{n}" for n in range(int(low), int(high) + 1) if int(high) - int(low) < 100)
     found.update(f"{prefix}{number}" for prefix, number in ID.findall(text))
     return {i for i in found if kind is None or re.fullmatch(rf"{kind}\d+", i)}
@@ -134,9 +137,9 @@ def tables(body):
 
 
 def column(header, *names):
-    """The index of the first header cell that starts with one of the names (case-insensitive), or None."""
+    """The index of the first header cell that is one of the names (case-insensitive), or None."""
     for index, name in enumerate(header):
-        if any(name.lower().startswith(n) for n in names):
+        if name.lower() in names:
             return index
     return None
 
@@ -154,6 +157,10 @@ def check_placeholders(name, text, errors):
 def check_open_questions(questions, errors):
     """Every top-level question is answered somewhere in its item (continuation lines and sub-items included)."""
     if NONE.match(questions or ""):
+        return
+    if questions and not any(TOP_ITEM.match(line) for line in questions.splitlines()):
+        if "Answered:" not in questions:
+            errors.append("spec.md: *Open questions* holds a question without `Answered:` (or write \"none\")")
         return
     items, current = [], None
     for line in questions.splitlines():
@@ -180,7 +187,7 @@ def check_spec(spec, errors):
     if len(criteria) != len(set(criteria)):
         errors.append("spec.md: an acceptance criterion id is used twice")
     for line in block.splitlines():
-        if re.match(r"^\s*[-*\d]", line) and ids(line, "AC") and not CRITERION.match(line):
+        if re.match(r"^[-*\d]", line) and ids(line, "AC") and not CRITERION.match(line):
             errors.append(f"spec.md: criterion not written `- [ ] AC<n>: …`: {line.strip()}")
     cases = CASE.findall(parts.get("Scenarios", "")) + CASE.findall(parts.get("Errors and edge cases", ""))
     if not any(case.startswith("S") for case in cases):
@@ -196,7 +203,8 @@ def check_spec(spec, errors):
 def check_tests(plan_parts, criteria, tier, errors):
     named = set()
     for header, rows in tables(plan_parts.get("Tests per criterion")):
-        test = column(header, "test(s)", "tests", "test") or 1
+        test = column(header, "test(s)", "tests", "test")
+        test = 1 if test is None else test
         for row in rows:
             named |= ids(row[0], "AC")
             if len(row) <= test or (empty(row[test]) and tier != "trivial"):
@@ -230,7 +238,7 @@ def check_facts(plan_parts, errors):
 def check_tasks(tasks, criteria, errors):
     named, found_column = set(), False
     for header, rows in tables(tasks):
-        index = column(header, "criteria", "tests (ac)", "ac")
+        index = column(header, "criteria", "criterion", "tests (ac)", "ac")
         if index is None:
             continue
         found_column = True

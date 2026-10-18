@@ -42,11 +42,11 @@ changes listed after them.
    the spec misses, a criterion that would not catch a wrong build, an answer to an open question that
    contradicts the code or an accepted record, a requirement that cannot be met as written, scope that is
    too wide — not how it is built. Minor objections only: append them verbatim to `spec.md` as a *Challenge
-   notes* section; the Lead folds them in while it plans. A major objection: launch `squad-lead` in mode
+   notes* section; the Lead folds them in while it plans. A major objection: continue `squad-lead` in mode
    `revise` on the spec with all objections; it answers each in the spec's *Challenge* section and may narrow
    the scope, escalate or switch to `RESULT: NO CHANGE`. Run `plan-check.py --spec` again after a revision.
    One round, no veto.
-2b. **Plan.** Continue the Lead's spec launch in mode `plan` with the work folder (*Continuing a member* in
+2b. **Plan.** Continue the Lead's last launch in mode `plan` with the work folder (*Continuing a member* in
    `.squad/routing.md`; a fresh launch only after a session restart): it answers the spec's *Challenge notes*
    in the spec's *Challenge* section, sets the spec's status to `Approved by Lead` (or `Approved by Product
    Manager` when an escalation settled it), and writes `plan.md` (the tier, the

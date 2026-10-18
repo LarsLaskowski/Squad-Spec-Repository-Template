@@ -12,6 +12,7 @@ TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", "
 
 
 def load_script(name):
+    sys.modules.pop("analyzer_common", None)  # it reads squad_settings once, at import
     sys.modules["squad_settings"] = types.SimpleNamespace(BASE_REF="main")
     sys.path.insert(0, TOOLS)
     spec = importlib.util.spec_from_file_location(name.replace("-", "_"), os.path.join(TOOLS, name + ".py"))

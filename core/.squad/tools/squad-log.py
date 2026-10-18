@@ -351,11 +351,8 @@ def unreported_usage(rows):
     return [(step, member) for _, step, member, result in rows if UNREPORTED_TRAILER.search(result)]
 
 
-def summary(path):
-    """Markdown table: launches, tokens, tool uses and seconds per member (and model/effort), with a total; then
-    the orchestrator's table when the rows carry a time of day."""
-    with open(path, encoding="utf-8-sig") as handle:
-        rows = parse_rows(handle.read())
+def member_totals(rows):
+    """{(member, model/effort): [launches, tokens, tool uses, seconds, continued launches]} from the trailers."""
     per_member = {}
     for _, _, member, result in rows:
         match = TRAILER.search(result) or UNREPORTED_TRAILER.search(result)
@@ -368,16 +365,12 @@ def summary(path):
         entry[4] += 1 if match.group("continued") else 0
         for index, value in enumerate(metrics(match), start=1):
             entry[index] += value
-    lines = ["| Member | Model/effort | Launches | Tokens | Tool uses | Seconds |",
-             "| ------ | ------------ | -------- | ------ | --------- | ------- |"]
-    total = [0, 0, 0, 0, 0]
-    for (member, launch), entry in sorted(per_member.items()):
-        lines.append(f"| {member} | {launch} | {launches(entry[0], entry[4])} | {entry[1]:,} | {entry[2]} | "
-                     f"{entry[3]} |")
-        total = [a + b for a, b in zip(total, entry, strict=True)]
-    lines.append(f"| **Total** | | {launches(total[0], total[4])} | {total[1]:,} | {total[2]} | {total[3]} |")
-    own = orchestrator(rows)
-    text = "\n".join(lines) + (f"\n\n{own}" if own else "")
+    return per_member
+
+
+def usage_notes(rows):
+    """The notes under the table: launches whose usage never arrived, and launch rows still without usage."""
+    text = ""
     unreported = unreported_usage(rows)
     if unreported:
         names = ", ".join(f"`{step} · {member}`" for step, member in unreported)
@@ -389,6 +382,23 @@ def summary(path):
         text += (f"\n\n**Incomplete:** {len(missing)} launch row(s) without usage — add it with `--amend-last` "
                  f"from the launch's task notification before posting this table: {names}")
     return text
+
+
+def summary(path):
+    """Markdown table: launches, tokens, tool uses and seconds per member (and model/effort), with a total; then
+    the orchestrator's table when the rows carry a time of day."""
+    with open(path, encoding="utf-8-sig") as handle:
+        rows = parse_rows(handle.read())
+    lines = ["| Member | Model/effort | Launches | Tokens | Tool uses | Seconds |",
+             "| ------ | ------------ | -------- | ------ | --------- | ------- |"]
+    total = [0, 0, 0, 0, 0]
+    for (member, launch), entry in sorted(member_totals(rows).items()):
+        lines.append(f"| {member} | {launch} | {launches(entry[0], entry[4])} | {entry[1]:,} | {entry[2]} | "
+                     f"{entry[3]} |")
+        total = [a + b for a, b in zip(total, entry, strict=True)]
+    lines.append(f"| **Total** | | {launches(total[0], total[4])} | {total[1]:,} | {total[2]} | {total[3]} |")
+    own = orchestrator(rows)
+    return "\n".join(lines) + (f"\n\n{own}" if own else "") + usage_notes(rows)
 
 
 def launches(count, continued):

@@ -89,8 +89,9 @@ Rules:
   `git worktree`, see *Concurrency* in `.squad/routing.md`), never call session-management tools
   (`create_session`, `send_message`, `archive_session`).
 
-The orchestrator may commit and push your edits as work in progress while you are still working (a stop
-hook demands it), so a "Work in progress" commit or a clean `git status` is expected, not an anomaly:
+Before the pull request the orchestrator may commit and push your edits as work in progress while you are
+still working (when the stop hook asks, *The stop hook* in `.squad/routing.md`), so a "Work in progress" commit or
+a clean `git status` is expected, not an anomaly:
 report your changes against the head SHA you were given (`git diff <sha>`).
 
 When you change code that can be run, built or type-checked, run a real check that exercises the change

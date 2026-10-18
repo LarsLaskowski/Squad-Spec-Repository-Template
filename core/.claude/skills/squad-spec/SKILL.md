@@ -47,5 +47,6 @@ commit/push rules and the orchestrator role are identical to the `squad-issue` s
   to the feature request issue if one exists (`Closes #<n>` in the PR), otherwise as the first comment on
   the PR right after opening it; the folder is removed before the PR as in `squad-issue`. The PR opens as a
   draft and is marked ready for review in step 11 as in `squad-issue` (*Draft until green*). Behavior that
-  must stay documented belongs in `README.md`, `docs/ARCHITECTURE.md` or a decision record, not in
-  `spec.md`.
+  must stay documented belongs in the area document (`docs/areas/`), user-facing configuration in
+  `README.md`, and a changed flow or guarantee in `docs/ARCHITECTURE.md` — not in `spec.md`, which leaves with the working record, nor in a decision record,
+  which keeps only the why.

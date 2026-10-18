@@ -35,43 +35,56 @@ def changed_files():
                    if n.strip().endswith(tuple(settings.LINT_EXTENSIONS)) and os.path.isfile(n.strip())})
 
 
-def main():
-    os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-    if lint_only_requested():
-        return lint_only_main()
-    failed = False
-
+def run_check_scripts():
+    """Run every npm script of CHECK_SCRIPTS; return True when all of them pass."""
+    passed = True
     for script in settings.CHECK_SCRIPTS:
         result = subprocess.run(["npm", "run", "--silent", script], capture_output=True, text=True, check=False)
         if result.returncode != 0:
             print((result.stdout + result.stderr)[-4000:])
             print(f"npm run {script}: FAIL")
-            failed = True
+            passed = False
         else:
             print(f"npm run {script}: PASS")
+    return passed
 
-    files = changed_files()
+
+def eslint_findings(files):
+    """ESLint's messages for the changed files, one line each; None when ESLint produced no JSON report."""
+    if not files:
+        return []
+    lint = subprocess.run(["npx", "--no-install", "eslint", "--format", "json", "--no-warn-ignored", "--", *files],
+                          capture_output=True, text=True, check=False)
+    try:
+        report = json.loads(lint.stdout or "[]")
+    except json.JSONDecodeError:
+        print(lint.stdout[-4000:] + lint.stderr[-4000:])
+        return None
     findings = []
-    if files:
-        lint = subprocess.run(["npx", "--no-install", "eslint", "--format", "json", "--no-warn-ignored", "--", *files],
-                              capture_output=True, text=True, check=False)
-        try:
-            report = json.loads(lint.stdout or "[]")
-        except json.JSONDecodeError:
-            print(lint.stdout[-4000:] + lint.stderr[-4000:])
-            print("ESLint did not produce a JSON report - is it installed and configured?")
-            return 1
-        for entry in report:
-            path = os.path.relpath(entry["filePath"]).replace(os.sep, "/")
-            for message in entry.get("messages", []):
-                level = "error" if message.get("severity") == 2 else "warning"
-                findings.append(f"{path}({message.get('line', 0)}): {level} {message.get('ruleId') or 'parse'}: "
-                                f"{message.get('message', '')}")
+    for entry in report:
+        path = os.path.relpath(entry["filePath"]).replace(os.sep, "/")
+        for message in entry.get("messages", []):
+            level = "error" if message.get("severity") == 2 else "warning"
+            findings.append(f"{path}({message.get('line', 0)}): {level} {message.get('ruleId') or 'parse'}: "
+                            f"{message.get('message', '')}")
+    return findings
+
+
+def main():
+    os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    if lint_only_requested():
+        return lint_only_main()
+    scripts_passed = run_check_scripts()
+    files = changed_files()
+    findings = eslint_findings(files)
+    if findings is None:
+        print("ESLint did not produce a JSON report - is it installed and configured?")
+        return 1
     for finding in findings:
         print(finding)
     print(f"\nChanged files linted: {len(files)}")
     print(f"Findings in changed files: {len(findings)}")
-    ok = lint_check() and not failed and not findings
+    ok = lint_check() and scripts_passed and not findings
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
 

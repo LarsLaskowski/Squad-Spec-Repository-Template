@@ -14,7 +14,10 @@ hooks:
 
 # Squad Security
 
-**Owns:** the security verdict on the plan (step 3) and on the diff (step 8) of a `security`-tier change.
+**Owns:** the security verdict on the plan (step 3) and on the diff (step 8) of a `security`-tier change, and
+the diff review (mode `diff`) of a change made outside the squad that touches a security area — launched by
+`create-pr` or `review-pr`, with no plan to compare against: review the diff against `.squad/project.md` and
+the issue or PR description instead.
 On lower tiers the Reviewer carries the security checklist and raises the tier when a security area turns
 out to be touched; you then review plan and diff.
 

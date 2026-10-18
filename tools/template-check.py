@@ -29,7 +29,9 @@ Checks, without arguments:
 - `decision-check.py` on a temporary repository: consistent records pass, a duplicate number and a link to a
   renamed record fail, an unreleased record may be edited in place, and around a release tag a rewritten,
   deleted or wrongly superseded record fails; once areas are defined, a record without a listed `Area:` and an
-  area without its document fail.
+  area without its document fail;
+- every Python tool a target receives (`core/`, `profiles/`, `multi/`, `seed/`) stays at or below SonarQube Cloud's
+  cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it).
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -38,6 +40,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -64,12 +67,14 @@ PROFILE_FILES = [
     "seed/.github/dependabot.yml",
 ]
 COMMANDS = ["*Restore*", "*Format*", "*Format check*", "*Build*", "*Test*", "*Single test*",
-            "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*", "*Image build check*"]
+            "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*", "*Sonar gate*", "*Image build check*"]
 STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate", "## Image build check",
                   "## Coverage exclusions", "## Writing code", "## Writing tests", "## Skeleton", "## Dependencies",
                   "## Concurrency", "## Known pitfalls"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
+DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
+COGNITIVE_LIMIT = 15
 MARKER = re.compile(r"<!-- (project|stack):(begin|end) ([\w-]+) -->")
 
 try:
@@ -602,6 +607,27 @@ def check_area_checks(errors):
         expect("area without a link", False)
 
 
+def check_complexity(errors):
+    """The Python tools a target receives stay below SonarQube Cloud's cognitive-complexity limit (python:S3776,
+    15): every refresh puts them under the target's code analysis, so a finding there would cost a template PR
+    and a refresh of every target. complexipy measures the same cognitive complexity; CI installs it."""
+    if not shutil.which("complexipy"):
+        print("NOTE: complexipy is not installed (pip install complexipy); cognitive complexity not checked here, "
+              "CI checks it")
+        return
+    # Every file by name: complexipy skips hidden directories such as `.squad/` when it walks a directory itself.
+    paths = sorted(os.path.join(top, name) for d in DISTRIBUTED_DIRS for top, _, names in os.walk(os.path.join(ROOT, d))
+                   for name in names if name.endswith(".py"))
+    with tempfile.TemporaryDirectory() as cache:
+        result = subprocess.run(["complexipy", *paths, "--max-complexity-allowed", str(COGNITIVE_LIMIT), "--failed",
+                                 "--plain", "--cache-dir", cache], capture_output=True, text=True, check=False)
+    for line in result.stdout.splitlines():
+        if line.strip():
+            errors.append(f"cognitive complexity above {COGNITIVE_LIMIT} (python:S3776): {line.strip()}")
+    if result.returncode != 0 and not result.stdout.strip():
+        errors.append(f"complexipy failed: {result.stderr.strip()}")
+
+
 def main():
     errors = []
     check_agents_and_skills(ROOT, errors)
@@ -614,6 +640,7 @@ def main():
     check_decision_tool(errors)
     check_area_checks(errors)
     check_sonar_seed(profiles, errors)
+    check_complexity(errors)
     for error in errors:
         print(error)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

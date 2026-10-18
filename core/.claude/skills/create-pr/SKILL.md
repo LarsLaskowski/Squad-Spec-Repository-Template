@@ -48,7 +48,11 @@ in.
 5. **Commit** with a subject line of at most 80 characters, not written in
    the first person and without a trailing period; a body only if the subject
    does not explain the change (the PR is squash-merged, its description is
-   the lasting record). Stage only the files that belong to this task.
+   the lasting record). Stage only the files that belong to this task. Then
+   run the *Sonar gate* from `.squad/stack.md` — SonarQube Cloud's analysis
+   of the committed branch; fix every finding it lists (and commit again).
+   NOT CHECKED (no `SONAR_TOKEN` in this environment) leaves the check to
+   step 9.
 6. **Run the internal review loop** (see below) and resolve what it finds.
    This happens *before* the push, so the pull request opens on a reviewed
    change instead of collecting review rounds afterwards.
@@ -78,10 +82,12 @@ in.
    resolve it, rerun step 4 on the merged files and push before waiting for
    anything else (`.squad/routing.md`, *Merge conflicts*). Then wait until every
    CI check on the head has finished. Fix each failing check and every new
-   issue the CI code analysis (e.g. SonarQube Cloud) reports — a passed quality
-   gate with open new issues is still rework — rerun step 4 on the fix, commit
-   once per round and push. Only when all checks are green and the code
-   analysis lists no new issue on the head and the PR merges cleanly, mark it ready for review
+   issue the CI code analysis reports — `python3 .squad/tools/sonar-check.py pr
+   <number>` lists them for the head and answers PENDING while the analysis of
+   this head still runs; a passed quality gate with open new issues is still
+   rework — rerun step 4 on the fix, commit once per round and push. Only when
+   all checks are green, `sonar-check.py pr <number>` exits 0 and the PR merges
+   cleanly, mark it ready for review
    (`update_pull_request` with `draft: false`). If a failure lies outside the
    change or the code analysis cannot be read, leave it a draft and tell the
    user what blocks it.
@@ -113,9 +119,14 @@ context and the repository's full review checklist. That checklist lives in
 
 1. **Pass 1** — launch `squad-reviewer` (subagent_type
    `squad-reviewer`, model `opus`). Tell it the base ref, the
-   head to review, and that this is round 1.
-2. **Act on the verdict**:
-   - `APPROVE` → done, go push.
+   head to review, and that this is round 1. When the diff touches a
+   security area listed in `.squad/project.md` (*Security areas*), launch
+   `squad-security` in mode `diff` alongside it: a change made outside the
+   squad has had no Security plan review, and its findings count like the
+   reviewer's.
+2. **Act on the verdict** (with Security alongside: both verdicts):
+   - `APPROVE` (and Security's `APPROVED`) → done, go push.
+   - Security's `CHANGES_REQUIRED` → its findings are blocking findings like the reviewer's.
    - Blocking findings → fix each one minimally and commit. Do not widen the
      change beyond what the finding requires.
    - Non-blocking findings → **do not open another round for them**. Fix one
@@ -125,7 +136,8 @@ context and the repository's full review checklist. That checklist lives in
      the session ends, so it is not a way to carry a finding forward.
 3. **Pass n+1** — launch a fresh `squad-reviewer` and give it
    the round number, the previous round's findings, and the commits that
-   fixed them. It reviews the delta only, per its own instructions.
+   fixed them. It reviews the delta only, per its own instructions. When
+   Security's findings were fixed, `squad-security` reviews that delta too.
 4. **Stop** at the first pass that reports no blocking findings. Cap the loop
    at **three passes**: if blocking findings remain after the third, stop and
    report the open findings to the user rather than continuing to iterate —

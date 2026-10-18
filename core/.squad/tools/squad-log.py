@@ -477,20 +477,29 @@ def is_pending_row(args):
         and args.continued_from is None and not (args.amend_last or args.replace_last)
 
 
+def has_metric_option(args):
+    """Whether any option of a launch's usage is given."""
+    return bool(args.agent or args.launch) or any(value is not None for value in (args.tokens, args.tool_uses, args.seconds))
+
+
+def check_unreported(parser, model, args):
+    """--unreported goes with --agent (or --launch) alone."""
+    if not model or (args.tokens, args.tool_uses, args.seconds) != (None, None, None) \
+            or args.continued or args.continued_from is not None:
+        parser.error("--unreported goes with --agent (or --launch) alone: no --tokens, --tool-uses, --seconds "
+                     "or --continued")
+
+
 def launch_metrics(parser, root, args):
     """(model/effort, tokens, tool uses, seconds) from the options, or None when no metric option is given; an
     incomplete set is a usage error, an unknown agent file ends the run with exit code 1."""
-    if not (args.agent or args.launch or args.tokens is not None or args.tool_uses is not None
-            or args.seconds is not None):
+    if not has_metric_option(args):
         return None
     model = args.launch or (agent_launch(root, args.agent) if args.agent else None)
     if args.agent and not args.launch and model is None:
         sys.exit(f"No .claude/agents/{args.agent}.md with a model and an effort")
     if args.unreported:
-        if not model or args.tokens is not None or args.tool_uses is not None or args.seconds is not None \
-                or args.continued or args.continued_from is not None:
-            parser.error("--unreported goes with --agent (or --launch) alone: no --tokens, --tool-uses, --seconds "
-                         "or --continued")
+        check_unreported(parser, model, args)
         return (model, None, None, None)
     if model and is_pending_row(args):
         return (model, PENDING, None, None)  # a new launch row whose notification has not arrived yet

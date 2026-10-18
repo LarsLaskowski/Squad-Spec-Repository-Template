@@ -49,8 +49,8 @@ misses in this one round. When a plan claims a resource bound (memory, size, tim
 derived values and expect the Tester's test that pins the claim. A security property or a test double that
 rests on measured or library behavior (a deadline that interrupts a query step, a limit a parser enforces, a
 server's flush semantics) needs its measurement (`.squad/team.md`, *Test doubles that model a real
-component*): in mode `plan` you run it or the plan names it with its owner, in mode `diff` you check the
-Dev's; an unverified claim of that kind is a blocking finding.
+component*): in mode `plan` you run it once before you approve, in mode `diff` you check the Dev's; an
+unverified claim of that kind is a blocking finding.
 
 Rules:
 

@@ -96,11 +96,11 @@ In step 2 the Lead picks the tier on the change, not only on the paths it touche
 when step 3 has not run and step 4 has not started — and does not re-run the plan challenge; the orchestrator
 records it in `plan.md` (with the area that made it) and launches the Lead only when it leaves a decision open.
 
-Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or
-build configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever
-it is not "none", Security reviews the plan (step 3), whatever the tier. Security's diff review (step 8) is for
-tier `security` alone; below it the Reviewer is the diff's security review, and an area it finds touched but
-not listed goes to *Unlisted security areas*.
+Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or build
+configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever it is not
+"none", Security reviews the plan (step 3), whatever the tier. Security's diff review (step 8) is for tier
+`security` (and `patch/security`, its row) alone; below it the Reviewer is the diff's security review, and an area
+it finds touched but not listed goes to *Unlisted security areas*.
 
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
@@ -283,17 +283,19 @@ squad skills). A record number `main` took meanwhile is renumbered on the work b
 row and every link to it — and `decision-check.py` must pass on the merged head. *Draft until green* then
 starts again on the new head.
 
-Before the first review round (step 7) and again before PR approval (step 9) the orchestrator merges `main`
-when the work branch lacks its latest commit (`git merge-base --is-ancestor origin/main HEAD` fails), so the
-reviewers see the merged code and the change's security statements are checked against today's `main`. A
-merge that took both sides unchanged needs the gates of step 7 again, not a new review round; a resolution
-that rewrote code, or a statement of the change the merged `main` made untrue, goes through steps 7–8.
+Before the first review round (step 7) and again before PR approval (step 9) the orchestrator runs `git fetch
+origin main` and merges `main` when the work branch lacks its latest commit (`git merge-base --is-ancestor
+origin/main HEAD` fails), so the reviewers see the merged code and the change's security statements are checked
+against today's `main`. A merge that took both sides unchanged needs the gates of step 7 again, not a new review
+round; a resolution that rewrote code, or a statement of the change the merged `main` made untrue, goes through
+steps 7–8.
 
 ## Plan challenge
 
 The Devil's Advocate challenges a plan of tier `standard` or `security` (never `docs`, `patch` or `trivial`)
 only when the plan changes production code **and** either weighs more than one option (*Options considered*
-names an alternative, or it adds or extends a decision record) or the tier is `security` — for a feature,
+names an alternative, or it adds or extends a decision record) or the tier is `security` — a `security` plan
+without production code (CI permissions, secrets, a workflow) is challenged too; for a feature,
 whose spec it has already challenged, only when the plan weighs options. Otherwise the orchestrator logs
 "challenge skipped: no options". It runs at most once, has no veto, and a rejected objection is not raised
 again. Each objection is ranked `major` (the plan would build the wrong thing or miss the defect) or
@@ -354,7 +356,7 @@ PR is opened, the branch stays without one, and the user is told so.
 - **Existing tests affected by a signature change:** the plan lists the existing test call sites of a
   changed signature (factories, helpers) and who adapts them. The **Dev** adapts them in step 4 when the old
   signature goes away (so *Build* passes before the Tester starts), and later when a call site stops
-  compiling only because of its own signature or field change — mechanically, no assertion touched, listed in
+  compiling only because of a signature or field change the Dev made itself — mechanically, no assertion touched, listed in
   its report; these are the only cases in which the Dev edits test code. The **Tester** moves them in step 5
   when old and new signature coexist, and checks the Dev's edits in its coverage step.
 - **Dev ↔ Tester disagreements:** if the Dev believes a step-5 test is wrong, the Lead decides (the test
@@ -371,25 +373,25 @@ PR is opened, the branch stays without one, and the user is told so.
 ## Escalation to the Product Manager
 
 The Lead escalates only when it cannot decide responsibly on its own: an ambiguous requirement (a reader of an
-external format without a real sample in the test data or on the issue is one — it asks for the sample, or
-for the confirmation to build from the description with the risk recorded), a product decision (behavior
-change visible to users, breaking a guarantee in `docs/ARCHITECTURE.md` or an accepted decision record), or
-a loop limit where none of its options is clearly right. The escalation is one concise question with the
-options and the Lead's recommendation. Follow-up issues the Lead decides on are created by the orchestrator
-and listed in the PR under Next Steps.
+external format without a real sample in the test data or on the issue is one — it asks for the sample, or for the
+confirmation to build from the description with the residual risk recorded in the decision record), a product
+decision (behavior change visible to users, breaking a guarantee in `docs/ARCHITECTURE.md` or an accepted decision
+record), or a loop limit where none of its options is clearly right. The escalation is one concise question with
+the options and the Lead's recommendation. Follow-up issues the Lead decides on are created by the orchestrator and
+listed in the PR under Next Steps.
 
 ## Verbatim documentation fixes
 
 A review finding — blocking or non-blocking — whose fix the reviewer states verbatim (file, the sentence as it
-stands, the sentence as it should read, marked `verbatim` in the report) and that touches only documentation,
-a decision record, an area document, `README.md` or a configuration example (never production or test code)
-is applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, passed
-through *Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit. No
-launch, no build, no confirming delta round: a blocking finding resolved this way makes its round clean, and
-the text is read again only by a delta round due for another change. An edit beyond the proposed text, or a
-fix the reviewer cannot state verbatim, is an ordinary fix for its owner with a delta round. One exception: a fix that changes a behavior statement an
-acceptance criterion or a guarantee in `.squad/project.md` relies on is not applied; the reviewer says so, and
-the Lead decides (mode `decide`).
+stands, the sentence as it should read, marked `verbatim` in the report) and that touches only documentation, a
+decision record, an area document, `README.md` or a configuration example (never production or test code) is
+applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, passed through
+*Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit. No launch, no
+build, no confirming delta round: a blocking finding resolved this way makes its round clean, and the text is read
+again only by a delta round due for another change. An edit beyond the proposed text, or a fix the reviewer cannot
+state verbatim, is an ordinary fix for its owner with a delta round. One exception: a fix that changes a behavior
+statement an acceptance criterion or a guarantee in `.squad/project.md` relies on is not applied; the reviewer says
+so, and the Lead decides (mode `decide`).
 
 ## Unlisted security areas
 

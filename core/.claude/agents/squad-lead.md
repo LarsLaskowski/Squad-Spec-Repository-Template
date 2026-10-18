@@ -88,8 +88,9 @@ The orchestrator tells you which **mode** to run:
   - for a new or changed parser, decoder or reader of an external format: the **real sample** of that format
     the plan is built from — a file under the stack's test data layout or attached to the issue, named with
     the variants it covers, which the Tester's tests read instead of hand-typed lines where the format allows.
-    Without one, return `RESULT: ESCALATE` (*Escalation to the Product Manager*) and plan on only with the
-    answer;
+    Without one, return `RESULT: ESCALATE` (*Escalation to the Product Manager*: provide a sample, naming the
+    variants the issue mentions, or confirm building from the description with the residual risk recorded in
+    the decision record) and plan on only with the answer;
   - an architecture check against `docs/ARCHITECTURE.md`: the guarantees in `.squad/project.md` are not
     weakened without the Product Manager;
   - the **options considered**: each alternative you weighed and why it lost, or "one option" — they decide
@@ -136,7 +137,7 @@ The orchestrator tells you which **mode** to run:
   and left decisions open: a plan deviation, one of your earlier decisions to confirm against what was built,
   non-blocking findings that touch code (fix now, or a linked issue the orchestrator opens), or a change to
   `docs/ARCHITECTURE.md` or `.squad/project.md` the plan does not name or the Reviewer did not find
-  consistent. Decide those against the final diff (`git diff <base>...HEAD`), the plan and its criteria and the
+  consistent. Decide those against the final diff (`git diff <base>...HEAD` plus uncommitted changes), the plan and its criteria and the
   gate output you are given. Check that every decision record of this change (the orchestrator set them
   `Accepted`) matches what was built, and that each change in behavior has its area document. Any edit you
   find necessary — a stale or missing record, `docs/ARCHITECTURE.md`, a missing area document — gets its

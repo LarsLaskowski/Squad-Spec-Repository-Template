@@ -75,7 +75,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
      reads it and after every Lead write; findings go back as *Loop limits* (Plan check) says. Then the steps
      the tier requires.
    - `RESULT: NO CHANGE` — as *Outcome "no change"*, and stop.
-   - `RESULT: ESCALATE` — ask the user, then continue the Lead with the answer.
+   - `RESULT: ESCALATE` — ask the user, then relaunch the Lead with the answer.
 
    **Plan challenge.** Launch `squad-devils-advocate` in mode `plan` with the issue text and the work folder
    when *Plan challenge* calls for it, together with step 3 on the same plan commit when that runs; otherwise
@@ -97,18 +97,18 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    new tests compile and fail on the current code (unless the Tester justified why one cannot); note the
    tests it hands back as **deferred**. A fix without a reproducing test is acceptable only when the bug
    genuinely needs a live external system — then the PR says so.
-6. **Implement and cover.** Launch `squad-dev` in mode `implement` with the plan and the test names. If the
+6. **Implement and cover.** For a change without production or test code this is the Dev's edits alone: no
+   `squad-tester`, no *Test with coverage*, no *Coverage gate*. Otherwise launch `squad-dev` in mode `implement` with the plan and the test names. If the
    Dev disputes a test, launch `squad-lead` in mode `decide`; the Tester changes a test only if the Lead says
    so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`,
    with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
    plan has no test yet, a deferred test is open (also when the gate passes) or a reviewer asks for a test;
    otherwise log why the pass is skipped. Repeat until the gate passes. Before step 7, `grep` the test files
    for every test the plan names; a name without a match goes to `squad-tester` in mode `coverage`. Lines
-   reported as not unit-testable go to `squad-lead` in mode `decide`. A change without production or test
-   code is the Dev's edits alone.
-7. **Code check.** Merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
+   reported as not unit-testable go to `squad-lead` in mode `decide`.
+7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
    for a change without code and for `patch` their sections) with the commands from `.squad/stack.md`,
-   commit, then run the *Sonar gate*; keep the output for step 8. When *Format check* fails, run *Format*,
+   once they pass, commit, then run the *Sonar gate*; keep the output for step 8. When *Format check* fails, run *Format*,
    `git restore -- <file>` every file it changed outside the change, and check again. Launch
    `squad-code-officer` with the base ref only for analyzer diagnostics, Sonar findings or style findings that
    need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
@@ -125,7 +125,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
      reviewer; at most 2 fix rounds, then `squad-lead` in mode `decide` (*Loop limits*);
    - non-blocking findings: *Non-blocking findings*, collected for step 9.
 
-   A reviewer that stops on an API error (`529 Overloaded`; `429`: once the limit has reset) is relaunched
+   A reviewer or `squad-security` that stops on an API error (`529 Overloaded`; `429`: once the limit has reset) is relaunched
    unchanged, at most twice; after that report a blocker to the user.
 9. **PR approval.** Run *PR approval* (`.squad/routing.md`): the checklist in full, then the record status
    and `decision-check.py`. Launch `squad-lead` in mode `approve-pr` — with the base ref, the gate output, the
@@ -156,7 +156,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     the member and the last round's reviewer, at most 2 fix rounds per failure before the Lead decides, and
     gets the re-approval of step 9. A red CI on a criterion the plan verifies only in CI is a normal outcome
     here (*Criteria verified only in CI*). The work folder is gone: give the Reviewer, Security and the Lead
-    the plan (and for a feature `spec.md`, `tasks.md`) from the working-record comment or `git show
+    the plan (tiers `docs` and `patch`: the first log row; for a feature also `spec.md`, `tasks.md`) from the
+    working-record comment or `git show
     <commit-before-removal>:specs/<folder>/<file>`, and edit that comment in one batch. Never skip, disable or
     weaken a test to get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself — an unclear or
@@ -174,5 +175,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 
 - The PR documents the change, not how it was produced (`AGENTS.md`, *Related skills*).
 - A member that called a session-management tool is a step-12 lesson.
+- Text you write or copy verbatim (notes, verbatim fixes, a plan table) keeps its escapes: `.squad/team.md`,
+  *Escapes in files*.
 - Prefer non-interactive commands only. If push or PR creation fails, stop and report it.
 - Never close the issue manually; `Closes #<number>` closes it on merge.

@@ -35,7 +35,10 @@ action yourself — including follow-up issues the Lead decides on.
   launch of that member with its notification's usage and `--continued`: the usage block reports the agent's
   tokens since its first launch (tool uses and duration for the round alone), the script writes this round's
   share and marks the trailer. When the agent you continue is not the member's last fresh launch (a member
-  ran several task groups), use `--continued-from "<step cell of that launch>"` instead. After five
+  ran several task groups), use `--continued-from "<step cell of that launch>"` instead — the step cell of the
+  agent's fresh launch, not of a later continued row of it. A continued launch is a new row, so it takes no
+  `--step`: that option only selects the row `--amend-last` or `--replace-last` changes, and `squad-log.py`
+  refuses it on a new row. After five
   continuations of one agent or once its reported tokens pass 300,000, launch the member fresh with a short
   hand-over (*Continuing a member*). A continued member keeps its role's limits (`.squad/team.md`).
 - **The squad does not change itself in a product PR.** An issue or feature PR never touches `.squad/`
@@ -117,8 +120,8 @@ action yourself — including follow-up issues the Lead decides on.
    launch and names it instead of refusing the table; when that notification turns up after all, the row
    already carries a trailer, so a second `--amend-last` refuses it ("without a launch trailer") and
    `--replace-last "<member>"` with the numbers turns the mark into the full trailer. A continued launch
-   (*Continue a member*) is logged with the same options plus `--continued` (or `--continued-from "<step>"`,
-   see there), with the notification's numbers copied unchanged: they are cumulative, and the script
+   (*Continue a member*) is logged with the same options plus `--continued` (or `--continued-from "<step>"`
+   with the step cell of the fresh launch, never `--step`, see there), with the notification's numbers copied unchanged: they are cumulative, and the script
    computes the round's share. The wrap-up sums the trailers per role. After every member's report, commit and push the files it left in the work
    folder (the Lead's records, the Tester's tests) yourself, so the next report does not list them as
    untracked noise.
@@ -195,7 +198,10 @@ action yourself — including follow-up issues the Lead decides on.
    when the gate fails, the Dev reports uncovered new lines, the plan names a resource bound still without
    its test, a deferred plan test of step 5 is still open (also when the gate already passes), or a reviewer
    asks for a test — and pass that reason; if the gate already passes, no deferred plan test is open and the only
-   uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes. Lines reported as not unit-testable go to
+   uncovered lines are accepted gaps, skip the pass and log why in `log.md`. Repeat Dev/Tester until the gate passes.
+   Before step 7, search the test files (`grep`) for every test the plan names; a name without a match is a
+   deferred plan test still open, whatever the Tester's report called it (a test it held back as a guard or pin
+   waits for this pass too), so launch `squad-tester` in mode `coverage` with the missing names. Lines reported as not unit-testable go to
    `squad-lead` in mode `decide`; an accepted gap is recorded in `log.md`.
 7. **Code check.** Before the first review round, fetch `main` and merge it when the work branch lacks its
    latest commit (`git merge-base --is-ancestor origin/main HEAD` fails), as *Merge conflicts* in
@@ -277,7 +283,9 @@ action yourself — including follow-up issues the Lead decides on.
     reproducing test, `Closes #<number>` under Issues, links to the decision records. Next Steps lists
     **only linked GitHub issues** (create them now) or "None" — never an unlinked "revisit later". Follow the `create-pr` skill's template rules, but
     do **not** run its internal review loop — step 8 replaced it. If the fix is not fully verifiable
-    without a real external system, say so.
+    without a real external system, say so. Read the body back right after creating or updating the PR
+    (`pull_request_read`, method `get`) and compare its links and code spans with what you sent; a mangled one
+    is fixed with `update_pull_request` now, before step 11.
 11. **After the PR.** Subscribe to the PR's activity right after opening it (`subscribe_pr_activity` when
     available; otherwise check the CI and code-analysis (e.g. SonarQube Cloud) results yourself before finishing) — a session
     that ends with an unwatched PR has not completed this step. On every look at the PR, read its mergeability

@@ -43,15 +43,16 @@ code change go to the Dev or Tester. `.golangci.yml` seeds `gocognit` with `min-
 for SonarQube `go:S3776` (cognitive complexity above 15), so those findings surface here instead of after the PR
 is open. `gocognit` also counts the bare `if err != nil` check, which SonarQube ignores: where that alone puts an
 existing function over the limit, add a named exclusion in `.golangci.yml` and note it in `.squad/project.md`.
-Other SonarQube Cloud findings (and duplication, hotspots) have no local Go equivalent and arrive in squad step 11.
+Other SonarQube Cloud findings (and hotspots, duplication) have no local Go equivalent: the *Sonar gate* below
+is the first to report their issues and hotspots, and squad step 11 reads the quality gate, duplication included.
 
 Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and Dockerfiles are checked with
 `shellcheck`, `actionlint` and `hadolint`; the SessionStart hook installs the three as pinned, checksum-verified
 binaries (`.claude/hooks/install-linters.sh`), and the gate reports NOT RUN for one that is missing (a refused
 download, for example). The gate itself checks two SonarQube Cloud shell rules shellcheck does not report:
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
-local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
-in squad step 11.
+local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings are first
+reported by the *Sonar gate* below.
 
 *Sonar gate* runs SonarQube Cloud's own analysis on the work branch before the pull request (squad step 7):
 `sonar-check.py` runs the scanner with the branch name, waits for the analysis and fails on every open issue or

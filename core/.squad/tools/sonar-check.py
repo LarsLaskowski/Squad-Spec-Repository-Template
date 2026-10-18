@@ -8,9 +8,10 @@ Two modes:
   committed work branch (the scanner uploads the working tree; an uncommitted scratch file would be published
   with a public project) — only the coverage reports of *Test with coverage* may lie around untracked. Runs
   the scan command (*Sonar gate* in `.squad/stack.md`: the stack's scanner, analysing the work branch as a
-  branch of the project), waits for SonarQube to process the report, and lists every open issue and security hotspot on a line the branch added or changed since the merge base
-  with BASE_REF. Without a token, or when the scan fails (a network policy that blocks the scanner's download
-  hosts, for example), the result is NOT CHECKED, and the pull request mode runs on the draft pull request.
+  branch of the project), waits for SonarQube to process the report, and lists every open issue and security
+  hotspot on a line the branch added or changed since the merge base with BASE_REF. Without a token, or when
+  the scan fails (a network policy that blocks the scanner's download hosts, for example), the result is NOT
+  CHECKED, and the pull request mode runs on the draft pull request.
 - `pr <number>` (step 11, on the draft pull request): reads the analysis of that pull request (with
   `SONAR_TOKEN` when it is set, which a private project needs) and checks that it belongs to the current head
   (`HEAD`, or `--head <sha>`); an analysis of an earlier head, or one without a quality gate yet, is PENDING,

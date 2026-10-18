@@ -131,7 +131,7 @@ def failed_checks(repo, sha):
 
 
 def review_comments(repo, number, author):
-    """(bot, human) review comments and review bodies, without the author's own replies."""
+    """(bot, human) top-level review comments and review bodies; replies and the author's own are left out."""
     comments = [c for c in gh_list(f"repos/{repo}/pulls/{number}/comments") if not c.get("in_reply_to_id")]
     comments += [r for r in gh_list(f"repos/{repo}/pulls/{number}/reviews") if (r.get("body") or "").strip()]
     comments = [c for c in comments if (c.get("user") or {}).get("login") != author]
@@ -147,7 +147,7 @@ def hours(start, end):
 def pull_request_row(repo, pr, sonar_key):
     number = pr["number"]
     comments = []
-    for issue in linked_issues(pr.get("body")):
+    for issue in (i for i in linked_issues(pr.get("body")) if i != number):
         comments += gh_list(f"repos/{repo}/issues/{issue}/comments")
     comments += gh_list(f"repos/{repo}/issues/{number}/comments")
     record = parse_record(comments)

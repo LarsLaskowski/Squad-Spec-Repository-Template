@@ -72,6 +72,19 @@ class TestSquadReport(unittest.TestCase):
         with mock.patch.object(report, "gh_list", lambda path: answers[path.rsplit("/", 1)[1]]):
             self.assertEqual(report.review_comments("o/r", 5, "me"), (2, 1))
 
+    def test_row_counts_the_ci_run_of_the_head_at_opening(self):
+        pr = {"number": 5, "title": "[Web] x", "body": "Closes #4", "user": {"login": "me"},
+              "created_at": "2026-10-17T11:00:00Z", "merged_at": "2026-10-17T13:00:00Z"}
+        lists = {"repos/o/r/issues/4/comments": [{"body": "Squad working record\n\nTier: **standard**"}],
+                 "repos/o/r/issues/5/comments": [],
+                 "repos/o/r/pulls/5/commits": [commit("a", "2026-10-17T10:00:00Z"), commit("b", "2026-10-17T12:00:00Z")],
+                 "repos/o/r/pulls/5/comments": [], "repos/o/r/pulls/5/reviews": []}
+        failed = {"a": 1, "b": 0}
+        with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), \
+                mock.patch.object(report, "failed_checks", lambda repo, sha: failed[sha]):
+            row = report.pull_request_row("o/r", pr, None)
+        self.assertEqual((row["kind"], row["tier"], row["fix_pushes"], row["ci_failures"]), ("squad", "standard", 1, 1))
+
     def test_dates_are_validated(self):
         self.assertEqual(report.day("2026-10-01"), "2026-10-01")
         with self.assertRaises(ValueError):

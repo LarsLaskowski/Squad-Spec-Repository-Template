@@ -525,6 +525,12 @@ class TestSquadLog(unittest.TestCase):
             self.assertIn("fixed (sonnet/medium · 20,000 tokens · 5 tool uses · 60 s · continued) |", handle.read())
         self.assertEqual(run("9 Fix", "Dev", "again", "--agent", "squad-dev").returncode, 0)
         self.assertEqual(run("--amend-last", "Dev", "--unreported", "--agent", "squad-dev").returncode, 0)
+        replaced = run("--replace-last", "Dev", "--agent", "squad-dev", "--tokens", "150000", *numbers, "--continued")
+        self.assertEqual(replaced.returncode, 0, replaced.stdout + replaced.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("again (sonnet/medium · 30,000 tokens · 5 tool uses · 60 s · continued) |", handle.read())
+        self.assertEqual(run("10 Fix", "Dev", "more", "--agent", "squad-dev").returncode, 0)
+        self.assertEqual(run("--amend-last", "Dev", "--unreported", "--agent", "squad-dev").returncode, 0)
         self.assertEqual(run("--summary").returncode, 0)
         self.assertEqual(run("1 Intake", "Orchestrator", "branch", "--agent", "squad-dev").returncode, 2)
 

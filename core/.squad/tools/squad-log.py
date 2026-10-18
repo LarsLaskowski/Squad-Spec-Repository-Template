@@ -35,8 +35,7 @@ mechanics out of the orchestrator's hands:
   options adds the trailer to the last row of that member afterwards, so the row can be written as soon as
   the report is in. A row gets its trailer once (a pending one is completed); a second amend is refused. When a
   later row of that member exists already (two members that ran in parallel, and the first one's notification
-  came last),
-  `--step "<step>"` selects the last row of the member whose step cell is that text, so an earlier launch row
+  came last), `--step "<step>"` selects the last row of the member whose step cell is that text, so an earlier launch row
   is still amended with the tool, never by hand;
 - a row whose trailer is wrong (a launch logged with made-up numbers before its notification arrived) is
   corrected with `--replace-last MEMBER` and the same options (`--step` selects an earlier row the same way):
@@ -263,8 +262,8 @@ def target_result(path, member, step=None):
 
 def amend_last(path, member, launch, replace=False, step=None):
     """Add the launch trailer to the last row of `member` (with `step`, to its last row of that step); the amended
-    row, or None when no such row exists or it already carries a trailer. With `replace`, that trailer is
-    replaced instead and a row without one is left alone (None)."""
+    row, or None when no such row exists or it already carries a trailer (a pending one is completed). With
+    `replace`, that trailer is replaced instead; a row without one, or with a pending one, is left alone (None)."""
     with open(path, "rb") as handle:
         data = handle.read()
     eol = b"\r\n" if b"\r\n" in data else b"\n"

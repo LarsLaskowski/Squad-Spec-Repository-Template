@@ -160,11 +160,24 @@ def demote(text):
     return "\n".join(out)
 
 
+SONAR_GATE_ROW = re.compile(r"^\| \*Sonar gate\* \|.*\n?", re.M)
+
+
+def sonar_profile(names):
+    """The profile whose scanner analyses a repository with several profiles: the .NET scanner when `dotnet` is one
+    of them (it refuses a sonar-project.properties, so CI runs it for the whole repository), else the primary."""
+    return "dotnet" if "dotnet" in names else names[0]
+
+
 def merge_stack_md(parts):
+    scanner = sonar_profile([name for name, _ in parts])
+    parts = [(name, text if name == scanner else SONAR_GATE_ROW.sub("", text)) for name, text in parts]
     intro = ("# Stack: " + " + ".join(name for name, _ in parts) + "\n\n"
              "This repository combines the stack profiles " + ", ".join(f"`{name}`" for name, _ in parts) + ". "
              "Every command name below (*Format*, *Build*, *Test*, *Analyzer gate*, …) exists once per profile, in the "
-             "section of that profile; a gate is passed only when it passes for **every** profile. "
+             "section of that profile; a gate is passed only when it passes for **every** profile. The one exception is "
+             f"*Sonar gate*: one SonarQube Cloud project analyses the whole repository, so it is defined once, in the "
+             f"`{scanner}` section. "
              "`python3 .squad/tools/analyzer-check.py` and `python3 .squad/tools/coverage-check.py` cover all of "
              "them in one call. Paths and globs of the tools are in `.squad/tools/squad_settings.py`.\n")
     return intro + "".join("\n" + demote(text).rstrip("\n") + "\n" for _, text in parts)
@@ -204,6 +217,10 @@ def merge_settings(profile_dirs):
              f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", "",
              "# Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.",
              f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", ""]
+    scanner = modules[names.index(sonar_profile(names))]
+    if hasattr(scanner, "SONAR_REPORT_TASK"):
+        lines += ["# Sonar gate (.squad/tools/sonar-check.py): the report file the repository's scanner writes.",
+                  f"SONAR_REPORT_TASK = {scanner.SONAR_REPORT_TASK!r}", ""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]

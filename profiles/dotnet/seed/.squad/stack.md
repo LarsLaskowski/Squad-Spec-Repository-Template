@@ -35,7 +35,7 @@ profile and owned by this repository: keep it true when the build changes.
 | *Test with coverage* | `rm -rf TestResults && dotnet test {{TODO: Solution}}.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults` (clears earlier runs: the coverage gate merges every report it finds) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
-| *Sonar gate* | `python3 .squad/tools/sonar-check.py branch -- bash -c 'dotnet sonarscanner begin /k:"{{TODO: sonar-project-key}}" /o:"{{TODO: sonar-organization}}" /d:sonar.token="$SONAR_TOKEN" /d:sonar.branch.name="$(git branch --show-current)" /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" && dotnet build {{TODO: Solution}}.slnx -c Release && dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"'` (needs `SONAR_TOKEN` and the `dotnet-sonarscanner` tool, see *Sonar gate* below) |
+| *Sonar gate* | `python3 .squad/tools/sonar-check.py branch -- bash -c 'dotnet sonarscanner begin /k:"{{TODO: sonar-project-key}}" /o:"{{TODO: sonar-organization}}" /d:sonar.token="$SONAR_TOKEN" /d:sonar.branch.name="$(git branch --show-current)" /d:sonar.projectBaseDir="$PWD" && dotnet build {{TODO: Solution}}.slnx -c Release --no-incremental && dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"'` (after *Test with coverage*; needs `SONAR_TOKEN` and the `dotnet-sonarscanner` tool, see *Sonar gate* below) |
 | *Image build check* | `docker build -f {{TODO: Dockerfile}} .` where Docker runs; otherwise the restore-order reproduction under *Image build check* below (`.squad/routing.md`, *Criteria verified only in CI*) |
 
 ## Analyzer gate
@@ -76,7 +76,10 @@ reports NOT CHECKED, and step 11 reads the draft pull request with `python3 .squ
 instead. A finding of a rule no local analyzer reports is noted in this section, in the same change, instead of a
 squad lesson.
 The .NET scanner is the `dotnet-sonarscanner` tool (`dotnet tool install dotnet-sonarscanner`, or the repository's
-tool manifest); its `begin` arguments mirror the CI step, plus the branch name.
+tool manifest); its `begin` arguments mirror the CI step, plus the branch name and the repository root as base
+directory, and it needs the full, non-incremental build between `begin` and `end`. The local coverage report is
+Cobertura, which the scanner does not read, so the branch analysis carries no coverage figure: the *Coverage
+gate* covers that.
 
 ## Image build check
 

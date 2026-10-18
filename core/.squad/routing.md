@@ -92,7 +92,7 @@ Every lesson from step 12 is filed once, where it can actually be fixed:
 
 Two things are no lesson, because a mechanism already handles them: a SonarQube rule the local analyzers do
 not report (the Code Officer notes it in the *Analyzer gate* section of `.squad/stack.md` in the same change,
-and the *Sonar gate* catches it before the PR), and a stop hook's demand for a commit (*The stop hook* under
+and the *Sonar gate* catches it before the PR, or on the draft PR without a token), and a stop hook's demand for a commit (*The stop hook* under
 *Pipeline*).
 
 One run's lessons go into at most one issue per destination. A lesson that is general — one that would change
@@ -196,14 +196,15 @@ quality gate after the PR was open).
 | 8 | Review | Reviewer (+ Security on `security`) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round — except a finding, blocking or not, whose fix is a verbatim documentation edit: the orchestrator applies it (*Verbatim documentation fixes*), no launch, no build, no delta round |
 | 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the verbatim documentation fixes of that round, *Verbatim documentation fixes*, may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) |
-| 11 | After the PR | Dev, Code Officer, Reviewer | No merge conflict with the base (*Merge conflicts*), CI green and the CI code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then the PR marked ready for review (*Draft until green*); review comments worked |
+| 11 | After the PR | Dev, Code Officer, Reviewer | No merge conflict with the base (*Merge conflicts*), CI green and `sonar-check.py pr <number>` clean on the head (quality gate passed, no new issue, no hotspot to review), then the PR marked ready for review (*Draft until green*); review comments worked |
 | 12 | Wrap-up | Orchestrator | Squad lessons filed as one issue per destination (*Squad lessons*), or "no lessons" logged; run metrics (launches with their continuations, tokens, tool uses and seconds per role, plus the Orchestrator row: wall time, time not covered by launches, gate runs — `squad-log.py --summary`; exit code 3 names launch rows still without usage, which are amended first with `--amend-last`, `--step` for an earlier row, or marked `--unreported`; the table is posted as printed, never summed by hand or left out) appended to the working record and reported to the user |
 
 A change without production or test code (tier `docs`, or any other tier whose plan declares it, see
 *Changes without production or test code*) skips steps 4 and 5; step 6 is the Dev's edits alone (tier
 `docs`: the orchestrator's), and the *Coverage gate* is not run, because such a change cannot alter
-coverage. Step 7 still runs *Format check*, the *Analyzer gate* and `scope-check.py`; for tier `docs` only
-*Format check* and `scope-check.py --tier docs`. Tier `patch` runs only the steps its row in *Tiers* names.
+coverage. Step 7 still runs *Format check*, the *Analyzer gate*, `scope-check.py` and the *Sonar gate* (SonarQube Cloud
+also analyses scripts, workflows and Dockerfiles); for tier `docs` only *Format check* and
+`scope-check.py --tier docs`. Tier `patch` runs only the steps its row in *Tiers* names.
 
 **Continuing a member.** A fix round or a delta round of the same member within the same run continues
 that member's last launch (the harness keeps a launched subagent's context: `SendMessage` to its agent id,
@@ -255,7 +256,8 @@ review (`update_pull_request` with `draft: false`) only when all of this holds o
   and no security hotspot to review on the pull request: `python3 .squad/tools/sonar-check.py pr <number>`
   exits 0. The script matches the analysis to the head itself; PENDING (exit 3) means the analysis of this
   head is still running — wait and run it again, never read a `Quality Gate passed` comment instead, which
-  may belong to an earlier head. A passed gate with open new issues is still rework, worked like a failing
+  may belong to an earlier head. Still PENDING once every CI check of the head has finished (the CI analysis
+  was skipped or failed) means the analysis cannot be read: see below. A passed gate with open new issues is still rework, worked like a failing
   check;
 - no commit for a known failure or finding is still to be pushed, and after a fix in the squad skills the
   re-approval of step 9 has passed on this head.

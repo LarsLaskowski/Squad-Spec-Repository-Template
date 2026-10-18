@@ -222,8 +222,8 @@ action yourself — including follow-up issues the Lead decides on.
    the reviewers get it in step 8. If everything passes, step 7 is done without launching anyone. Dev and
    Tester ran *Format* on their files before handing back; when *Format check* still fails, run *Format*
    yourself, restore every file it changed outside the change with `git restore -- <file>`, and check
-   again. Launch `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that
-   need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
+   again. Launch `squad-code-officer` with the base ref only for analyzer diagnostics, Sonar findings or style
+   findings that need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
    owner, and a file it reports as formatted outside the change you restore — and run the gates again until
    they pass. This is the gate before the PR; CI is
    not meant to find anything here.
@@ -300,8 +300,9 @@ action yourself — including follow-up issues the Lead decides on.
     available; otherwise check the CI and code-analysis (e.g. SonarQube Cloud) results yourself before finishing) — a session
     that ends with an unwatched PR has not completed this step. On every look at the PR, read its mergeability
     first: a conflict with the base branch keeps CI from starting and is merged and resolved before anything
-    else (`.squad/routing.md`, *Merge conflicts*). Stay with the PR until it merges cleanly, CI is green and the
-    code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then mark it ready for review
+    else (`.squad/routing.md`, *Merge conflicts*). Stay with the PR until it merges cleanly, CI is green and
+    `python3 .squad/tools/sonar-check.py pr <number>` is clean on the head (quality gate passed, no new issue, no
+    hotspot to review), then mark it ready for review
     (`update_pull_request` with `draft: false`) — never earlier, and after a fix only once its re-approval
     (step 9) has passed on the new head, see `.squad/routing.md`, *Draft until green*:
     - code-analysis findings (`sonar-check.py pr <number>` lists them) → `squad-code-officer` (structural ones →

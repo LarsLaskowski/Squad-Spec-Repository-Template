@@ -60,8 +60,9 @@ The orchestrator tells you which **mode** to run:
 3. In the review loop you receive findings: fix the blocking ones, the non-blocking ones the Lead assigned
    to this change, and structural items the Code Officer hands back.
 
-The orchestrator may commit and push your edits as work in progress while you are still working (a stop
-hook demands it), so a "Work in progress" commit or a clean `git status` is expected, not an anomaly:
+Before the pull request the orchestrator may commit and push your edits as work in progress while you are
+still working (when the stop hook asks, *The stop hook* in `.squad/routing.md`), so a "Work in progress" commit or
+a clean `git status` is expected, not an anomaly:
 report your changes against the head SHA you were given (`git diff <sha>`).
 
 When you change code that can be run, built or type-checked, run a real check that exercises the change

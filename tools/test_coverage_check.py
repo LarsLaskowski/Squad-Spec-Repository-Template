@@ -12,6 +12,7 @@ TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", "
 
 
 def load_script():
+    sys.modules.pop("analyzer_common", None)  # it reads squad_settings once, at import
     sys.modules["squad_settings"] = types.SimpleNamespace(
         COVERAGE_FORMAT="go", COVERAGE_REPORT_GLOB="coverage.out",
         COVERAGE_PATHSPECS=["*.go"], COVERAGE_EXCLUDES=["*_test.go"])

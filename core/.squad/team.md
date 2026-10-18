@@ -63,8 +63,9 @@ launched only for analyzer diagnostics or style findings that need reading. Suba
 to GitHub — the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in every `squad-*.md`, denies them
 (`git add` and a scratch `git worktree` for experiments stay allowed, `.squad/routing.md`, *Concurrency*);
 the orchestrator commits and pushes to the work branch at any time (see `AGENTS.md`, golden rules) and
-opens the pull request only after step 9 approved it (by checklist, the Lead deciding what is open). Because the orchestrator may commit an interim state
-while a member works (a stop hook demands it), a clean `git status` at hand-back is no sign of lost work: a
+opens the pull request only after step 9 approved it (by checklist, the Lead deciding what is open; tiers `docs`
+and `patch`: after a clean review). Because the orchestrator may commit an interim state
+while a member works (before the PR, when the stop hook asks: *The stop hook* in `routing.md`), a clean `git status` at hand-back is no sign of lost work: a
 member reports its changes against the head SHA it was given (`git diff <sha>`).
 
 Session-management tools (`create_session`, `send_message`, `archive_session` and the other remote-session

@@ -123,8 +123,9 @@ context and the repository's full review checklist. That checklist lives in
    `squad-security` in mode `diff` alongside it: a change made outside the
    squad has had no Security plan review, and its findings count like the
    reviewer's.
-2. **Act on the verdict**:
-   - `APPROVE` → done, go push.
+2. **Act on the verdict** (with Security alongside: both verdicts):
+   - `APPROVE` (and Security's `APPROVED`) → done, go push.
+   - Security's `CHANGES_REQUIRED` → its findings are blocking findings like the reviewer's.
    - Blocking findings → fix each one minimally and commit. Do not widen the
      change beyond what the finding requires.
    - Non-blocking findings → **do not open another round for them**. Fix one
@@ -134,7 +135,8 @@ context and the repository's full review checklist. That checklist lives in
      the session ends, so it is not a way to carry a finding forward.
 3. **Pass n+1** — launch a fresh `squad-reviewer` and give it
    the round number, the previous round's findings, and the commits that
-   fixed them. It reviews the delta only, per its own instructions.
+   fixed them. It reviews the delta only, per its own instructions. When
+   Security's findings were fixed, `squad-security` reviews that delta too.
 4. **Stop** at the first pass that reports no blocking findings. Cap the loop
    at **three passes**: if blocking findings remain after the third, stop and
    report the open findings to the user rather than continuing to iterate —

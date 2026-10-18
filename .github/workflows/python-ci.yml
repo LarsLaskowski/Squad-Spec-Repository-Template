@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: pip install pyyaml
+      - run: pip install pyyaml complexipy
       - run: python -m unittest discover tools
       - run: python tools/template-check.py
 

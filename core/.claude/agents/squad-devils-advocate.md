@@ -1,7 +1,7 @@
 ---
 name: squad-devils-advocate
 description: "Squad Devil's Advocate. Challenges a squad plan once, before any code is written (tiers standard and security): checks the plan's assumptions against the code, looks for a simpler option, a wrong scope or a missed no-change outcome, and returns objections ranked major or minor with evidence. Read-only, no veto: minor objections become plan notes, the Lead answers major ones and decides."
-model: sonnet
+model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
 hooks:

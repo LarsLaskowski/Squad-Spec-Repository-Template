@@ -19,11 +19,11 @@ specific to this repository lives in two files the members read first:
 | Role             | Subagent (charter)                                                    | Model, effort  | Writes                                                           |
 | ---------------- | --------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------- |
 | Lead             | [`squad-lead`](../.claude/agents/squad-lead.md)                       | Opus, medium   | plans, decisions, area documents                                 |
-| Devil's Advocate | [`squad-devils-advocate`](../.claude/agents/squad-devils-advocate.md) | Sonnet, medium | nothing (read-only)                                              |
+| Devil's Advocate | [`squad-devils-advocate`](../.claude/agents/squad-devils-advocate.md) | Opus, medium   | nothing (read-only)                                              |
 | Security         | [`squad-security`](../.claude/agents/squad-security.md)               | Opus, medium   | nothing (read-only)                                              |
 | Tester           | [`squad-tester`](../.claude/agents/squad-tester.md)                   | Sonnet, medium | test code                                                        |
 | Dev              | [`squad-dev`](../.claude/agents/squad-dev.md)                         | Sonnet, medium | production code                                                  |
-| Code Officer     | [`squad-code-officer`](../.claude/agents/squad-code-officer.md)       | Haiku, medium  | production and test code (format, analyzer and style fixes only) |
+| Code Officer     | [`squad-code-officer`](../.claude/agents/squad-code-officer.md)       | Haiku, medium  | production and test code (format, analyzer and style fixes only); *Analyzer gate* notes in `stack.md` |
 | Reviewer         | [`squad-reviewer`](../.claude/agents/squad-reviewer.md)               | Opus, medium   | nothing (read-only)                                              |
 | Product Manager  | —                                                                     | —              | answers escalations (the human user)                             |
 
@@ -33,7 +33,11 @@ launch through the launch's own `model` and `effort` parameters, but no step doe
 a feature ran on `high` until Vandox#19 (1,188 s and 307 k tokens for the plan, and a `CHANGES_REQUIRED`
 from Security all the same), while the plan of Vandox#20 on `medium` went through challenge and security
 review with the same rigor; a run on `xhigh` costs about half the member time of a feature run (Vandox#17)
-and is not used. Every run
+and is not used. The Devil's Advocate runs on Opus because its value is the major objection, and that
+is what it lost on Sonnet: on Opus (until 2026-10-10) it raised 0.4 to 0.6 major objections per run and
+changed 22 of 25 plans; on Sonnet, with the same plans and the same instructions, 0.05 to 0.3 — the minor
+objections stayed, the ones that change a plan disappeared. One challenge costs about 55 k tokens on Sonnet,
+little against the 0.5 M to 1.5 M of the run it protects. Every run
 records launches, tokens, tool uses and seconds per role in its working record (`squad-log.py --summary`);
 a model or effort change for a role is made on that evidence, in the template, and rolled out from there.
 
@@ -59,7 +63,7 @@ launched only for analyzer diagnostics or style findings that need reading. Suba
 to GitHub — the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in every `squad-*.md`, denies them
 (`git add` and a scratch `git worktree` for experiments stay allowed, `.squad/routing.md`, *Concurrency*);
 the orchestrator commits and pushes to the work branch at any time (see `AGENTS.md`, golden rules) and
-opens the pull request only after the Lead's approval. Because the orchestrator may commit an interim state
+opens the pull request only after step 9 approved it (by checklist, the Lead deciding what is open). Because the orchestrator may commit an interim state
 while a member works (a stop hook demands it), a clean `git status` at hand-back is no sign of lost work: a
 member reports its changes against the head SHA it was given (`git diff <sha>`).
 

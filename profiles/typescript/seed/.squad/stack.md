@@ -39,6 +39,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | *Test with coverage* | `npm run coverage:lcov` (`vitest run --coverage --coverage.reporter=lcov`, overwrites `coverage/lcov.info`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
+| *Sonar gate* | `python3 .squad/tools/sonar-check.py branch -- npx --yes @sonar/scan -Dsonar.branch.name="$(git branch --show-current)"` (after *Test with coverage*, so the analysis carries coverage; needs `SONAR_TOKEN`, see *Sonar gate* below) |
 | *Image build check* | `docker build -f {{TODO: Dockerfile, or "none" when the repository builds no image}} .` where Docker runs; otherwise the reproduction under *Image build check* below (`.squad/routing.md`, *Criteria verified only in CI*) |
 
 ## Analyzer gate
@@ -62,6 +63,15 @@ download, for example). The gate itself checks two SonarQube Cloud shell rules s
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
 local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
 in squad step 11.
+
+*Sonar gate* runs SonarQube Cloud's own analysis on the work branch before the pull request (squad step 7):
+`sonar-check.py` runs the scanner with the branch name, waits for the analysis and fails on every open issue or
+security hotspot on a line the branch changed, so the rules no local analyzer has stop surfacing only after the
+pull request. It needs `SONAR_TOKEN` in the session's environment (an environment secret) and network access to the
+scanner's download hosts (`api.sonarcloud.io`, `scanner.sonarcloud.io` and the package registry); without them it
+reports NOT CHECKED, and step 11 reads the draft pull request with `python3 .squad/tools/sonar-check.py pr <number>`
+instead. A finding of a rule no local analyzer reports is noted in this section, in the same change, instead of a
+squad lesson.
 
 ## Image build check
 

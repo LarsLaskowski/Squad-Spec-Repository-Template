@@ -55,25 +55,25 @@ action yourself — including follow-up issues the Lead decides on.
   crashed session. Before the PR (step 10) its content is posted as a comment and the folder is removed;
   the lasting reasoning lives in `docs/decisions/`.
 - **One build at a time.** Never run two members that build or test (`squad-dev`, `squad-tester`,
-  `squad-code-officer`, the reviewers' verification runs) in parallel: they share `bin/` and `obj/` and
-  break each other (`.squad/routing.md`). Launch them one after another; only `squad-devils-advocate` and
+  `squad-code-officer`, the reviewers' verification runs) in parallel: they share build output and caches
+  and break each other (*Concurrency* in `.squad/routing.md` and `.squad/stack.md`). Launch them one after another; only `squad-devils-advocate` and
   `squad-security` may run together in steps 2–3, and `squad-reviewer` and `squad-security` in step 8,
   because they are read-only and the reviewer's own build happens in a scratch copy.
 - **Commits and pushes** to the work branch are always allowed (`AGENTS.md`, golden rules): commit and
   push `specs/<folder>/log.md` right after intake (step 1), so a stop hook or a crashed session finds no
   untracked files, and after every further completed step. PRs are merged with *Squash and merge*, so only
   the PR title and description reach `main`; intermediate commit messages may name the step, but never
-  contain secrets. Interim work-in-progress commits — e.g. demanded by a stop hook while a member is still
-  working — are fine for the same reason; the commit that closes the round gets a final subject. Before the
-  PR they cost nothing; after it (step 11) every push re-triggers CI and code analysis, so batch the
-  edits of a round and commit them once. Stage with plain `git add -A`: ignored paths such as `TestResults/`
+  contain secrets. When the stop hook asks for a commit, follow *The stop hook* in `.squad/routing.md`:
+  an interim commit before the PR, outside a review round and a merge; otherwise answer it once and end the
+  turn (it asks once per stop). After the PR every push re-triggers CI and code analysis, so batch the edits
+  of a round and commit them once. Stage with plain `git add -A`: ignored paths such as `TestResults/`
   are skipped anyway, and an exclusion pathspec for an ignored path makes `git add` fail and stage
   nothing. Never commit to `main`.
 - **GitHub access:** use the GitHub MCP tools (`mcp__github__*`) for issues, comments, labels and pull
   requests. In these sessions the `gh` CLI only works as `gh api repos/<owner>/<repo>/...`; `gh issue`,
   `gh pr` and `gh search` fail (GraphQL is blocked and search is not scoped to the repository).
-- **Pull request:** invoking this skill is the user's approval for opening the PR in step 10, once the
-  Lead has approved it (tiers `docs` and `patch`: once the latest review round is clean); it opens as a draft
+- **Pull request:** invoking this skill is the user's approval for opening the PR in step 10, once step 9
+  approved it (tiers `docs` and `patch`: once the latest review round is clean); it opens as a draft
   and is marked ready for review in step 11, once CI and the code analysis are clean.
 - **Product Manager:** the user is only contacted when the Lead returns `RESULT: ESCALATE` (relay the
   question verbatim with its options and wait) or for confirming a public issue comment on
@@ -176,7 +176,10 @@ action yourself — including follow-up issues the Lead decides on.
    `squad-security` once more to confirm the revision (a delta round); a Lead revision made only for a major
    objection is confirmed the same way. A further `CHANGES_REQUIRED` gets one more revision. After the
    **2nd** rejection launch
-   `squad-lead` in mode `decide` (scope down, split into issues, abort, escalate, or — for a pure wording defect, or a defect confined to the plan's resource section that changes no scope — accept and fix it followed by exactly one `squad-security` delta confirmation).
+   `squad-lead` in mode `decide`: scope down, split into issues, abort, escalate, or accept and fix it followed by
+   exactly one `squad-security` delta confirmation — the last only for the defects *Loop limits* in
+   `.squad/routing.md` lists (a pure wording defect, one confined to the plan's resource section, or one Security
+   measured and supplied the complete fix for, each changing no scope).
 4. **Skeleton** (only if the plan adds or changes API; not applicable when the plan declares the change free of
    production and test code — see *Changes without production or test code* in `.squad/routing.md`, which also
    skips step 5 and the *Coverage gate* in step 6 and requires the plan's *Verification without tests* section;
@@ -212,7 +215,10 @@ action yourself — including follow-up issues the Lead decides on.
    `.squad/routing.md` says — renumber a decision record whose number `main` took meanwhile, with its index row
    and every link to it. Then run the gates yourself first, with the commands from `.squad/stack.md`: *Format check*,
    the *Analyzer gate* (no diagnostic of any severity in a changed file), *Test*, the *Coverage gate* (not
-   for a change without production or test code) and `python3 .squad/tools/scope-check.py`. Keep the output:
+   for a change without production or test code) and `python3 .squad/tools/scope-check.py`; once they pass,
+   the *Sonar gate* (SonarQube Cloud's analysis of the work branch, `stack.md`) — its findings are worked like
+   analyzer diagnostics, and NOT CHECKED (no `SONAR_TOKEN`, a blocked scanner download) is logged and leaves
+   the check to step 11. Keep the output:
    the reviewers get it in step 8. If everything passes, step 7 is done without launching anyone. Dev and
    Tester ran *Format* on their files before handing back; when *Format check* still fails, run *Format*
    yourself, restore every file it changed outside the change with `git restore -- <file>`, and check
@@ -244,8 +250,8 @@ action yourself — including follow-up issues the Lead decides on.
    rounds** after round 1; then `squad-lead`
    in mode `decide`. Delta rounds continue the reviewer's earlier launch (*Continue a member*). Pass each
    reviewer the exact code SHA to review and tell it that later commits may only touch `specs/`. Avoid
-   commits while a round runs; a commit a stop hook demands that touches only `specs/` (log rows) does not
-   make the round stale, any other commit after that SHA does. A reviewer reports the SHA it reviewed first,
+   commits while a round runs (*The stop hook* in `.squad/routing.md`); a commit that touches only `specs/`
+   (log rows) does not make the round stale, any other commit after that SHA does. A reviewer reports the SHA it reviewed first,
    and a report for another code head is a stale round. A reviewer or security subagent that stops
    on an API error (for example `529 Overloaded`, or `429` for a rate limit — relaunch it once the limit has
    reset) is relaunched unchanged, at most twice; after that report a blocker to the user. Non-blocking findings are collected for step 9.
@@ -298,24 +304,23 @@ action yourself — including follow-up issues the Lead decides on.
     code analysis (e.g. SonarQube Cloud) passed with no new issue on the head, then mark it ready for review
     (`update_pull_request` with `draft: false`) — never earlier, and after a fix only once its re-approval
     (step 9) has passed on the new head, see `.squad/routing.md`, *Draft until green*:
-    - code-analysis findings → `squad-code-officer` (structural ones → `squad-dev`);
+    - code-analysis findings (`sonar-check.py pr <number>` lists them) → `squad-code-officer` (structural ones →
+      `squad-dev`);
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
 
-    While a member is running, wait for its hand-back before ending your turn: after the PR every push costs a
-    CI cycle. When a stop hook still forces a commit and push of a half-finished tree, log that head as work in
-    progress (a row naming the SHA) and do not judge CI or the code analysis on it; the commit that closes the
-    round is the head to judge.
+    While a member is running, do not commit its half-finished tree: after the PR every push costs a CI cycle.
+    Answer the stop hook once instead (*The stop hook* in `.squad/routing.md`); a head pushed half-finished
+    anyway is logged as work in progress (a row naming the SHA), and CI and the code analysis are judged on the
+    commit that closes the round.
 
     Continue the member that made the change and the reviewer of the last round where their agent ids are
     still known (*Continue a member*). Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), with at
     most 2 fix rounds per failure before the Lead decides. A re-approval (step 9) runs the same checklist once
-    CI on the new head has finished and passes. Before you decide that a code-analysis finding persists or is
-    fixed, or that its quality gate passed, match the analysis to the head: compare the commit SHA of the
-    SonarQube analysis (`api/project_pull_requests/list?project=<key>`, or the `head_sha` of its check run)
-    with the PR head (`.squad/routing.md`, *Draft until green*). A `Quality Gate passed` comment or an open
-    issue list can belong to an earlier head while the analysis of the newest head is still running; it is
-    no evidence either way — wait for the analysis of the current head. When the plan's acceptance criteria
+    CI on the new head has finished and passes. Whether the code analysis passed on the head is
+    `python3 .squad/tools/sonar-check.py pr <number>` (exit 0); it matches the analysis to the head itself, and
+    PENDING means wait and run it again — a `Quality Gate passed` comment is no evidence either way
+    (`.squad/routing.md`, *Draft until green*). When the plan's acceptance criteria
     can only be verified in CI (for example a container image the sandbox cannot build), a red CI on exactly
     those criteria is a normal outcome of this step once the *Image build check* ran before the review
     (`.squad/routing.md`, *Criteria verified only in CI*): the plan names the owner (Dev for Dockerfile,
@@ -323,8 +328,8 @@ action yourself — including follow-up issues the Lead decides on.
     `docs` and `patch`: the first log row; features:
     also `spec.md` and `tasks.md`) from the "Squad working record" comment, or via
     `git show <commit-before-removal>:specs/<folder>/<file>`, and record each log row by editing that
-    comment. Edit a restored working record in one batch: interim commits that a stop hook demands while it
-    is half edited each re-trigger the code analysis on the open PR. Never skip, disable or weaken a test to
+    comment. Edit a restored working record in one batch, and answer the stop hook instead of committing it half
+    edited: each push re-triggers the code analysis on the open PR. Never skip, disable or weaken a test to
     get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself (a rule that was
     unclear or contradictory, a tool that misbehaved, an agent that could not be launched, a step that

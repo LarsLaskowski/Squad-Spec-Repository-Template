@@ -29,9 +29,13 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
   when a session ends. Force-pushing or otherwise rewriting published history, deleting branches, and
   creating tags (a `v*` tag may trigger a release) still need explicit user approval.
 - **Pull requests are only opened by the squad or by the user.** The `squad-issue` and `squad-spec`
-  skills open a PR after the Lead's approval (tiers `docs` and `patch`: after a clean review); outside the squad, a PR
+  skills open a PR once step 9 approved it — by checklist, the Lead deciding only what is open (tiers `docs` and `patch`: after a clean review); outside the squad, a PR
   is opened only when the user explicitly asks for one (e.g. by running the `create-pr` skill). Never open
   a PR on your own initiative.
+- **A change made outside the squad that touches a security area** listed in
+  [`.squad/project.md`](/.squad/project.md) (*Security areas*) is reviewed before it is merged: `create-pr` adds
+  Security's diff review to its review loop, and a pull request opened another way (by hand, from a plain
+  session) gets a `review-pr` run whose findings are worked in that pull request.
 - Run *Format* from [`.squad/stack.md`](/.squad/stack.md) after editing code and before building; CI is
   not meant to find formatting issues. In the squad skills the member that changed the files runs it on
   them before handing back (`.squad/team.md`, *Shared rules*).

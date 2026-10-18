@@ -19,7 +19,8 @@ to the other repositories. It contains no product code. See [`README.md`](README
 - **`core/` stays stack- and project-neutral.** Commands are referred to by their name in
   `.squad/stack.md` (*Format*, *Build*, *Analyzer gate*, …), project knowledge by `.squad/project.md` or a
   `<!-- project:… -->` block. Stack details belong in `profiles/<stack>/`.
-- Run `python3 tools/template-check.py` before every pull request; it must pass.
+- Run `python3 tools/template-check.py` before every pull request, with `complexipy` installed (`pip install
+  complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass.
 - A lesson from a squad run in another repository that concerns a template-managed file is fixed here and
   rolled out with `adopt-template`, never patched in the target only.
 

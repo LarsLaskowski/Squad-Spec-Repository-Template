@@ -90,6 +90,11 @@ Every lesson from step 12 is filed once, where it can actually be fixed:
 | a **managed** file, or the template part of a **marked** file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad` in the template repository named in `.squad/template.json` (`repository`), titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | a PR in the template repository, then a refresh of every repository that uses the template (`adopt-template`) — never a local edit, which the next refresh would overwrite |
 | **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `.squad/tools/squad_settings.py`, a `<!-- project:… -->` block, another seeded file | an issue labelled `squad` in this repository | a small squad-maintenance PR in this repository, checked with `.squad/tools/config-check.py` |
 
+Two things are no lesson, because a mechanism already handles them: a SonarQube rule the local analyzers do
+not report (the Code Officer notes it in the *Analyzer gate* section of `.squad/stack.md` in the same change,
+and the *Sonar gate* catches it before the PR), and a stop hook's demand for a commit (*The stop hook* under
+*Pipeline*).
+
 One run's lessons go into at most one issue per destination. A lesson that is general — one that would change
 the template — is filed in the template repository, not in the product repository, and the session attaches
 the template repository first if it is not yet part of the session (with the access it needs to create the
@@ -187,7 +192,7 @@ quality gate after the PR was open).
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A test that cannot fail yet is not written here: guards, pins of existing behavior, determinism and bound tests wait for step 6 |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* from `.squad/stack.md` passes; doc updates from the plan done, including the area documents. The Tester's coverage pass adds tests only for lines the gate reports uncovered, a resource bound the plan names, a plan-named test the orchestrator finds missing in the test files before step 7, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | Dev and Tester ran *Format* on their files before handing back. The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`. A *Format check* failure the orchestrator clears itself (*Format*, then `git restore` of every file outside the change); only analyzer diagnostics or style findings that need reading launch the Code Officer (analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
+| 7 | Code check | Orchestrator, Code Officer | Dev and Tester ran *Format* on their files before handing back. The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate*, `scope-check.py` and, once those pass, the *Sonar gate* (SonarQube Cloud's analysis of the work branch; NOT CHECKED without `SONAR_TOKEN` is logged and leaves the check to step 11). A *Format check* failure the orchestrator clears itself (*Format*, then `git restore` of every file outside the change); only analyzer diagnostics, Sonar findings or style findings that need reading launch the Code Officer (analyzer-only edits; structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head, same tests green |
 | 8 | Review | Reviewer (+ Security on `security`) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round — except a finding, blocking or not, whose fix is a verbatim documentation edit: the orchestrator applies it (*Verbatim documentation fixes*), no launch, no build, no delta round |
 | 9 | PR approval | Orchestrator, Lead when needed | The orchestrator checks: the latest review round is clean and covers every change to production code, tests and `docs/` since it ran (only `specs/` bookkeeping and the verbatim documentation fixes of that round, *Verbatim documentation fixes*, may follow it); the gates of step 7 pass on the head; the area documents and documentation updates the plan names are in the diff; then sets each `Proposed` record of this change and its index row to `Accepted` (`decision-check.py` passes). The Lead is launched in mode `approve-pr` only after this checklist passed in full (a due delta round runs first) and only when a decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10 |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) |
@@ -220,14 +225,22 @@ head SHA — which is cheaper than another continuation.
 Commits and pushes to the work branch happen right after intake (`specs/<folder>/log.md`, so a stop hook
 or a crashed session finds no untracked files) and after every further completed step; with *Squash and
 merge* only the PR title and description reach `main`, so intermediate commits may describe the step.
-They never contain secrets. A stop hook may demand a commit while a member is still working; that interim
-commit ("Work in progress: …") is fine, and the commit that closes the round gets a final subject. A member
-whose edits were committed that way finds a clean `git status` when it hands back; that is expected, and it
-reports its changes against the head SHA it was given (`git diff <sha>`), not against the working tree. Before
-the PR such commits cost nothing; after it every push re-triggers CI and the code analysis, so edits are
-batched and committed once per round. After the PR the orchestrator waits for the running member's hand-back
-before it ends its turn; when a hook still forces a push of a half-finished tree, that head is logged as work in
-progress and neither CI nor the code analysis is judged on it.
+They never contain secrets. After the PR every push re-triggers CI and the code analysis, so edits are
+batched and committed once per round.
+
+**The stop hook.** A cloud session's stop hook asks for a commit and push whenever the orchestrator ends its
+turn with uncommitted or unpushed work — and it asks **once per stop**: ending the turn again after answering
+it is not blocked. The hook never decides when a commit is made:
+
+- Before the PR, outside a review round and a merge, satisfy it: an interim commit ("Work in progress:
+  <step>") costs nothing. A member whose edits were committed that way finds a clean `git status` when it
+  hands back; that is expected, and it reports its changes against the head SHA it was given
+  (`git diff <sha>`).
+- While a review round runs (its code SHA must stay the head; a commit that touches only `specs/` is fine),
+  while a merge waits for a conflict resolution, and once the PR is open (a push of a half-finished tree
+  re-runs CI and the code analysis on it), do not commit: answer the hook once with what is running and when
+  its commit follows, and end the turn. A head that was pushed half-finished anyway is logged as work in
+  progress, and neither CI nor the code analysis is judged on it.
 
 ### Draft until green
 
@@ -238,13 +251,12 @@ review (`update_pull_request` with `draft: false`) only when all of this holds o
 - the pull request merges cleanly into its base branch (*Merge conflicts* below);
 - every CI check run and commit status has finished, and none failed or was cancelled (a pending check is
   waited for, not counted as passed);
-- the CI code analysis (e.g. SonarQube Cloud) has reported on **this** head, its quality gate passed and it
-  lists **no new issue** on the pull request — a passed gate with open new issues (bugs, code smells,
-  security hotspots to review) is still rework, worked like a failing check. "This head" is checked, not
-  assumed: the commit SHA of the analysis (SonarQube Cloud: `api/project_pull_requests/list?project=<key>`,
-  or the `head_sha` of its check run) equals the PR head; a `Quality Gate passed` comment or an issue list
-  without that match may belong to an earlier head while the newest analysis still runs, and settles
-  nothing about this one;
+- the CI code analysis has reported on **this** head, its quality gate passed and it lists **no new issue**
+  and no security hotspot to review on the pull request: `python3 .squad/tools/sonar-check.py pr <number>`
+  exits 0. The script matches the analysis to the head itself; PENDING (exit 3) means the analysis of this
+  head is still running — wait and run it again, never read a `Quality Gate passed` comment instead, which
+  may belong to an earlier head. A passed gate with open new issues is still rework, worked like a failing
+  check;
 - no commit for a known failure or finding is still to be pushed, and after a fix in the squad skills the
   re-approval of step 9 has passed on this head.
 
@@ -274,9 +286,8 @@ the same logic and either choice loses behavior, the Lead decides (the user, out
 check of *Draft until green* then starts again on the new head.
 
 While a merge waits for the owning member's resolution, the working tree holds conflict markers and is not
-committed: a stop hook that asks for a commit meanwhile is answered with that explanation (merge in progress,
-resolution pending with the named member), and the merge commit follows once the conflicts are resolved and
-the gates pass. A record number that `main` took in the meantime is renumbered on the work branch — the
+committed (*The stop hook* above); the merge commit follows once the conflicts are resolved and the gates
+pass. A record number that `main` took in the meantime is renumbered on the work branch — the
 record file, its index row and every link to it, in records, area documents and the docs — and
 `decision-check.py` must pass on the merged head (it reports a number used twice and a link to a record file
 that does not exist).

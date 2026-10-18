@@ -71,7 +71,7 @@ in behavior updates its area document in this pull request.
 ## Documentation updates
 
 `README.md` (configuration table, env vars), `docs/*.md` including the area documents — or "none". Every documentation edit has exactly
-one owner (Dev, Tester or Lead); the Lead's approval step only touches status, index rows and bookkeeping.
+one owner (Dev, Tester or Lead); PR approval (step 9) only touches status, index rows and bookkeeping.
 
 ## Architecture check
 

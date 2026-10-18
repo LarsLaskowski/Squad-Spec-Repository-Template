@@ -38,6 +38,9 @@ in.
      file; treat each as a failure
    - *Test with coverage* and *Coverage gate* — it must pass (the thresholds
      are in `.squad/tools/squad_settings.py`)
+   - *Sonar gate* — SonarQube Cloud's analysis of the branch; fix every
+     finding it lists. NOT CHECKED (no `SONAR_TOKEN` in this environment)
+     leaves the check to step 9
    - `python3 .squad/tools/config-check.py` when the diff touches `.claude/`,
      `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md` — Claude Code silently
      drops an agent or skill whose front matter does not parse, and the two
@@ -78,10 +81,12 @@ in.
    resolve it, rerun step 4 on the merged files and push before waiting for
    anything else (`.squad/routing.md`, *Merge conflicts*). Then wait until every
    CI check on the head has finished. Fix each failing check and every new
-   issue the CI code analysis (e.g. SonarQube Cloud) reports — a passed quality
-   gate with open new issues is still rework — rerun step 4 on the fix, commit
-   once per round and push. Only when all checks are green and the code
-   analysis lists no new issue on the head and the PR merges cleanly, mark it ready for review
+   issue the CI code analysis reports — `python3 .squad/tools/sonar-check.py pr
+   <number>` lists them for the head and answers PENDING while the analysis of
+   this head still runs; a passed quality gate with open new issues is still
+   rework — rerun step 4 on the fix, commit once per round and push. Only when
+   all checks are green, `sonar-check.py pr <number>` exits 0 and the PR merges
+   cleanly, mark it ready for review
    (`update_pull_request` with `draft: false`). If a failure lies outside the
    change or the code analysis cannot be read, leave it a draft and tell the
    user what blocks it.
@@ -113,7 +118,11 @@ context and the repository's full review checklist. That checklist lives in
 
 1. **Pass 1** — launch `squad-reviewer` (subagent_type
    `squad-reviewer`, model `opus`). Tell it the base ref, the
-   head to review, and that this is round 1.
+   head to review, and that this is round 1. When the diff touches a
+   security area listed in `.squad/project.md` (*Security areas*), launch
+   `squad-security` in mode `diff` alongside it: a change made outside the
+   squad has had no Security plan review, and its findings count like the
+   reviewer's.
 2. **Act on the verdict**:
    - `APPROVE` → done, go push.
    - Blocking findings → fix each one minimally and commit. Do not widen the

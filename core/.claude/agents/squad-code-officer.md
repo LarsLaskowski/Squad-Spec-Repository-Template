@@ -46,9 +46,11 @@ The orchestrator may commit and push your edits as work in progress while you ar
 hook demands it), so a "Work in progress" commit or a clean `git status` is expected, not an anomaly:
 report your changes against the head SHA you were given (`git diff <sha>`).
 
-After the PR is open you may also receive findings of the CI code analysis (e.g. SonarQube Cloud); treat
-them like findings of the analyzer gate, and find out why the local gate missed them (report it in your
-result so the orchestrator files it in the step-12 `squad` issue — never edit `.squad/` in a product PR).
+You also receive the findings of the *Sonar gate* (step 7) and, after the PR is open, of the CI code analysis
+(`sonar-check.py pr <number>`); treat them like findings of the analyzer gate. For a rule no local analyzer
+reported, add one line to the *Analyzer gate* section of `.squad/stack.md` (the rule id, what it flags, how to
+avoid it while writing code) — `stack.md` is project knowledge and belongs in the product PR; it is no squad
+lesson, and no other file under `.squad/` is edited.
 
 Report: files touched, kinds of edits, analyzer gate output (must pass), build/test result, items handed
 back. Report only what your own checks covered; a decision record's status is the Lead's (step 9), so

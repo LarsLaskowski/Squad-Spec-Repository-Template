@@ -6,13 +6,25 @@ Tier: trivial | standard | security  (tiers `docs` and `patch` use no plan.md) �
 
 ## Problem / root cause
 
-For a bug: the cause, with file and line. For a feature: a summary of `spec.md`.
-Each factual claim of the issue, checked against the code: confirmed or refuted.
+For a bug: the cause, with file and line. For a feature: one sentence pointing to `spec.md` — do not repeat it.
+
+## Verified facts
+
+Every factual claim the plan rests on — from the issue, the spec, the code, a library, the image — with its
+evidence (file and line, a command and its output, the sample or document read) and its status. A claim no
+one could check yet is `unverified`, and its evidence cell says `to verify:` with the measurement, its owner
+and the step. `.squad/tools/plan-check.py` rejects a row without evidence or status.
+
+| # | Claim | Evidence | Status |
+| - | ----- | -------- | ------ |
+| 1 | … | … | confirmed / refuted / unverified |
 
 ## Acceptance criteria
 
-- [ ] AC1: ... (the Tester turns each one into at least one unit test; in a plan without production or test
-  code, *Verification without tests* below says how it is verified instead)
+Bug fix only — a feature's criteria live in `spec.md` and are referred to by their id; do not copy them here.
+
+- [ ] AC1: ... (in a plan without production or test code, *Verification without tests* below says how it is
+  verified instead)
 
 Content the issue supplies verbatim (an image, SVG, configuration, a fixture) was rendered or exercised once
 before "identical to the issue" became a criterion; a mismatch with the evident intent is an escalation
@@ -21,10 +33,15 @@ about a container image or another build output names the *Image build check* fr
 verification, run by the Dev before the review (*Criteria verified only in CI* in `.squad/routing.md`) — a
 build from the full working tree verifies nothing about the image.
 
-## Behavior coverage
+## Tests per criterion
 
-For a feature: each bullet of `spec.md`'s *Behavior* mapped to the acceptance criterion that covers it, or
-"out of scope" — the Tester checks that every field a criterion names is asserted. Otherwise delete this section.
+One row per acceptance criterion (of this plan, or of `spec.md` for a feature): the tests the Tester writes
+first, named strictly by *Layout* in `.squad/stack.md`. A criterion verified without a test is listed under
+*Verification without tests* instead. `.squad/tools/plan-check.py` reports a criterion without a row.
+
+| AC | Test(s) | Test file |
+| -- | ------- | --------- |
+| AC1 | … | … |
 
 ## Verification without tests
 
@@ -52,8 +69,9 @@ Every new or changed member, with its full signature — or "none".
 
 ## Test files
 
-Named strictly by the convention in *Layout* of [`.squad/stack.md`](../../.squad/stack.md) and
-[UNIT_TESTS.md](../../docs/UNIT_TESTS.md) — no combined file, no alternatives.
+The files of *Tests per criterion*, named strictly by the convention in *Layout* of
+[`.squad/stack.md`](../../.squad/stack.md) and [UNIT_TESTS.md](../../docs/UNIT_TESTS.md) — no combined file, no
+alternatives.
 
 Existing test code that calls a changed signature (factories, helpers): the call sites and who adapts them
 (`.squad/routing.md`, *Loop limits*) — or "none".

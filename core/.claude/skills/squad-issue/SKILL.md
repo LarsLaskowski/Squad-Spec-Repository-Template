@@ -19,7 +19,7 @@ action yourself — including follow-up issues the Lead decides on.
   run it on the files of the change when *Format check* fails (step 7). Besides read-only checks (`--check`,
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
   `python3 .squad/tools/squad-log.py`), `tasks.md` check marks (features) and the *Challenge notes* you
-  append to `plan.md` verbatim (step 2). The exceptions are tiers `docs` and `patch`, where you apply the
+  append verbatim to `plan.md` (step 2) or, for a feature, to `spec.md`. The exceptions are tiers `docs` and `patch`, where you apply the
   Lead's exact edits yourself (`.squad/routing.md`, *Tiers*), and a review finding, blocking or not, whose
   fix a reviewer states verbatim and that touches only documentation, a decision record, an area document,
   `README.md` or a configuration example (step 8, *Verbatim documentation fixes*).
@@ -146,9 +146,12 @@ action yourself — including follow-up issues the Lead decides on.
      round in step 8 — `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead of
      it — and step 10 directly. No challenge, plan security review, skeleton, tests first, Code Officer or
      step 9. Otherwise:
-     `plan.md` with the **tier** (`trivial` / `standard` / `security`), acceptance
-     criteria, the signatures of new or changed API, the affected area documents (`docs/areas/`), required documentation updates (`README.md`,
-     `docs/`), and `Proposed` decision records. Continue with the steps the tier requires.
+     `plan.md` with the **tier** (`trivial` / `standard` / `security`), the *Verified facts* with their
+     evidence, acceptance criteria with their *Tests per criterion*, the signatures of new or changed API, the
+     affected area documents (`docs/areas/`), required documentation updates (`README.md`, `docs/`), and
+     `Proposed` decision records. Run `python3 .squad/tools/plan-check.py issue-<number>` before anyone else
+     reads the plan, and after every Lead revision; a finding goes back to `squad-lead` in mode `revise` with
+     the findings only, without a challenge round. Continue with the steps the tier requires.
    - `RESULT: NO CHANGE` — show the proposed issue comment to the user, post it only after confirmation
      (append the log as a collapsed "Squad working record" block), remove the work folder with a commit
      and push, and stop. No PR; the branch stays as it is, and you tell the user so.

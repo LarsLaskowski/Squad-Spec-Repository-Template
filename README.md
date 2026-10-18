@@ -8,7 +8,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 
 - **The squad** (`.squad/`, `.claude/agents/squad-*.md`) — Lead, Devil's Advocate, Security, Tester,
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features, also from issues)
-  skills: plan → challenge → security review → tests first → implementation until the coverage gate passes
+  skills: for a feature first a spec (scenarios, edge cases, the acceptance criteria) and its challenge, then plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → PR approval by checklist → pull request. Details in
   [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter
   (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members; only the orchestrating session
@@ -32,7 +32,9 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   `SONAR_TOKEN`, and of the draft pull request's head otherwise) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
   `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
-  template text and leaves no working record behind). `squad-log.py` appends the pipeline's log rows.
+  template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec sections,
+every criterion with its tests and task, every claim of the plan with its evidence); `squad-log.py` appends the
+pipeline's log rows.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.

@@ -187,7 +187,7 @@ quality gate after the PR was open).
 | # | Step | Owner | Exit condition |
 | - | ---- | ----- | -------------- |
 | 1 | Intake | Orchestrator | Branch off `main`, work folder and `log.md` created (rows appended with `squad-log.py`), committed and pushed |
-| 2 | Plan | Lead, Devil's Advocate | `plan.md` with tier, acceptance criteria, signatures of new/changed API, the options considered, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate when *Plan challenge* below calls for it; major objections answered by the Lead in the plan's *Challenge* section, minor ones recorded as *Challenge notes* |
+| 2 | Plan | Lead, Devil's Advocate | Features first: `spec.md` (scenarios, edge cases, non-functional requirements, the acceptance criteria, answered questions), `plan-check.py --spec` clean, one spec challenge by the Devil's Advocate (`squad-spec`). Then `plan.md` with tier, *Verified facts* with evidence, acceptance criteria (bug fixes; a feature's are the spec's) and *Tests per criterion*, signatures of new/changed API, the options considered, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed; `plan-check.py` clean before anyone else reads it. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate when *Plan challenge* below calls for it; major objections answered by the Lead in the plan's *Challenge* section, minor ones recorded as *Challenge notes* |
 | 3 | Plan security review | Security | `security` tier only, launched together with the plan challenge on the same plan commit. `APPROVED` → 4; `CHANGES_REQUIRED` → one Lead revision answers it together with the major objections, then a Security delta confirmation of the revision |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A test that cannot fail yet is not written here: guards, pins of existing behavior, determinism and bound tests wait for step 6 |
@@ -305,7 +305,8 @@ statement of the change that the merged `main` made untrue, goes through steps 7
 
 The Devil's Advocate is launched only when there is something to challenge: the plan changes production code
 **and** either weighs more than one option (its *Options considered* names an alternative, or it adds or
-extends a decision record) or the tier is `security`. Otherwise the orchestrator logs "challenge skipped: no
+extends a decision record) or the tier is `security` — for a feature, whose spec it has already challenged,
+only when the plan weighs options. Otherwise the orchestrator logs "challenge skipped: no
 options" and goes on; the Reviewer still checks the plan's assumptions in step 8.
 
 The Devil's Advocate classifies every objection as `major` (the plan would build the wrong thing or miss the

@@ -90,13 +90,18 @@ is blocking), and report as findings:
   tests* section covering every acceptance criterion, or a diff that contains production or test code despite
   that declaration (blocking; *Changes without production or test code* in `.squad/routing.md`);
 - a tier in `plan.md` that is too low for what the diff touches, per the tier
-  table in `.squad/routing.md` and the security areas in `.squad/project.md`
+  table in `.squad/routing.md` (the `security` row's list of security controls)
   (blocking — the change must go through the higher tier's steps; you may raise
-  the tier, never lower it). Below the `security` tier you are the only
-  security review of the change: the security areas, secrets reaching logs,
-  input safety and new dependencies in the checklist below are yours alone,
-  and a touched security area is a tier raise to `security`, where Security
-  reviews plan and diff. For tiers `docs` and `patch` there is no `plan.md`: the
+  the tier, never lower it): a diff that creates, changes or removes a security
+  control is `security`. A security area the diff touches that *Security areas
+  touched* does not list (tiers with a `plan.md`; `patch/security` goes to
+  Security anyway) is a finding *unlisted security area*: Security
+  reviews that part of the diff (*Unlisted security areas* in
+  `.squad/routing.md`); a touch that changes nothing an attacker could use you
+  clear yourself. Below
+  the `security` tier you are the only review of the diff for security: the
+  security areas, secrets reaching logs, input safety and new dependencies in
+  the checklist below are yours. For tiers `docs` and `patch` there is no `plan.md`: the
   tier, the exact edits and the acceptance criteria are in the first row of
   `log.md`. For `docs` the review reads the diff only — nothing is built. For
   `patch` confirm the tier's claim: the diff holds only the named edits, no
@@ -139,7 +144,7 @@ hold in every repository:
   description is a finding, and so is a diff that leaves the corresponding
   sentence in `README.md` or `docs/` standing while making it untrue.
 - **A change in a security area** (*Security areas* in `.squad/project.md`):
-  check it against the tier and against what `SECURITY.md` promises.
+  check it against the tier, the plan's *Security areas touched* and what `SECURITY.md` promises.
 - **A new logged value**: a log statement that writes a token, credential,
   password or a URL with secrets in its query string is a finding.
 - **Logger arguments**: when the diff adds or changes a log call, grep the

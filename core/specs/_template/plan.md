@@ -3,6 +3,10 @@
 Source: Issue #<number> | [spec.md](spec.md)
 Status: Draft | Revised (n) | Approved by Security
 Tier: trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
+Security areas touched: none | <areas>
+<!-- Each security area of `.squad/project.md`, Docker/CI or build configuration and dependency the change
+touches, or "none" — in every plan, whatever the tier. Security reviews the plan (step 3) whenever this is not
+"none" (`.squad/routing.md`, *Tiers*). -->
 
 ## Problem / root cause
 
@@ -116,7 +120,7 @@ which Dev and Tester follow (or report a deviation) and the Reviewer checks. A c
 
 ## Security review
 
-`security` tier only, left out when the plan is written: each `CHANGES_REQUIRED` finding and how the
+Whenever Security reviewed the plan (tier `security`, or *Security areas touched*), left out when it is written: each `CHANGES_REQUIRED` finding and how the
 revision resolves it. When Security approves with non-blocking findings, the orchestrator appends them
 verbatim as a *Security notes* section instead, which Dev and Tester follow (or report a deviation) and the
 Reviewer checks; a note that leaves the plan a choice goes to the Lead first, who decides it here.

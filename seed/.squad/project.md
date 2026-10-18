@@ -7,7 +7,8 @@ and never overwrites it. A product PR updates it when the change makes an entry 
 
 ## Security areas
 
-A change that touches one of these is tier `security` (`.squad/routing.md`). Name the concrete types,
+A change that touches one of these lists it under *Security areas touched* in its plan, so Security reviews the
+plan (`.squad/routing.md`, *Tiers*, which also says when a change is tier `security`). Name the concrete types,
 files or endpoints.
 
 - {{TODO: Secrets and tokens: where they are read, stored, compared, logged}}

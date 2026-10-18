@@ -55,7 +55,8 @@ PLAN = """# Plan: Export
 
 Source: [spec.md](spec.md)
 Status: Draft
-Tier: standard — a new user-visible export, no security area.
+Tier: standard — a new user-visible export.
+Security areas touched: none
 
 ## Problem / root cause
 
@@ -87,6 +88,7 @@ BUG_PLAN = """# Plan: Crash on empty title
 
 Source: Issue #34
 Tier: trivial — one guard.
+Security areas touched: none
 
 ## Verified facts
 
@@ -163,6 +165,20 @@ class TestPlanCheck(unittest.TestCase):
         errors = self.errors(self.feature(plan=plan))
         self.assertTrue(any("claim without evidence" in e for e in errors), errors)
         self.assertTrue(any("unverified claim without `to verify:`" in e for e in errors), errors)
+
+    def test_security_areas_line_must_be_none_or_the_areas(self):
+        for bad in ("", "Security areas touched:\n", "Security areas touched: none | <areas>\n",
+                    "Security areas touched: n/a\n", "Security areas touched: none|auth\n",
+                    "Security areas touched: none \u2014 UI wording only\n", "Security areas touched: nothing\n"):
+            plan = PLAN.replace("Security areas touched: none\n", bad)
+            self.assertTrue(any("Security areas touched" in e for e in self.errors(self.feature(plan=plan))), bad)
+        listed = PLAN.replace("Security areas touched: none", "Security areas touched: CSV import, `<script>`")
+        self.assertEqual(self.errors(self.feature(plan=listed.replace("Tier: standard", "Tier: security"))), [])
+        self.assertEqual(self.errors(self.feature(plan=PLAN.replace("touched: none", "touched: `none`"))), [])
+        on_security = PLAN.replace("Tier: standard", "Tier: security")
+        self.assertTrue(any("cannot be" in e for e in self.errors(self.feature(plan=on_security))))
+        write("specs/issue-34/plan.md", BUG_PLAN.replace("Security areas touched: none\n", ""))
+        self.assertTrue(any("Security areas touched" in e for e in self.errors("specs/issue-34")))
 
     def test_tier_must_be_chosen(self):
         plan = PLAN.replace("Tier: standard — a new", "Tier: trivial | standard | security — a new")

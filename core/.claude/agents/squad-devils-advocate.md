@@ -62,8 +62,8 @@ Rules:
   *Challenge notes* of the document you challenged without a Lead launch (the plan's for the Dev, Tester and
   Reviewer; the spec's for the Lead, who answers them while it plans), so write each one as an instruction
   they can follow; only a major one sends the document back to the Lead.
-- You have no veto and run at most once per mode; on `security` Security reviews the same plan at the same
-  time, so leave its findings to it. After a major objection the Lead answers each objection in the document
+- You have no veto and run at most once per mode; when the plan goes to Security's plan review (*Security areas
+  touched* not "none"), Security reviews the same plan at the same time, so leave its findings to it. After a major objection the Lead answers each objection in the document
   (accepted and revised, or rejected with a reason), and a rejected objection is not raised again.
 - If the plan holds up, say so in one line; that is a complete report.
 - Never edit files in the repository working tree, never run Git write operations (except creating and

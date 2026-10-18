@@ -17,9 +17,10 @@ Checks, in the work folder `specs/<folder>/`:
   the *Criteria* column of `tasks.md` (every table of it), and neither names a criterion the spec lacks.
 - **Bug fix** (no `spec.md`): `plan.md` defines its acceptance criteria, and each has a row in *Tests per
   criterion* (tier `trivial`, which writes no tests first, needs none).
-- **Both:** the *Tier* line names exactly one tier; *Verified facts* has at least one row, and every row has
-  evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement that settles it, starting
-  with `to verify:`); no template placeholder is left. A plan longer than `PLAN_MAX_WORDS`
+- **Both:** the *Tier* line names exactly one tier, and the *Security areas touched* line says "none" or lists
+  them (it decides the Security plan review); *Verified facts* has at least
+  one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
+  that settles it, starting with `to verify:`); no template placeholder is left. A plan longer than `PLAN_MAX_WORDS`
   (`squad_settings.py`, default 4000) is reported as a warning: a long plan costs every member that reads it.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
@@ -251,6 +252,21 @@ def check_tasks(tasks, criteria, errors):
         errors.append(f"tasks.md: names {criterion}, which spec.md does not define")
 
 
+def check_security_areas(plan, errors):
+    """The line that decides the Security plan review: "none", or the areas — never empty or left as the template."""
+    areas = re.search(r"^Security areas touched:[ \t]*(.*)$", plan, re.M)
+    value = cell(areas.group(1)) if areas else ""
+    tier = re.search(r"^Tier:\s*`?(\w+)", plan, re.M)
+    if NONE.match(value):
+        if tier and tier.group(1) == "security":
+            errors.append("plan.md: tier `security` changes a security control, so *Security areas touched* "
+                          "cannot be \"none\": name the area (add it to .squad/project.md if the list lacks it)")
+        return
+    if (not areas or empty(value) or re.match(r"(?:none|no|nothing)\b", value, re.I) or "<areas>" in value):
+        errors.append("plan.md: write the line `Security areas touched: none` (exactly) or `Security areas "
+                      "touched: <the areas>` (it decides the Security plan review)")
+
+
 def check_plan(plan, spec, errors):
     """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder."""
     parts = sections(plan)
@@ -258,6 +274,7 @@ def check_plan(plan, spec, errors):
     name = tier.group(1) if tier else None
     if name not in TIERS or tier.group(2).lstrip().startswith("|"):
         errors.append(f"plan.md: the *Tier* line must name exactly one of {', '.join(TIERS)}")
+    check_security_areas(plan, errors)
     own = set(CRITERION.findall(COMMENT.sub("", plan)))
     if spec is None:
         criteria = own

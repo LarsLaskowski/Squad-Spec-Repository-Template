@@ -33,8 +33,9 @@ mechanics out of the orchestrator's hands:
   `--continued` needs an earlier row of that member with usage, `--continued-from` a fresh launch of that step;
 - the usage block often arrives only after the member's hand-back: `--amend-last MEMBER` with the same
   options adds the trailer to the last row of that member afterwards, so the row can be written as soon as
-  the report is in. A row gets its trailer once; a second amend is refused. When a later row of that member
-  exists already (two members that ran in parallel, and the first one's notification came last),
+  the report is in. A row gets its trailer once (a pending one is completed); a second amend is refused. When a
+  later row of that member exists already (two members that ran in parallel, and the first one's notification
+  came last),
   `--step "<step>"` selects the last row of the member whose step cell is that text, so an earlier launch row
   is still amended with the tool, never by hand;
 - a row whose trailer is wrong (a launch logged with made-up numbers before its notification arrived) is
@@ -241,11 +242,23 @@ def agent_launch(root, agent):
 
 def amendable(result, replace):
     """(True, the trailer match or None) when the row may take a new trailer: one without a trailer or with a pending
-    one is amended, one with any trailer is replaced."""
+    one is amended; one with a full or an unreported trailer is replaced (a pending one is amended, not replaced)."""
     old = ANY_TRAILER.search(result)
+    pending = bool(PENDING_TRAILER.search(result))
     if replace:
-        return bool(old), old
-    return (not old or bool(PENDING_TRAILER.search(result))), old
+        return bool(old) and not pending, old
+    return (not old or pending), old
+
+
+def target_result(path, member, step=None):
+    """The result cell of the row `--amend-last`/`--replace-last` would change, or None."""
+    with open(path, encoding="utf-8-sig") as handle:
+        rows = parse_rows(handle.read())
+    wanted, wanted_step = cell(member), None if step is None else cell(step)
+    for _, row_step, row_member, result in reversed(rows):
+        if row_member == wanted and (wanted_step is None or row_step == wanted_step):
+            return result
+    return None
 
 
 def amend_last(path, member, launch, replace=False, step=None):
@@ -355,7 +368,7 @@ def is_not_launch(member):
 
 def missing_usage(rows):
     """(stamp, step, member) of every launch row — a member other than the Orchestrator, the Product Manager and
-    the User — without a trailer; a launch marked as unreported has one."""
+    the User — without usage: no trailer, or a pending one; a launch marked as unreported counts as complete."""
     return [(stamp, step, member) for stamp, step, member, result in rows
             if not is_not_launch(member) and (not ANY_TRAILER.search(result) or PENDING_TRAILER.search(result))]
 
@@ -514,19 +527,27 @@ def amend_command(parser, path, folder, member, launch, replace, continued, step
         parser.error(f"{option} needs --agent (or --launch), --tokens, --tool-uses and --seconds (or --unreported)")
     if replace and launch[1] is None:
         parser.error("--unreported marks a row without a trailer: use it with --amend-last")
-    launch = share_of_round(path, member, launch, continued, replace, step, origin)
+    current = target_result(path, member, step) or ""
+    if replace and PENDING_TRAILER.search(current):
+        parser.error("the row's usage is still pending: add it with --amend-last, not --replace-last")
+    # Only a replaced trailer with real numbers is part of the earlier usage a continuation subtracts.
+    launch = share_of_round(path, member, launch, continued, replace and bool(TRAILER.search(current)), step, origin)
     if launch is None:
         return 1
     row = amend_last(path, member, launch, replace=replace, step=step)
     if row is None:
-        state = "with" if replace else "without"
-        where = f"of step '{step}' " if step is not None else ""
-        hint = "" if replace else " (a row that already carries one, also the unreported mark, is corrected " \
-                                  "with --replace-last)"
-        print(f"No row of {member} {where}{state} a launch trailer in {folder}{hint}")
+        print(no_row_message(folder, member, replace, step))
         return 1
     print(row)
     return 0
+
+
+def no_row_message(folder, member, replace, step):
+    state = "with" if replace else "without"
+    where = f"of step '{step}' " if step is not None else ""
+    hint = "" if replace else " (a row that already carries one, also the unreported mark, is corrected with " \
+                              "--replace-last)"
+    return f"No row of {member} {where}{state} a launch trailer in {folder}{hint}"
 
 
 def row_command(parser, path, args, launch):

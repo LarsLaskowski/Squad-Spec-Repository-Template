@@ -7,14 +7,16 @@ For every pull request merged in the window it reports:
 - **kind** — `squad` (its issue or the PR carries a "Squad working record" comment), `refresh` (a template
   refresh: "Update the squad from …"), `dependabot`, or `manual`;
 - **tier**, **launches** and **tokens** of a squad run, read from its working record and "Squad run metrics";
-- **fix pushes** — commits pushed after the PR was opened, merges of the base branch counted apart;
-- **CI failures** — failed or timed-out check runs on those commits;
+- **fix commits** — commits dated after the PR was opened, merges of the base branch counted apart (a force-push
+  re-dates the commits it rewrites, which then all count);
+- **CI failures** — failed or timed-out check runs, re-runs included, on the head at opening and those commits;
 - **Sonar** — the SonarQube Cloud issues ever raised on the pull request (fixed ones included), when the
   repository's project key is given;
-- **bot** and **human** review comments, and the hours from opening to merge.
+- **bot** and **human** review comments and review bodies (the author's own replies left out), and the hours
+  from opening to merge.
 
 The totals per repository and week show what the squad's rules changed: the share of squad pull requests that
-needed no fix push, that SonarQube found nothing on, the CI failures per pull request, and the median tokens per
+needed no fix commit, that SonarQube found nothing on, the CI failures per pull request, and the median tokens per
 tier. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a reading task.
 
 Usage (needs `gh` with read access to the repositories):
@@ -37,7 +39,9 @@ import urllib.request
 SONAR = "https://sonarcloud.io/api"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
 TOTAL = re.compile(r"^\|\s*\*\*Total\*\*\s*\|[^|]*\|\s*(\d+)[^|]*\|\s*([\d,]+)\s*\|", re.M)
-CLOSES = re.compile(r"\b(?:closes|fixes|resolves)\s+#(\d+)", re.I)
+CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)", re.I)
+COMMENT = re.compile(r"<!--.*?-->", re.S)
+MARKERS = ("Squad working record", "Squad run metrics")
 FAILED = {"failure", "timed_out"}
 
 
@@ -47,7 +51,7 @@ PER_PAGE = 100
 def gh(path):
     """GET a GitHub API path through `gh api`."""
     result = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout or "null")
+    return json.loads(result.stdout or "null") or None
 
 
 def gh_list(path, stop=None):
@@ -77,15 +81,21 @@ def sonar_issues(key, number):
 
 
 def parse_record(comments):
-    """(tier, launches, tokens) from the "Squad working record" and "Squad run metrics" comments."""
-    text = "\n".join(c.get("body") or "" for c in comments)
-    if "Squad working record" not in text:
+    """(tier, launches, tokens) from the "Squad working record" and "Squad run metrics" comments only, the last
+    match winning (a later record of the same issue, a raised tier); None when there is no working record."""
+    bodies = [c.get("body") or "" for c in comments if any(m in (c.get("body") or "") for m in MARKERS)]
+    if not any(MARKERS[0] in body for body in bodies):
         return None
-    tier = TIER.search(text)
-    total = TOTAL.search(text)
-    return (tier.group(1).lower() if tier else None,
-            int(total.group(1)) if total else None,
-            int(total.group(2).replace(",", "")) if total else None)
+    text = "\n".join(bodies)
+    tiers, totals_found = TIER.findall(text), TOTAL.findall(text)
+    return (tiers[-1].lower() if tiers else None,
+            int(totals_found[-1][0]) if totals_found else None,
+            int(totals_found[-1][1].replace(",", "")) if totals_found else None)
+
+
+def linked_issues(body):
+    """The issue numbers a pull request body closes, outside HTML comments (a kept template example is no link)."""
+    return sorted({int(n) for n in CLOSES.findall(COMMENT.sub("", body or ""))})
 
 
 def classify(pr, record):
@@ -100,10 +110,33 @@ def classify(pr, record):
 
 
 def pushes_after_open(commits, opened):
-    """(fix pushes, merges of the base) among the commits dated after the pull request was opened."""
+    """(fix commits, merges of the base, the commits CI ran on from the opening on): the commits dated after the
+    pull request was opened, and the head at opening, whose CI run is the PR's first. A force-push re-dates the
+    commits it rewrites, which then all count as fixes."""
     later = [c for c in commits if c["commit"]["committer"]["date"] > opened]
+    earlier = [c for c in commits if c["commit"]["committer"]["date"] <= opened]
     merges = [c for c in later if len(c.get("parents", [])) > 1]
-    return len(later) - len(merges), len(merges), later
+    return len(later) - len(merges), len(merges), earlier[-1:] + later
+
+
+def failed_checks(repo, sha):
+    """Failed or timed-out check runs of a commit, re-run attempts included."""
+    runs, page = [], 1
+    while True:
+        data = gh(f"repos/{repo}/commits/{sha}/check-runs?filter=all&per_page={PER_PAGE}&page={page}") or {}
+        runs += data.get("check_runs", [])
+        if len(runs) >= data.get("total_count", 0) or not data.get("check_runs"):
+            return sum(1 for run in runs if run.get("conclusion") in FAILED)
+        page += 1
+
+
+def review_comments(repo, number, author):
+    """(bot, human) review comments and review bodies, without the author's own replies."""
+    comments = [c for c in gh_list(f"repos/{repo}/pulls/{number}/comments") if not c.get("in_reply_to_id")]
+    comments += [r for r in gh_list(f"repos/{repo}/pulls/{number}/reviews") if (r.get("body") or "").strip()]
+    comments = [c for c in comments if (c.get("user") or {}).get("login") != author]
+    bots = sum(1 for c in comments if (c.get("user") or {}).get("type") == "Bot")
+    return bots, len(comments) - bots
 
 
 def hours(start, end):
@@ -113,25 +146,21 @@ def hours(start, end):
 
 def pull_request_row(repo, pr, sonar_key):
     number = pr["number"]
-    comments = gh_list(f"repos/{repo}/issues/{number}/comments")
-    linked = CLOSES.search(pr.get("body") or "")
-    if linked:
-        comments += gh_list(f"repos/{repo}/issues/{linked.group(1)}/comments")
+    comments = []
+    for issue in linked_issues(pr.get("body")):
+        comments += gh_list(f"repos/{repo}/issues/{issue}/comments")
+    comments += gh_list(f"repos/{repo}/issues/{number}/comments")
     record = parse_record(comments)
     commits = gh_list(f"repos/{repo}/pulls/{number}/commits")
-    fixes, merges, later = pushes_after_open(commits, pr["created_at"])
-    failures = 0
-    for commit in later:
-        runs = gh(f"repos/{repo}/commits/{commit['sha']}/check-runs").get("check_runs", [])
-        failures += sum(1 for run in runs if run.get("conclusion") in FAILED)
-    review = gh_list(f"repos/{repo}/pulls/{number}/comments")
+    fixes, merges, checked = pushes_after_open(commits, pr["created_at"])
+    failures = sum(failed_checks(repo, commit["sha"]) for commit in checked)
+    bots, humans = review_comments(repo, number, (pr.get("user") or {}).get("login"))
     return {
-        "repo": repo.split("/")[-1], "pr": number, "title": pr["title"], "kind": classify(pr, record),
+        "repo": repo, "pr": number, "title": pr["title"], "kind": classify(pr, record),
         "tier": record[0] if record else None, "launches": record[1] if record else None,
         "tokens": record[2] if record else None, "fix_pushes": fixes, "base_merges": merges,
         "ci_failures": failures, "sonar": sonar_issues(sonar_key, number) if sonar_key else None,
-        "bot_comments": sum(1 for c in review if (c.get("user") or {}).get("type") == "Bot"),
-        "human_comments": sum(1 for c in review if (c.get("user") or {}).get("type") != "Bot"),
+        "bot_comments": bots, "human_comments": humans,
         "hours_to_merge": hours(pr["created_at"], pr["merged_at"]), "merged_at": pr["merged_at"],
     }
 
@@ -147,8 +176,8 @@ def share(rows, test):
 
 def totals(rows):
     """Markdown lines with the totals of the squad pull requests per repository and week."""
-    lines = ["| Repository | Week | Squad PRs | No fix push | No Sonar issue | CI failures per PR | Median tokens by tier |",
-             "| ---------- | ---- | --------- | ----------- | -------------- | ------------------ | --------------------- |"]
+    lines = ["| Repository | Week | Squad PRs | No fix commit | No Sonar issue | CI failures per PR | Median tokens by tier |",
+             "| ---------- | ---- | --------- | ------------- | -------------- | ------------------ | --------------------- |"]
     groups = {}
     for row in rows:
         if row["kind"] == "squad":
@@ -167,9 +196,9 @@ def totals(rows):
 
 
 def table(rows):
-    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Fix pushes | Base merges | CI failures | Sonar | "
+    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Fix commits | Base merges | CI failures | Sonar | "
              "Bot / human comments | Hours to merge |",
-             "| ---- | -- | ---- | ---- | -------- | ------ | ---------- | ----------- | ----------- | ----- | "
+             "| ---- | -- | ---- | ---- | -------- | ------ | ----------- | ----------- | ----------- | ----- | "
              "-------------------- | -------------- |"]
     show = lambda value: "-" if value is None else (f"{value:,}" if isinstance(value, int) else str(value))  # noqa: E731
     for r in rows:
@@ -185,20 +214,29 @@ def merged_in_window(repo, since, until):
     return [p for p in pulls if p.get("merged_at") and since <= p["merged_at"][:10] <= until]
 
 
+def day(value):
+    """A YYYY-MM-DD date, normalised, so the string comparison with GitHub's timestamps holds."""
+    return datetime.date.fromisoformat(value).isoformat()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Quality report of squad pull requests.")
     parser.add_argument("--repo", action="append", required=True, help="owner/name, or owner/name=sonar-project-key")
-    parser.add_argument("--since", required=True, help="first merge date, YYYY-MM-DD")
-    parser.add_argument("--until", default=datetime.date.today().isoformat(), help="last merge date, YYYY-MM-DD")
+    parser.add_argument("--since", required=True, type=day, help="first merge date, YYYY-MM-DD")
+    parser.add_argument("--until", type=day, help="last merge date, YYYY-MM-DD (default: today, UTC)")
     parser.add_argument("--out", help="write the report to this file instead of printing it")
     args = parser.parse_args(argv)
+    args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
     rows = []
     try:
         for entry in args.repo:
             repo, _, key = entry.partition("=")
             for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
                 rows.append(pull_request_row(repo, pr, key or None))
-    except (subprocess.CalledProcessError, OSError, ValueError, KeyError) as error:
+    except subprocess.CalledProcessError as error:
+        print(f"GitHub could not be read: {(error.stderr or '').strip() or error}", file=sys.stderr)
+        return 1
+    except (OSError, ValueError) as error:
         print(f"GitHub could not be read: {error}", file=sys.stderr)
         return 1
     report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",

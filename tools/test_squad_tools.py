@@ -501,6 +501,33 @@ class TestSquadLog(unittest.TestCase):
         self.assertNotIn("pending", text)
         self.assertEqual(run("--summary").returncode, 0)
 
+    def test_pending_rows_take_amend_unreported_and_continued_but_not_replace(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True, text=True,
+                                  check=False)
+
+        numbers = ["--tool-uses", "5", "--seconds", "60"]
+        self.assertEqual(run("6 Implement", "Dev", "done", "--agent", "squad-dev", "--tokens", "100000", *numbers)
+                         .returncode, 0)
+        self.assertEqual(run("8 Fix", "Dev", "fixed", "--launch", "sonnet/medium").returncode, 0)
+        replaced = run("--replace-last", "Dev", "--agent", "squad-dev", "--tokens", "120000", *numbers, "--continued")
+        self.assertEqual(replaced.returncode, 2)
+        self.assertIn("use --amend-last", replaced.stderr.replace("add it with --amend-last", "use --amend-last"))
+        amended = run("--amend-last", "Dev", "--agent", "squad-dev", "--tokens", "120000", *numbers, "--continued")
+        self.assertEqual(amended.returncode, 0, amended.stdout + amended.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("fixed (sonnet/medium · 20,000 tokens · 5 tool uses · 60 s · continued) |", handle.read())
+        self.assertEqual(run("9 Fix", "Dev", "again", "--agent", "squad-dev").returncode, 0)
+        self.assertEqual(run("--amend-last", "Dev", "--unreported", "--agent", "squad-dev").returncode, 0)
+        self.assertEqual(run("--summary").returncode, 0)
+        self.assertEqual(run("1 Intake", "Orchestrator", "branch", "--agent", "squad-dev").returncode, 2)
+
     def test_tool_uses_or_seconds_alone_are_an_incomplete_set(self):
         root = os.path.join(self.dir.name, "repo")
         log = os.path.join(root, "specs", "issue-1", "log.md")

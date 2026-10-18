@@ -37,7 +37,45 @@ class TestSquadReport(unittest.TestCase):
         commits = [commit("a", "2026-10-17T10:00:00Z"), commit("b", "2026-10-17T12:00:00Z"),
                    commit("c", "2026-10-17T13:00:00Z", parents=2)]
         fixes, merges, later = report.pushes_after_open(commits, "2026-10-17T11:00:00Z")
-        self.assertEqual((fixes, merges, [c["sha"] for c in later]), (1, 1, ["b", "c"]))
+        self.assertEqual((fixes, merges, [c["sha"] for c in later]), (1, 1, ["a", "b", "c"]),
+                         "the head at opening carries the PR's first CI run")
+
+    def test_record_reads_only_squad_comments_and_the_last_match(self):
+        prose = {"body": "The tier `standard` review looked fine."}
+        raised = {"body": "### Squad run metrics\n\nTier raised: tier **security**\n"
+                          "| **Total** | | 9 | 600,000 | 1 | 2 |\n"}
+        record = report.parse_record([prose, {"body": "Squad working record\n\nTier: **standard**"}, raised])
+        self.assertEqual(record, ("security", 9, 600000))
+
+    def test_linked_issues_ignore_html_comments(self):
+        body = "<!--- For example: Closes #123 -->\nFixes #7, closed #8 and resolves: #9"
+        self.assertEqual(report.linked_issues(body), [7, 8, 9])
+
+    def test_check_runs_are_paged_and_include_reruns(self):
+        pages = {1: {"total_count": 3, "check_runs": [{"conclusion": "failure"}, {"conclusion": "success"}]},
+                 2: {"total_count": 3, "check_runs": [{"conclusion": "timed_out"}]}}
+        calls = []
+
+        def fake(path):
+            calls.append(path)
+            return pages[int(path.rsplit("page=", 1)[1])]
+        with mock.patch.object(report, "gh", fake), mock.patch.object(report, "PER_PAGE", 2):
+            self.assertEqual(report.failed_checks("o/r", "abc"), 2)
+        self.assertIn("filter=all", calls[0])
+
+    def test_review_comments_leave_out_replies_and_the_author(self):
+        comments = [{"user": {"login": "bot", "type": "Bot"}}, {"user": {"login": "me"}},
+                    {"user": {"login": "rev"}, "in_reply_to_id": 1}, {"user": {"login": "rev"}}]
+        reviews = [{"user": {"login": "copilot", "type": "Bot"}, "body": "Summary"},
+                   {"user": {"login": "rev"}, "body": ""}]
+        answers = {"comments": comments, "reviews": reviews}
+        with mock.patch.object(report, "gh_list", lambda path: answers[path.rsplit("/", 1)[1]]):
+            self.assertEqual(report.review_comments("o/r", 5, "me"), (2, 1))
+
+    def test_dates_are_validated(self):
+        self.assertEqual(report.day("2026-10-01"), "2026-10-01")
+        with self.assertRaises(ValueError):
+            report.day("2026-10-1x")
 
     def test_list_walks_pages_and_stops_early(self):
         pages = {1: [{"n": i, "updated_at": "2026-10-18"} for i in range(100)],

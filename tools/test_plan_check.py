@@ -181,6 +181,68 @@ class TestPlanCheck(unittest.TestCase):
             self.assertEqual(self.script.main(["feature-12-export", "--spec"]), 0)
             self.assertEqual(self.script.main(["feature-12-export"]), 1)
 
+    def test_filled_templates_with_their_guidance_left_in_pass(self):
+        with open(os.path.join(TEMPLATES, "spec.md"), encoding="utf-8") as handle:
+            spec = handle.read()
+        spec = (spec.replace("# Spec: <title>", "# Spec: Export").replace("Issue #<number> | the user's description", "Issue #12")
+                .replace("- S1: …", "- S1: Given a library, when the user exports it, then a CSV file is written.")
+                .replace("- E1: …", "- E1: An empty library writes the header only.")
+                .replace("- [ ] AC1: …", "- [ ] AC1: an export writes one row per item (S1, E1)"))
+        for heading, text in (("## Problem", "Users cannot export."), ("## Non-functional requirements", "none"),
+                              ("## Out of scope", "none"), ("## Open questions", "none"),
+                              ("## Area documents", "- docs/areas/export.md: the format.")):
+            spec = spec.replace(heading + "\n", heading + "\n\n" + text + "\n", 1)
+        with open(os.path.join(TEMPLATES, "tasks.md"), encoding="utf-8") as handle:
+            tasks = handle.read().replace("<title>", "Export").replace("| 1 | … | … | AC1 |", "| 1 | Writer | src/x.cs | AC1 |")
+        plan = PLAN.replace("AC2", "AC1")
+        self.assertEqual(self.errors(self.feature(spec=spec, plan=plan, tasks=tasks)), [])
+
+    def test_tasks_in_several_tables_with_ranges_and_emphasis(self):
+        tasks = ("# Tasks\n\n## Group 1\n\n| # | Task | Criteria | Owner |\n| - | - | - | - |\n| 1 | a | `AC1` | Dev |\n\n"
+                 "## Group 2\n\n| # | Task | Criteria | Owner |\n| - | - | - | - |\n| 2 | b, not AC9 | **AC2** | Dev |\n")
+        self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
+        ranged = TASKS.replace("AC1, AC2", "AC1–AC2")
+        self.assertEqual(self.errors(self.feature(tasks=ranged)), [])
+
+    def test_backticked_status_and_crlf_are_accepted(self):
+        plan = PLAN.replace("| confirmed |", "| `confirmed` |").replace("to verify:", "`to verify:`")
+        self.assertEqual(self.errors(self.feature(plan=plan.replace("\n", "\r\n"))), [])
+
+    def test_empty_markers_are_no_test_and_no_evidence(self):
+        plan = PLAN.replace("| ExportWritesOneRowPerItem |", "| — |").replace(
+            "src/Jobs/Queue.cs:40 takes a single worker", "n/a")
+        errors = self.errors(self.feature(plan=plan))
+        self.assertTrue(any("row without a test name" in e for e in errors), errors)
+        self.assertTrue(any("claim without evidence" in e for e in errors), errors)
+
+    def test_spec_without_parsable_criterion_or_scenario_fails_early(self):
+        spec = SPEC.replace("- [ ] AC1:", "- **AC1**:").replace("- [ ] AC2:", "- AC2:").replace("- S1:", "S1 is").replace(
+            "- S2:", "S2 is")
+        self.feature(spec=spec, plan=None, tasks=None)
+        errors = self.script.check_spec_only(os.path.join("specs", "feature-12-export"))[0]
+        for expected in ("no acceptance criterion", "criterion not written", "no scenario"):
+            self.assertTrue(any(expected in e for e in errors), (expected, errors))
+
+    def test_plan_without_verified_facts_fails(self):
+        plan = PLAN[:PLAN.index("## Verified facts")] + PLAN[PLAN.index("## Tests per criterion"):]
+        self.assertTrue(any("*Verified facts* is missing" in e for e in self.errors(self.feature(plan=plan))))
+
+    def test_open_question_variants(self):
+        answered = SPEC.replace("- Which delimiter? Answered: comma, as the issue's example shows.",
+                                "1. Which delimiter?\n   Answered: comma.\n   - detail\n"
+                                "2. Which encoding?\n   - Answered: UTF-8.")
+        self.assertEqual(self.errors(self.feature(spec=answered)), [])
+        none = SPEC.replace("- Which delimiter? Answered: comma, as the issue's example shows.", "- None.")
+        self.assertEqual(self.errors(self.feature(spec=none)), [])
+        open_one = SPEC.replace("- Which delimiter? Answered: comma, as the issue's example shows.", "1. Which delimiter?")
+        self.assertTrue(any("open question" in e for e in self.errors(self.feature(spec=open_one))))
+
+    def test_trivial_bug_fix_needs_no_test_row(self):
+        plan = BUG_PLAN.replace("| AC1 | NfoWriterEmptyTitleWritesNoTitle | tests/NfoWriterTests.cs |",
+                                "| AC1 | none (trivial: no tests first) | — |")
+        write("specs/issue-34/plan.md", plan)
+        self.assertEqual(self.errors("specs/issue-34"), [])
+
     def test_folder_name_never_becomes_a_path(self):
         self.feature()
         for bad in ("../specs/feature-12-export", "/etc", "_template", "feature-99"):

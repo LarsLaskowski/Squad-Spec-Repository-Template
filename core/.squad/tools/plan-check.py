@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
 """Plan gate: the structure of a squad work folder checked by a script instead of remembered by a reviewer.
 
-Run by the orchestrator after every Lead launch that writes or revises the work folder (steps 2 and 3), before
-any other member reads it; a finding goes back to the Lead (mode `revise`), without a challenge round.
+Run by the orchestrator after every Lead launch that writes or revises the work folder (step 2), before any
+other member reads it; a finding goes back to the Lead (mode `revise`, the findings only), without a challenge
+round (*Loop limits* in `.squad/routing.md`).
 
 Checks, in the work folder `specs/<folder>/`:
 
 - **Feature** (`spec.md` exists): every section of the spec template is filled — *Problem*, *Scenarios*,
   *Errors and edge cases*, *Non-functional requirements*, *Acceptance criteria*, *Out of scope*, *Open
-  questions*, *Area documents* ("none" counts as filled, template text does not); scenarios `S<n>` and edge cases
-  `E<n>` are numbered and each one is named by an acceptance criterion or listed under *Out of scope*; every
-  open question is answered (`Answered:`) or the section says "none"; `plan.md` defines no acceptance criterion
-  of its own; every criterion of the spec has a row in the plan's *Tests per criterion* and in `tasks.md`, and
-  neither names a criterion the spec does not define.
+  questions*, *Area documents* ("none" counts as filled, the template's guidance comments do not); there is at
+  least one scenario `S<n>` and one criterion written `- [ ] AC<n>: …`, and a line that names a criterion in
+  another form is reported; every scenario and edge case `E<n>` is named by a criterion or listed under *Out of
+  scope*; every open question is answered (`Answered:`) or the section says "none"; `plan.md` defines no
+  criterion of its own; every criterion of the spec has a row in the plan's *Tests per criterion* and appears in
+  the *Criteria* column of `tasks.md` (every table of it), and neither names a criterion the spec lacks.
 - **Bug fix** (no `spec.md`): `plan.md` defines its acceptance criteria, and each has a row in *Tests per
-  criterion*.
-- **Both:** the *Tier* line names a tier; every row of *Verified facts* has evidence and a status
-  (`confirmed`, `refuted`, or `unverified` with the measurement that settles it, starting with `to verify:`); no
-  template placeholder is left (`<title>`, `AC1: ...`, a row of `...`). A plan longer than `PLAN_MAX_WORDS`
+  criterion* (tier `trivial`, which writes no tests first, needs none).
+- **Both:** the *Tier* line names exactly one tier; *Verified facts* has at least one row, and every row has
+  evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement that settles it, starting
+  with `to verify:`); no template placeholder is left. A plan longer than `PLAN_MAX_WORDS`
   (`squad_settings.py`, default 4000) is reported as a warning: a long plan costs every member that reads it.
 
-A criterion without a test, in a plan whose *Verification without tests* section covers it, counts as covered.
+Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
+without a test, in a plan whose *Verification without tests* section names it, counts as covered.
 
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge.
 
@@ -42,21 +45,29 @@ STATUSES = ("confirmed", "refuted", "unverified")
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
                  "Acceptance criteria", "Out of scope", "Open questions", "Area documents"]
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC\d+):", re.M)
-CRITERION_REF = re.compile(r"\bAC\d+\b")
-CASE = re.compile(r"^\s*- ([SE]\d+):", re.M)
-CASE_REF = re.compile(r"\b[SE]\d+\b")
-ELLIPSIS = r"(?:\.\.\.|\u2026)"
-PLACEHOLDERS = [re.compile(p) for p in (r"<title>", r"Issue #<number>", rf"\bAC\d+: {ELLIPSIS}\s*$",
+CASE = re.compile(r"^\s*- (?:\*\*)?([SE]\d+)(?:\*\*)?:", re.M)
+RANGE = re.compile(r"\b(AC|S|E)(\d+)\s*(?:[-–—]|\.\.)\s*(?:\1)?(\d+)\b")
+ID = re.compile(r"\b(AC|S|E)(\d+)\b")
+ELLIPSIS = r"(?:\.\.\.|…)"
+PLACEHOLDERS = [re.compile(p) for p in (r"<title>", r"Issue #<number>", r"<one-sentence justification>",
+                                         r"NNNN-title", rf"\bAC\d+: {ELLIPSIS}\s*$",
                                          rf"^\s*- [SE]\d+: {ELLIPSIS}\s*$", rf"^\|.*\|\s*{ELLIPSIS}\s*\|")]
-EMPTY_CELLS = ("", "-", "...", "\u2026")
+EMPTY_CELLS = {"", "-", "–", "—", "...", "…", "none", "n/a", "tbd", "todo"}
 COMMENT = re.compile(r"<!--.*?-->", re.S)
+EMPHASIS = re.compile(r"^[`*_]+|[`*_]+$")
+NONE = re.compile(r"^\s*(?:[-*]\s+)?none\.?\s*$", re.I)
+TOP_ITEM = re.compile(r"^(?:[-*]|\d+[.)])\s+")
 
 
-def read(path):
+def read(path, errors):
     if not os.path.isfile(path):
         return None
-    with open(path, encoding="utf-8-sig") as handle:
-        return handle.read()
+    try:
+        with open(path, encoding="utf-8-sig") as handle:
+            return handle.read()
+    except UnicodeDecodeError:
+        errors.append(f"{os.path.basename(path)}: not UTF-8")
+        return ""
 
 
 def resolve_folder(root, folder):
@@ -72,6 +83,15 @@ def resolve_folder(root, folder):
     return None
 
 
+def ids(text, kind=None):
+    """Every id the text names (`AC1`, `S2`, `E3`), ranges expanded; only those of `kind` when given."""
+    found = set()
+    for prefix, low, high in RANGE.findall(text):
+        found.update(f"{prefix}{n}" for n in range(int(low), int(high) + 1) if int(high) - int(low) < 100)
+    found.update(f"{prefix}{number}" for prefix, number in ID.findall(text))
+    return {i for i in found if kind is None or re.fullmatch(rf"{kind}\d+", i)}
+
+
 def sections(text):
     """{heading: body} for every `## ` section, without the template's guidance comments."""
     result, current = {}, None
@@ -84,75 +104,122 @@ def sections(text):
     return {name: "\n".join(lines).strip() for name, lines in result.items()}
 
 
-def filled(body):
-    """True when a section holds more than the template's guidance, which stands in HTML comments."""
-    return bool(COMMENT.sub("", body or "").strip())
+def cell(value):
+    return EMPHASIS.sub("", value.strip()).strip()
 
 
-def table_rows(body):
-    """The data rows of the first Markdown table in a section, as lists of stripped cells."""
-    rows = []
+def split_row(line):
+    return [cell(c) for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+
+
+def tables(body):
+    """Every Markdown table in the text, as (header cells, data rows)."""
+    found, header, rows = [], None, []
     for line in (body or "").splitlines():
         if not line.strip().startswith("|"):
-            if rows:
-                break
+            if header is not None:
+                found.append((header, rows))
+            header, rows = None, []
             continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if all(set(cell) <= set("-: ") for cell in cells):
+        cells = split_row(line)
+        if all(set(c) <= set("-: ") for c in cells):
             continue
-        rows.append(cells)
-    return rows[1:]
+        if header is None:
+            header = cells
+        else:
+            rows.append(cells)
+    if header is not None:
+        found.append((header, rows))
+    return found
+
+
+def column(header, *names):
+    """The index of the first header cell that starts with one of the names (case-insensitive), or None."""
+    for index, name in enumerate(header):
+        if any(name.lower().startswith(n) for n in names):
+            return index
+    return None
+
+
+def empty(value):
+    return cell(value).lower() in EMPTY_CELLS
 
 
 def check_placeholders(name, text, errors):
-    for line in text.splitlines():
+    for line in COMMENT.sub("", text).splitlines():
         if any(pattern.search(line) for pattern in PLACEHOLDERS):
             errors.append(f"{name}: template placeholder left: {line.strip()}")
+
+
+def check_open_questions(questions, errors):
+    """Every top-level question is answered somewhere in its item (continuation lines and sub-items included)."""
+    if NONE.match(questions or ""):
+        return
+    items, current = [], None
+    for line in questions.splitlines():
+        if TOP_ITEM.match(line):
+            current = [line]
+            items.append(current)
+        elif current is not None and line.strip():
+            current.append(line)
+    for item in items:
+        if not NONE.match(item[0]) and "Answered:" not in "\n".join(item):
+            errors.append(f"spec.md: open question without `Answered:`: {item[0].strip()}")
 
 
 def check_spec(spec, errors):
     """The spec's sections; returns its criterion ids."""
     parts = sections(spec)
     for section in SPEC_SECTIONS:
-        if not filled(parts.get(section)):
+        if not parts.get(section):
             errors.append(f"spec.md: section *{section}* is missing or empty (write \"none\" when nothing applies)")
-    criteria = CRITERION.findall(parts.get("Acceptance criteria", ""))
+    block = parts.get("Acceptance criteria", "")
+    criteria = CRITERION.findall(block)
+    if not criteria:
+        errors.append("spec.md: no acceptance criterion written `- [ ] AC1: …` under *Acceptance criteria*")
     if len(criteria) != len(set(criteria)):
         errors.append("spec.md: an acceptance criterion id is used twice")
-    cases = CASE.findall(parts.get("Scenarios", "") + "\n" + parts.get("Errors and edge cases", ""))
-    covered = set(CASE_REF.findall(parts.get("Acceptance criteria", ""))) | set(
-        CASE_REF.findall(parts.get("Out of scope", "")))
+    for line in block.splitlines():
+        if re.match(r"^\s*[-*\d]", line) and ids(line, "AC") and not CRITERION.match(line):
+            errors.append(f"spec.md: criterion not written `- [ ] AC<n>: …`: {line.strip()}")
+    cases = CASE.findall(parts.get("Scenarios", "")) + CASE.findall(parts.get("Errors and edge cases", ""))
+    if not any(case.startswith("S") for case in cases):
+        errors.append("spec.md: no scenario written `- S1: …` under *Scenarios*")
+    covered = ids(block) | ids(parts.get("Out of scope", ""))
     for case in cases:
         if case not in covered:
             errors.append(f"spec.md: {case} is named by no acceptance criterion and not listed under *Out of scope*")
-    questions = parts.get("Open questions", "")
-    if questions.strip().lower() not in ("none", "none."):
-        for line in questions.splitlines():
-            if line.strip().startswith("- ") and "Answered:" not in line:
-                errors.append(f"spec.md: open question without `Answered:`: {line.strip()}")
+    check_open_questions(parts.get("Open questions", ""), errors)
     return set(criteria)
 
 
-def check_tests(plan_parts, criteria, errors):
-    rows = table_rows(plan_parts.get("Tests per criterion"))
-    named = {cell for row in rows for cell in CRITERION_REF.findall(row[0] if row else "")}
-    without_tests = set(CRITERION_REF.findall(plan_parts.get("Verification without tests", "")))
+def check_tests(plan_parts, criteria, tier, errors):
+    named = set()
+    for header, rows in tables(plan_parts.get("Tests per criterion")):
+        test = column(header, "test(s)", "tests", "test") or 1
+        for row in rows:
+            named |= ids(row[0], "AC")
+            if len(row) <= test or (empty(row[test]) and tier != "trivial"):
+                errors.append(f"plan.md: *Tests per criterion* row without a test name: | {' | '.join(row)} |")
+    if tier == "trivial":
+        return
+    without_tests = ids(plan_parts.get("Verification without tests", ""), "AC")
     for criterion in sorted(criteria - named - without_tests):
         errors.append(f"plan.md: {criterion} has no row in *Tests per criterion* (nor in *Verification without tests*)")
     for criterion in sorted(named - criteria):
         errors.append(f"plan.md: *Tests per criterion* names {criterion}, which no acceptance criterion defines")
-    for row in rows:
-        if len(row) < 2 or row[1] in EMPTY_CELLS:
-            errors.append(f"plan.md: *Tests per criterion* row without a test name: | {' | '.join(row)} |")
 
 
 def check_facts(plan_parts, errors):
-    for row in table_rows(plan_parts.get("Verified facts")):
+    rows = [row for _, table_rows in tables(plan_parts.get("Verified facts")) for row in table_rows]
+    if not rows:
+        errors.append("plan.md: *Verified facts* is missing or has no row (claim, evidence, status)")
+    for row in rows:
         if len(row) < 3:
             errors.append(f"plan.md: *Verified facts* row needs claim, evidence and status: | {' | '.join(row)} |")
             continue
         claim, evidence, status = row[-3], row[-2], row[-1].lower()
-        if evidence in EMPTY_CELLS:
+        if empty(evidence):
             errors.append(f"plan.md: claim without evidence in *Verified facts*: {claim}")
         if status not in STATUSES:
             errors.append(f"plan.md: *Verified facts* status must be one of {', '.join(STATUSES)}: {claim}")
@@ -161,8 +228,15 @@ def check_facts(plan_parts, errors):
 
 
 def check_tasks(tasks, criteria, errors):
-    rows = table_rows(tasks)
-    named = {ref for row in rows for cell in row for ref in CRITERION_REF.findall(cell)}
+    named, found_column = set(), False
+    for header, rows in tables(tasks):
+        index = column(header, "criteria", "tests (ac)", "ac")
+        if index is None:
+            continue
+        found_column = True
+        named |= {i for row in rows if len(row) > index for i in ids(row[index], "AC")}
+    if not found_column:
+        errors.append("tasks.md: no table with a *Criteria* column")
     for criterion in sorted(criteria - named):
         errors.append(f"tasks.md: {criterion} is covered by no task")
     for criterion in sorted(named - criteria):
@@ -173,9 +247,10 @@ def check_plan(plan, spec, errors):
     """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder."""
     parts = sections(plan)
     tier = re.search(r"^Tier:\s*`?(\w+)`?([^\n]*)", plan, re.M)
-    if not tier or tier.group(1) not in TIERS or tier.group(2).lstrip().startswith("|"):
+    name = tier.group(1) if tier else None
+    if name not in TIERS or tier.group(2).lstrip().startswith("|"):
         errors.append(f"plan.md: the *Tier* line must name exactly one of {', '.join(TIERS)}")
-    own = set(CRITERION.findall(plan))
+    own = set(CRITERION.findall(COMMENT.sub("", plan)))
     if spec is None:
         criteria = own
         if not criteria:
@@ -184,17 +259,17 @@ def check_plan(plan, spec, errors):
         criteria = check_spec(spec, errors)
         for criterion in sorted(own):
             errors.append(f"plan.md: defines {criterion}; a feature's criteria live in spec.md only")
-    check_tests(parts, criteria, errors)
+    check_tests(parts, criteria, name, errors)
     check_facts(parts, errors)
     return criteria
 
 
 def check_spec_only(folder):
     """Findings for `spec.md` alone (step 2, before the plan is written)."""
-    spec = read(os.path.join(folder, "spec.md"))
+    errors = []
+    spec = read(os.path.join(folder, "spec.md"), errors)
     if spec is None:
         return ["spec.md is missing"], []
-    errors = []
     check_spec(spec, errors)
     check_placeholders("spec.md", spec, errors)
     return errors, []
@@ -203,8 +278,8 @@ def check_spec_only(folder):
 def check(folder):
     """All findings for the work folder, and the warnings."""
     errors, warnings = [], []
-    plan = read(os.path.join(folder, "plan.md"))
-    spec = read(os.path.join(folder, "spec.md"))
+    plan = read(os.path.join(folder, "plan.md"), errors)
+    spec = read(os.path.join(folder, "spec.md"), errors)
     if plan is None:
         return ["plan.md is missing (tiers docs and patch write none: there is nothing to check)"], warnings
     criteria = check_plan(plan, spec, errors)
@@ -212,7 +287,7 @@ def check(folder):
         if text is not None:
             check_placeholders(name, text, errors)
     if spec is not None:
-        tasks = read(os.path.join(folder, "tasks.md"))
+        tasks = read(os.path.join(folder, "tasks.md"), errors)
         if tasks is None:
             errors.append("tasks.md is missing")
         else:

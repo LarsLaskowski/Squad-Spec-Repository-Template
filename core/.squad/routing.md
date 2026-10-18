@@ -115,7 +115,7 @@ tier follows the change, not only the paths it touches. When in doubt, the highe
 | `patch` | Issues only (never a feature). The Lead can name the exact edits, and the diff stays within `PATCH_MAX_LINES` changed lines outside `specs/` (default 30, `squad_settings.py`): no change to production logic or control flow (an attribute, a literal, a condition rewritten equivalently, a configuration value, a script line), no new dependency, no new permission, no schema change. An edit in a security area, a CI or build file is allowed and makes the tier `patch/security`. `scope-check.py --tier patch` checks the line budget; the reviewer confirms that no logic changed and raises the tier otherwise. | Lead plans briefly as for `docs` (no `plan.md`: tier, exact edits, acceptance criteria and, per edit, the existing test or check that covers it — or the one test the Tester adds — go into its result, recorded as the first `log.md` row); the orchestrator applies the edits itself; when an edit to production code has no test that pins it, `squad-tester` writes the test the Lead named, once (the only extra launch). Step 7 runs only the gates of *Gates of a patch* below for the kinds of file the diff touches (the orchestrator runs *Format* on its own edits); one review round reads the diff against the first `log.md` row: `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead (not both) — a blocking finding is fixed by the orchestrator, checked and delta-reviewed the same way; the orchestrator opens the PR once the latest round is clean. No plan challenge, Security plan review, skeleton, tests first, Code Officer or step 9. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and PR approval (step 9) still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2 when the plan weighs options (*Plan challenge*); steps 3 and the Security review skipped — the Reviewer covers the security checklist and raises the tier if a security area is touched after all |
-| `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency — beyond what `patch/security` allows | Full pipeline; the plan challenge (when the plan changes production code) and the Security plan review run in parallel, answered by one Lead revision |
+| `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency — beyond what `patch/security` allows | Full pipeline; the plan challenge (*Plan challenge*: when the plan changes production code — for a feature only when it weighs options) and the Security plan review run in parallel, answered by one Lead revision |
 
 `.squad/stack.md` and `.squad/project.md` describe the product, so an issue about them is a product PR and
 counts as documentation for the `docs` tier — except an edit that changes *Security areas* or a command the
@@ -209,8 +209,10 @@ also analyses scripts, workflows and Dockerfiles); for tier `docs` only *Format 
 **Continuing a member.** A fix round or a delta round of the same member within the same run continues
 that member's last launch (the harness keeps a launched subagent's context: `SendMessage` to its agent id,
 or the Agent tool's resume) with the findings and the new head SHA, instead of a fresh launch that reloads
-`AGENTS.md`, `stack.md`, `project.md`, the plan and the code. A fresh launch stays the rule for the first
-launch of a mode, after a session restart (the agent id is gone) and when the previous launch ended on an
+`AGENTS.md`, `stack.md`, `project.md`, the plan and the code. The same holds for the Lead within step 2:
+its `revise` rounds after `plan-check.py`, and for a feature mode `plan` after mode `spec`, continue the
+Lead's last launch, which already read the code and the documents. A fresh launch stays the rule for the first
+launch of any other mode, after a session restart (the agent id is gone) and when the previous launch ended on an
 API error. The log records a continuation as a launch of that member (`squad-log.py … --continued`): the
 notification reports the agent's tokens since its first launch but its tool uses and duration for the round
 alone, so the script subtracts the earlier tokens only, writes this round's share and marks the trailer; the
@@ -367,6 +369,11 @@ told so.
 
 ## Loop limits
 
+- **Plan check (step 2):** `plan-check.py` findings go back to the Lead (mode `revise`, the findings only) at
+  most twice per document; findings left after that go to the Lead in mode `decide`, which fixes them or
+  escalates. A finding is never waved through.
+- **Spec challenge (step 2, features):** one Devil's Advocate round, no veto, handled like the plan challenge
+  below (minor objections into the spec's *Challenge notes*, which the Lead answers while it plans).
 - **Plan challenge (step 2):** at most one Devil's Advocate round, no veto. Minor objections alone go into
   the plan's *Challenge notes* without a Lead launch (non-blocking Security findings go into *Security notes*
   the same way, except a note that leaves the plan a choice, which goes to the Lead); after a major one the Lead answers every objection

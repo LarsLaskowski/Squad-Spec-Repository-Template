@@ -19,11 +19,12 @@ action yourself — including follow-up issues the Lead decides on.
   run it on the files of the change when *Format check* fails (step 7). Besides read-only checks (`--check`,
   the gate scripts, tests) you only write the squad's bookkeeping: `log.md` (through
   `python3 .squad/tools/squad-log.py`), `tasks.md` check marks (features) and the *Challenge notes* you
-  append verbatim to `plan.md` (step 2) or, for a feature, to `spec.md`. The exceptions are tiers `docs` and `patch`, where you apply the
+  append verbatim to `plan.md` (step 2) and, for a feature, to `spec.md`. The exceptions are tiers `docs` and `patch`, where you apply the
   Lead's exact edits yourself (`.squad/routing.md`, *Tiers*), and a review finding, blocking or not, whose
   fix a reviewer states verbatim and that touches only documentation, a decision record, an area document,
   `README.md` or a configuration example (step 8, *Verbatim documentation fixes*).
-- **Hand each member only what it needs.** The plan (for a feature: its task rows), the test names, the
+- **Hand each member only what it needs.** The plan (for a feature: its task rows and `spec.md`, whose
+  criteria the rows name by id), the test names, the
   base ref and the gate output for the head. Not the log, not the issue thread (the Lead and the Devil's
   Advocate read the issue themselves), not earlier reports in full — one line on what the previous member
   handed back is enough. Every fresh launch starts with an empty context, so what you pass is what it
@@ -158,7 +159,7 @@ action yourself — including follow-up issues the Lead decides on.
    - `RESULT: ESCALATE` — ask the user, then relaunch the Lead with the answer.
 
    **Plan challenge** (`standard` and `security` only, at most once; `.squad/routing.md`, *Plan challenge*).
-   Launch `squad-devils-advocate` with the issue text and the work folder only when the plan changes
+   Launch `squad-devils-advocate` in mode `plan` with the issue text and the work folder only when the plan changes
    production code **and** its *Options considered* names an alternative, it adds or extends a decision
    record, or the tier is `security`; otherwise log "challenge skipped: no options". On `security`, launch
    it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …` (on `security`: and

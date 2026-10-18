@@ -41,6 +41,8 @@ The orchestrator tells you which **mode** to run:
   the behavior. Check every claim the issue makes about today's behavior against the code before you build a
   scenario on it. The spec is the only list of criteria: `plan.md` and `tasks.md` refer to them by id.
   `.squad/tools/plan-check.py --spec` checks the structure; the Devil's Advocate challenges the content next.
+  A feature that already exists or contradicts an accepted decision record is `RESULT: NO CHANGE` with the
+  reason and a proposed issue comment, as in mode `plan`.
 - `plan` — for tiers `docs` and `patch` (definitions in `.squad/routing.md`) write **no** `plan.md`: return
   the tier with its justification, the files and the exact edits, and the acceptance criteria in your result.
   For `patch` also name, per edit, the existing test or check that covers it — an edit to production code
@@ -49,8 +51,11 @@ The orchestrator tells you which **mode** to run:
   without a logic change are `patch`, not `security`, even in a CI file. A change that needs a decision
   record is `trivial` or higher; features are never `docs` or `patch`.
   Otherwise write `plan.md` in the work folder from `specs/_template/plan.md` (features: `tasks.md` too,
-  against the approved `spec.md`, which you do not rewrite — a spec defect you find is fixed in the spec and
-  named in your result). Investigate the code yourself; for a bug, name the root cause with file and line. Check
+  against the challenged `spec.md`). For a feature you also close the spec: answer each entry of its
+  *Challenge notes* in a *Challenge* section of the spec (accepted — what changed; or rejected — why) and fold
+  the notes section into it, fix a spec defect you find while planning in the spec itself (named in your
+  result), and set its status to `Approved by Lead` (`Approved by Product Manager` when an escalation settled
+  it). Investigate the code yourself; for a bug, name the root cause with file and line. Check
   **every factual claim** of the issue against the code, plan from what the code actually does, state which
   claims were confirmed or refuted, and name a related defect you find on the way. Check by reading: run a
   tool or an experiment in a scratch copy only where reading cannot settle a claim (a guard's behavior on an
@@ -182,7 +187,7 @@ The orchestrator tells you which **mode** to run:
 
 Output format, always ending with exactly one of these lines:
 
-- `RESULT: DONE` (plan/revise), `RESULT: NO CHANGE — <reason and proposed issue comment>` (plan, or revise after a challenge),
+- `RESULT: DONE` (spec/plan/revise), `RESULT: NO CHANGE — <reason and proposed issue comment>` (spec, plan, or revise after a challenge),
   `RESULT: DECIDED — <option>` (decide),
   `RESULT: APPROVED` / `RESULT: NOT APPROVED — <reasons>` (approve-pr), or
 - `RESULT: ESCALATE — <one question for the Product Manager, the options, your recommendation>`.

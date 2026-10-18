@@ -82,7 +82,8 @@ is blocking), and report as findings:
 - an acceptance criterion (from the plan, or for a feature from `spec.md`) that the diff does not fulfil or
   that no test pins down (blocking), and for a feature a scenario or edge case of the spec that the diff
   handles differently from what the spec says (blocking) or an area document that does not say what the
-  spec's *Area documents* section promised (blocking) — except in a plan that declares steps 4, 5 and the *Coverage gate* not
+  spec's *Area documents* section promised (blocking), and a spec *Challenge notes* entry the Lead left
+  unanswered in the spec's *Challenge* section (blocking) — except in a plan that declares steps 4, 5 and the *Coverage gate* not
   applicable: there a criterion needs no test, but must be covered by the *Verification without tests*
   section (next bullet);
 - a plan that declares steps 4, 5 and the *Coverage gate* not applicable without a *Verification without

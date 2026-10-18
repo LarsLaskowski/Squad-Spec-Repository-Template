@@ -122,7 +122,7 @@ full review, later rounds review only the delta" rule live in that one file, so 
 way.
 
 The squad skills run a multi-role pipeline defined in [`.squad/`](/.squad/team.md) — Lead (plan, decisions,
-PR approval decisions), Devil's Advocate (one plan challenge), Security (plan and diff on the `security` tier), Tester (tests first,
+PR approval decisions), Devil's Advocate (one challenge of a feature's spec, and of a plan that weighs options), Security (plan and diff on the `security` tier), Tester (tests first,
 coverage), Dev, Code Officer (analyzer gate) and Reviewer — as Claude Code subagents under
 `.claude/agents/squad-*.md` (read-only where the role demands it: a hook in each agent denies Git and
 GitHub writes, so only the orchestrating session commits, pushes and posts), with the loop limits and

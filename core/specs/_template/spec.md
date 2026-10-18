@@ -1,7 +1,7 @@
 # Spec: <title>
 
 Source: Issue #<number> | the user's description
-Status: Draft | Challenged | Approved by Lead | Approved by Product Manager
+Status: Draft | Approved by Lead | Approved by Product Manager
 
 <!-- What the feature does for its users, before anyone decides how to build it. Written by the Lead in mode
 `spec`, challenged once by the Devil's Advocate, and from then on the only source of the acceptance criteria:

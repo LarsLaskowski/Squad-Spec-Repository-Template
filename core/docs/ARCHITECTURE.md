@@ -38,7 +38,8 @@ another round, because a fresh full re-review of unchanged code always finds som
 The squad skills (`squad-issue`, `squad-spec`) wrap that review in a larger, bounded pipeline described in
 [`.squad/routing.md`](../.squad/routing.md): an Opus Lead plans, classifies the change into a tier (`docs`,
 `patch`, `trivial`, `standard`, `security`) that decides how much of the pipeline runs, and owns every decision;
-for `standard` and `security` plans that weigh options a Devil's Advocate challenges the plan once (no veto); on
+a Devil's Advocate challenges a feature's spec once before it is planned, and a `standard` or `security` plan
+that weighs options once (no veto); on
 the `security` tier a Security member reviews the plan (in parallel with the challenge) and the diff, below it the Reviewer carries the security checklist; tests are
 written first and new/changed code is covered until the *Coverage gate* passes; the member that changed the files
 formats them and a Code Officer clears analyzer diagnostics *before* the review so the reviewed code is the merged code; and the review loop

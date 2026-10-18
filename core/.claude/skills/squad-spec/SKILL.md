@@ -11,8 +11,9 @@ source of the acceptance criteria; `plan.md` and `tasks.md` refer to them by id,
 `python3 .squad/tools/plan-check.py <folder>` checks that nothing is lost on the way. You are the
 **orchestrator**, with the same role and rules as in the `squad-issue` skill (its introduction: you never do a
 member's work, hand each member only what it needs, continue members for their next round, commits and
-pushes, GitHub access, the Product Manager) — read it first. Steps 1–3 below replace its steps 1–3; steps
-4–12 follow `squad-issue` with the changes listed after them.
+pushes, GitHub access, the Product Manager) — read it first. Steps 1–3 below replace its steps 1–3 (step 2 in
+two parts, 2a *Spec* and 2b *Plan*: use those step cells in `log.md`); steps 4–12 follow `squad-issue` with the
+changes listed after them.
 
 ## Steps 1–3
 
@@ -25,16 +26,16 @@ pushes, GitHub access, the Product Manager) — read it first. Steps 1–3 below
    (from an issue `specs/feature-<number>-<short-slug>/`) with `log.md` from `specs/_template/log.md`; commit
    and push. Log every row exactly as `squad-issue` step 1 says (`squad-log.py`, a launch row without metric
    options until its task notification is in).
-2. **Spec.** Launch `squad-lead` in mode `spec` with the issue text (or the user's description) and the work
+2a. **Spec.** Launch `squad-lead` in mode `spec` with the issue text (or the user's description) and the work
    folder. It writes `spec.md` from `specs/_template/spec.md` — problem, numbered scenarios and edge cases,
    non-functional requirements, the acceptance criteria, out of scope, open questions with their answers, the
    area documents the behavior will live in — and nothing about the implementation. It returns
    `RESULT: DONE`, `RESULT: NO CHANGE` (the feature exists already or contradicts an accepted decision: with an
    issue, handle it as `squad-issue` step 2 says — a proposed comment posted only after the user's
    confirmation; otherwise report it to the user) or `RESULT: ESCALATE` (an open question only the Product
-   Manager can answer: relay it verbatim, then relaunch the Lead with the answer). Then run
+   Manager can answer: relay it verbatim, then continue the Lead with the answer). Then run
    `python3 .squad/tools/plan-check.py <folder> --spec`; a finding goes back to the Lead (mode `revise`, the
-   findings only), without a challenge.
+   findings only, continuing its launch), without a challenge — at most twice (*Loop limits*).
 
    **Spec challenge.** Launch `squad-devils-advocate` in mode `spec` with the issue text and the work folder,
    for every feature. It challenges what the feature will do — a scenario or edge case the issue implies but
@@ -44,22 +45,25 @@ pushes, GitHub access, the Product Manager) — read it first. Steps 1–3 below
    notes* section; the Lead folds them in while it plans. A major objection: launch `squad-lead` in mode
    `revise` on the spec with all objections; it answers each in the spec's *Challenge* section and may narrow
    the scope, escalate or switch to `RESULT: NO CHANGE`. Run `plan-check.py --spec` again after a revision.
-   One round, no veto. The spec's status becomes `Approved by Lead`, or `Approved by Product Manager` when an
-   escalation settled it.
-3. **Plan.** Launch `squad-lead` in mode `plan` with the work folder: it writes `plan.md` (the tier, the
+   One round, no veto.
+2b. **Plan.** Continue the Lead's spec launch in mode `plan` with the work folder (*Continuing a member* in
+   `.squad/routing.md`; a fresh launch only after a session restart): it answers the spec's *Challenge notes*
+   in the spec's *Challenge* section, sets the spec's status to `Approved by Lead` (or `Approved by Product
+   Manager` when an escalation settled it), and writes `plan.md` (the tier, the
    *Verified facts* with their evidence, the *Tests per criterion* for every criterion of the spec — never a
    copy of the criteria —, signatures, options, areas, documentation updates, decision records) and
    `tasks.md` (task groups, each naming the criteria it delivers and the tasks it waits for), with the agent
    file's model and effort like every other Lead launch (`--agent squad-lead`). A feature is never `docs` or
    `patch` and rarely `trivial`. Run `python3 .squad/tools/plan-check.py <folder>`; a finding goes back to the
-   Lead (mode `revise`, the findings only) before anyone else reads the plan. Then:
+   Lead (mode `revise`, the findings only, continuing its launch) before anyone else reads the plan — at most
+   twice (*Loop limits*). Then:
    - **Plan challenge** only when the plan weighs options (its *Options considered* names an alternative, or
      it adds or extends a decision record): `squad-devils-advocate` in mode `plan` as `squad-issue` step 2
      says. The spec challenge already questioned what is built; a `security` plan without options gets its
      scrutiny from Security.
-   - **Plan security review** on `security`: `squad-security` in mode `plan` reviews `spec.md` and `plan.md`
-     together, in parallel with the plan challenge when there is one, and the loop of `squad-issue` step 3
-     applies. Run `plan-check.py` again after every Lead revision.
+3. **Plan security review** on `security`: `squad-security` in mode `plan` reviews `spec.md` and `plan.md`
+   together, in parallel with the plan challenge when there is one, and the loop of `squad-issue` step 3
+   applies. Run `plan-check.py` again after every Lead revision.
 
 ## Steps 4–12: as in `squad-issue`, with these changes
 

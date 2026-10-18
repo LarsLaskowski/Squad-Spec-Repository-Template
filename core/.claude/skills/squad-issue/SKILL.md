@@ -52,15 +52,15 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 
    **Logging.** Only you write `log.md`, one row per step and per launch, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — never by hand.
-   - Write a launch's row as soon as its report is in, **without any metric option**. When its task
-     notification arrives, add the usage with `--amend-last "<member>" --agent squad-<role> --tokens …
+   - Write a launch's row as soon as its report is in, with `--agent squad-<role>` alone (usage pending). When
+     its task notification arrives, add the usage with `--amend-last "<member>" --agent squad-<role> --tokens …
      --tool-uses … --seconds …` (`--step "<step>"` for a row that is no longer the member's last).
    - **Every number is copied from the usage block of a task notification you have in front of you** —
      never an estimate, a figure from memory or the member's hand-back. A notification that never comes is
      marked `--unreported`; a wrong trailer is corrected with `--replace-last`, never with a second row.
-   - A continued launch is a new row with the notification's numbers unchanged plus `--continued`, or
-     `--continued-from "<step cell of the fresh launch>"` when that agent is not the member's last fresh
-     launch.
+   - A continued launch gets `--continued` (or `--continued-from "<step cell of the fresh launch>"` when that
+     agent is not the member's last fresh launch) on the call that carries its numbers — the amend of its pending
+     row — with the notification's numbers unchanged.
    - Rows of the Orchestrator, the Product Manager and the User take no metric option.
    - Everything else, and what each refusal means: `python3 .squad/tools/squad-log.py --help`.
 

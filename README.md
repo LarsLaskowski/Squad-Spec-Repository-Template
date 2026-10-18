@@ -51,7 +51,7 @@ profiles/<stack>/
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
-tools/            apply-template.py (mechanical apply), template-check.py (self-check)
+tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 .claude/skills/adopt-template/   the skill
 ```
@@ -72,6 +72,13 @@ guarantees, integration surface and test doubles. That is what keeps the core st
 Placeholders are written `{{TODO: …}}` and only ever appear inside project blocks or seeded files, so a
 refresh never resets filled-in text; `config-check.py` fails while any is left. The `TODO:` prefix keeps
 Go templates, `docker --format` strings and GitHub Actions expressions from being mistaken for one.
+
+## Measuring the squad
+
+`python3 tools/squad-report.py --repo <owner/name>[=<sonar-project-key>] … --since <date>` reads, for every pull
+request merged in the window, what happened after it was opened: fix pushes, CI failures, SonarQube Cloud issues and
+review comments, plus tier, launches and tokens of a squad run from its working record. Its totals per repository
+and week are the evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
 
 ## Profiles
 

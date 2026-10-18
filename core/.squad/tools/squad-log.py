@@ -51,8 +51,9 @@ mechanics out of the orchestrator's hands:
 - the metrics are what a launch really cost: fewer than 1,000 tokens (every launch loads its agent file and
   instructions first, so `--tokens 0` or `--tokens 1` can only be a placeholder) and negative numbers are
   refused, so a placeholder cannot be logged by accident. A row for a launch whose notification has not
-  arrived yet is written without any metric option and completed with `--amend-last` — the only way to add
-  the numbers later.
+  arrived yet is written with `--agent` (or `--launch`) alone: its trailer `(opus/medium · usage pending)` keeps
+  model and effort, the summary lists it as incomplete, and `--amend-last` with the numbers completes it — the
+  only way to add the numbers later.
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/squad-log.py <work folder> <step> <member> <result> [--agent squad-lead
@@ -101,8 +102,10 @@ TRAILER = re.compile(r"\((?P<launch>[\w.-]+/[\w-]+) · (?P<tokens>[\d,]+) tokens
                      r"(?P<seconds>\d+) s(?P<continued> · continued(?: from (?P<origin>.+))?)?\)\s*$")
 UNREPORTED = "usage not reported"
 UNREPORTED_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · {UNREPORTED}\)\s*$")
-ANY_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · (?:{UNREPORTED}|[\d,]+ tokens · \d+ tool uses · \d+ s"
-                         r"(?: · continued(?: from .+)?)?)\)\s*$")
+PENDING = "usage pending"
+PENDING_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · {PENDING}\)\s*$")
+ANY_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · (?:{UNREPORTED}|{PENDING}|[\d,]+ tokens · \d+ tool uses · "
+                         r"\d+ s(?: · continued(?: from .+)?)?)\)\s*$")
 TWO_MEMBERS = re.compile(r"[,/+&]|\band\b")
 ORCHESTRATOR = "orchestrator"
 NOT_LAUNCHES = {ORCHESTRATOR, "product manager", "user"}
@@ -131,6 +134,8 @@ def trailer(launch, tokens, tool_uses, seconds, continued=False, origin=None):
     launch = cell(launch)
     if tokens is None:
         return f"({launch} · {UNREPORTED})"
+    if tokens == PENDING:
+        return f"({launch} · {PENDING})"
     mark = ""
     if continued:
         mark = f" · continued from {cell(origin)}" if origin else " · continued"
@@ -234,6 +239,15 @@ def agent_launch(root, agent):
     return f"{found['model']}/{found['effort']}" if "model" in found and "effort" in found else None
 
 
+def amendable(result, replace):
+    """(True, the trailer match or None) when the row may take a new trailer: one without a trailer or with a pending
+    one is amended, one with any trailer is replaced."""
+    old = ANY_TRAILER.search(result)
+    if replace:
+        return bool(old), old
+    return (not old or bool(PENDING_TRAILER.search(result))), old
+
+
 def amend_last(path, member, launch, replace=False, step=None):
     """Add the launch trailer to the last row of `member` (with `step`, to its last row of that step); the amended
     row, or None when no such row exists or it already carries a trailer. With `replace`, that trailer is
@@ -247,8 +261,8 @@ def amend_last(path, member, launch, replace=False, step=None):
         match = ROW.match(lines[index])
         if not match or match.group("member") != wanted or (wanted_step is not None and match.group("step") != wanted_step):
             continue
-        old = ANY_TRAILER.search(match.group("result"))
-        if bool(old) != replace:
+        allowed, old = amendable(match.group("result"), replace)
+        if not allowed:
             return None
         result = match.group("result")[:old.start()] if old else match.group("result")
         lines[index] = f"| {match.group('date')} | {match.group('step')} | {match.group('member')} | " \
@@ -343,7 +357,7 @@ def missing_usage(rows):
     """(stamp, step, member) of every launch row — a member other than the Orchestrator, the Product Manager and
     the User — without a trailer; a launch marked as unreported has one."""
     return [(stamp, step, member) for stamp, step, member, result in rows
-            if not is_not_launch(member) and not ANY_TRAILER.search(result)]
+            if not is_not_launch(member) and (not ANY_TRAILER.search(result) or PENDING_TRAILER.search(result))]
 
 
 def unreported_usage(rows):
@@ -355,7 +369,7 @@ def member_totals(rows):
     """{(member, model/effort): [launches, tokens, tool uses, seconds, continued launches]} from the trailers."""
     per_member = {}
     for _, _, member, result in rows:
-        match = TRAILER.search(result) or UNREPORTED_TRAILER.search(result)
+        match = TRAILER.search(result) or UNREPORTED_TRAILER.search(result) or PENDING_TRAILER.search(result)
         if not match:
             continue
         entry = per_member.setdefault((member, match.group("launch")), [0, 0, 0, 0, 0])
@@ -445,6 +459,12 @@ def build_parser():
     return parser
 
 
+def is_pending_row(args):
+    """A new launch row with the agent alone: no numbers yet, not an amend or a continuation."""
+    return (args.tokens, args.tool_uses, args.seconds) == (None, None, None) and not args.continued \
+        and args.continued_from is None and not (args.amend_last or args.replace_last)
+
+
 def launch_metrics(parser, root, args):
     """(model/effort, tokens, tool uses, seconds) from the options, or None when no metric option is given; an
     incomplete set is a usage error, an unknown agent file ends the run with exit code 1."""
@@ -460,13 +480,15 @@ def launch_metrics(parser, root, args):
             parser.error("--unreported goes with --agent (or --launch) alone: no --tokens, --tool-uses, --seconds "
                          "or --continued")
         return (model, None, None, None)
+    if model and is_pending_row(args):
+        return (model, PENDING, None, None)  # a new launch row whose notification has not arrived yet
     if not model or None in (args.tokens, args.tool_uses, args.seconds):
         parser.error("--agent (or --launch), --tokens, --tool-uses and --seconds go together; a launch whose "
-                     "notification has not arrived yet is logged without any metric option (no --agent either) "
-                     "and completed with --amend-last")
+                     "notification has not arrived yet is logged with --agent alone (usage pending) and completed "
+                     "with --amend-last")
     if args.tokens < MIN_TOKENS or args.tool_uses < 0 or args.seconds < 0:
         parser.error(f"--tokens must be at least {MIN_TOKENS:,} and --tool-uses and --seconds not negative; a launch "
-                     "whose notification has not arrived yet is logged without any metric option and completed with "
+                     "whose notification has not arrived yet is logged with --agent alone and completed with "
                      "--amend-last")
     return (model, args.tokens, args.tool_uses, args.seconds)
 

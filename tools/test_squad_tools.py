@@ -476,15 +476,30 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(summary.returncode, 0, summary.stdout)
         self.assertNotIn("Incomplete", summary.stdout)
 
-    def test_metric_options_without_numbers_name_the_row_without_metrics(self):
+    def test_agent_alone_marks_the_launch_pending_until_its_usage_is_amended(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
-        write(os.path.join(root, "specs", "issue-1", "log.md"), "| Date |\n")
-        result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "2 Plan", "Lead",
-                                 "plan", "--agent", "squad-lead"], cwd=root, capture_output=True, text=True,
-                                check=False)
-        self.assertEqual(result.returncode, 2)
-        self.assertIn("without any metric option (no --agent either)", result.stderr)
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True, text=True,
+                                  check=False)
+
+        self.assertEqual(run("2 Plan", "Lead", "plan", "--agent", "squad-lead").returncode, 0)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("plan (opus/medium · usage pending) |", handle.read())
+        summary = run("--summary")
+        self.assertEqual(summary.returncode, 3)
+        self.assertIn("2 Plan · Lead", summary.stdout)
+        self.assertEqual(run("--amend-last", "Lead", "--agent", "squad-lead", "--tokens", "37445", "--tool-uses", "6",
+                             "--seconds", "57").returncode, 0)
+        with open(log, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("plan (opus/medium · 37,445 tokens · 6 tool uses · 57 s) |", text)
+        self.assertNotIn("pending", text)
+        self.assertEqual(run("--summary").returncode, 0)
 
     def test_tool_uses_or_seconds_alone_are_an_incomplete_set(self):
         root = os.path.join(self.dir.name, "repo")

@@ -114,15 +114,15 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
    owner, a file it formatted outside the change you restore. Run the gates again until they pass.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — on tier `security` — `squad-security` in mode
-   `diff`, in parallel, with the base ref, the exact code SHA, the work folder (tiers `docs` and `patch`: the
-   first `log.md` row) and the gate output of step 7; tell them that later commits may only touch `specs/`, and
-   avoid commits while the round runs (*The stop hook*). A report for another code head is a stale round. Then:
+   `diff`, in parallel (on `patch/security` only `squad-security`, *Tiers*), with the base ref, the exact code
+   SHA, the work folder (tiers `docs` and `patch`: the first `log.md` row) and the gate output of step 7; tell
+   them that later commits may only touch `specs/`, and avoid commits while the round runs (*The stop hook*). A
+   report for another code head is a stale round. Then:
    - a tier raise: *Tiers*; an *unlisted security area*: *Unlisted security areas*; a fix marked `verbatim`:
      *Verbatim documentation fixes*;
    - blocking findings → their owner (`squad-dev`, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
      `patch`: you fix them and rerun the checks of step 2) → **a delta round, mandatory**, continuing the
-     reviewer; at most 2 fix rounds, then `squad-lead`
-     in mode `decide` (*Loop limits*);
+     reviewer; at most 2 fix rounds, then `squad-lead` in mode `decide` (*Loop limits*);
    - non-blocking findings: *Non-blocking findings*, collected for step 9.
 
    A reviewer that stops on an API error (`529 Overloaded`; `429`: once the limit has reset) is relaunched

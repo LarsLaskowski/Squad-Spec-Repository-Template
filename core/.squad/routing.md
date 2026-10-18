@@ -115,7 +115,7 @@ tier follows the change, not only the paths it touches. When in doubt, the highe
 | `patch` | Issues only (never a feature). The Lead can name the exact edits, and the diff stays within `PATCH_MAX_LINES` changed lines outside `specs/` (default 30, `squad_settings.py`): no change to production logic or control flow (an attribute, a literal, a condition rewritten equivalently, a configuration value, a script line), no new dependency, no new permission, no schema change. An edit in a security area, a CI or build file is allowed and makes the tier `patch/security`. `scope-check.py --tier patch` checks the line budget; the reviewer confirms that no logic changed and raises the tier otherwise. | Lead plans briefly as for `docs` (no `plan.md`: tier, exact edits, acceptance criteria and, per edit, the existing test or check that covers it — or the one test the Tester adds — go into its result, recorded as the first `log.md` row); the orchestrator applies the edits itself; when an edit to production code has no test that pins it, `squad-tester` writes the test the Lead named, once (the only extra launch). Step 7 runs only the gates of *Gates of a patch* below for the kinds of file the diff touches (the orchestrator runs *Format* on its own edits); one review round reads the diff against the first `log.md` row: `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead (not both) — a blocking finding is fixed by the orchestrator, checked and delta-reviewed the same way; the orchestrator opens the PR once the latest round is clean. No plan challenge, Security plan review, skeleton, tests first, Code Officer or step 9. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 3, 4 and 5 skipped (no Security, no tests-first); code check, Reviewer and PR approval (step 9) still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that touches none of the security areas below | Plan challenge in step 2 when the plan weighs options (*Plan challenge*); steps 3 and the Security review skipped — the Reviewer covers the security checklist and raises the tier if a security area is touched after all |
-| `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency — beyond what `patch/security` allows | Full pipeline; the plan challenge (when the plan changes production code) and the Security plan review run in parallel, answered by one Lead revision |
+| `security` | Touches one of the security areas listed in `.squad/project.md` (*Security areas*), Docker/CI or build configuration, or adds/updates a dependency — beyond what `patch/security` allows | Full pipeline; the plan challenge (*Plan challenge*: when the plan changes production code — for a feature only when it weighs options) and the Security plan review run in parallel, answered by one Lead revision |
 
 `.squad/stack.md` and `.squad/project.md` describe the product, so an issue about them is a product PR and
 counts as documentation for the `docs` tier — except an edit that changes *Security areas* or a command the
@@ -187,7 +187,7 @@ quality gate after the PR was open).
 | # | Step | Owner | Exit condition |
 | - | ---- | ----- | -------------- |
 | 1 | Intake | Orchestrator | Branch off `main`, work folder and `log.md` created (rows appended with `squad-log.py`), committed and pushed |
-| 2 | Plan | Lead, Devil's Advocate | `plan.md` with tier, acceptance criteria, signatures of new/changed API, the options considered, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate when *Plan challenge* below calls for it; major objections answered by the Lead in the plan's *Challenge* section, minor ones recorded as *Challenge notes* |
+| 2 | Plan | Lead, Devil's Advocate | Features first: `spec.md` (scenarios, edge cases, non-functional requirements, the acceptance criteria, answered questions), `plan-check.py --spec` clean, one spec challenge by the Devil's Advocate (`squad-spec`). Then `plan.md` with tier, *Verified facts* with evidence, acceptance criteria (bug fixes; a feature's are the spec's) and *Tests per criterion*, signatures of new/changed API, the options considered, affected areas (`docs/areas/`), doc updates; decision records `Proposed` and indexed; `plan-check.py` clean before anyone else reads it. Or outcome **no change** (see below). `standard`/`security`: one plan challenge by the Devil's Advocate when *Plan challenge* below calls for it; major objections answered by the Lead in the plan's *Challenge* section, minor ones recorded as *Challenge notes* |
 | 3 | Plan security review | Security | `security` tier only, launched together with the plan challenge on the same plan commit. `APPROVED` → 4; `CHANGES_REQUIRED` → one Lead revision answers it together with the major objections, then a Security delta confirmation of the revision |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A test that cannot fail yet is not written here: guards, pins of existing behavior, determinism and bound tests wait for step 6 |
@@ -209,8 +209,10 @@ also analyses scripts, workflows and Dockerfiles); for tier `docs` only *Format 
 **Continuing a member.** A fix round or a delta round of the same member within the same run continues
 that member's last launch (the harness keeps a launched subagent's context: `SendMessage` to its agent id,
 or the Agent tool's resume) with the findings and the new head SHA, instead of a fresh launch that reloads
-`AGENTS.md`, `stack.md`, `project.md`, the plan and the code. A fresh launch stays the rule for the first
-launch of a mode, after a session restart (the agent id is gone) and when the previous launch ended on an
+`AGENTS.md`, `stack.md`, `project.md`, the plan and the code. The same holds for the Lead within step 2:
+its `revise` rounds after `plan-check.py`, and for a feature mode `plan` after mode `spec`, continue the
+Lead's last launch, which already read the code and the documents. A fresh launch stays the rule for the first
+launch of any other mode, after a session restart (the agent id is gone) and when the previous launch ended on an
 API error. The log records a continuation as a launch of that member (`squad-log.py … --continued`): the
 notification reports the agent's tokens since its first launch but its tool uses and duration for the round
 alone, so the script subtracts the earlier tokens only, writes this round's share and marks the trailer; the
@@ -305,7 +307,8 @@ statement of the change that the merged `main` made untrue, goes through steps 7
 
 The Devil's Advocate is launched only when there is something to challenge: the plan changes production code
 **and** either weighs more than one option (its *Options considered* names an alternative, or it adds or
-extends a decision record) or the tier is `security`. Otherwise the orchestrator logs "challenge skipped: no
+extends a decision record) or the tier is `security` — for a feature, whose spec it has already challenged,
+only when the plan weighs options. Otherwise the orchestrator logs "challenge skipped: no
 options" and goes on; the Reviewer still checks the plan's assumptions in step 8.
 
 The Devil's Advocate classifies every objection as `major` (the plan would build the wrong thing or miss the
@@ -366,6 +369,11 @@ told so.
 
 ## Loop limits
 
+- **Plan check (step 2):** `plan-check.py` findings go back to the Lead (mode `revise`, the findings only) at
+  most twice per document; findings left after that go to the Lead in mode `decide`, which fixes them or
+  escalates. A finding is never waved through.
+- **Spec challenge (step 2, features):** one Devil's Advocate round, no veto, handled like the plan challenge
+  below (minor objections into the spec's *Challenge notes*, which the Lead answers while it plans).
 - **Plan challenge (step 2):** at most one Devil's Advocate round, no veto. Minor objections alone go into
   the plan's *Challenge notes* without a Lead launch (non-blocking Security findings go into *Security notes*
   the same way, except a note that leaves the plan a choice, which goes to the Lead); after a major one the Lead answers every objection

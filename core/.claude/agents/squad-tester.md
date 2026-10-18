@@ -36,8 +36,9 @@ Mode `tests-first`:
    measured, with the instrumentation of *Test with coverage* included (`docs/UNIT_TESTS.md`).
    A case about an escape (`\u0041`, an escaped surrogate pair) keeps its backslash on disk and asserts
    that its input still contains it (*Escapes in files* in `.squad/team.md`).
-   For a feature, check the plan's *Behavior coverage*: every field and value an acceptance criterion names
-   is asserted by a test; name a criterion field no test asserts in your report.
+   For a feature, the criteria are `spec.md`'s and their tests the plan's *Tests per criterion*: every field
+   and value a criterion names, and the scenarios and edge cases it lists, are asserted by a test; name one no
+   test asserts in your report.
 2. Build and run the new tests. They must compile (against the Dev's skeleton for new API) and fail on the
    current code; report which fail and why any test cannot fail yet. Confirming the failure on the current
    code or the skeleton is all this mode checks: never implement the feature to see your tests pass — not in

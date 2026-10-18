@@ -104,8 +104,9 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
   the Dev implements until the *Coverage gate* passes, each member formats the files it changed, the Code
   Officer clears analyzer diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
   open), then a PR referencing the issue is opened.
-- `squad-spec` — the same squad pipeline for a new feature, planned as `spec.md`, `plan.md` and
-  `tasks.md` in a working folder under `specs/`; also for an issue the user calls a feature or that is
+- `squad-spec` — the same squad pipeline for a new feature, spec first: the Lead writes `spec.md` (scenarios,
+  edge cases, the acceptance criteria) and the Devil's Advocate challenges it before `plan.md` and `tasks.md`
+  are written against it, in a working folder under `specs/`; also for an issue the user calls a feature or that is
   labelled `feature`/`enhancement` (`.squad/routing.md`, *Bug or feature*).
 - `decision-consolidate` — merge unreleased decision records (Superseded chains, records on one topic) into
   one record each, delete the obsolete ones, lift behavior that sits in records into the area documents and fix
@@ -121,7 +122,7 @@ full review, later rounds review only the delta" rule live in that one file, so 
 way.
 
 The squad skills run a multi-role pipeline defined in [`.squad/`](/.squad/team.md) — Lead (plan, decisions,
-PR approval decisions), Devil's Advocate (one plan challenge), Security (plan and diff on the `security` tier), Tester (tests first,
+PR approval decisions), Devil's Advocate (one challenge of a feature's spec, and of a plan that weighs options), Security (plan and diff on the `security` tier), Tester (tests first,
 coverage), Dev, Code Officer (analyzer gate) and Reviewer — as Claude Code subagents under
 `.claude/agents/squad-*.md` (read-only where the role demands it: a hook in each agent denies Git and
 GitHub writes, so only the orchestrating session commits, pushes and posts), with the loop limits and

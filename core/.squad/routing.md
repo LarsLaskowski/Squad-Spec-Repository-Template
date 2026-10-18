@@ -1,7 +1,8 @@
 # Routing
 
-The pipeline is the same for issues and features; only the input differs (a GitHub issue for
-`squad-issue`, a feature idea plus `spec.md` for `squad-spec`). The orchestrator — the session that runs
+The pipeline is the same for bug fixes and features; only the input differs (a bug reported in a GitHub
+issue for `squad-issue`, a feature — described by the user or in a GitHub issue — plus `spec.md` for
+`squad-spec`; see *Bug or feature*). The orchestrator — the session that runs
 the skill — launches the members, passes documents between them (subagents cannot talk to each other
 directly), performs every Git and GitHub action (including follow-up issues the Lead decides on) and
 records every step in the work folder's `log.md` with `python3 .squad/tools/squad-log.py` — each subagent
@@ -12,10 +13,30 @@ notification never came), corrected with `--replace-last` and reduced to the rou
 for a continued member (`--continued-from "<step>"` with the step cell of the fresh launch when the agent
 continued is not the member's last fresh launch; a new row never takes `--step`) — (after step 10, in the "Squad working record" comment that replaces it). Step numbers below are the ones the skills use.
 
+## Bug or feature
+
+A GitHub issue is either a bug fix (`squad-issue`) or a feature (`squad-spec`). The orchestrator decides
+which before step 1 — before any branch or work folder exists — and the first rule that applies wins:
+
+1. **The user's request.** The user calling it a feature ("implement feature #12", in any language) or
+   invoking `squad-spec` with the issue makes it a feature; calling it a bug ("fix bug #12") or invoking
+   `squad-issue` makes it a bug fix — whatever the issue's labels or text say. The user knows the intent
+   even when the issue does not show it.
+2. **Label or issue type.** A label `feature` or `enhancement` (case-insensitive, also as the last part of
+   a scoped label such as `type: feature` or `kind/enhancement`) or the GitHub issue type *Feature* makes
+   it a feature; a label `bug` or the issue type *Bug* makes it a bug fix. Both kinds at once: ask the user.
+3. **Otherwise** it is a bug fix with `squad-issue`. The issue text alone does not decide it: a feature
+   request without label is labelled or called a feature by the user.
+
+When the kind points to the other skill, switch to it now and say so in one line. The intake row in
+`log.md` names the kind and what decided it (`feature: user request`, `feature: label enhancement`,
+`bug: no feature label`).
+
 ## Work folder
 
-- Issue: `specs/issue-<number>/` — `plan.md`, `log.md`
-- Feature: `specs/feature-<short-slug>/` — `spec.md`, `plan.md`, `tasks.md`, `log.md`
+- Issue (bug fix): `specs/issue-<number>/` — `plan.md`, `log.md`
+- Feature: `specs/feature-<short-slug>/`, from an issue `specs/feature-<number>-<short-slug>/` — `spec.md`,
+  `plan.md`, `tasks.md`, `log.md`
 - The work folder lives **only on the work branch**: it is committed and pushed after every step so a
   crashed session can resume, and in step 10 its content is posted as a "Squad working record" comment
   (on the issue, or on the PR for a feature without issue) and the folder is removed before the PR opens.

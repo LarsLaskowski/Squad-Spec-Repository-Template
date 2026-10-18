@@ -34,9 +34,9 @@ skills live under `.claude/skills/` and the squad roles under `.claude/agents/`.
 before it is opened by the read-only reviewer in `.claude/agents/squad-reviewer.md`. The squad skills
 (`squad-issue`, `squad-spec`) wrap that review in a bounded pipeline described in
 [`.squad/routing.md`](../.squad/routing.md): a Lead plans, picks the tier that decides how much of the pipeline
-runs and owns every decision; a Devil's Advocate challenges the spec and the plan, Security reviews the plan
-when a security area is touched; tests come first, the gates run before the review, and every loop limit ends
-in a Lead decision — only one the Lead cannot make reaches the human. The stack's commands live in
+runs and owns every decision; a Devil's Advocate challenges a feature's spec and, when routing says so, the
+plan; Security reviews the plan when a security area is touched; tests come first, the gates run before the
+review, and every loop limit ends in a Lead decision — only one the Lead cannot make reaches the human. The stack's commands live in
 [`.squad/stack.md`](../.squad/stack.md), the project's guarantees and attack surface in
 [`.squad/project.md`](../.squad/project.md).
 

@@ -1,11 +1,13 @@
 ---
 name: squad-issue
-description: Use when the user asks to fix a specific GitHub issue in this repository. Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open — and opens a PR referencing the issue.
+description: Use when the user asks to fix a bug reported in a specific GitHub issue of this repository — not for an issue the user calls a feature or that carries a feature/enhancement label, which goes to squad-spec (.squad/routing.md, Bug or feature). Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open — and opens a PR referencing the issue.
 ---
 
 # Squad Issue
 
-Fix a reported GitHub issue with the squad defined in `.squad/`. You are the **orchestrator**: you launch
+Fix a bug reported in a GitHub issue with the squad defined in `.squad/`. A feature — the user calls it
+one, or the issue is labelled `feature`/`enhancement` — runs through `squad-spec` instead (`.squad/routing.md`,
+*Bug or feature*). You are the **orchestrator**: you launch
 the members as subagents, pass their outputs on (they cannot talk to each other), enforce the tiers and
 loop limits from [`.squad/routing.md`](../../../.squad/routing.md), and perform every Git and GitHub
 action yourself — including follow-up issues the Lead decides on.
@@ -80,7 +82,9 @@ action yourself — including follow-up issues the Lead decides on.
 
 ## Steps
 
-1. **Intake.** Read the issue in full, including comments; note the reported environment (versions of the
+1. **Intake.** Read the issue in full, including comments and labels, and decide bug or feature first
+   (`.squad/routing.md`, *Bug or feature*): a feature switches to `squad-spec` now, before any branch or
+   work folder exists; note the reported environment (versions of the
    software involved, image tag or release, host OS, configuration). If it is closed, stop and report that. Start
    from a clean working tree on a new branch off the latest `main` (run `git fetch origin main --tags` first: a
    stale local `origin/main` makes `scope-check.py` report files that are not yours, and a checkout without the

@@ -7,7 +7,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 ## What a repository gets
 
 - **The squad** (`.squad/`, `.claude/agents/squad-*.md`) — Lead, Devil's Advocate, Security, Tester,
-  Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features)
+  Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features, also from issues)
   skills: plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → Lead approval → pull request. Details in
   [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter

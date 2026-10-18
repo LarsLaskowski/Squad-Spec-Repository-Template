@@ -3,6 +3,7 @@ import contextlib
 import io
 import os
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -131,6 +132,27 @@ class TestBranchMode(SonarCheckCase):
         self.repository()
         lines = self.script.changed_line_map("main")
         self.assertEqual(lines, {"a.go": {4, 5}, "sp ace.go": {1}})
+
+    def test_changed_lines_follow_renames_and_drop_deleted_files(self):
+        self.repository()
+        write("b.go", "package a\n\nfunc C() {}\n")
+        git("add", ".")
+        git("commit", "-q", "-m", "b")
+        git("mv", "b.go", "c.go")
+        os.remove("sp ace.go")
+        lines = self.script.changed_line_map("main")
+        self.assertEqual(set(lines), {"a.go", "c.go"})
+        self.assertEqual(lines["c.go"], {1, 2, 3})
+
+    def test_coverage_reports_may_lie_around_untracked(self):
+        self.repository()
+        write("coverage/lcov.info", "TN:\n")
+        settings = types.SimpleNamespace(BASE_REF="main", COVERAGE_FORMAT="lcov",
+                                         COVERAGE_REPORT_GLOB="coverage/lcov.info")
+        with mock.patch.object(self.script, "settings", settings):
+            self.assertEqual(self.script.unexpected_files(), [])
+            write("notes.txt", "scratch\n")
+            self.assertEqual(self.script.unexpected_files(), ["notes.txt"])
 
     def test_findings_count_only_on_changed_lines(self):
         lines = {"a.go": {3, 4}, "c.go": set()}

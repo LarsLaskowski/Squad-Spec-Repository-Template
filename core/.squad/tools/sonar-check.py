@@ -5,10 +5,10 @@ instead of a surprise after the pull request, and a rule the local analyzers do 
 Two modes:
 
 - `branch -- <scan command>` (step 7, before the pull request): needs `SONAR_TOKEN` in the environment and a
-  clean, committed work branch (the scanner uploads the working tree; an uncommitted scratch file would be
-  published with a public project). Runs the scan command (*Sonar gate* in `.squad/stack.md`: the stack's
-  scanner, analysing the work branch as a branch of the project), waits for SonarQube to process the report,
-  and lists every open issue and security hotspot on a line the branch added or changed since the merge base
+  committed work branch (the scanner uploads the working tree; an uncommitted scratch file would be published
+  with a public project) — only the coverage reports of *Test with coverage* may lie around untracked. Runs
+  the scan command (*Sonar gate* in `.squad/stack.md`: the stack's scanner, analysing the work branch as a
+  branch of the project), waits for SonarQube to process the report, and lists every open issue and security hotspot on a line the branch added or changed since the merge base
   with BASE_REF. Without a token, or when the scan fails (a network policy that blocks the scanner's download
   hosts, for example), the result is NOT CHECKED, and the pull request mode runs on the draft pull request.
 - `pr <number>` (step 11, on the draft pull request): reads the analysis of that pull request (with
@@ -35,6 +35,7 @@ the scan or SonarQube failed), 3 PENDING (the analysis of this head is not there
 """
 import argparse
 import base64
+import fnmatch
 import glob
 import json
 import os
@@ -205,15 +206,34 @@ def scan(command):
             shutil.rmtree(output_dir, ignore_errors=True)
 
 
+def coverage_reports():
+    """The globs of the coverage reports *Test with coverage* writes: untracked output the gate expects."""
+    pairs = getattr(settings, "COVERAGE_REPORTS", None) or [
+        (getattr(settings, "COVERAGE_FORMAT", ""), getattr(settings, "COVERAGE_REPORT_GLOB", ""))]
+    return [pattern for _, pattern in pairs if pattern]
+
+
+def unexpected_files():
+    """Changed tracked files, and untracked files other than the coverage reports, which the scanner would upload."""
+    changed = git("diff", "--name-only", "HEAD").splitlines()
+    reports = coverage_reports()
+    untracked = [path for path in git("ls-files", "--others", "--exclude-standard").splitlines()
+                 if not any(fnmatch.fnmatch(path, pattern) or path.startswith(pattern.split("/", 1)[0] + "/")
+                            for pattern in reports)]
+    return [path for path in changed + untracked if path.strip()]
+
+
 def branch_preconditions():
     """The current branch, when branch mode may scan it."""
     branch = git("branch", "--show-current").strip()
-    if not branch or branch == BASE_REF.split("/")[-1]:
+    base = BASE_REF.split("/", 1)[1] if BASE_REF.startswith("origin/") else BASE_REF
+    if not branch or branch == base:
         raise NotChecked("branch mode scans a work branch only (not a detached HEAD or the base branch, whose "
                          "analysis it would replace)")
-    if git("status", "--porcelain").strip():
-        raise NotChecked("the working tree has uncommitted or untracked files, which the scanner would upload; "
-                         "commit them (or remove scratch files) first")
+    unexpected = unexpected_files()
+    if unexpected:
+        raise NotChecked("uncommitted or untracked files the scanner would upload — commit the change first (no "
+                         "push needed) and remove scratch files: " + ", ".join(unexpected[:10]))
     return branch
 
 
@@ -228,10 +248,9 @@ def findings_on_branch(key, branch, token):
         issues = paged("issues/search", {"componentKeys": components, "branch": branch, "resolved": "false"},
                        "issues", token)
         found += [finding_line(i, key, "issue") for i in issues if on_changed_line(i, key, lines)]
-        for path in chunk:
-            hotspots = paged("hotspots/search", {"projectKey": key, "branch": branch, "files": path,
-                                                 "status": "TO_REVIEW"}, "hotspots", token)
-            found += [finding_line(h, key, "hotspot") for h in hotspots if on_changed_line(h, key, lines)]
+        hotspots = paged("hotspots/search", {"projectKey": key, "branch": branch, "files": ",".join(chunk),
+                                             "status": "TO_REVIEW"}, "hotspots", token)
+        found += [finding_line(h, key, "hotspot") for h in hotspots if on_changed_line(h, key, lines)]
     return found
 
 

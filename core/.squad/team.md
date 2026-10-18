@@ -59,7 +59,7 @@ Tester, or the orchestrator for its own edits — runs *Format* from `stack.md` 
 its result to those files: every other file the formatter touched is reported, not edited, and the
 orchestrator restores it. *Format* is a deterministic command, not a judgment; an older `stack.md` that
 labels it "Code Officer only" is superseded by this rule. The Code Officer owns a clean analyzer gate and is
-launched only for analyzer diagnostics or style findings that need reading. Subagents never run Git write operations or post
+launched only for analyzer diagnostics, Sonar findings or style findings that need reading. Subagents never run Git write operations or post
 to GitHub — the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in every `squad-*.md`, denies them
 (`git add` and a scratch `git worktree` for experiments stay allowed, `.squad/routing.md`, *Concurrency*);
 the orchestrator commits and pushes to the work branch at any time (see `AGENTS.md`, golden rules) and

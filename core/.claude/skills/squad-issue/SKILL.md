@@ -216,7 +216,8 @@ action yourself — including follow-up issues the Lead decides on.
    and every link to it. Then run the gates yourself first, with the commands from `.squad/stack.md`: *Format check*,
    the *Analyzer gate* (no diagnostic of any severity in a changed file), *Test*, the *Coverage gate* (not
    for a change without production or test code) and `python3 .squad/tools/scope-check.py`; once they pass,
-   the *Sonar gate* (SonarQube Cloud's analysis of the work branch, `stack.md`) — its findings are worked like
+   commit the change (no push needed — the scanner uploads the working tree and refuses uncommitted files) and
+   run the *Sonar gate* (SonarQube Cloud's analysis of the work branch, `stack.md`) — its findings are worked like
    analyzer diagnostics, and NOT CHECKED (no `SONAR_TOKEN`, a blocked scanner download) is logged and leaves
    the check to step 11. Keep the output:
    the reviewers get it in step 8. If everything passes, step 7 is done without launching anyone. Dev and

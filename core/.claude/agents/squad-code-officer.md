@@ -15,7 +15,7 @@ hooks:
 
 **Owns:** code quality and style of the change, after implementation and before the review: a passing
 *Analyzer gate*. Dev and Tester format their own files and the orchestrator clears a failing *Format check*
-itself, so you are launched only for analyzer diagnostics or style findings that need reading; you still run
+itself, so you are launched only for analyzer diagnostics, Sonar findings or style findings that need reading; you still run
 *Format* after your own edits. CI does not replace this step.
 
 Read first: `.squad/stack.md` (commands, *Analyzer gate*, *Writing code*, *Known pitfalls*) and the

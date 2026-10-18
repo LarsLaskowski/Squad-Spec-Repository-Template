@@ -38,9 +38,6 @@ in.
      file; treat each as a failure
    - *Test with coverage* and *Coverage gate* — it must pass (the thresholds
      are in `.squad/tools/squad_settings.py`)
-   - *Sonar gate* — SonarQube Cloud's analysis of the branch; fix every
-     finding it lists. NOT CHECKED (no `SONAR_TOKEN` in this environment)
-     leaves the check to step 9
    - `python3 .squad/tools/config-check.py` when the diff touches `.claude/`,
      `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md` — Claude Code silently
      drops an agent or skill whose front matter does not parse, and the two
@@ -51,7 +48,11 @@ in.
 5. **Commit** with a subject line of at most 80 characters, not written in
    the first person and without a trailing period; a body only if the subject
    does not explain the change (the PR is squash-merged, its description is
-   the lasting record). Stage only the files that belong to this task.
+   the lasting record). Stage only the files that belong to this task. Then
+   run the *Sonar gate* from `.squad/stack.md` — SonarQube Cloud's analysis
+   of the committed branch; fix every finding it lists (and commit again).
+   NOT CHECKED (no `SONAR_TOKEN` in this environment) leaves the check to
+   step 9.
 6. **Run the internal review loop** (see below) and resolve what it finds.
    This happens *before* the push, so the pull request opens on a reviewed
    change instead of collecting review rounds afterwards.

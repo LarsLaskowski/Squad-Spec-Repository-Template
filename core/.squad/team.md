@@ -85,7 +85,7 @@ worktree` or by reading the component's source, before tests, records or documen
 marks such a claim *unverified* with its measurement and owner; the hand-back names the measurement, and a
 claim nobody measured is never repeated as fact.
 
-**Escapes in files.** The Write and Edit tools turn a single-backslash escape such as `A` into the
+**Escapes in files.** The Write and Edit tools turn a single-backslash escape such as `\u0041` into the
 character it names, so a plan table or a test fixture whose cases are about escapes silently loses them. Every
 member and the orchestrator write each such escape with a doubled backslash in the tool input, or generate the
 file with a script; either way check the bytes on disk (`grep -n '\\u' <file>`) and confirm every escape is

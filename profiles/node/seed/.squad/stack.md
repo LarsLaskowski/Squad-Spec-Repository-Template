@@ -45,15 +45,16 @@ Fixable style findings are the Code Officer's (`eslint --fix` on the changed fil
 findings that need a code change go to the Dev or Tester.
 
 SonarQube Cloud can still report rules the local plugin version does not have, and its non-lint checks
-(duplication, hotspots, taint analysis) only run in CI — such findings arrive in squad step 11.
+(hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate* below is the first to
+report their issues and hotspots, and squad step 11 reads the quality gate, duplication included.
 
 Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and Dockerfiles are checked with
 `shellcheck`, `actionlint` and `hadolint`; the SessionStart hook installs the three as pinned, checksum-verified
 binaries (`.claude/hooks/install-linters.sh`), and the gate reports NOT RUN for one that is missing (a refused
 download, for example). The gate itself checks two SonarQube Cloud shell rules shellcheck does not report:
 `shelldre:S7679` (a positional parameter `$1`…`$9` used as a word of its own inside a function — assign it to a
-local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings only report
-in squad step 11.
+local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings are first
+reported by the *Sonar gate* below.
 
 *Sonar gate* runs SonarQube Cloud's own analysis on the work branch before the pull request (squad step 7):
 `sonar-check.py` runs the scanner with the branch name, waits for the analysis and fails on every open issue or

@@ -92,11 +92,14 @@ def project_key():
 
 def api(path, params, token=None):
     """GET a SonarQube Web API endpoint and return the decoded JSON."""
+    if not HOST.startswith("https://"):
+        raise NotChecked(f"SONAR_HOST must be an https:// URL, not {HOST!r}")
     url = f"{HOST}/api/{path}?{urllib.parse.urlencode(params)}"
-    request = urllib.request.Request(url)  # noqa: S310  (fixed https host from the settings)
+    # Only an https:// URL reaches urllib (checked above), so no file:// or custom scheme can be opened.
+    request = urllib.request.Request(url)  # noqa: S310  # nosec B310
     if token:  # never forwarded to another host on a redirect
         request.add_unredirected_header("Authorization", "Basic " + base64.b64encode(f"{token}:".encode()).decode())
-    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310  # nosec B310
         return json.load(response)
 
 

@@ -55,7 +55,8 @@ PLAN = """# Plan: Export
 
 Source: [spec.md](spec.md)
 Status: Draft
-Tier: standard — a new user-visible export, no security area.
+Tier: standard — a new user-visible export.
+Security areas touched: none
 
 ## Problem / root cause
 
@@ -163,6 +164,12 @@ class TestPlanCheck(unittest.TestCase):
         errors = self.errors(self.feature(plan=plan))
         self.assertTrue(any("claim without evidence" in e for e in errors), errors)
         self.assertTrue(any("unverified claim without `to verify:`" in e for e in errors), errors)
+
+    def test_security_areas_line_is_required_for_standard(self):
+        plan = PLAN.replace("Security areas touched: none\n", "")
+        self.assertTrue(any("Security areas touched" in e for e in self.errors(self.feature(plan=plan))))
+        listed = PLAN.replace("Security areas touched: none", "Security areas touched: parsing of the CSV import")
+        self.assertEqual(self.errors(self.feature(plan=listed)), [])
 
     def test_tier_must_be_chosen(self):
         plan = PLAN.replace("Tier: standard — a new", "Tier: trivial | standard | security — a new")

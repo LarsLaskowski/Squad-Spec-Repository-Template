@@ -1,6 +1,6 @@
 ---
 name: squad-issue
-description: Use when the user asks to fix a bug reported in a specific GitHub issue of this repository — not for an issue the user calls a feature or that carries a feature/enhancement label, which goes to squad-spec (.squad/routing.md, Bug or feature). Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open — and opens a PR referencing the issue.
+description: Use when the user asks to fix a bug reported in a specific GitHub issue of this repository — not for an issue the user calls a feature or that carries a feature/enhancement label, which goes to squad-spec (.squad/routing.md, Bug or feature). Runs the squad pipeline — Lead plans and picks a tier, the Devil's Advocate challenges the plan, Security reviews the plan when a security area is touched and the diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open — and opens a PR referencing the issue.
 ---
 
 # Squad Issue
@@ -163,20 +163,21 @@ action yourself — including follow-up issues the Lead decides on.
    **Plan challenge** (`standard` and `security` only, at most once; `.squad/routing.md`, *Plan challenge*).
    Launch `squad-devils-advocate` in mode `plan` with the issue text and the work folder only when the plan changes
    production code **and** its *Options considered* names an alternative, it adds or extends a decision
-   record, or the tier is `security`; otherwise log "challenge skipped: no options". On `security`, launch
-   it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …` (on `security`: and
+   record, or the tier is `security`; otherwise log "challenge skipped: no options". When step 3 runs, launch
+   it together with step 3 on the same plan commit. On `VERDICT: OBJECTIONS 0 major, …` (when step 3 runs: and
    Security's `APPROVED`), append the minor objections verbatim to `plan.md` as a *Challenge notes* section
    and go on without a Lead launch; Dev and Tester get that section with the plan. Non-blocking findings of Security's
    `APPROVED` plan review are appended verbatim as a *Security notes* section the same way; a note that leaves the
    plan a choice goes to `squad-lead` in mode `revise` before step 4 (one launch together with any major
    objection), so neither a member nor you decide it. On a major objection, launch `squad-lead` in mode `revise` with
-   all objections (on `security` together with Security's `CHANGES_REQUIRED` findings, if any); it answers
+   all objections (together with Security's `CHANGES_REQUIRED` findings of step 3, if any); it answers
    each one in the plan's *Challenge* section (accepted and the plan revised, or rejected with a reason) and
    may narrow the scope, raise the tier or switch to `RESULT: NO CHANGE`. `RESULT: NO CHANGE` and
    `RESULT: ESCALATE` are handled as above; after a raised tier, continue with that tier's steps. There is
    no second challenge round and no veto. Record the verdict (also a clean `NO OBJECTIONS`) and the Lead's
    answer in `log.md`.
-3. **Plan security review** (`security` tier only). Launch `squad-security` in mode `plan`, in parallel with
+3. **Plan security review** (tier `security`, and `standard` whose plan lists *Security areas touched* — anything
+   but "none"; `.squad/routing.md`, *Tiers*). Launch `squad-security` in mode `plan`, in parallel with
    the plan challenge when there is one (both are read-only). On `CHANGES_REQUIRED`, launch **one**
    `squad-lead` in mode `revise` with the findings and the challenge's major and minor objections, then
    `squad-security` once more to confirm the revision (a delta round); a Lead revision made only for a major
@@ -234,8 +235,8 @@ action yourself — including follow-up issues the Lead decides on.
    owner, and a file it reports as formatted outside the change you restore — and run the gates again until
    they pass. This is the gate before the PR; CI is
    not meant to find anything here.
-8. **Review.** Launch `squad-reviewer` (round 1, full) and — for `security` only —
-   `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
+8. **Review.** Launch `squad-reviewer` (round 1, full) and — for tier `security` only, not for `standard`
+   with *Security areas touched* — `squad-security` in mode `diff`, in parallel, against the base ref. Pass them the work folder
    (`specs/<folder>/`) so they check the plan's acceptance criteria and tier (tiers `docs` and `patch`: the first
    `log.md` row, since there is no `plan.md`) and the gate output of step 7 for this head, so they do not
    build and test again; either may raise the tier. Tiers `docs` and `patch`: you fix a blocking finding

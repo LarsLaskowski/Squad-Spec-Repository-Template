@@ -61,7 +61,11 @@ The orchestrator tells you which **mode** to run:
   tool or an experiment in a scratch copy only where reading cannot settle a claim (a guard's behavior on an
   input, a reproduction that needs a run), never to rehearse the verification the plan assigns to the Dev or
   the Tester — name that verification, with its cases, and leave running it to its owner. The plan states:
-  - the **tier** with a one-sentence justification — when in doubt, the higher tier;
+  - the **tier** with a one-sentence justification — when in doubt, the higher tier — and the *Security
+    areas touched* line: every security area of `.squad/project.md`, Docker/CI or build configuration and
+    dependency the change touches, or "none". A change that touches a security area without creating,
+    changing or removing a security control is `standard` with those areas listed (Security reviews the
+    plan); `security` is for a change to a control itself (`.squad/routing.md`, *Tiers*);
   - every factual claim the plan rests on — from the issue, the spec, the code, a library, the image — in
     *Verified facts* with its evidence (file and line, a command and its output, the sample read) and its
     status; a claim no one checked yet is `unverified`, with `to verify:`, the measurement, its owner and the

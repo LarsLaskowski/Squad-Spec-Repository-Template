@@ -11,8 +11,8 @@ specific to this repository lives in two files the members read first:
 
 - [`stack.md`](stack.md) — toolchain, layout and the exact commands: format, build, test, coverage, the
   analyzer gate, how to write code and tests that pass it, and how to build a compile-only skeleton.
-- [`project.md`](project.md) — what this project guarantees: the security areas that decide the
-  `security` tier, deliberate guarantees, the integration surface the Reviewer sweeps, and the test doubles.
+- [`project.md`](project.md) — what this project guarantees: the security areas that bring in Security's
+  plan review, deliberate guarantees, the integration surface the Reviewer sweeps, and the test doubles.
 
 ## Members
 

@@ -1,6 +1,6 @@
 ---
 name: squad-spec
-description: Use when the user wants to develop a new feature in this repository spec-driven with the squad — from a description, or from a GitHub issue the user calls a feature (implement feature 12) or that carries a feature/enhancement label (.squad/routing.md, Bug or feature). The Lead writes the spec first and the Devil's Advocate challenges it before any plan exists; then the Lead writes plan and tasks against the spec's acceptance criteria and picks a tier, Security reviews plan and diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open, then a PR is opened.
+description: Use when the user wants to develop a new feature in this repository spec-driven with the squad — from a description, or from a GitHub issue the user calls a feature (implement feature 12) or that carries a feature/enhancement label (.squad/routing.md, Bug or feature). The Lead writes the spec first and the Devil's Advocate challenges it before any plan exists; then the Lead writes plan and tasks against the spec's acceptance criteria and picks a tier, Security reviews the plan when a security area is touched and the diff of security-tier changes, Tester writes failing tests first, Dev implements until the Coverage gate passes, each member formats its files, Code Officer clears analyzer findings, Reviewer reviews, the PR is approved by checklist with the Lead deciding what is open, then a PR is opened.
 ---
 
 # Squad Spec
@@ -61,7 +61,8 @@ changes listed after them.
      it adds or extends a decision record): `squad-devils-advocate` in mode `plan` as `squad-issue` step 2
      says. The spec challenge already questioned what is built; a `security` plan without options gets its
      scrutiny from Security.
-3. **Plan security review** on `security`: `squad-security` in mode `plan` reviews `spec.md` and `plan.md`
+3. **Plan security review** on `security`, and on `standard` whose plan lists *Security areas touched*:
+   `squad-security` in mode `plan` reviews `spec.md` and `plan.md`
    together, in parallel with the plan challenge when there is one, and the loop of `squad-issue` step 3
    applies. Run `plan-check.py` again after every Lead revision.
 

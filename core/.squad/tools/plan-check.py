@@ -17,9 +17,10 @@ Checks, in the work folder `specs/<folder>/`:
   the *Criteria* column of `tasks.md` (every table of it), and neither names a criterion the spec lacks.
 - **Bug fix** (no `spec.md`): `plan.md` defines its acceptance criteria, and each has a row in *Tests per
   criterion* (tier `trivial`, which writes no tests first, needs none).
-- **Both:** the *Tier* line names exactly one tier; *Verified facts* has at least one row, and every row has
-  evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement that settles it, starting
-  with `to verify:`); no template placeholder is left. A plan longer than `PLAN_MAX_WORDS`
+- **Both:** the *Tier* line names exactly one tier, and for `standard` and `security` the *Security areas
+  touched* line says "none" or lists them (it decides the Security plan review); *Verified facts* has at least
+  one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
+  that settles it, starting with `to verify:`); no template placeholder is left. A plan longer than `PLAN_MAX_WORDS`
   (`squad_settings.py`, default 4000) is reported as a warning: a long plan costs every member that reads it.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
@@ -258,6 +259,11 @@ def check_plan(plan, spec, errors):
     name = tier.group(1) if tier else None
     if name not in TIERS or tier.group(2).lstrip().startswith("|"):
         errors.append(f"plan.md: the *Tier* line must name exactly one of {', '.join(TIERS)}")
+    areas = re.search(r"^Security areas touched:\s*(.*)$", plan, re.M)
+    if name in ("standard", "security") and (not areas or not areas.group(1).strip() or "<" in areas.group(1)
+                                             or areas.group(1).lstrip().lower().startswith("none |")):
+        errors.append("plan.md: the *Security areas touched* line must say \"none\" or list the areas "
+                      "(it decides the Security plan review)")
     own = set(CRITERION.findall(COMMENT.sub("", plan)))
     if spec is None:
         criteria = own

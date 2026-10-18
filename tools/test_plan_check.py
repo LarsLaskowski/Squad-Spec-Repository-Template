@@ -168,13 +168,15 @@ class TestPlanCheck(unittest.TestCase):
 
     def test_security_areas_line_must_be_none_or_the_areas(self):
         for bad in ("", "Security areas touched:\n", "Security areas touched: none | <areas>\n",
-                    "Security areas touched: n/a\n", "Security areas touched: none|auth\n"):
+                    "Security areas touched: n/a\n", "Security areas touched: none|auth\n",
+                    "Security areas touched: none \u2014 UI wording only\n", "Security areas touched: nothing\n"):
             plan = PLAN.replace("Security areas touched: none\n", bad)
             self.assertTrue(any("Security areas touched" in e for e in self.errors(self.feature(plan=plan))), bad)
-        for good in ("Security areas touched: parsing of the CSV import, sanitizing `<script>`",
-                     "Security areas touched: `none`"):
-            plan = PLAN.replace("Security areas touched: none", good).replace("Tier: standard", "Tier: security")
-            self.assertEqual(self.errors(self.feature(plan=plan)), [], good)
+        listed = PLAN.replace("Security areas touched: none", "Security areas touched: CSV import, `<script>`")
+        self.assertEqual(self.errors(self.feature(plan=listed.replace("Tier: standard", "Tier: security"))), [])
+        self.assertEqual(self.errors(self.feature(plan=PLAN.replace("touched: none", "touched: `none`"))), [])
+        on_security = PLAN.replace("Tier: standard", "Tier: security")
+        self.assertTrue(any("cannot be" in e for e in self.errors(self.feature(plan=on_security))))
         write("specs/issue-34/plan.md", BUG_PLAN.replace("Security areas touched: none\n", ""))
         self.assertTrue(any("Security areas touched" in e for e in self.errors("specs/issue-34")))
 

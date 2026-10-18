@@ -110,11 +110,13 @@ tier follows the change, not only the paths it touches. When in doubt, the highe
 `trivial` < `standard` < `security`); Security or the Reviewer may raise the tier at any point (never lower it).
 A raise to `security` after step 2 adds only what is still ahead: the Security diff review in step 8, and the
 Security plan review (step 3) when the raise comes before step 4 and step 3 has not run. It does not re-run the
-plan challenge. The Lead records the new tier in `plan.md` (mode `decide`, or with its next revision).
+plan challenge. The orchestrator records the raise in `plan.md` (a `specs/` edit, with the area that made it)
+and launches the Lead only when it leaves a decision open.
 
 Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or
-build configuration and dependency the change touches, or "none". Whenever the line is not "none", Security
-reviews the plan (step 3), whatever the tier — that review found real defects in 45–73 % of the runs that
+build configuration and dependency the change touches, or exactly "none" (never on tier `security`, which
+changes a control in one of them). Whenever the line is not "none", Security reviews the plan (step 3), whatever
+the tier — that review found real defects in 45–73 % of the runs that
 had it. Security's diff review (step 8) is for tier `security` alone. A security area the Reviewer finds touched
 in the diff that the line does not list is handled in step 8 (*Unlisted security areas*).
 
@@ -461,7 +463,8 @@ before the PR; the blocking finding counts as resolved once the text is in and l
 A Reviewer finding *unlisted security area* — the diff touches a security area that the plan's *Security
 areas touched* does not name — needs no Dev fix and is no fix round. The orchestrator adds the area to the
 line (a `specs/` edit) and launches `squad-security` in mode `diff` on the same code SHA, scoped to the files of
-that area; its blocking findings are worked like the Reviewer's. A touch that changes nothing an attacker could
+that area; its blocking findings are worked like the Reviewer's, Security confirms their fixes in the delta
+round, and that round counts with the Reviewer's toward the limit of *Loop limits*. A touch that changes nothing an attacker could
 use (a log wording, a rename, a moved line) the Reviewer clears itself and does not report.
 
 ## Non-blocking findings

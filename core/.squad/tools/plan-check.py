@@ -256,11 +256,15 @@ def check_security_areas(plan, errors):
     """The line that decides the Security plan review: "none", or the areas — never empty or left as the template."""
     areas = re.search(r"^Security areas touched:[ \t]*(.*)$", plan, re.M)
     value = cell(areas.group(1)) if areas else ""
+    tier = re.search(r"^Tier:\s*`?(\w+)", plan, re.M)
     if NONE.match(value):
+        if tier and tier.group(1) == "security":
+            errors.append("plan.md: tier `security` changes a security control, so *Security areas touched* "
+                          "cannot be \"none\": name the area (add it to .squad/project.md if the list lacks it)")
         return
-    if not areas or empty(value) or re.match(r"none\s*\|", value, re.I) or "<areas>" in value:
-        errors.append("plan.md: write the line `Security areas touched: none` or `Security areas touched: <the "
-                      "areas>` (it decides the Security plan review)")
+    if (not areas or empty(value) or re.match(r"(?:none|no|nothing)\b", value, re.I) or "<areas>" in value):
+        errors.append("plan.md: write the line `Security areas touched: none` (exactly) or `Security areas "
+                      "touched: <the areas>` (it decides the Security plan review)")
 
 
 def check_plan(plan, spec, errors):

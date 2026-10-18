@@ -94,7 +94,8 @@ is blocking), and report as findings:
   (blocking — the change must go through the higher tier's steps; you may raise
   the tier, never lower it): a diff that creates, changes or removes a security
   control is `security`. A security area the diff touches that *Security areas
-  touched* does not list is a finding *unlisted security area*: Security
+  touched* does not list (tiers with a `plan.md`; `patch/security` goes to
+  Security anyway) is a finding *unlisted security area*: Security
   reviews that part of the diff (*Unlisted security areas* in
   `.squad/routing.md`); a touch that changes nothing an attacker could use you
   clear yourself. Below

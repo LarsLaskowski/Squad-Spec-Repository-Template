@@ -40,7 +40,7 @@ The squad skills (`squad-issue`, `squad-spec`) wrap that review in a larger, bou
 `patch`, `trivial`, `standard`, `security`) that decides how much of the pipeline runs, and owns every decision;
 a Devil's Advocate challenges a feature's spec once before it is planned, and a `standard` or `security` plan
 that weighs options once (no veto); a Security member reviews the plan (in parallel with the challenge) whenever
-the change touches a security area, and the diff only when it changes a security control (`security` tier) — below
+a change with a plan touches a security area (a `patch` in one: its diff), and the diff only when it changes a security control (`security` tier) — below
 that the Reviewer carries the security checklist of the diff; tests are
 written first and new/changed code is covered until the *Coverage gate* passes; the member that changed the files
 formats them and a Code Officer clears analyzer diagnostics *before* the review so the reviewed code is the merged code; and the review loop

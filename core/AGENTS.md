@@ -100,8 +100,8 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
   then open a PR following [`.github/pull_request_template.md`](/.github/pull_request_template.md).
 - `squad-issue` — fix a bug reported in a GitHub issue with the squad: the Lead plans and picks a tier
   (`docs` / `patch` / `trivial` / `standard` / `security`), the Devil's Advocate challenges `standard`/`security`
-  plans that weigh options once, Security reviews the plan of every change that touches a security area and the
-  diff of a change to a security control (`security` tier), the Tester writes failing tests first,
+  plans that weigh options once, Security reviews the plan of every change with a `plan.md` that touches a security area (a `patch` in one:
+  its diff) and the diff of a change to a security control (`security` tier), the Tester writes failing tests first,
   the Dev implements until the *Coverage gate* passes, each member formats the files it changed, the Code
   Officer clears analyzer diagnostics, the Reviewer reviews the diff, the PR is approved by checklist (the Lead decides what is
   open), then a PR referencing the issue is opened.

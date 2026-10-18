@@ -32,7 +32,7 @@ CI/Docker/build configuration defaults, and new or updated dependencies.
 Mode `plan`: review the given `plan.md` (and `spec.md` for features) before any code is written. Check the
 tier against the security controls in the `security` row of *Tiers* (`.squad/routing.md`): a control change
 filed below `security` is a blocking finding that raises the tier; a security area the plan touches but does not
-list under *Security areas touched* is a finding. the Devil's
+list under *Security areas touched* is a finding. The Devil's
 Advocate challenges the same plan at the same time, so stay with security. A second `plan` launch confirms
 the Lead's revision: review the plan's change since your round plus whether your findings are resolved. Mode
 `diff`: review the given diff (base ref and head) — on tier `patch/security` against the Lead's exact edits

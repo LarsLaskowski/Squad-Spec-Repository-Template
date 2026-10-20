@@ -143,7 +143,9 @@ is moved here, never worked there. After the fix is merged here, the product rep
   which stays in this repository and is never rolled out.
 - Run `python3 tools/template-check.py` before every pull request. Besides the profiles and the smoke test it
   holds each squad rule file to a word budget (`WORD_BUDGETS`): a rule that would grow a file over it replaces
-  or shortens another.
+  or shortens another. It also checks the Python tools a target receives for the SonarQube Cloud rules that have
+  flagged them on a refresh (`SONAR_RULES`, cognitive complexity with complexipy), so a finding surfaces here
+  instead of in every target's refresh pull request.
 
 ### Rolling out a change
 

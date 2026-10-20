@@ -20,7 +20,9 @@ to the other repositories. It contains no product code. See [`README.md`](README
   `.squad/stack.md` (*Format*, *Build*, *Analyzer gate*, …), project knowledge by `.squad/project.md` or a
   `<!-- project:… -->` block. Stack details belong in `profiles/<stack>/`.
 - Run `python3 tools/template-check.py` before every pull request, with `complexipy` installed (`pip install
-  complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass.
+  complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass. It also
+  checks those tools for the SonarQube Cloud rules a refresh has tripped before (`SONAR_RULES`); when a refresh
+  brings a new Sonar finding in a template-managed file, fix it here and add its rule to that check.
 - A lesson from a squad run in another repository that concerns a template-managed file is fixed here and
   rolled out with `adopt-template`, never patched in the target only.
 - **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md` and `core/.squad/team.md`);

@@ -33,8 +33,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec
-  sections, every criterion with its tests and task, every claim of the plan with its evidence); `squad-log.py`
-  appends the pipeline's log rows.
+  sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
+  evidence, no control character); `squad-log.py` appends the pipeline's log rows.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.

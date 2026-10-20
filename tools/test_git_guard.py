@@ -59,6 +59,19 @@ class TestCommands(unittest.TestCase):
             "cd /tmp/x && git push", "go test ./... ; git commit -am done", "echo ok | git stash",
             "echo $(git commit -m x)", "/usr/bin/git push", "git add -A && git commit -m wip")
 
+    def test_every_form_of_a_checkout_of_another_revision_is_denied(self):
+        # The forms a read-only member uses to read another revision (Seluna#15): each one detaches HEAD.
+        self.assert_denied(
+            "git checkout e79c609", "git -C /repo checkout e79c609", "cd /repo && git checkout e79c609",
+            "env GIT_PAGER=cat git checkout e79c609", "GIT_DIR=/repo/.git git checkout e79c609",
+            "git --no-pager checkout e79c609", "command git checkout e79c609", "sudo git checkout e79c609",
+            "bash -c 'git checkout e79c609'", "sh -c \"cd /repo && git checkout e79c609\"",
+            "bash -lc 'git -C /repo checkout e79c609'", "/bin/sh -ec 'git switch --detach e79c609'",
+            "eval 'git checkout e79c609'", "bash -c \"bash -c 'git checkout e79c609'\"")
+        self.assert_allowed("git show e79c609:specs/issue-15/plan.md", "bash -c 'git show e79c609:README.md'",
+                            "bash scripts/build.sh", "sh -c 'git log --oneline -3'",
+                            "git worktree add --detach /tmp/plan e79c609")
+
     def test_gh_reads_are_allowed_and_writes_denied(self):
         self.assert_allowed("gh api repos/o/r/issues/1", "gh api repos/o/r/issues/1/comments", "gh pr view 1",
                             "gh api -X GET repos/o/r", "gh issue list", "gh pr diff 1")

@@ -185,7 +185,7 @@ def check_control_characters(errors):
         paths += glob.glob(os.path.join(ROOT, base, "**", "*.md"), recursive=True)
         paths += glob.glob(os.path.join(ROOT, base, "**", ".*", "**", "*.md"), recursive=True)
     for path in sorted(set(paths)):
-        found = scope_check.control_characters(path)
+        found = scope_check.control_characters(scope_check.read_text(path))
         if found:
             errors.append(f"{os.path.relpath(path, ROOT)}: control characters {', '.join(found)} that scope-check.py "
                           "rejects (use an emoji of a single code point, or a text escape)")

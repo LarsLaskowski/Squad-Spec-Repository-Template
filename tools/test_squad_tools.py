@@ -253,6 +253,29 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("(opus/medium · 2,500 tokens · 2 tool uses · 20 s · continued) |", replaced.stdout)
         self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 104,000 | 34 | 250 |", run("--summary").stdout)
 
+    def test_continuation_at_another_step_warns_unless_it_names_its_round(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        write(os.path.join(root, "specs", "issue-1", "log.md"),
+              "| Date |\n| 2026-01-02 13:00 | 4 Skeleton | Dev | built (sonnet/medium · 60,000 tokens · 10 tool uses "
+              "· 300 s) |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        usage = ["--agent", "squad-dev", "--tokens", "90000", "--tool-uses", "5", "--seconds", "60"]
+        implement = run("6 Implement", "Dev", "done", "--continued", *usage)
+        self.assertEqual(implement.returncode, 0, implement.stderr)
+        self.assertIn("WARNING: '6 Implement' continues Dev's launch of step '4 Skeleton'", implement.stdout)
+        self.assertIn("first launch of another mode is a fresh launch", implement.stdout)
+        for quiet in ("4 Skeleton fix", "7 Fix", "8 Delta"):
+            self.assertNotIn("WARNING", run(quiet, "Dev", "done", "--continued", *usage).stdout, quiet)
+        self.assertEqual(run("9 Approve", "Dev", "pending", "--agent", "squad-dev").returncode, 0)
+        amended = run("--amend-last", "Dev", "--continued-from", "4 Skeleton", *usage)
+        self.assertEqual(amended.returncode, 0, amended.stderr)
+        self.assertIn("WARNING: '9 Approve' continues Dev's launch of step '4 Skeleton'", amended.stdout)
+
     def test_continued_from_subtracts_the_continued_launch_only(self):
         write(self.path, "| Date |\n")
         implement, docs = "6 Implement (rows 9-14)", "6 Docs (rows 15-18)"

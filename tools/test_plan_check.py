@@ -79,9 +79,9 @@ See spec.md.
 
 TASKS = """# Tasks: Export
 
-| # | Task | Files | Criteria | Depends on | Owner | Done |
-| - | ---- | ----- | -------- | ---------- | ----- | ---- |
-| 1 | Writer | src/Export.cs | AC1, AC2 | — | Dev | [ ] |
+| # | Group | Task | Files | Criteria | Depends on | Owner | Done |
+| - | ----- | ---- | ----- | -------- | ---------- | ----- | ---- |
+| 1 | G1 | Writer | src/Export.cs | AC1, AC2 | — | Dev | [ ] |
 """
 
 BUG_PLAN = """# Plan: Crash on empty title
@@ -209,16 +209,39 @@ class TestPlanCheck(unittest.TestCase):
                               ("## Area documents", "- docs/areas/export.md: the format.")):
             spec = spec.replace(heading + "\n", heading + "\n\n" + text + "\n", 1)
         with open(os.path.join(TEMPLATES, "tasks.md"), encoding="utf-8") as handle:
-            tasks = handle.read().replace("<title>", "Export").replace("| 1 | … | … | AC1 |", "| 1 | Writer | src/x.cs | AC1 |")
+            tasks = handle.read().replace("<title>", "Export").replace("| 1 | G1 | … | … | AC1 |", "| 1 | G1 | Writer | src/x.cs | AC1 |")
         plan = PLAN.replace("AC2", "AC1")
         self.assertEqual(self.errors(self.feature(spec=spec, plan=plan, tasks=tasks)), [])
 
     def test_tasks_in_several_tables_with_ranges_and_emphasis(self):
-        tasks = ("# Tasks\n\n## Group 1\n\n| # | Task | Criteria | Owner |\n| - | - | - | - |\n| 1 | a | `AC1` | Dev |\n\n"
-                 "## Group 2\n\n| # | Task | Criteria | Owner |\n| - | - | - | - |\n| 2 | b, not AC9 | **AC2** | Dev |\n")
+        tasks = ("# Tasks\n\n## Part 1\n\n| # | Group | Task | Criteria | Owner |\n| - | - | - | - | - |\n"
+                 "| 1 | G1 | a | `AC1` | Dev |\n\n## Part 2\n\n| # | Group | Task | Criteria | Owner |\n| - | - | - | - | - |\n"
+                 "| 2 | `G2` | b, not AC9 | **AC2** | Dev |\n")
         self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
         ranged = TASKS.replace("AC1, AC2", "AC1–AC2")
         self.assertEqual(self.errors(self.feature(tasks=ranged)), [])
+
+    def test_every_task_names_its_group_and_a_group_is_consecutive(self):
+        rows = ("| 1 | G1 | Writer | src/Export.cs | AC1 | — | Dev | [ ] |\n"
+                "| 2 | G2 | Reader | src/Import.cs | AC2 | — | Dev | [ ] |\n"
+                "| 3 | G1 | Docs | docs/areas/export.md | AC1 | 1 | Dev | [ ] |\n"
+                "| 4 | — | Tests | tests/ExportTests.cs | AC2 | 2 | Tester | [ ] |\n")
+        tasks = TASKS.replace("| 1 | G1 | Writer | src/Export.cs | AC1, AC2 | — | Dev | [ ] |\n", rows)
+        errors = self.errors(self.feature(tasks=tasks))
+        self.assertTrue(any("group G1 are not consecutive" in e for e in errors), errors)
+        self.assertTrue(any("task without a group: | 4 |" in e for e in errors), errors)
+        no_column = TASKS.replace("| # | Group | Task |", "| # | Phase | Task |")
+        self.assertTrue(any("without a *Group* column" in e for e in self.errors(self.feature(tasks=no_column))))
+
+    def test_control_character_in_any_markdown_file_of_the_folder_is_reported(self):
+        folder = self.feature(plan=PLAN.replace("single worker", "single\u202eworker"))
+        write(os.path.join(folder, "log.md"), "# Log\n\nzero\u200bwidth\n")
+        errors = self.errors(folder)
+        self.assertIn("plan.md: control characters U+202E (write them as text escapes)", errors)
+        self.assertIn("log.md: control characters U+200B (write them as text escapes)", errors)
+        self.feature(spec=SPEC.replace("Users cannot", "Users\u2028cannot"), plan=None, tasks=None)
+        errors = self.script.check_spec_only(folder)[0]
+        self.assertIn("spec.md: control characters U+2028 (write them as text escapes)", errors)
 
     def test_backticked_status_and_crlf_are_accepted(self):
         plan = PLAN.replace("| confirmed |", "| `confirmed` |").replace("to verify:", "`to verify:`")

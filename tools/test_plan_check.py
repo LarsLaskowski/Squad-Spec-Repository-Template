@@ -209,7 +209,8 @@ class TestPlanCheck(unittest.TestCase):
                               ("## Area documents", "- docs/areas/export.md: the format.")):
             spec = spec.replace(heading + "\n", heading + "\n\n" + text + "\n", 1)
         with open(os.path.join(TEMPLATES, "tasks.md"), encoding="utf-8") as handle:
-            tasks = handle.read().replace("<title>", "Export").replace("| 1 | G1 | … | … | AC1 |", "| 1 | G1 | Writer | src/x.cs | AC1 |")
+            tasks = handle.read().replace("<title>", "Export").replace("| 1 | G1 | … | … | AC1 |",
+                                                                       "| 1 | G1 | Writer | src/x.cs | AC1 |")
         plan = PLAN.replace("AC2", "AC1")
         self.assertEqual(self.errors(self.feature(spec=spec, plan=plan, tasks=tasks)), [])
 

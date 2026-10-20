@@ -23,8 +23,9 @@ Checks, in the work folder `specs/<folder>/`:
   them (it decides the Security plan review); *Verified facts* has at least
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
   that settles it, starting with `to verify:`); no template placeholder is left; no Markdown file of the work
-  folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A plan
-  longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is reported as a warning: a long plan costs every member that reads it.
+  folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A
+  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is reported as a warning: a long plan
+  costs every member that reads it.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.

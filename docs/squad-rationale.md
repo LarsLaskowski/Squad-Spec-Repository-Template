@@ -160,6 +160,54 @@ finding did.
 The internal review loop is a working step inside one session, not part of the change's history, and a reader
 of the PR has no use for it.
 
+## Anonymized samples replace whole fields (squad-lead.md, mode plan)
+
+In Vandox#33 the Lead anonymized the user's real `/proc/net/tcp6` tables but swapped only the first 32 bits of
+each IPv6 address, so two groups of the server's real prefix stayed. The check grepped for the original encoded
+strings and missed it; Security caught it only after the commit was on a public branch. Hence whole-field
+replacement and a check that decodes each field and compares it with the real values, prefixes included.
+
+## Task groups are a column (specs/_template/tasks.md; plan-check.py)
+
+`squad-spec` runs steps 4–6 per task group, but `tasks.md` had only numbered rows with *Depends on*: in
+Vandox#33 and Seluna#15 the orchestrator invented the groups itself (by dependency layer, or one launch per
+improvised slice). The Lead now fills a *Group* column and `plan-check.py` checks that every row has one and a
+group's rows are consecutive.
+
+## Verbatim fixes are whole sentences (squad-reviewer.md, Hard constraints; routing.md, Verbatim documentation fixes)
+
+In Vandox#33 a finding offered a "suggested addition after '…)'": applied literally, the clause attached to
+the wrong antecedent and changed the meaning, so the verbatim fix became an ordinary fix round.
+
+## plan-check.py rejects control characters (plan-check.py; scope-check.py)
+
+In Vandox#278 the Write tool turned an escape in `plan.md` into a literal U+202E. `plan-check.py` let it
+through steps 2–6, and only `scope-check.py` in the docs step found it, which cost an extra Lead launch during
+implementation. Both scripts now share the check (`analyzer_common.py`).
+
+## A new mode is a fresh launch (routing.md, Continuing a member; squad-issue, steps 6 and 9; squad-log.py)
+
+The rule stood only in *Continuing a member*: in Vandox#278 the orchestrator continued the Dev's `skeleton`
+agent for `implement`, in Seluna#15 the Lead's plan agent for `approve-pr`. The steps that start a new mode now
+say "fresh launch" themselves, and `squad-log.py` warns when a continuation is logged at another step than its
+fresh launch without naming a fix, delta or revise round (a step number alone cannot tell a fix round of step 7
+or 8 from a new mode).
+
+## The layout of new output is the Lead's (squad-lead.md, mode plan)
+
+In Vandox#278 the plan named a report section's texts and criteria but not its layout, so the Tester fixed ten
+layout choices (heading level, list structure, order, when cap notes appear) in the tests-first step — product
+decisions the Lead owns.
+
+## Members read other revisions without a checkout (team.md, Git and GitHub; routing.md, Commits)
+
+In Seluna#15 `squad-security` ran `git checkout <sha>` to read the plan commit; HEAD was detached and the
+orchestrator's next interim commit landed on it. Every plain form of that command (`-C`, `cd … &&`, `env`, a
+variable prefix, an absolute path) was already denied by `git-guard.py` and now has a test, so the hook most
+likely did not fire for that call; the one form found to pass it, a command run through `bash -c`, `sh -c` or
+`eval`, is checked now too. Since a guard can miss, the rule in *Shared rules* says how to read another
+revision, and the orchestrator checks `git symbolic-ref -q HEAD` before every commit.
+
 ## Retired: "Code Officer only" on Format (team.md, Shared rules)
 
 Older seeded `stack.md` files label *Format* "Code Officer only"; the rule is now that the member that changed

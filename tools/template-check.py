@@ -31,7 +31,9 @@ Checks, without arguments:
   deleted or wrongly superseded record fails; once areas are defined, a record without a listed `Area:` and an
   area without its document fail;
 - every Python tool a target receives (`core/`, `profiles/`, `multi/`, `seed/`) stays at or below SonarQube Cloud's
-  cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it);
+  cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it),
+  and trips none of the other SonarQube Cloud rules that have flagged one on a refresh (`SONAR_RULES`: duplicated
+  string literals, nested conditional expressions, anchored regex alternatives without a group);
 - every squad rule file in `WORD_BUDGETS` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) stays within its word
   budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words). Every member reads these files on
@@ -40,8 +42,10 @@ Checks, without arguments:
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
+import ast
 import glob
 import importlib.util
+import io
 import json
 import os
 import re
@@ -49,6 +53,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tokenize
 import types
 
 sys.dont_write_bytecode = True  # importing the profiles' squad_settings.py must not leave __pycache__ behind
@@ -80,6 +85,14 @@ MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
 DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
+# SonarQube Cloud rules a refresh has tripped in a target, checked on every distributed Python file (see
+# check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S5850"]
+COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+LITERAL_EXCLUSIONS = [re.compile(p) for p in (r"[_\-a-zA-Z0-9]+", r"[0-9{} .\-_%:dfrsymhYMHS<>]+", r"#[0-9a-fA-F]{6}")]
+REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall", "finditer", "sub", "subn"}
+FLAG_SETTER = re.compile(r"\(\?[aiLmsux-]+\)")
+CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
 # Word ceilings of the squad's rule files under core/ (paths relative to core/).
 WORD_BUDGETS = {
     ".squad/routing.md": 6500,
@@ -653,6 +666,149 @@ def check_word_budgets(errors, base=CORE, budgets=None):
                           "docs/squad-rationale.md")
 
 
+def distributed_python_files():
+    """Every Python file a target receives, by name (a directory walk of complexipy would skip `.squad/`)."""
+    return sorted(os.path.join(top, name) for d in DISTRIBUTED_DIRS for top, _, names in os.walk(os.path.join(ROOT, d))
+                  for name in names if name.endswith(".py"))
+
+
+def nested_conditionals(tree):
+    """python:S3358: a conditional expression inside another one, unless both sit in a comprehension."""
+    found = []
+
+    def visit(node, in_conditional, in_comprehension):
+        if isinstance(node, ast.IfExp):
+            if in_conditional and not in_comprehension:
+                found.append((node.lineno, "python:S3358", "nested conditional expression; extract it into a statement"))
+            in_conditional = True
+        in_comprehension = in_comprehension or isinstance(node, COMPREHENSIONS)
+        for child in ast.iter_child_nodes(node):
+            visit(child, in_conditional, in_comprehension)
+
+    visit(tree, False, False)
+    return found
+
+
+def is_string(node):
+    return isinstance(node, ast.JoinedStr) or (isinstance(node, ast.Constant) and isinstance(node.value, (str, bytes)))
+
+
+def string_literals(node):
+    """The string literals Sonar counts for python:S1192: no docstring (any string statement), decorator or annotation."""
+    for field, value in ast.iter_fields(node):
+        if field in ("decorator_list", "annotation", "returns"):
+            continue
+        for child in value if isinstance(value, list) else [value]:
+            if not isinstance(child, ast.AST) or (isinstance(child, ast.Expr) and is_string(child.value)):
+                continue
+            if is_string(child):
+                yield child
+            else:
+                yield from string_literals(child)
+
+
+def literal_value(node):
+    """The value of a literal, or None for an f-string with an interpolation (Sonar leaves those out)."""
+    if isinstance(node, ast.Constant):
+        return node.value.decode("latin-1") if isinstance(node.value, bytes) else node.value
+    if any(not isinstance(part, ast.Constant) for part in node.values):
+        return None
+    return "".join(part.value for part in node.values)
+
+
+def literal_tokens(source, node):
+    """The literal as Sonar keys it: its tokens with quotes and prefixes, without the whitespace between them."""
+    segment = ast.get_source_segment(source, node)
+    try:
+        return "".join(token.string for token in tokenize.generate_tokens(io.StringIO(segment).readline)
+                       if token.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.COMMENT))
+    except (tokenize.TokenError, SyntaxError):
+        return segment
+
+
+def duplicated_literals(source, tree):
+    """python:S1192: the same string literal (5 characters or more, not a plain word or format) three times or more."""
+    occurrences = {}
+    for node in string_literals(tree):
+        value = literal_value(node)
+        if value is None or len(value) < 5 or any(p.fullmatch(value) for p in LITERAL_EXCLUSIONS):
+            continue
+        occurrences.setdefault(literal_tokens(source, node), []).append(node.lineno)
+    return [(lines[0], "python:S1192", f"literal {key} appears {len(lines)} times; define a constant")
+            for key, lines in occurrences.items() if len(lines) >= 3]
+
+
+def regex_items(pattern):
+    """The disjunctions of a regex, top level and in every group: each a list of alternatives, each alternative its
+    items (`^`, `$`, `flags` for a group that only sets flags, `x` for anything else)."""
+    disjunctions, stack, i = [], [[[]]], 0
+    while i < len(pattern):
+        char, item = pattern[i], "x"
+        flag_setter = FLAG_SETTER.match(pattern, i)
+        if flag_setter:
+            item, i = "flags", flag_setter.end() - 1
+        elif char == "\\":
+            item, i = ("^" if pattern[i + 1:i + 2] == "A" else "$" if pattern[i + 1:i + 2] in "Zz" else "x"), i + 1
+        elif char == "[":
+            i = CHAR_CLASS.match(pattern, i).end() - 1
+        elif char in "^$":
+            item = char
+        elif char == "(":
+            stack.append([[]])
+            i += 1
+            continue
+        elif char == "|":
+            stack[-1].append([])
+            i += 1
+            continue
+        elif char == ")" and len(stack) > 1:
+            disjunctions.append(stack.pop())
+        stack[-1][-1].append(item)
+        i += 1
+    return disjunctions + stack
+
+
+def anchored(alternative, anchor):
+    """Whether a sequence of two items or more starts (`^`) or ends (`$`) with the anchor, flag setters left out."""
+    items = [item for item in alternative if item != "flags"]
+    return len(alternative) > 1 and bool(items) and items[0 if anchor == "^" else -1] == anchor
+
+
+def anchor_precedence(tree):
+    """python:S5850: `^a|b$` anchors only the first and the last alternative; group them to make that explicit."""
+    found = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
+                and isinstance(node.func.value, ast.Name) and node.func.value.id == "re"
+                and node.func.attr in REGEX_FUNCTIONS and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            continue
+        for alternatives in regex_items(node.args[0].value):
+            first, last, middle = alternatives[0], alternatives[-1], alternatives[1:-1]
+            if len(alternatives) > 1 and (anchored(first, "^") or anchored(last, "$")) \
+                    and not (anchored(first, "$") or anchored(last, "^")
+                             or any(anchored(a, "^") or anchored(a, "$") for a in middle)):
+                found.append((node.lineno, "python:S5850", "anchored alternatives without a group"))
+    return found
+
+
+def sonar_findings(path, source):
+    """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
+    tree = ast.parse(source, path)
+    findings = nested_conditionals(tree) + anchor_precedence(tree)
+    if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
+        findings += duplicated_literals(source, tree)
+    return sorted(findings)
+
+
+def check_sonar_rules(errors, paths=None):
+    """The Python tools a target receives trip none of the SonarQube Cloud rules that have flagged them on a refresh
+    (`SONAR_RULES`): every finding there keeps the refresh PR in draft and costs a template PR and another refresh."""
+    for path in distributed_python_files() if paths is None else paths:
+        for line, rule, message in sonar_findings(path, read(path)):
+            errors.append(f"{os.path.relpath(path, ROOT)}:{line}: {rule} {message}")
+
+
 def check_complexity(errors):
     """The Python tools a target receives stay below SonarQube Cloud's cognitive-complexity limit (python:S3776,
     15): every refresh puts them under the target's code analysis, so a finding there would cost a template PR
@@ -661,9 +817,7 @@ def check_complexity(errors):
         print("NOTE: complexipy is not installed (pip install complexipy); cognitive complexity not checked here, "
               "CI checks it")
         return
-    # Every file by name: complexipy skips hidden directories such as `.squad/` when it walks a directory itself.
-    paths = sorted(os.path.join(top, name) for d in DISTRIBUTED_DIRS for top, _, names in os.walk(os.path.join(ROOT, d))
-                   for name in names if name.endswith(".py"))
+    paths = distributed_python_files()
     with tempfile.TemporaryDirectory() as cache:
         result = subprocess.run(["complexipy", *paths, "--max-complexity-allowed", str(COGNITIVE_LIMIT), "--failed",
                                  "--plain", "--cache-dir", cache], capture_output=True, text=True, check=False)
@@ -687,6 +841,7 @@ def main():
     check_decision_tool(errors)
     check_area_checks(errors)
     check_sonar_seed(profiles, errors)
+    check_sonar_rules(errors)
     check_complexity(errors)
     for error in errors:
         print(error)

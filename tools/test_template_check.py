@@ -1,4 +1,4 @@
-"""Unit tests for the word budgets of tools/template-check.py: run `python3 -m unittest discover tools`."""
+"""Unit tests for the word budgets and Sonar rules of tools/template-check.py: run `python3 -m unittest discover tools`."""
 import importlib.util
 import os
 import sys
@@ -51,6 +51,43 @@ class TestWordBudgets(unittest.TestCase):
     def test_the_core_files_are_within_their_budgets(self):
         errors = []
         self.script.check_word_budgets(errors)
+        self.assertEqual(errors, [])
+
+
+class TestSonarRules(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    def rules(self, source, path="tool.py"):
+        return [rule for _, rule, _ in self.script.sonar_findings(path, source)]
+
+    def test_a_nested_conditional_expression_is_reported(self):
+        self.assertEqual(self.rules("x = a if b else (c if d else e)\n"), ["python:S3358"])
+
+    def test_a_nested_conditional_in_a_comprehension_passes(self):
+        self.assertEqual(self.rules("x = [a if b else (c if d else e) for a in f]\n"), [])
+
+    def test_a_literal_three_times_is_reported(self):
+        self.assertEqual(self.rules("a = 'spec.md'\nb = 'spec.md'\nc = 'spec.md'\n"), ["python:S1192"])
+
+    def test_literals_sonar_leaves_out_pass(self):
+        source = ('"""spec.md"""\n' * 3 + "a = b = c = None\n" + "".join(f"x{i} = 'plain_word'\n" for i in range(3))
+                  + "".join(f"y{i} = f'{{z}} spec.md'\n" for i in range(3)) + "w = 'spec.md', 'spec.md'\n")
+        self.assertEqual(self.rules(source), [])
+
+    def test_duplicated_literals_in_a_test_file_pass(self):
+        self.assertEqual(self.rules("a = 'spec.md'\nb = 'spec.md'\nc = 'spec.md'\n", "test_tool.py"), [])
+
+    def test_anchored_alternatives_without_a_group_are_reported(self):
+        self.assertEqual(self.rules("import re\nX = re.compile(r'^[`*_]+|[`*_]+$')\n"), ["python:S5850"])
+
+    def test_grouped_or_fully_anchored_alternatives_pass(self):
+        for pattern in (r"(?:^a)|(?:b$)", r"^(?:a|b)$", r"^a$|^b$", r"[|^]a|b", r"\\^a|b"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+
+    def test_the_distributed_tools_pass(self):
+        errors = []
+        self.script.check_sonar_rules(errors)
         self.assertEqual(errors, [])
 
 

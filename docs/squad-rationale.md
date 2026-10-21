@@ -218,3 +218,15 @@ revision, and the orchestrator checks `git symbolic-ref -q HEAD` before every co
 
 Older seeded `stack.md` files label *Format* "Code Officer only"; the rule is now that the member that changed
 the files runs it. A refresh carries the new label into the seeded file (adopt-template, step 1).
+
+## Lead mode docs, interim notifications, test-defect routing, PR body links (squad-lead.md; squad-issue, step 1; routing.md, Loop limits; create-pr, step 8)
+
+Evidence: the squad-spec run of Vandox#35 (38 launches). The plan assigned the area documents and
+`docs/ARCHITECTURE.md` to the Lead, but the Lead had no mode for them, so the orchestrator improvised a launch.
+A subagent waiting on its own background work produced an interim task notification and a final one with other
+numbers (179,088 tokens / 554 s, then 179,882 / 844 s); a row amended from the interim one needed
+`--replace-last`. Twice the Dev reproduced a fixture defect (a `/proc/meminfo` fixture without a space after the
+colon; a rig that kept `Uptime` constant while the clock advanced) and once a test helper expected the wrong
+error text; the orchestrator verified each and sent it straight to the Tester, which is faster than the Lead
+round for a disputed expectation. `create_pull_request` and `update_pull_request` rewrote inline Markdown links
+in a body into a broken form, relative paths and full URLs alike.

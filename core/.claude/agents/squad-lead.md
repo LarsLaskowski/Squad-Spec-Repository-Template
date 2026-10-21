@@ -152,9 +152,12 @@ The orchestrator tells you which **mode** to run:
   find necessary — a stale or missing record, `docs/ARCHITECTURE.md`, a missing area document — gets its
   owner by file as in `decide` and a delta round: `NOT APPROVED`, or `APPROVED` on that condition.
 
+- `docs` — a documentation task group of the plan: edit only the files of your task rows, check every
+  statement against the final code, report a mismatch in the Dev's passages, run `decision-check.py`.
+
 Output format, always ending with exactly one of these lines:
 
-- `RESULT: DONE` (spec/plan/revise), `RESULT: NO CHANGE — <reason and proposed issue comment>` (spec, plan, or revise after a challenge),
+- `RESULT: DONE` (spec/plan/revise/docs), `RESULT: NO CHANGE — <reason and proposed issue comment>` (spec, plan, or revise after a challenge),
   `RESULT: DECIDED — <option>` (decide),
   `RESULT: APPROVED` / `RESULT: NOT APPROVED — <reasons>` (approve-pr), or
 - `RESULT: ESCALATE — <one question for the Product Manager, the options, your recommendation>`

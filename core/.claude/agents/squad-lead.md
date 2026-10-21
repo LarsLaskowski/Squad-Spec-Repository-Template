@@ -109,7 +109,10 @@ The orchestrator tells you which **mode** to run:
   output, a file system) is checked against the artifact or marked *unverified* — a build output against the
   build the artifact really gets (*Image build check*), never a build from the full working tree. A criterion
   about an escape names the guard that fails when the test input lost its backslash (`.squad/team.md`,
-  *Escapes in files*).
+  *Escapes in files*). A control character a case is about (a bidi override, a zero-width character, a line
+  separator) is written in `plan.md`, `spec.md` and `tasks.md` as a text escape, never as the character
+  itself; before you hand back, check the bytes on disk as *Escapes in files* describes, so the first
+  `plan-check.py` run passes.
 
   For every decision that meets the threshold in `docs/decisions/README.md`, create a `Proposed` record
   from `docs/decisions/_template.md`, add its row to the index in `docs/decisions/README.md` with status

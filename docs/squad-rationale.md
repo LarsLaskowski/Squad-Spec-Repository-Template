@@ -185,6 +185,12 @@ In Vandox#278 the Write tool turned an escape in `plan.md` into a literal U+202E
 through steps 2–6, and only `scope-check.py` in the docs step found it, which cost an extra Lead launch during
 implementation. Both scripts now share the check (`analyzer_common.py`).
 
+In Seluna#16 (pull request Seluna#79) the Lead's plan table for AC14 contained a literal U+202E, `scope-check.py`
+refused it and the orchestrator escaped it by hand: the check only rejects a plan after it is written, and the
+Lead's `plan` mode had no instruction to prevent it (Seluna#80, second lesson). The rule now sits in
+`.squad/team.md` (*Escapes in files*), and the Lead's `plan` mode points to it, so the first `plan-check.py` run
+passes instead of costing a revise round.
+
 ## A new mode is a fresh launch (routing.md, Continuing a member; squad-issue, steps 6 and 9; squad-log.py)
 
 The rule stood only in *Continuing a member*: in Vandox#278 the orchestrator continued the Dev's `skeleton`

@@ -524,7 +524,7 @@ class TestSquadLog(unittest.TestCase):
         self.assertNotIn("pending", text)
         self.assertEqual(run("--summary").returncode, 0)
 
-    def test_pending_rows_take_amend_unreported_and_continued_but_not_replace(self):
+    def test_pending_rows_take_amend_replace_unreported_and_continued(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
@@ -539,9 +539,6 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(run("6 Implement", "Dev", "done", "--agent", "squad-dev", "--tokens", "100000", *numbers)
                          .returncode, 0)
         self.assertEqual(run("8 Fix", "Dev", "fixed", "--launch", "sonnet/medium").returncode, 0)
-        replaced = run("--replace-last", "Dev", "--agent", "squad-dev", "--tokens", "120000", *numbers, "--continued")
-        self.assertEqual(replaced.returncode, 2)
-        self.assertIn("use --amend-last", replaced.stderr.replace("add it with --amend-last", "use --amend-last"))
         amended = run("--amend-last", "Dev", "--agent", "squad-dev", "--tokens", "120000", *numbers, "--continued")
         self.assertEqual(amended.returncode, 0, amended.stdout + amended.stderr)
         with open(log, encoding="utf-8") as handle:
@@ -554,7 +551,19 @@ class TestSquadLog(unittest.TestCase):
             self.assertIn("again (sonnet/medium · 30,000 tokens · 5 tool uses · 60 s · continued) |", handle.read())
         self.assertEqual(run("10 Fix", "Dev", "more", "--agent", "squad-dev").returncode, 0)
         self.assertEqual(run("--amend-last", "Dev", "--unreported", "--agent", "squad-dev").returncode, 0)
-        self.assertEqual(run("--summary").returncode, 0)
+        self.assertEqual(run("11 Fix", "Dev", "last", "--launch", "sonnet/medium").returncode, 0)
+        self.assertEqual(run("12 Review", "Dev", "x", "--launch", "sonnet/medium").returncode, 0)
+        pending = run("--replace-last", "Dev", "--step", "11 Fix", "--agent", "squad-dev", "--tokens", "160000",
+                      *numbers)
+        self.assertEqual(pending.returncode, 0, pending.stdout + pending.stderr)
+        self.assertIn("last (sonnet/medium · 160,000 tokens · 5 tool uses · 60 s) |", pending.stdout)
+        self.assertEqual(run("--summary").returncode, 3, "the last row is still pending")
+        with open(log, encoding="utf-8") as handle:
+            without_pending = "".join(line for line in handle if "12 Review" not in line)
+        stdin = subprocess.run([sys.executable, script, "issue-1", "--summary", "--stdin"], cwd=root,
+                               input=without_pending, capture_output=True, text=True, check=False)
+        self.assertEqual(stdin.returncode, 0, stdin.stderr)
+        self.assertIn("| **Total** |", stdin.stdout)
         self.assertEqual(run("1 Intake", "Orchestrator", "branch", "--agent", "squad-dev").returncode, 2)
 
     def test_tool_uses_or_seconds_alone_are_an_incomplete_set(self):

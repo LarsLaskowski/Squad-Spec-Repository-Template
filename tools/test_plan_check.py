@@ -190,6 +190,27 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(warnings and "words" in warnings[0])
 
+    def test_plan_over_the_hard_limit_is_a_finding(self):
+        errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 9000))
+        self.assertTrue(any("PLAN_HARD_WORDS" in e for e in errors), errors)
+        self.assertEqual(warnings, [])
+
+    def test_skeleton_row_per_group_when_the_plan_lists_api(self):
+        plan = PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n- `func ReadBootID() (string, error)`\n"
+        errors = self.errors(self.feature(plan=plan))
+        self.assertTrue(any("group G1 has no *Skeleton* row" in e for e in errors), errors)
+        self.assertTrue(any("`Kernel`" in e for e in errors) and any("`ReadBootID`" in e for e in errors), errors)
+        covered = TASKS.replace("| 1 | G1 | Writer |", "| 1 | G1 | Skeleton: Options.Kernel, ReadBootID | src/Export.cs | AC1 | — | Dev | [ ] |\n| 2 | G1 | Writer |")
+        self.assertEqual(self.errors(self.feature(plan=plan, tasks=covered)), [])
+        stated = TASKS.replace("| Writer |", "| Writer (no new API) |")
+        errors = self.errors(self.feature(plan=plan, tasks=stated))
+        self.assertFalse(any("group G1" in e for e in errors), errors)
+        self.assertTrue(any("`Kernel`" in e for e in errors), errors)
+        none = PLAN + "\n## Signatures (for the Dev's skeleton)\n\nnone\n"
+        self.assertEqual(self.errors(self.feature(plan=none)), [])
+        docs = TASKS.replace("| Dev |", "| Lead |")
+        self.assertFalse(any("group G1" in e for e in self.errors(self.feature(plan=plan, tasks=docs))))
+
     def test_spec_mode_checks_the_spec_alone(self):
         self.feature(plan=None, tasks=None)
         output = io.StringIO()

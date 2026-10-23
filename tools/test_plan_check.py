@@ -196,11 +196,13 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(warnings, [])
 
     def test_skeleton_row_per_group_when_the_plan_lists_api(self):
-        plan = PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n- `func ReadBootID() (string, error)`\n"
+        plan = (PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n"
+                "- `func ReadBootID() (string, error)`\n")
         errors = self.errors(self.feature(plan=plan))
         self.assertTrue(any("group G1 has no *Skeleton* row" in e for e in errors), errors)
         self.assertTrue(any("`Kernel`" in e for e in errors) and any("`ReadBootID`" in e for e in errors), errors)
-        covered = TASKS.replace("| 1 | G1 | Writer |", "| 1 | G1 | Skeleton: Options.Kernel, ReadBootID | src/Export.cs | AC1 | — | Dev | [ ] |\n| 2 | G1 | Writer |")
+        skeleton = "| 1 | G1 | Skeleton: Options.Kernel, ReadBootID | src/Export.cs | AC1 | — | Dev | [ ] |\n"
+        covered = TASKS.replace("| 1 | G1 | Writer |", skeleton + "| 2 | G1 | Writer |")
         self.assertEqual(self.errors(self.feature(plan=plan, tasks=covered)), [])
         stated = TASKS.replace("| Writer |", "| Writer (no new API) |")
         errors = self.errors(self.feature(plan=plan, tasks=stated))

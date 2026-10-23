@@ -29,7 +29,8 @@ Checks, without arguments:
 - `decision-check.py` on a temporary repository: consistent records pass, a duplicate number and a link to a
   renamed record fail, an unreleased record may be edited in place, and around a release tag a rewritten,
   deleted or wrongly superseded record fails; once areas are defined, a record without a listed `Area:` and an
-  area without its document fail;
+  area without its document fail, and a released record without `Area:` passes only with one listed area from an
+  `## Area assignment` table in a later record;
 - every Python tool a target receives (`core/`, `profiles/`, `multi/`, `seed/`) stays at or below SonarQube Cloud's
   cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy where it is installed (CI installs it),
   and trips none of the other SonarQube Cloud rules that have flagged one on a refresh (`SONAR_RULES`: duplicated
@@ -647,6 +648,58 @@ def check_area_checks(errors):
         expect("area without a link", False)
 
 
+def write_assignment(repo, number, rows):
+    """Record `number` with an `## Area assignment` table of (record, area) rows."""
+    table = "\n".join(["## Area assignment", "", "| Record | Area |", "| ------ | ---- |"]
+                      + [f"| {record} | {area} |" for record, area in rows])
+    write_record(repo, number, area="\u2014", body="Assigns areas.\n\n" + table)
+
+
+def check_area_assignments(errors):
+    """decision-check.py: a released record without `Area:` takes its area from a later record's table."""
+    tool = os.path.join(CORE, ".squad", "tools", "decision-check.py")
+    with tempfile.TemporaryDirectory() as repo:
+        def git_in(*args):
+            subprocess.run(["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                           check=True, capture_output=True)
+
+        def expect(label, wanted):
+            passed = subprocess.run([sys.executable, tool], cwd=repo, capture_output=True,
+                                    text=True).returncode == 0
+            if passed != wanted:
+                errors.append(f"decision-check area assignment: {label}: expected {'PASS' if wanted else 'FAIL'}")
+
+        git_in("init", "-q")
+        os.makedirs(os.path.join(repo, "docs", "decisions"))
+        write_record(repo, "0001")
+        write_record(repo, "0002")
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted")])
+        git_in("add", "-A")
+        git_in("commit", "-qm", "records")
+        git_in("tag", "v1.0.0")
+        write_record(repo, "0004")
+        write_areas(repo, ["[Storage](storage.md)"], ["storage.md"])
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted"), ("0003", "Accepted"), ("0004", "Accepted")])
+        write_assignment(repo, "0003", [("0001", "Storage"), ("[0002](0002-topic.md)", "\u2014"),
+                                        ("0004", "Storage")])
+        expect("unreleased record without Area, named in a table", False)
+        write_record(repo, "0004", area="Storage")
+        expect("table names a record with its own Area", False)
+        write_assignment(repo, "0003", [("0001", "Storage"), ("[0002](0002-topic.md)", "\u2014")])
+        expect("released records assigned by a later record", True)
+        write_assignment(repo, "0003", [("0001", "Storage")])
+        expect("released record named by no table", False)
+        write_assignment(repo, "0003", [("0001", "Network"), ("0002", "\u2014")])
+        expect("assigned area not listed", False)
+        write_assignment(repo, "0003", [("0001", "Storage"), ("0002", "\u2014"), ("0009", "Storage")])
+        expect("table names a record that does not exist", False)
+        write_assignment(repo, "0003", [("0001", "Storage"), ("0002", "\u2014")])
+        write_assignment(repo, "0005", [("0001", "\u2014")])
+        write_index(repo, [("0001", "Accepted"), ("0002", "Accepted"), ("0003", "Accepted"), ("0004", "Accepted"),
+                           ("0005", "Accepted")])
+        expect("two tables disagree", False)
+
+
 def word_count(path):
     """Words as `wc -w` counts them in a UTF-8 locale: runs of non-whitespace characters."""
     return len(read(path).split())
@@ -840,6 +893,7 @@ def main():
     smoke_test(profiles, errors)
     check_decision_tool(errors)
     check_area_checks(errors)
+    check_area_assignments(errors)
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_complexity(errors)

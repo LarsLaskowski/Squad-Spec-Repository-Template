@@ -246,3 +246,11 @@ another row followed, and `--tokens 0` is refused by design, which cost several 
 locally were lost again; the rows after the removal now go through `--stdin` against the comment's log table.
 The Product Manager supplied real journals for a binary format without a sample and the Tester built an
 anonymized fixture with a field-by-field leak test against them; *Escalation* names the pattern.
+
+## Safeguard stop escalated, not relaunched; no probes in a diff review of an exploit measurement (routing.md, Loop limits; squad-issue, step 8; squad-security.md)
+
+Evidence: the squad run of Vandox#271 (working record in Vandox#271's issue comment, filed as issue 165 of this
+repository). A member stopped by the model's safeguard (`invalid_request`, category `cyber`) while it was about to
+measure a write vector; the API-error rule (relaunch unchanged, at most twice) would have looped, and rephrasing the
+request would have been a workaround. The unreviewed finding was therefore carried as unverified to the Product
+Manager, and the Security diff review of such an issue runs read-only.

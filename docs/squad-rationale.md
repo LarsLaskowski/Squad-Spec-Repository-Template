@@ -230,3 +230,19 @@ colon; a rig that kept `Uptime` constant while the clock advanced) and once a te
 error text; the orchestrator verified each and sent it straight to the Tester, which is faster than the Lead
 round for a disputed expectation. `create_pull_request` and `update_pull_request` rewrote inline Markdown links
 in a body into a broken form, relative paths and full URLs alike.
+
+## Skeleton per task group, plan size limit, log after step 10, interim usage (plan-check.py; squad-log.py; squad-issue, steps 1 and 10; tasks.md template)
+
+Evidence: the squad-spec run of Vandox#36 (72 launches, 11 task groups). Group G7 had no new type, but the plan's
+*Signatures* listed `Options.Kernel`, `Options.StateDir` and six constants, and `tasks.md` had no skeleton row for
+it: the Tester wrote tests against code that did not compile (the whole package failed to build, old tests
+included) and had to ask for a skeleton step; G9 (`procstats.ReadBootID`) went the same way in small. The plan
+grew to about 11,300 words through challenge rounds, three Security rounds and two decisions, against the soft
+limit of 4,000, because the warning named no consequence; now the Lead moves settled material out and the
+warning is a finding at twice the limit. A Dev launch with its own background gate produced five interim
+notifications with rising numbers; `--replace-last` was refused on a pending row and hit the wrong row once
+another row followed, and `--tokens 0` is refused by design, which cost several retries. Step 10 removes
+`specs/<folder>/`, so later log rows and `--summary` needed a manual restore of `log.md`, and rows written
+locally were lost again; the rows after the removal now go through `--stdin` against the comment's log table.
+The Product Manager supplied real journals for a binary format without a sample and the Tester built an
+anonymized fixture with a field-by-field leak test against them; *Escalation* names the pattern.

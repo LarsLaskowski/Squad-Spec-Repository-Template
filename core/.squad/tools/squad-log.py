@@ -23,8 +23,8 @@ mechanics out of the orchestrator's hands:
   them apart;
 - a continued launch (`SendMessage` to the agent of an earlier round; `.squad/routing.md`, *Continuing a
   member*) reports the agent's tokens since its first launch, while its tool uses and its duration cover the
-  round alone (all three are passed exactly as the task notification reports them): with `--continued` the script subtracts the tokens of that member's last fresh launch and of
-  the continuations logged after it, keeps tool uses and seconds as reported and marks the trailer
+  round alone (all three are passed exactly as the task notification reports them): with `--continued` the
+  script subtracts the tokens of that member's last fresh launch and of the continuations logged after it, keeps tool uses and seconds as reported and marks the trailer
   `· continued`; a reported token figure below the earlier total can only be the round alone and is kept as it
   is. When the continued agent is not the member's last fresh launch (one member ran several task groups,
   each in a fresh launch), `--continued-from "<step>"` names the step cell of the fresh launch whose agent was

@@ -214,6 +214,14 @@ likely did not fire for that call; the one form found to pass it, a command run 
 `eval`, is checked now too. Since a guard can miss, the rule in *Shared rules* says how to read another
 revision, and the orchestrator checks `git symbolic-ref -q HEAD` before every commit.
 
+It happened again in Vandox#286 (issue 172 of this repository): after the review round the working tree's
+`HEAD` was detached at the reviewed code SHA (reflog `checkout: moving from <branch> to 533be0d`), the
+orchestrator's next commits went onto it, and every `git push -q origin <branch>` printed nothing and pushed
+nothing, because the branch still pointed at `533be0d`; only the opened PR's old head showed it. The Reviewer
+and Security agent files now state the rule themselves, and every push is checked against `origin/<branch>`
+without `-q`, so a push that did not move the branch is caught at once. Recovering the detached commits needs
+`git merge --ff-only` after the switch, or they are left behind.
+
 ## Retired: "Code Officer only" on Format (team.md, Shared rules)
 
 Older seeded `stack.md` files label *Format* "Code Officer only"; the rule is now that the member that changed

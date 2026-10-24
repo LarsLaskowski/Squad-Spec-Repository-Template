@@ -23,7 +23,7 @@ mechanics out of the orchestrator's hands:
   them apart;
 - a continued launch (`SendMessage` to the agent of an earlier round; `.squad/routing.md`, *Continuing a
   member*) reports the agent's tokens since its first launch, while its tool uses and its duration cover the
-  round alone: with `--continued` the script subtracts the tokens of that member's last fresh launch and of
+  round alone (all three are passed exactly as the task notification reports them): with `--continued` the script subtracts the tokens of that member's last fresh launch and of
   the continuations logged after it, keeps tool uses and seconds as reported and marks the trailer
   `· continued`; a reported token figure below the earlier total can only be the round alone and is kept as it
   is. When the continued agent is not the member's last fresh launch (one member ran several task groups,
@@ -508,7 +508,8 @@ def build_parser():
                         help="duration of the launch in seconds (duration_ms / 1000, rounded to whole seconds)")
     parser.add_argument("--continued", action="store_true",
                         help="the launch continued the member's last fresh agent: the usage block reports the "
-                             "agent's tokens since its first launch, the trailer gets this round's share")
+                             "agent's tokens since its first launch, the trailer gets this round's share; its tool uses "
+                             "and seconds cover the round alone and are passed as reported, too")
     parser.add_argument("--continued-from", metavar="STEP",
                         help="like --continued, for the agent of the member's fresh launch whose step cell is STEP "
                              "(when a later fresh launch of the member exists)")

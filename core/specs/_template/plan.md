@@ -92,8 +92,9 @@ in behavior updates its area document in this pull request.
 ## Documentation updates
 
 `README.md` (configuration table, env vars), `docs/*.md` including the area documents and
-`docs/ARCHITECTURE.md` — or "none". Every documentation edit has exactly one owner (Dev, Tester or Lead); PR
-approval (step 9) only touches status, index rows and bookkeeping.
+`docs/ARCHITECTURE.md` — or "none": each file and what changes in it. The Dev writes them once the code is green,
+against that code (test documentation: the Tester); PR approval (step 9) only touches status, index rows and
+bookkeeping.
 
 ## Architecture check
 

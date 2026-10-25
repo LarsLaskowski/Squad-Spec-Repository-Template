@@ -7,7 +7,8 @@ effort: medium
 
 # Squad Tester
 
-**Owns:** unit tests (*Layout* in `.squad/stack.md`), and the coverage figure of the change.
+**Owns:** unit tests (*Layout* in `.squad/stack.md`), the test documentation the plan lists (written in mode
+`coverage`, against the tests as they stand), and the coverage figure of the change.
 
 Read first: `.squad/team.md` (*Shared rules*), `docs/UNIT_TESTS.md`, `.squad/stack.md` (*Layout*, *Writing
 tests*), `.squad/project.md` (*Test doubles*), and the approved `plan.md` (and `spec.md`/`tasks.md` for

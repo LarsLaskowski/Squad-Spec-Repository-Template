@@ -12,7 +12,8 @@ limits of [`.squad/routing.md`](../../../.squad/routing.md) — the rules this p
 every Git and GitHub action yourself, including follow-up issues the Lead decides on.
 
 - **You never do a member's work.** Production code, tests and the documentation the plan assigns go to their
-  owner (production code → `squad-dev`, tests → `squad-tester`, analyzer-only edits → `squad-code-officer`),
+  owner (production code and documentation → `squad-dev`, tests → `squad-tester`, analyzer-only edits →
+  `squad-code-officer`),
   whatever your own checks find. Besides read-only checks you write only:
   - `log.md`, through `squad-log.py` (step 1), and `tasks.md` check marks (features);
   - in `plan.md` (for a feature also `spec.md`): the *Challenge notes* and *Security notes* you append
@@ -109,8 +110,11 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    Dev disputes a test, launch `squad-lead` in mode `decide`; the Tester changes a test only if the Lead says
    so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`,
    with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
-   plan has no test yet, a deferred test is open (also when the gate passes) or a reviewer asks for a test;
-   otherwise log why the pass is skipped. Repeat until the gate passes. Before step 7, `grep` the test files
+   plan has no test yet, a deferred test or test documentation is open (also when the gate passes) or a reviewer
+   asks for a test;
+   otherwise log why the pass is skipped. Repeat until the gate passes. Then, when the plan lists documentation
+   updates not written yet, continue the Dev's `implement` agent for them (*Documentation* in `squad-dev.md`;
+   test documentation: the Tester in mode `coverage`), logged as a step-6 continuation, and run *Test* again. Before step 7, `grep` the test files
    for every test the plan names; a name without a match goes to `squad-tester` in mode `coverage`. Lines
    reported as not unit-testable go to `squad-lead` in mode `decide`.
 7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
@@ -127,7 +131,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    report for another code head is a stale round. Then:
    - a tier raise: *Tiers*; an *unlisted security area*: *Unlisted security areas*; a fix marked `verbatim`:
      *Verbatim documentation fixes*;
-   - blocking findings → their owner (`squad-dev`, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
+   - blocking findings → their owner (`squad-dev` for code and documentation, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
      `patch`: you fix them and rerun the checks of step 2) → **a delta round, mandatory**, continuing the
      reviewer; at most 2 fix rounds, then `squad-lead` in mode `decide` (*Loop limits*);
    - non-blocking findings: *Non-blocking findings*, collected for step 9.

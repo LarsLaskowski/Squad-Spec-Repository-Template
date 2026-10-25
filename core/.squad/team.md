@@ -18,11 +18,11 @@ specific to this repository lives in two files the members read first:
 
 | Role             | Subagent (charter)                                                    | Writes                                                           |
 | ---------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Lead             | [`squad-lead`](../.claude/agents/squad-lead.md)                       | plans, decision records, the doc edits the plan assigns to it    |
+| Lead             | [`squad-lead`](../.claude/agents/squad-lead.md)                       | plans, decision records                                          |
 | Devil's Advocate | [`squad-devils-advocate`](../.claude/agents/squad-devils-advocate.md) | nothing (read-only)                                              |
 | Security         | [`squad-security`](../.claude/agents/squad-security.md)               | nothing (read-only)                                              |
-| Tester           | [`squad-tester`](../.claude/agents/squad-tester.md)                   | test code, the doc edits the plan assigns to it                  |
-| Dev              | [`squad-dev`](../.claude/agents/squad-dev.md)                         | production code, the doc edits the plan assigns to it            |
+| Tester           | [`squad-tester`](../.claude/agents/squad-tester.md)                   | test code, the test documentation the plan lists                 |
+| Dev              | [`squad-dev`](../.claude/agents/squad-dev.md)                         | production code, the doc updates the plan lists, after the code  |
 | Code Officer     | [`squad-code-officer`](../.claude/agents/squad-code-officer.md)       | production and test code (format, analyzer and style fixes only); *Analyzer gate* notes in `stack.md` |
 | Reviewer         | [`squad-reviewer`](../.claude/agents/squad-reviewer.md)               | nothing (read-only)                                              |
 | Product Manager  | —                                                                     | answers escalations (the human user)                             |

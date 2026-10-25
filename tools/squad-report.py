@@ -240,7 +240,8 @@ def main(argv=None):
             for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
                 rows.append(pull_request_row(repo, pr, key or None))
     except subprocess.CalledProcessError as error:
-        print(f"GitHub could not be read: {(error.stderr or '').strip() or error}", file=sys.stderr)
+        detail = (error.stderr or "").strip() or str(error)
+        print(f"GitHub could not be read: {detail}", file=sys.stderr)
         return 1
     except (OSError, ValueError) as error:
         print(f"GitHub could not be read: {error}", file=sys.stderr)
@@ -249,8 +250,9 @@ def main(argv=None):
                         *totals(rows), "", "## Pull requests", "", *table(rows), ""])
     if args.out:
         out = os.path.realpath(args.out)
-        if not os.path.isdir(os.path.dirname(out)):
-            print(f"The directory of --out does not exist: {args.out}", file=sys.stderr)
+        base = os.path.realpath(os.getcwd())
+        if os.path.commonpath([base, out]) != base or not os.path.isdir(os.path.dirname(out)):
+            print(f"--out must name a file in an existing directory below {base}: {args.out}", file=sys.stderr)
             return 1
         with open(out, "w", encoding="utf-8") as handle:
             handle.write(report)

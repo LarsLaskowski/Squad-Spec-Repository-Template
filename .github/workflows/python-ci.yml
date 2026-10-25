@@ -86,7 +86,9 @@ jobs:
       - run: "pip install --only-binary :all: pyyaml==6.0.3 coverage==7.17.0"
       - name: Generate coverage
         run: |
-          coverage run --source=tools -m unittest discover tools
+          coverage run -m unittest discover tools
+          coverage run tools/template-check.py  # the self-check runs apply-template.py and its smoke tests
+          coverage combine
           coverage xml
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2

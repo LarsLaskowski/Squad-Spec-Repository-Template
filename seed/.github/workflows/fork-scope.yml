@@ -38,9 +38,12 @@ jobs:
           persist-credentials: false
 
       # scope-check.py checks the repository it lies in, so main's tools are
-      # copied into an ignored folder of the pull request's checkout.
+      # copied into an ignored folder of the pull request's checkout; the folder is
+      # emptied first, because Python imports from the script's folder before the
+      # standard library and a file the fork committed there would run.
       - name: Scope check
         run: |
+          rm -rf pr/.fork-scope
           mkdir -p pr/.fork-scope/tools
           cp base/.squad/tools/*.py pr/.fork-scope/tools/
           echo "/.fork-scope/" >> pr/.git/info/exclude

@@ -43,7 +43,7 @@ repository.
    staging only the files that belong to this task. Then run the *Sonar gate*
    from `.squad/stack.md` — SonarQube Cloud's analysis of the committed
    branch; fix every finding it lists (and commit again). NOT CHECKED (no
-   `SONAR_TOKEN` in this environment) leaves the check to step 9.
+   SonarQube credential in this environment) leaves the check to step 9.
 6. **Run the internal review loop** (see below) and resolve what it finds.
    This happens *before* the push, so the pull request opens on a reviewed
    change instead of collecting review rounds afterwards.

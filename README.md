@@ -29,7 +29,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
   file), *Sonar gate* (`sonar-check.py`: SonarQube Cloud's own analysis of the work branch when the session has a
-  `SONAR_TOKEN`, and of the draft pull request's head otherwise) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
+  SonarQube credential (a network secret of the cloud environment, or `SONAR_TOKEN`), and of the draft pull request's head otherwise) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
   `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec

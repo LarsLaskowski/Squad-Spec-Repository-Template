@@ -221,7 +221,8 @@ Members kept running Git writes the guard denies: `git checkout <sha>` in Seluna
 ran `git rm` without a denial, because Claude Code skips the front-matter hooks of a project agent in a folder
 without workspace trust, and a cloud or `-p` session never gives that trust. Hooks in `.claude/settings.json` run
 there and also inside subagents, with the subagent's `agent_type` in the hook input, so the guard is declared there
-and decides only for `squad-*` agents; the orchestrator keeps its Git writes.
+and decides only for `squad-*` agents; the orchestrator keeps its Git writes. The hook now runs before every Bash
+call of a session, so a machine without `python3` shows a hook error outside the squad too.
 
 It happened again in Vandox#286 (issue 172 of this repository): after the review round the working tree's
 `HEAD` was detached at the reviewed code SHA (reflog `checkout: moving from <branch> to 533be0d`), the

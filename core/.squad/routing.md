@@ -83,8 +83,9 @@ its `adopt-template` skill (`.squad/template.json` records the repository, its c
   `.github/copilot-instructions.md` is generated from `AGENTS.md` (from the first `##` heading on, kept
   identical by `config-check.py`), so a change to that body, a project block too, is made in both files.
 - **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`, `.squad/project.md`,
-  `.squad/tools/squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md` and the
-  profile's CI, CodeQL, Dependabot and tool configuration files.
+  `.squad/tools/squad_settings.py`, `.claude/settings.json` (a refresh adds the members' git-guard hook when it is
+  missing), `SECURITY.md`, `docs/UNIT_TESTS.md` and the profile's CI, CodeQL, Dependabot and tool configuration
+  files.
 
 ## Squad lessons
 
@@ -413,7 +414,8 @@ A review finding — blocking or non-blocking — whose fix the reviewer states 
 stands, the sentence as it should read, marked `verbatim` in the report) and that touches only documentation, a
 decision record, an area document, `README.md` or a configuration example (never production or test code) is
 applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, passed through
-*Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit. No launch, no
+*Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit (after the PR: a
+step-11 row of the Orchestrator naming it `verbatim`). No launch, no
 build, no confirming delta round: a blocking finding resolved this way makes its round clean, and the text is read
 again only by a delta round due for another change. An edit beyond the proposed text, or a fix the reviewer cannot
 state verbatim, is an ordinary fix for its owner with a delta round. One exception: a fix that changes a behavior

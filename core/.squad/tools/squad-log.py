@@ -479,20 +479,22 @@ def summary(path):
 
 
 def fixes_after_pr(root, folder):
-    """(count, time of the last one, UTC) of the non-merge commits after the commit that removed the work folder in
-    step 10; None before that removal (or outside a Git repository)."""
-    name = folder.removeprefix(SPECS_PREFIX).strip("/")
+    """(count, time of the last one, UTC) of the branch's own commits after the commit that removed the work folder
+    in step 10 (the first removal; a merge of the base branch and the commits it brings in are left out); None
+    before that removal (or outside a Git repository)."""
+    name = folder.strip().replace("\\", "/").strip("/").removeprefix(SPECS_PREFIX)
     if not FOLDER_NAME.fullmatch(name):
         return None
 
     def git(*args):
         return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, check=False).stdout
 
-    removal = git("log", "--diff-filter=D", "--format=%H", "-1", "--", f"specs/{name}/log.md",
-                  f":(glob)specs/{name}-*/log.md").strip()
-    if not removal:
+    removals = git("log", "--diff-filter=D", "--format=%H", "--", f"specs/{name}/log.md",
+                   f":(glob)specs/{name}-*/log.md").split()
+    if not removals:
         return None
-    stamps = [int(value) for value in git("log", "--no-merges", "--format=%ct", f"{removal}..HEAD").split()]
+    stamps = [int(value) for value in
+              git("log", "--first-parent", "--no-merges", "--format=%ct", f"{removals[-1]}..HEAD").split()]
     last = datetime.datetime.fromtimestamp(max(stamps), datetime.UTC).replace(tzinfo=None) if stamps else None
     return len(stamps), last
 

@@ -397,8 +397,8 @@ class TestSquadLog(unittest.TestCase):
         def commit(message, when, *paths, remove=False):
             env = {**os.environ, "GIT_COMMITTER_DATE": when, "GIT_AUTHOR_DATE": when}
             for args in (["rm", "-q", "-r", *paths] if remove else ["add", *paths], ["commit", "-q", "-m", message]):
-                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=root, env=env,
-                               check=True, capture_output=True)
+                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
+                                *args], cwd=root, env=env, check=True, capture_output=True)
 
         subprocess.run(["git", "init", "-q", "-b", "work"], cwd=root, check=True)
         write(os.path.join(root, "specs", "issue-1-fix", "log.md"), "| Date |\n")
@@ -425,6 +425,12 @@ class TestSquadLog(unittest.TestCase):
         early = log + ("| 2026-01-02 14:55 | 11 Review delta | squad-reviewer | APPROVE "
                        "(opus/medium · 20,000 tokens · 4 tool uses · 40 s) |\n")
         self.assertEqual(summary(early).returncode, 4, "a review before the last fix does not cover it")
+        env = {**os.environ, "GIT_COMMITTER_DATE": "2026-01-02T16:00:00Z", "GIT_AUTHOR_DATE": "2026-01-02T16:00:00Z"}
+        for args in (["checkout", "-q", "-b", "main", "HEAD~2"], ["commit", "-q", "--allow-empty", "-m", "main moved"],
+                     ["checkout", "-q", "work"], ["merge", "-q", "--no-edit", "--no-ff", "main"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                           cwd=root, env=env, check=True, capture_output=True)
+        self.assertEqual(summary(reviewed).returncode, 0, "a merge of the base branch is no fix to review")
 
     def test_orchestrator_counts_parallel_launches_once(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")

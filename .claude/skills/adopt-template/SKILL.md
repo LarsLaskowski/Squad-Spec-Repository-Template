@@ -125,7 +125,8 @@ Rules that hold throughout:
      if it is released, the seed gets the next number with *Supersedes* set, and the old record's status
      becomes `Superseded by NNNN`.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
-     exists; keep every other hook.
+     and the PreToolUse `Bash` hook running `.claude/hooks/git-guard.py` exist (the apply step adds the
+     latter; a `conflict` for `.claude/settings.json` means adding it by hand); keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
    - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description

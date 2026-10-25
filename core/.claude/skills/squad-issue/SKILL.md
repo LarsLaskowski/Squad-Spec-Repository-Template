@@ -177,7 +177,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     lessons` row instead. Run `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's
     log table); exit code 3 names launch rows still without usage — amend them from their
     notifications or mark them `--unreported`, and run it again; exit code 4 names commits after the PR that
-    no step-11 review row follows — run their delta review (step 11) and run it again. Append the tables exactly as printed (a run
+    no step-11 review row follows — run their delta review (step 11), or log a verbatim fix as such, and run it
+    again. Append the tables exactly as printed (a run
     without them is not wrapped up) to the comment under "Squad run metrics", and report the branch, the PR
     URL, the tier, the `squad` issues (or "no lessons"), the metrics tables and any escalation or Lead
     decision to the user.

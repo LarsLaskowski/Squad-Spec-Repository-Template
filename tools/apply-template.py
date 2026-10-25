@@ -627,10 +627,11 @@ def with_git_guard(text):
     if not isinstance(pre_tool_use, list):
         raise ValueError("no JSON object with a hooks.PreToolUse list")
     if any("git-guard.py" in str(hook.get("command", "")) for group in pre_tool_use if isinstance(group, dict)
-           for hook in group.get("hooks") or [] if isinstance(hook, dict)):
+           for hook in (group.get("hooks") if isinstance(group.get("hooks"), list) else [])
+           if isinstance(hook, dict)):
         return None
     pre_tool_use.append(GIT_GUARD_HOOK)
-    return json.dumps(data, indent=2) + "\n"
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def merge_git_guard(target, emit, report):

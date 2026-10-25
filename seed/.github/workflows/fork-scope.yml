@@ -6,16 +6,17 @@ name: Fork scope
 # Contributions from outside).
 #
 # pull_request_target runs this file and scope-check.py as they are on main, so
-# a fork cannot weaken the check in its own pull request. The fork's revision
-# is only read (file names, diffs, Markdown text), never built or executed:
-# never add a step here that runs code from the "pr" directory. Both checkouts
-# keep no credentials, and the token is read-only.
+# a fork cannot weaken the check in its own pull request. The fork is never
+# checked out: scope-check.py reads the changed files and their text through the
+# GitHub API (--pull-request), with a read-only token. Never add a step that
+# checks out the pull request's code or runs anything from it.
 on:
   pull_request_target:
     branches: [main]
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   scope:
@@ -26,22 +27,10 @@ jobs:
       - name: Check out main (the check)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: base
           persist-credentials: false
 
-      - name: Check out the pull request (read only)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/head
-          path: pr
-          fetch-depth: 0 # scope-check diffs against the merge base with origin/main
-          persist-credentials: false
-
-      # scope-check.py checks the repository it lies in, so main's tools are
-      # copied into an ignored folder of the pull request's checkout.
       - name: Scope check
-        run: |
-          mkdir -p pr/.fork-scope/tools
-          cp base/.squad/tools/*.py pr/.fork-scope/tools/
-          echo "/.fork-scope/" >> pr/.git/info/exclude
-          python3 pr/.fork-scope/tools/scope-check.py --no-specs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 .squad/tools/scope-check.py --no-specs --pull-request "$PR_NUMBER"

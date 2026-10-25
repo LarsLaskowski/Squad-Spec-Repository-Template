@@ -20,8 +20,9 @@ def issue(path, line, rule="go:S1192", message="Define a constant"):
 class FakeApi:
     """Answers the endpoints sonar-check.py reads from canned data, and records the calls."""
 
-    def __init__(self, analysed="abc1234def", gate="OK", issues=(), hotspots=(), task=None):
+    def __init__(self, analysed="abc1234def", gate="OK", issues=(), hotspots=(), task=None, valid=False):
         self.analysed, self.gate, self.issues, self.hotspots = analysed, gate, list(issues), list(hotspots)
+        self.valid = valid
         self.task = task or {"status": "SUCCESS", "branch": "work"}
         self.calls = []
 
@@ -33,6 +34,7 @@ class FakeApi:
             "issues/search": lambda: {"issues": self.issues, "paging": {"total": len(self.issues)}},
             "hotspots/search": lambda: {"hotspots": self.hotspots, "paging": {"total": len(self.hotspots)}},
             "ce/task": lambda: {"task": self.task},
+            "users/current": lambda: {"isLoggedIn": self.valid},
         }
         return answers[path]()
 
@@ -162,12 +164,31 @@ class TestBranchMode(SonarCheckCase):
         self.assertFalse(self.script.on_changed_line(issue("b.go", 3), KEY, lines))
         self.assertTrue(self.script.on_changed_line({"component": f"{KEY}:c.go"}, KEY, lines))
 
-    def test_without_token_is_not_checked(self):
+    def test_without_token_or_network_secret_is_not_checked(self):
         make_repository()
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}):
+        fake = FakeApi(valid=False)
+        with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}), mock.patch.object(self.script, "api", fake):
             code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
         self.assertEqual(code, self.script.NOT_CHECKED)
-        self.assertIn("SONAR_TOKEN", output)
+        self.assertIn("network secret", output)
+        self.assertEqual([path for path, _, token in fake.calls], ["users/current"])
+
+    def test_unreachable_sonarqube_means_no_network_secret(self):
+        def unreachable(path, params, token=None):
+            raise OSError("blocked")
+        with mock.patch.object(self.script, "api", unreachable):
+            self.assertFalse(self.script.proxy_credential())
+
+    def test_network_secret_scans_without_a_token_of_its_own(self):
+        make_repository()
+        scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
+                   "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
+        fake = FakeApi(valid=True)
+        with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}), mock.patch.object(self.script, "api", fake):
+            code, output = self.run_quiet(self.script.main, ["branch", "--", *scanner])
+        self.assertEqual(code, self.script.CLEAN, output)
+        self.assertEqual({token for _, _, token in fake.calls}, {None}, "no token of its own is sent")
+        self.assertIn("ce/task", [path for path, _, _ in fake.calls])
 
     def test_dirty_tree_and_base_branch_are_not_scanned(self):
         make_repository()

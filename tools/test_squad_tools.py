@@ -1,11 +1,14 @@
 """Unit tests for core/.squad/tools/squad-log.py and scope-check.py: run `python3 -m unittest discover tools`."""
 import importlib.util
+import json
 import os
 import subprocess
 import sys
 import tempfile
 import types
 import unittest
+import unittest.mock as mock
+import urllib.parse
 
 sys.dont_write_bytecode = True
 TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", ".squad", "tools")
@@ -670,6 +673,91 @@ class TestScopeCheck(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn("31 changed lines outside specs/", found[0])
         self.assertEqual(self.errors(tier="standard"), [], "the budget applies to tier patch only")
+
+
+class TestScopeCheckPullRequest(unittest.TestCase):
+    """The pull request mode: files and texts come from the GitHub API, nothing is checked out."""
+
+    BLOCKS = ("# Contributing\n\ntemplate text\n<!-- project:begin areas -->\n{}\n<!-- project:end areas -->\n"
+              "more template text\n")
+
+    def setUp(self):
+        self.script = load_script("scope-check")
+        self.calls = []
+        self.before = {"docs/CONTRIBUTING.md": self.BLOCKS.format("old"), "README.md": "# Readme\n"}
+        self.after = {}
+        self.files = []
+        self.script.api_get = self.fake_api
+
+    def fake_api(self, path, token, raw=False):
+        self.calls.append(path)
+        if "/contents/" in path:
+            name, ref = path.split("/contents/")[1].split("?ref=")
+            return (self.before if ref == "mergebase" else self.after).get(urllib.parse.unquote(name))
+        if "/files?" in path:
+            return json.dumps(self.files if "page=1" in path else [])
+        if "/compare/" in path:
+            return json.dumps({"merge_base_commit": {"sha": "mergebase"}})
+        return json.dumps({"head": {"sha": "headsha", "repo": {"full_name": "fork/repo"}}, "base": {"sha": "basesha"}})
+
+    def errors(self, files, no_specs=False):
+        self.files = [{"filename": name} for name in files]
+        source = self.script.PullRequestSource("owner/repo", 7, "token")
+        return self.script.check(source.changed_files(), source.merge_base, None, no_specs, source)
+
+    def test_product_change_passes_and_reads_the_fork_by_sha(self):
+        self.after["src/a.go"] = "package a\n"
+        self.assertEqual(self.errors(["src/a.go"]), [])
+        self.assertIn("/repos/owner/repo/compare/basesha...headsha", self.calls)
+
+    def test_squad_file_is_reported_and_a_rename_counts_under_the_old_name(self):
+        self.files = [{"filename": "docs/x.md", "previous_filename": ".claude/settings.json"}]
+        source = self.script.PullRequestSource("owner/repo", 7, "token")
+        found = self.script.check(source.changed_files(), source.merge_base, None, False, source)
+        self.assertEqual([e.split(":")[0] for e in found], [".claude/settings.json"])
+
+    def test_marked_file_edit_outside_blocks_is_reported_inside_passes(self):
+        self.after["docs/CONTRIBUTING.md"] = self.BLOCKS.format("new")
+        self.assertEqual(self.errors(["docs/CONTRIBUTING.md"]), [])
+        self.after["docs/CONTRIBUTING.md"] = self.BLOCKS.format("new").replace("template text", "edited")
+        self.assertIn("outside its <!-- project:", self.errors(["docs/CONTRIBUTING.md"])[0])
+
+    def test_control_character_in_markdown_and_working_record_are_reported(self):
+        self.after["docs/a.md"] = "text \u202e here\n"
+        self.after["specs/issue-1/log.md"] = "| Date |\n"
+        found = self.errors(["docs/a.md", "specs/issue-1/log.md"], no_specs=True)
+        self.assertEqual(len(found), 2, found)
+        self.assertIn("U+202E", found[0])
+
+    def test_deleted_file_has_no_text_after_and_is_not_an_edit_outside_blocks(self):
+        self.assertEqual(self.errors(["docs/CONTRIBUTING.md"]), [])
+
+    def test_contents_path_is_quoted(self):
+        self.after["docs/a b.md"] = "# A\n"
+        self.errors(["docs/a b.md"])
+        self.assertIn("/repos/fork/repo/contents/docs/a%20b.md?ref=headsha", self.calls)
+
+    def test_repository_name_from_the_api_is_checked(self):
+        with self.assertRaises(SystemExit):
+            self.script.checked_repository("../../etc")
+
+    def test_pages_are_read_until_a_short_page(self):
+        self.script.api_get = lambda path, token, raw=False: json.dumps(
+            [{"filename": f"f{n}.txt"} for n in range(100)] if path.endswith("page=1") else [{"filename": "last.txt"}])
+        source = self.script.PullRequestSource.__new__(self.script.PullRequestSource)
+        source.repository, source.number, source.token = "owner/repo", 7, "token"
+        self.assertEqual(len(source.changed_files()), 101)
+
+    def test_tier_cannot_be_combined_with_a_pull_request(self):
+        with mock.patch.object(sys, "argv", ["scope-check.py", "--pull-request", "7", "--tier", "docs"]):
+            with self.assertRaises(SystemExit) as raised:
+                self.script.main()
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_pull_request_mode_needs_the_environment(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(SystemExit):
+                self.script.pull_request_source(7)
 
 
 if __name__ == "__main__":

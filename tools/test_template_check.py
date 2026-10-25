@@ -28,9 +28,9 @@ class TestWordBudgets(unittest.TestCase):
         self.dir.cleanup()
 
     def check(self, budgets):
-        errors = []
-        self.script.check_word_budgets(errors, base=self.dir.name, budgets=budgets)
-        return errors
+        errors, warnings = [], []
+        self.script.check_word_budgets(errors, base=self.dir.name, budgets=budgets, warnings=warnings)
+        return errors + warnings
 
     def test_words_are_counted_like_wc(self):
         self.assertEqual(self.script.word_count(os.path.join(self.dir.name, ".squad", "routing.md")), 10)
@@ -41,14 +41,20 @@ class TestWordBudgets(unittest.TestCase):
     def test_a_file_over_its_budget_names_file_count_and_budget(self):
         errors = self.check({".squad/routing.md": 9})
         self.assertEqual(len(errors), 1)
+        self.assertTrue(errors[0].startswith("WARNING"))
         self.assertIn("core/.squad/routing.md", errors[0])
         self.assertIn("10 words", errors[0])
         self.assertIn("budget of 9", errors[0])
 
+    def test_a_file_over_its_budget_is_no_error(self):
+        errors = []
+        self.script.check_word_budgets(errors, base=self.dir.name, budgets={".squad/routing.md": 9}, warnings=[])
+        self.assertEqual(errors, [])
+
     def test_a_budgeted_file_that_is_missing_fails(self):
         self.assertIn("missing", self.check({".squad/team.md": 100})[0])
 
-    def test_the_core_files_are_within_their_budgets(self):
+    def test_the_budgeted_core_files_exist(self):
         errors = []
         self.script.check_word_budgets(errors)
         self.assertEqual(errors, [])

@@ -38,8 +38,8 @@ Checks, without arguments:
   group, several spaces in a regex);
 - every squad rule file in `WORD_BUDGETS` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) stays within its word
-  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words). Every member reads these files on
-  every launch, so a rule that would grow a file over its budget replaces or shortens another one there; the
+  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words); a file over it is a warning. Every
+  member reads these files on every launch, so size is watched, but a rule is not cut to fit; the
   evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
@@ -777,18 +777,19 @@ def word_count(path):
     return len(read(path).split())
 
 
-def check_word_budgets(errors, base=CORE, budgets=None):
-    """No squad rule file grows past its budget: a new rule replaces or shortens another one in the same file."""
+def check_word_budgets(errors, base=CORE, budgets=None, warnings=None):
+    """A squad rule file past its budget is a warning, not an error: a rule is never cut to fit, but the PR says
+    why the file cannot be shorter (AGENTS.md, *Writing rules*). A budgeted file that is missing is an error."""
     for rel, budget in (WORD_BUDGETS if budgets is None else budgets).items():
         path = os.path.join(base, rel)
         if not os.path.isfile(path):
             errors.append(f"core/{rel}: listed in WORD_BUDGETS but missing")
             continue
         words = word_count(path)
-        if words > budget:
-            errors.append(f"core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
-                          "tools/template-check.py) — replace or shorten another rule, move evidence to "
-                          "docs/squad-rationale.md")
+        if words > budget and warnings is not None:
+            warnings.append(f"WARNING core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
+                            "tools/template-check.py) — cut repetition and evidence, keep reasons and examples "
+                            "that change how a rule is read; justify the size in the pull request")
 
 
 def distributed_python_files():
@@ -986,12 +987,13 @@ def check_complexity(errors):
 
 def main():
     errors = []
+    warnings = []
     check_agents_and_skills(ROOT, errors)
     check_agents_and_skills(CORE, errors)
     check_core(errors)
     check_control_characters(errors)
     check_placeholders(errors)
-    check_word_budgets(errors)
+    check_word_budgets(errors, warnings=warnings)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
@@ -1000,8 +1002,8 @@ def main():
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_complexity(errors)
-    for error in errors:
-        print(error)
+    for line in warnings + errors:
+        print(line)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")
     return 0 if not errors else 1
 

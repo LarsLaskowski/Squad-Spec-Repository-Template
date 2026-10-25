@@ -56,7 +56,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
      its task notification arrives, add the usage with `--amend-last "<member>" --agent squad-<role> --tokens …
      --tool-uses … --seconds …` (`--step "<step>"` for a row that is no longer the member's last).
    - **Every number is copied from the usage block of a task notification you have in front of you** —
-     never an estimate or the member's hand-back. A notification whose summary says the
+     never an estimate, a figure from memory or the member's hand-back. A notification whose summary says the
      agent is waiting on its own background work is interim: amend with the numbers of the final notification
      of the same task id (`--replace-last`, with `--step` if the row is no longer the member's last, if the interim
      ones are already in). A repeated hand-back message is ignored; only the latest notification of a task id
@@ -64,7 +64,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
      `--replace-last`, never with a second row.
    - A continued launch gets `--continued` (or `--continued-from "<step cell of the fresh launch>"` when that
      agent is not the member's last fresh launch) on the call that carries its numbers — the amend of its pending
-     row — with the notification's numbers unchanged. Name a fix, delta or revise round as such in its step
+     row — with the notification's numbers unchanged (only the tokens are cumulative). Name a fix, delta or revise round as such in its step
      cell; a continuation at another step than its fresh launch draws a warning (a new mode is a fresh launch).
    - Rows of the Orchestrator, the Product Manager and the User take no metric option.
    - After step 10 every call — row, amend, summary — needs `--stdin` (step 10); without it, it fails.

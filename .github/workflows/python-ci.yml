@@ -45,6 +45,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # template-check.py compares the rule files with their merge base with origin/main
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"

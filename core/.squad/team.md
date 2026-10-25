@@ -2,7 +2,8 @@
 
 Squad for this repository, used for both bug reports (`squad-issue` skill) and new features, with or
 without a GitHub issue (`squad-spec` skill; `routing.md`, *Bug or feature*). The idea follows [bradygaster/squad](https://github.com/bradygaster/squad): this
-file names the members and the rules they share, `routing.md` holds the pipeline and its limits, and each
+file names the members and the rules they share, `routing.md` holds the pipeline and its limits,
+`orchestration.md` the orchestrator's own procedures, and each
 role's charter is the Claude Code subagent file under `.claude/agents/` (all changed only in squad-maintenance
 PRs). The roles run as subagents, driven by the invoking session (the orchestrator).
 
@@ -57,7 +58,7 @@ tools) belong to the orchestrator alone, also for "handing over" work. Experimen
 edits, baselines) run in a scratch `git worktree` (`git stash` is a Git write, too). The orchestrator commits, pushes and opens the pull request (`routing.md`, *Pipeline*).
 
 **Reporting against a SHA.** Before the PR the orchestrator may commit your edits as work in progress while
-you work (`routing.md`, *The stop hook*), so a clean `git status` at hand-back is expected: report your
+you work (`orchestration.md`, *The stop hook*), so a clean `git status` at hand-back is expected: report your
 changes against the head SHA you were given (`git diff <sha>`).
 
 **A real check before "done".** A change to code that can be run, built or type-checked is exercised by a
@@ -66,7 +67,7 @@ itself. A syntax-only check, or a check command that failed to start, does not c
 run here, say which one you did not run and why.
 
 **Continued members.** The orchestrator may continue a member's earlier launch for a fix or delta round
-(`routing.md`, *Continuing a member*). A continued member keeps its role and its limits, works on or reviews
+(`orchestration.md`, *Continuing a member*). A continued member keeps its role and its limits, works on or reviews
 only the delta since the SHA of its last round, and nothing it remembers from an earlier round replaces
 reading that delta.
 

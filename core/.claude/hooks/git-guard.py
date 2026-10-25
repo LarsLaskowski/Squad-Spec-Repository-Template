@@ -12,7 +12,7 @@ trust, which a cloud or `-p` session never gives. It reads the hook input JSON f
 - allowed: read-only Git (`status`, `diff`, `log`, `show`, `ls-files`, `grep`, `rev-parse`, `merge-base`,
   `fetch`, `tag --list` / `--contains`, `branch --list` / `--show-current`, `ls-remote`, `clone`, …),
   `git add` (the coverage gate only counts tracked files) and `git worktree add` / `remove` / `prune` /
-  `list` (scratch worktrees, `.squad/routing.md`, *Concurrency*), and read-only `gh` (`gh api` without a
+  `list` (scratch worktrees, `.squad/orchestration.md`, *Concurrency*), and read-only `gh` (`gh api` without a
   method or field, `gh pr view`, …);
 - denied: `commit`, `push`, `stash`, `reset`, `checkout`, `switch`, `restore`, `rebase`, `merge`,
   `cherry-pick`, `revert`, `rm`, `mv`, `clean`, `pull`, `am`, `apply`, `tag <name>`, `branch -d/-D/-m/…`,

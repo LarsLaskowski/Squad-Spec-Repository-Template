@@ -18,7 +18,7 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
 1. **Intake.** With a GitHub issue, read it in full, including comments and labels, and decide bug or feature
    (`.squad/routing.md`, *Bug or feature*) — the user calling it a feature or invoking this skill settles
    it; a bug fix switches to `squad-issue` now. A closed issue: stop and report that. A run that waits for
-   an outside author's agreement continues on its work branch (`.squad/routing.md`, *Outside authors*). Run
+   an outside author's agreement continues on its work branch (`.squad/orchestration.md`, *Outside authors*). Run
    `git fetch origin main --tags`, create the branch off the latest `main` (or the branch the session
    prescribes) and the work folder `specs/feature-<short-slug>/` (from an issue
    `specs/feature-<number>-<short-slug>/`) with `log.md` from `specs/_template/log.md`; commit and push. Log

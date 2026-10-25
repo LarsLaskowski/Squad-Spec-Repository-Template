@@ -213,7 +213,7 @@ def file_errors(path, source, tier, no_specs, fork=False):
     """Every scope finding for one changed file."""
     findings = [
         (is_squad_file(path, fork), f"{path}: squad or instruction file changed in a product change "
-                                    "(file a squad issue instead, .squad/routing.md *Squad lessons*)"),
+                                    "(file a squad issue instead, .squad/orchestration.md *Squad lessons*)"),
         (not fork and rule_file_added_or_deleted(path, source),
          f"{path}: instruction file added or deleted in a product change"),
         (path in MARKED and marked_file_changed_outside_blocks(path, source),

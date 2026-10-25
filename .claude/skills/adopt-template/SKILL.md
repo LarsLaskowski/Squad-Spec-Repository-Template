@@ -18,7 +18,7 @@ Rules that hold throughout:
   overview, architecture, commands, conventions, guarantees, security notes, review checklists in old
   skills or agents — ends up in a project block, `.squad/stack.md`, `.squad/project.md`, `docs/` or a kept
   file. Deleting is only allowed for content the template now covers word for word in meaning.
-- **Template-managed files are not edited in the target** (`.squad/routing.md`, *Template-managed files*).
+- **Template-managed files are not edited in the target** (`.squad/orchestration.md`, *Template-managed files*).
   If one does not fit the target, stop and fix it here in Squad-Spec-Repository-Template first, then re-apply.
 - Everything written into the target is in **English**.
 
@@ -152,7 +152,7 @@ Rules that hold throughout:
     `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced,
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until it merges cleanly, CI is green and the code
-    analysis lists no new issue, then mark it ready for review (the target's `.squad/routing.md`, *Draft
+    analysis lists no new issue, then mark it ready for review (the target's `.squad/orchestration.md`, *Draft
     until green*). Read its mergeability on every look at the PR: a conflict with the target's base branch
     keeps CI from starting and is merged and resolved first (*Merge conflicts* there).
 11. **Report** to the user: target, profile, PR URL, deleted and kept skills/agents, open issues (e.g.

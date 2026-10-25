@@ -67,10 +67,10 @@ repository.
      (`pull_request_read`, method `get`) and compare its links and code spans
      with what you sent; a mangled one is fixed with `update_pull_request`
      before anything else
-9. **Keep it a draft until green** (`.squad/routing.md`, *Draft until green*).
+9. **Keep it a draft until green** (`.squad/orchestration.md`, *Draft until green*).
    Subscribe to the PR's activity (`subscribe_pr_activity` when available;
    otherwise check the results yourself before finishing). A merge conflict
-   comes first (`.squad/routing.md`, *Merge conflicts*). Fix each failing
+   comes first (`.squad/orchestration.md`, *Merge conflicts*). Fix each failing
    check and every new issue `python3 .squad/tools/sonar-check.py pr <number>`
    lists, rerun step 4 on the fix (on merged files: the gates they need),
    commit once per round and push. Mark the PR ready for review
@@ -112,7 +112,7 @@ a round trip through pull request comments. Each pass is delegated to the
      one delta pass. Otherwise open a GitHub issue for it **now** and link it
      under the PR's Next Steps.
 3. **Pass n+1** — continue the reviewer's earlier launch
-   (`.squad/routing.md`, *Continuing a member*) with the round number, the
+   (`.squad/orchestration.md`, *Continuing a member*) with the round number, the
    previous round's findings and the commits that fixed them; it reviews the
    delta only. When Security's findings were fixed, `squad-security` reviews
    that delta too.

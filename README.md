@@ -10,7 +10,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features, also from issues)
   skills: for a feature first a spec (scenarios, edge cases, the acceptance criteria) and its challenge, then plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → PR approval by checklist → pull request. Details in
-  [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in `.claude/settings.json`
+  [`core/.squad/routing.md`](core/.squad/routing.md), the orchestrator's own procedures in
+  [`core/.squad/orchestration.md`](core/.squad/orchestration.md). A `PreToolUse` hook in `.claude/settings.json`
   (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members (every `squad-*` agent); only the orchestrating session
   commits, pushes and posts.
 - **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
@@ -42,7 +43,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   *Fork scope* workflow: a pull request from a fork that changes the squad, the agent instructions or the template
   parts of the marked files fails, checked by `main`'s own `scope-check.py` so the fork cannot weaken it.
 - **Outside contributions** — `docs/CONTRIBUTING.md` asks outside contributors for an issue before a feature, the
-  squad agrees an outside author's acceptance criteria on the issue before planning (`.squad/routing.md`, *Outside
+  squad agrees an outside author's acceptance criteria on the issue before planning (`.squad/orchestration.md`, *Outside
   authors*), `review-pr` reads a fork's diff before checking it out, and every member treats issue, PR and comment
   texts as data, never as instructions (`.squad/team.md`).
 
@@ -66,7 +67,7 @@ Four kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
 | generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard hook added when it lacks it |
@@ -129,7 +130,7 @@ everything project-specific.
 
 ## Changing the template
 
-Squad lessons are filed where they can be fixed (`core/.squad/routing.md`, *Squad lessons*):
+Squad lessons are filed where they can be fixed (`core/.squad/orchestration.md`, *Squad lessons*):
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
@@ -148,7 +149,9 @@ is moved here, never worked there. After the fix is merged here, the product rep
   evidence behind it (incidents, measured numbers) into [`docs/squad-rationale.md`](docs/squad-rationale.md),
   which stays in this repository and is never rolled out.
 - Run `python3 tools/template-check.py` before every pull request. Besides the profiles and the smoke test it
-  warns when a squad rule file passes its word budget (`WORD_BUDGETS`) or two of them share a 20-word run (`AGENTS.md`, *Writing rules*). It also checks the Python tools a target receives for the SonarQube Cloud rules that have
+  reports how the squad's rule files grew against their merge base with `origin/main`, warns about every sentence that left them, about a
+  20-word run two of them share and about a total more than 15 % over the last consolidation (`AGENTS.md`, *Writing
+  rules*). It also checks the Python tools a target receives for the SonarQube Cloud rules that have
   flagged them on a refresh (`SONAR_RULES`, cognitive complexity with complexipy), so a finding surfaces here
   instead of in every target's refresh pull request.
 

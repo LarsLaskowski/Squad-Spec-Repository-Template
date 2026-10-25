@@ -40,14 +40,13 @@ Usage, from the repository root:
 Exit code 0 when the diff is in scope, 1 otherwise.
 """
 import argparse
+import http.client
 import json
 import os
 import re
 import subprocess
 import sys
-import urllib.error
 import urllib.parse
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from analyzer_common import BASE_REF, control_characters, git, merge_base, settings  # noqa: E402  (shared helpers next to this script)
@@ -62,7 +61,7 @@ DOCS_TIER_DIRS = ["docs/"]
 DOCS_TIER_EXCLUDED = ["docs/decisions/", "docs/areas/"]
 PROJECT_BLOCK = re.compile(r"<!-- project:begin ([\w-]+) -->\n.*?<!-- project:end \1 -->\n?", re.S)
 PATCH_MAX_LINES = getattr(settings, "PATCH_MAX_LINES", 30)
-GITHUB_API = "https://api.github.com"
+GITHUB_API_HOST = "api.github.com"
 REPOSITORY = re.compile(r"^[\w.-]+/[\w.-]+$")
 FILES_PER_PAGE = 100
 MAX_FILE_PAGES = 30  # the API lists at most 3000 files of a pull request
@@ -118,17 +117,21 @@ class LocalSource:
 def api_get(path, token, raw=False):
     """The body of a GitHub API GET (the raw file text with `raw`), None on 404; any other failure ends the run."""
     accept = "application/vnd.github.raw+json" if raw else "application/vnd.github+json"
-    request = urllib.request.Request(GITHUB_API + path, headers={  # noqa: S310  (fixed https host)
-        "Authorization": f"Bearer {token}", "Accept": accept, "X-GitHub-Api-Version": "2022-11-28"})
+    connection = http.client.HTTPSConnection(GITHUB_API_HOST, timeout=30)
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310  (request built above)
-            return response.read().decode("utf-8-sig", errors="replace")
-    except urllib.error.HTTPError as error:
-        if error.code == 404:
-            return None
-        sys.exit(f"GitHub API {path}: HTTP {error.code}")
-    except urllib.error.URLError as error:
-        sys.exit(f"GitHub API {path}: {error.reason}")
+        connection.request("GET", path, headers={"Authorization": f"Bearer {token}", "Accept": accept,
+                                                 "User-Agent": "scope-check", "X-GitHub-Api-Version": "2022-11-28"})
+        response = connection.getresponse()
+        body = response.read().decode("utf-8-sig", errors="replace")
+    except OSError as error:
+        sys.exit(f"GitHub API {path}: {error}")
+    finally:
+        connection.close()
+    if response.status == 404:
+        return None
+    if response.status != 200:
+        sys.exit(f"GitHub API {path}: HTTP {response.status}")
+    return body
 
 
 def api_json(path, token):

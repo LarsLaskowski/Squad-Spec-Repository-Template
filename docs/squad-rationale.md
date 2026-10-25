@@ -261,7 +261,9 @@ grew to about 11,300 words through challenge rounds, three Security rounds and t
 limit of 4,000, because the warning named no consequence; now the Lead moves settled material out and the
 warning is a finding at twice the limit. That hard limit still let the plan of Vandox#40 grow to 5,300 words in two
 revise rounds with only a warning, and the Vandox plans of that week ran from 3,500 to 11,300 words (Vandox#288:
-11,281), read in full by each of 30 to 72 launches, so the limit itself became the finding (2026-10-25). A Dev launch with its own background gate produced five interim
+11,281), read in full by each of 30 to 72 launches, so the limit itself became the finding (2026-10-25). A scope that
+really needs more keeps the warning with a stated reason (`Plan size:`), so the size is a decision someone wrote down,
+not an accident of revise rounds; the hard limit at twice the soft one stays. A Dev launch with its own background gate produced five interim
 notifications with rising numbers; `--replace-last` was refused on a pending row and hit the wrong row once
 another row followed, and `--tokens 0` is refused by design, which cost several retries. Step 10 removes
 `specs/<folder>/`, so later log rows and `--summary` needed a manual restore of `log.md`, and rows written

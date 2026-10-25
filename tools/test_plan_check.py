@@ -191,6 +191,17 @@ class TestPlanCheck(unittest.TestCase):
         errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))
         self.assertFalse(any("words" in e for e in errors), "a plan within the limit passes")
 
+    def test_justified_plan_size_is_a_warning_up_to_the_hard_limit(self):
+        justified = PLAN.replace("\n## ", "\nPlan size: eleven task groups across agent and backend\n\n## ", 1)
+        errors, warnings = self.script.check(self.feature(plan=justified + "\nfiller " * 5000))
+        self.assertFalse(any("words" in e for e in errors), errors)
+        self.assertTrue(warnings and "justified: eleven task groups" in warnings[0], warnings)
+        placeholder = PLAN.replace("\n## ", "\nPlan size: <why>\n\n## ", 1)
+        errors, _ = self.script.check(self.feature(plan=placeholder + "\nfiller " * 5000))
+        self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "a placeholder is no reason")
+        errors, _ = self.script.check(self.feature(plan=justified + "\nfiller " * 9000))
+        self.assertTrue(any("PLAN_HARD_WORDS" in e for e in errors), "beyond the hard limit only a split helps")
+
     def test_skeleton_row_per_group_when_the_plan_lists_api(self):
         plan = (PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n"
                 "- `func ReadBootID() (string, error)`\n")

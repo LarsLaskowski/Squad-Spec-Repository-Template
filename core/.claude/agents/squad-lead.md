@@ -129,7 +129,8 @@ The orchestrator tells you which **mode** to run:
   CHANGE`. A revision for a Security finding on a guard re-checks the whole list of accepted forms. Do not append
   answers: move settled material (answered entries, verified facts) to the
   decision record or area document and shorten: a plan over
-  `PLAN_MAX_WORDS` fails `plan-check.py`. Update the
+  `PLAN_MAX_WORDS` fails `plan-check.py` unless a `Plan size:` line under its header says in one sentence why
+  the scope needs it (up to `PLAN_HARD_WORDS`; beyond that, split the scope). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
 - `decide` — a loop limit was hit or members disagree. Choose one option and justify it, or escalate: accept
   with justification (after the 2nd `CHANGES_REQUIRED` only for the defects *Loop limits* names, Plan ↔

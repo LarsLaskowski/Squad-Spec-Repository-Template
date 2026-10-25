@@ -5,7 +5,8 @@ Status: Draft | Revised (n) | Approved by Security
 Tier: trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
 Security areas touched: none | <areas>
 <!-- Each security area of `.squad/project.md`, Docker/CI or build configuration and dependency the change
-touches, or "none" — in every plan (`.squad/routing.md`, *Tiers*). -->
+touches, or "none" — in every plan (`.squad/routing.md`, *Tiers*). Only a plan over PLAN_MAX_WORDS words adds the
+line "Plan size: <why the scope needs it>" here (`plan-check.py`). -->
 
 ## Problem / root cause
 

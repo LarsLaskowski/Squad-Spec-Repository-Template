@@ -110,7 +110,7 @@ class TestRuleFiles(unittest.TestCase):
 
     def test_without_a_base_nothing_is_compared(self):
         warnings, info = [], []
-        with unittest.mock.patch.object(self.script, "base_rule_texts", lambda: None):
+        with unittest.mock.patch.object(self.script, "base_rule_texts", return_value=None):
             self.script.check_rule_changes(warnings, info)
         self.assertEqual(warnings, [])
         self.assertIn("no merge base", info[0])

@@ -8,7 +8,7 @@
 <!-- stack:end golden-rules -->
 <!-- stack:begin commands -->
 ```bash
-npm ci
+npm ci --ignore-scripts
 npm run format                                              # prettier --write
 npm run typecheck                                           # tsc --noEmit
 npm run build

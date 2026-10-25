@@ -13,7 +13,7 @@ profile and owned by this repository: keep it true when the build changes.
   `parserOptions.projectService`) and **eslint-plugin-sonarjs** (the SonarQube JS/TS rules locally, so SonarQube
   issues surface before the push); **Prettier** as the formatter.
 - **Vitest** with `@vitest/coverage-v8` as test runner and coverage tool.
-- The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci` in remote sessions.
+- The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci --ignore-scripts` in remote sessions.
 
 ## Layout
 
@@ -28,7 +28,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 
 | Name | Command |
 | ---- | ------- |
-| *Restore* | `npm ci` |
+| *Restore* | `npm ci --ignore-scripts` (dependency lifecycle scripts stay off; a package that needs one gets an explicit `npm rebuild <pkg>` step) |
 | *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `npm run format` (`prettier --write .`) |
 | *Format check* | `npm run format:check` (`prettier --check .`) |
 | *Type check* | `npm run typecheck` (`tsc --noEmit`, or `tsc -b --noEmit` with project references) |

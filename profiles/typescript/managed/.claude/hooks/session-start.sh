@@ -14,7 +14,7 @@ bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-linters.sh"
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 if [[ -f package-lock.json ]]; then
-  npm ci
+  npm ci --ignore-scripts
 else
-  npm install
+  npm install --ignore-scripts
 fi

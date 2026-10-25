@@ -1,9 +1,11 @@
-"""Unit tests for the word budgets and Sonar rules of tools/template-check.py: run `python3 -m unittest discover tools`."""
+"""Unit tests for the rule-file checks and Sonar rules of tools/template-check.py: run `python3 -m unittest discover tools`."""
 import importlib.util
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 sys.dont_write_bytecode = True
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template-check.py")
@@ -16,7 +18,7 @@ def load_script():
     return module
 
 
-class TestWordBudgets(unittest.TestCase):
+class TestRuleFiles(unittest.TestCase):
     def setUp(self):
         self.script = load_script()
         self.dir = tempfile.TemporaryDirectory()
@@ -27,37 +29,91 @@ class TestWordBudgets(unittest.TestCase):
     def tearDown(self):
         self.dir.cleanup()
 
-    def check(self, budgets):
-        errors, warnings = [], []
-        self.script.check_word_budgets(errors, base=self.dir.name, budgets=budgets, warnings=warnings)
-        return errors + warnings
-
     def test_words_are_counted_like_wc(self):
         self.assertEqual(self.script.word_count(os.path.join(self.dir.name, ".squad", "routing.md")), 10)
 
-    def test_a_file_within_its_budget_passes(self):
-        self.assertEqual(self.check({".squad/routing.md": 10}), [])
-
-    def test_a_file_over_its_budget_names_file_count_and_budget(self):
-        errors = self.check({".squad/routing.md": 9})
+    def test_a_listed_file_that_is_missing_fails(self):
+        errors = []
+        self.script.check_rule_files(errors, base=self.dir.name, files=[".squad/routing.md", ".squad/team.md"])
         self.assertEqual(len(errors), 1)
-        self.assertTrue(errors[0].startswith("WARNING"))
-        self.assertIn("core/.squad/routing.md", errors[0])
-        self.assertIn("10 words", errors[0])
-        self.assertIn("budget of 9", errors[0])
+        self.assertIn("core/.squad/team.md", errors[0])
 
-    def test_a_file_over_its_budget_is_no_error(self):
+    def test_the_listed_core_files_exist(self):
         errors = []
-        self.script.check_word_budgets(errors, base=self.dir.name, budgets={".squad/routing.md": 9}, warnings=[])
+        self.script.check_rule_files(errors)
         self.assertEqual(errors, [])
 
-    def test_a_budgeted_file_that_is_missing_fails(self):
-        self.assertIn("missing", self.check({".squad/team.md": 100})[0])
+    def test_growth_is_information_until_the_consolidation_threshold(self):
+        old = {"a.md": "one two three four", "b.md": "x"}
+        new = {"a.md": "one two three four five six", "b.md": "x"}
+        info, warnings = self.script.rule_growth(old, new, baseline=7)
+        self.assertIn("INFO core/a.md: 4 -> 6 words (+2)", info)
+        self.assertFalse(any("b.md" in line for line in info), "an unchanged file is not listed")
+        self.assertEqual(warnings, [], "7 words against a baseline of 7 is no growth")
+        _, warnings = self.script.rule_growth(old, new, baseline=6)
+        self.assertEqual(len(warnings), 1, "7 words are 16.7% over a baseline of 6")
+        _, warnings = self.script.rule_growth(old, {"a.md": "w " * 20}, baseline=10)
+        self.assertTrue(warnings and "consolidation" in warnings[0], warnings)
 
-    def test_the_budgeted_core_files_exist(self):
-        errors = []
-        self.script.check_word_budgets(errors)
-        self.assertEqual(errors, [])
+    def test_a_removed_sentence_is_named_and_a_moved_one_is_not(self):
+        old = {"a.md": "# A\n\nThe Dev writes the documentation after the code. The Lead keeps the records and the plans.\n",
+               "b.md": "Short line.\n"}
+        new = {"a.md": "# A\n\nThe Lead keeps the records and the plans.\n",
+               "b.md": "Short line.\nThe  Dev writes the\ndocumentation after the code.\n"}
+        self.assertEqual(self.script.removed_sentences(old, new), [])
+        new["b.md"] = "Short line.\n"
+        removed = self.script.removed_sentences(old, new)
+        self.assertEqual(removed, [("a.md", "The Dev writes the documentation after the code.", None)])
+
+    def test_a_reworded_sentence_is_information_naming_the_dropped_words(self):
+        old = {"a.md": "The Dev writes the documentation after the code is green and the gate passes.\n"}
+        new = {"a.md": "The Dev writes the documentation after the code is green and the coverage gate passes.\n"}
+        (rel, sentence, rewording), = self.script.removed_sentences(old, new)
+        self.assertIsNotNone(rewording, "one word changed is a rewording")
+        self.assertEqual(self.script.dropped_words(sentence, rewording), [], "a word was only added")
+        new = {"a.md": "The Dev writes the documentation after the code is green and the review passes.\n"}
+        (_, sentence, rewording), = self.script.removed_sentences(old, new)
+        self.assertEqual(self.script.dropped_words(sentence, rewording), ["gate"])
+        warnings, info = [], []
+        self.script.check_rule_changes(warnings, info, old=old, new=new)
+        self.assertFalse(any("sentence removed" in w for w in warnings), warnings)
+        self.assertTrue(any("reworded" in line and "gate" in line for line in info), info)
+
+    def test_blocks_split_headings_list_items_and_table_rows(self):
+        text = ("---\nname: x\ndescription: front matter is left out entirely here\n---\n# A heading\n"
+                "First sentence of a wrapped\nparagraph goes on here. Second one of the same paragraph here.\n"
+                "- a list item that is long enough to count\n1. a numbered item that is long enough to count\n"
+                "| a | table | row | with | enough | cells |\n| - | - | - | - | - | - |\n")
+        found = self.script.sentences(text)
+        self.assertIn("First sentence of a wrapped paragraph goes on here.", found)
+        self.assertIn("- a list item that is long enough to count", found)
+        self.assertFalse(any("front matter" in s for s in found))
+        self.assertFalse(any(set(s) <= set("|- ") for s in found), "a separator row is no sentence")
+
+    def test_base_texts_come_from_the_merge_base_and_name_new_files(self):
+        root = self.dir.name
+        def git(*args):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                           cwd=root, check=True, capture_output=True)
+        os.makedirs(os.path.join(root, "core", ".squad"))
+        with open(os.path.join(root, "core", ".squad", "routing.md"), "w", encoding="utf-8") as handle:
+            handle.write("old rule text\n")
+        git("init", "-q", "-b", "main")
+        git("add", ".")
+        git("commit", "-q", "-m", "base")
+        git("update-ref", "refs/remotes/origin/main", "HEAD")
+        texts = self.script.base_rule_texts(files=[".squad/routing.md", ".squad/new.md"], root=root)
+        self.assertEqual(texts[".squad/routing.md"], "old rule text\n")
+        self.assertIsNone(texts[".squad/new.md"], "a file new since the base has no base text")
+        git("update-ref", "-d", "refs/remotes/origin/main")
+        self.assertIsNone(self.script.base_rule_texts(files=[".squad/routing.md"], root=root), "no origin/main")
+
+    def test_without_a_base_nothing_is_compared(self):
+        warnings, info = [], []
+        with unittest.mock.patch.object(self.script, "base_rule_texts", lambda: None):
+            self.script.check_rule_changes(warnings, info)
+        self.assertEqual(warnings, [])
+        self.assertIn("no merge base", info[0])
 
 
 class TestRepeatedRules(unittest.TestCase):
@@ -66,7 +122,7 @@ class TestRepeatedRules(unittest.TestCase):
     def setUp(self):
         self.script = load_script()
         self.dir = tempfile.TemporaryDirectory()
-        self.budgets = {"a.md": 1000, "b.md": 1000}
+        self.files = ["a.md", "b.md"]
 
     def tearDown(self):
         self.dir.cleanup()
@@ -77,7 +133,7 @@ class TestRepeatedRules(unittest.TestCase):
 
     def check(self):
         warnings = []
-        self.script.check_repeated_rules(warnings, base=self.dir.name, budgets=self.budgets)
+        self.script.check_repeated_rules(warnings, base=self.dir.name, files=self.files)
         return warnings
 
     def test_a_long_shared_run_is_a_warning_naming_both_files_and_its_length(self):

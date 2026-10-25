@@ -36,8 +36,8 @@ rule on your own — a justified, narrowly scoped suppression needs the Lead's a
 You also receive the findings of the *Sonar gate* (step 7) and, after the PR is open, of the CI code analysis
 (`sonar-check.py pr <number>`); treat them like findings of the analyzer gate. For a rule no local analyzer
 reported, add one line to the *Analyzer gate* section of `.squad/stack.md` (the rule id, what it flags, how to
-avoid it while writing code) in the product PR (*Scope of a product PR* and *Squad lessons* in
-`.squad/routing.md`); no other file under `.squad/` is edited.
+avoid it while writing code) in the product PR (*Scope of a product PR* in `.squad/routing.md`,
+*Squad lessons* in `.squad/orchestration.md`); no other file under `.squad/` is edited.
 
 Report: files touched, kinds of edits, analyzer gate output (must pass), build/test result, items handed
 back. Report only what your own checks covered; a decision record's status is set in step 9 (*PR approval*

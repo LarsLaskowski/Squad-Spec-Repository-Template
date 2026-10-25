@@ -21,7 +21,7 @@ mechanics out of the orchestrator's hands:
 - one row names one member: a member cell that lists two (`squad-reviewer / squad-security`, a comma, `and`)
   is refused, because the trailer of a parallel launch belongs to one row each, or `--amend-last` cannot tell
   them apart;
-- a continued launch (`SendMessage` to the agent of an earlier round; `.squad/routing.md`, *Continuing a member*)
+- a continued launch (`SendMessage` to the agent of an earlier round; `.squad/orchestration.md`, *Continuing a member*)
   reports the agent's tokens since its first launch, while its tool uses and its duration cover the round alone
   (all three are passed exactly as the task notification reports them): with `--continued` the script subtracts
   the tokens of that member's last fresh launch and of the continuations logged after it, keeps tool uses and
@@ -229,7 +229,7 @@ def continued_launch(path, member, launch, skip_last=False, step=None, origin=No
 def mode_change_warning(path, member, own_step, origin=None, amending=False, step=None):
     """A warning, or None, for a continuation logged at another step number than the fresh launch it continues
     (`origin`, or else the member's last fresh launch) whose step cell names no fix, delta or revise round: the
-    first launch of another mode is a fresh launch (`.squad/routing.md`, *Continuing a member*). With `amending`,
+    first launch of another mode is a fresh launch (`.squad/orchestration.md`, *Continuing a member*). With `amending`,
     the row being amended (the member's last, or its last of `step`) is left out."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
@@ -248,7 +248,7 @@ def mode_change_warning(path, member, own_step, origin=None, amending=False, ste
     if None in numbers or numbers[0].group(1) == numbers[1].group(1) or ROUND_OF_SAME_MODE.search(own_step):
         return None
     return (f"WARNING: '{own_step}' continues {member}'s launch of step '{continued}': a fix, delta or revise "
-            "round continues, but the first launch of another mode is a fresh launch (.squad/routing.md, "
+            "round continues, but the first launch of another mode is a fresh launch (.squad/orchestration.md, "
             "*Continuing a member*)")
 
 

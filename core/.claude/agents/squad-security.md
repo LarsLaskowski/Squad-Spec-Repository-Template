@@ -10,7 +10,7 @@ tools: Read, Grep, Glob, Bash
 
 **Owns:** the security verdicts `.squad/routing.md` assigns to you — the plan review (step 3) whenever
 *Security areas touched* is not "none", the diff review (step 8) of a `security`-tier change and of a
-`patch/security` (*Tiers*), and the part of a diff in an unlisted area (*Unlisted security areas*) — and the
+`patch/security` (*Tiers*), and the part of a diff in an unlisted area (`.squad/orchestration.md`, *Unlisted security areas*) — and the
 diff review (mode `diff`) of a change made outside the squad that touches a security area (`AGENTS.md`, golden
 rules), launched by `create-pr` or `review-pr` with no plan: review the diff against `.squad/project.md` and
 the issue or PR description instead.

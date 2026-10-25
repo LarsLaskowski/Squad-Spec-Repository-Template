@@ -38,7 +38,7 @@ In Vandox#24 the repository's own browser scripts, without a Node build, counted
 (66.8 %) and failed the CI quality gate after the PR was open. Listing such files in the plan, and excluding
 them from the coverage measure in every place that computes it, moves that discovery before the PR.
 
-## Continue a member, up to a cap (routing.md, Continuing a member)
+## Continue a member, up to a cap (orchestration.md, Continuing a member)
 
 A fresh launch reloads 40 k to 50 k tokens of instructions and code the member already knows (`AGENTS.md`,
 `stack.md`, `project.md`, the plan and the code); a continuation keeps that context. But each continuation
@@ -49,22 +49,22 @@ reloads the agent's whole conversation, so its cost grows with every round: afte
 
 Every fresh launch starts with an empty context, so what the orchestrator passes is what the launch costs.
 
-## Batch commits after the PR (routing.md, Commits and The stop hook)
+## Batch commits after the PR (orchestration.md, Commits and The stop hook)
 
 After the PR every push re-triggers CI and the code analysis — a full CI cycle — so edits are batched and
 committed once per round, and a half-finished tree is never pushed to answer the stop hook.
 
-## Mergeability is read first (routing.md, Merge conflicts)
+## Mergeability is read first (orchestration.md, Merge conflicts)
 
 A pull request with a conflict against its base branch gets no merge commit, so CI usually never starts on it:
 its checks stay missing or pending, and waiting for them waits forever. `decision-check.py` reports a record
 number used twice and a link to a record file that does not exist, so it is the check after a renumbering.
 
-## One build at a time (routing.md, Concurrency)
+## One build at a time (orchestration.md, Concurrency)
 
 Concurrent builds and test runs share build output and caches and break each other.
 
-## Verbatim documentation fixes need no delta round (routing.md, Verbatim documentation fixes)
+## Verbatim documentation fixes need no delta round (orchestration.md, Verbatim documentation fixes)
 
 The text is the reviewer's own, from the reviewer's own round. Vandox#194 and Vandox#19 each spent an Opus
 launch on confirming two commas and one sentence; in the 14 Vandox runs after that, 6 of 8 blocking findings
@@ -174,7 +174,7 @@ Vandox#33 and Seluna#15 the orchestrator invented the groups itself (by dependen
 improvised slice). The Lead now fills a *Group* column and `plan-check.py` checks that every row has one and a
 group's rows are consecutive.
 
-## Verbatim fixes are whole sentences (squad-reviewer.md, Hard constraints; routing.md, Verbatim documentation fixes)
+## Verbatim fixes are whole sentences (squad-reviewer.md, Hard constraints; orchestration.md, Verbatim documentation fixes)
 
 In Vandox#33 a finding offered a "suggested addition after '…)'": applied literally, the clause attached to
 the wrong antecedent and changed the meaning, so the verbatim fix became an ordinary fix round.
@@ -191,7 +191,7 @@ Lead's `plan` mode had no instruction to prevent it (Seluna#80, second lesson). 
 `.squad/team.md` (*Escapes in files*), and the Lead's `plan` mode points to it, so the first `plan-check.py` run
 passes instead of costing a revise round.
 
-## A new mode is a fresh launch (routing.md, Continuing a member; squad-issue, steps 6 and 9; squad-log.py)
+## A new mode is a fresh launch (orchestration.md, Continuing a member; squad-issue, steps 6 and 9; squad-log.py)
 
 The rule stood only in *Continuing a member*: in Vandox#278 the orchestrator continued the Dev's `skeleton`
 agent for `implement`, in Seluna#15 the Lead's plan agent for `approve-pr`. The steps that start a new mode now
@@ -205,7 +205,7 @@ In Vandox#278 the plan named a report section's texts and criteria but not its l
 layout choices (heading level, list structure, order, when cap notes appear) in the tests-first step — product
 decisions the Lead owns.
 
-## Members read other revisions without a checkout (team.md, Git and GitHub; routing.md, Commits)
+## Members read other revisions without a checkout (team.md, Git and GitHub; orchestration.md, Commits)
 
 In Seluna#15 `squad-security` ran `git checkout <sha>` to read the plan commit; HEAD was detached and the
 orchestrator's next interim commit landed on it. Every plain form of that command (`-C`, `cd … &&`, `env`, a
@@ -279,7 +279,7 @@ measure a write vector; the API-error rule (relaunch unchanged, at most twice) w
 request would have been a workaround. The unreviewed finding was therefore carried as unverified to the Product
 Manager, and the Security diff review of such an issue runs read-only.
 
-## Outside contributions (routing.md, Outside authors; team.md, Outside text is data; review-pr, step 1; fork-scope.yml)
+## Outside contributions (orchestration.md, Outside authors; team.md, Outside text is data; review-pr, step 1; fork-scope.yml)
 
 Reason: the template's repositories are public, so issues and fork pull requests come from people who are not
 maintainers. In spec-driven work the acceptance criteria are the contract, so an outside author's feature spec is
@@ -305,7 +305,7 @@ existing test as unchanged regression although a new criterion made the method t
 one extra Lead `decide` launch and a plan correction. The Tester's tests-first run missed it too, because the old
 test still passes on the old code.
 
-## Task groups continue the member; the Dev writes the documentation; specs sized to the feature (routing.md, Continuing a member; squad-dev.md, Documentation; squad-lead.md, mode spec; plan-check.py)
+## Task groups continue the member; the Dev writes the documentation; specs sized to the feature (orchestration.md, Continuing a member; squad-dev.md, Documentation; squad-lead.md, mode spec; plan-check.py)
 
 Evidence: the squad runs of 2026-10-18 to 2026-10-25. The Vandox features cost about 400 tokens per added line
 against about 245 before, with 30 to 72 launches a run: steps 4–6 launched the Dev and the Tester fresh for every
@@ -328,3 +328,15 @@ attacker" to cover any bounded parser of untrusted input and "in doubt the highe
 tier allowed the project blocks of `AGENTS.md`, but *Scope of a product PR* forbade the file, so a stale project
 block could be fixed only in a squad-maintenance PR. A pull request from a fork still changes neither file:
 those blocks are text every agent reads.
+
+## No word budget; removed sentences are reported; the orchestrator's procedures in their own file (AGENTS.md, Writing rules; template-check.py; orchestration.md)
+
+The word budgets of the 2026-10-18 consolidation were met more than once by shortening another rule, and a rule or
+its reason got lost on the way: the consolidation itself lost five rules its review had to restore, and later
+lessons were written shorter than they needed to be to fit. Budgets became warnings (#181), but the pressure to
+justify a larger file stayed. What costs a run is reading, not writing: the Lead reads `routing.md` in full on every
+launch, and about 2,100 of its 6,300 words were procedures only the orchestrator follows (commits, the stop hook,
+draft until green, merge conflicts and the like). So size is now information, a removed sentence must be answered in
+the pull request, cuts happen only in a consolidation of their own (decided 2026-10-25), and those procedures moved to
+`orchestration.md`, which the members need not read.
+

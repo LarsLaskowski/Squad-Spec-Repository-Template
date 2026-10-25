@@ -27,21 +27,31 @@ to the other repositories. It contains no product code. See [`README.md`](README
   finding there before merging and add its rule to `SONAR_RULES` where `template-check.py` can detect it.
 - A lesson from a squad run in another repository that concerns a template-managed file is fixed here and
   rolled out with `adopt-template`, never patched in the target only.
-- **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md` and `core/.squad/team.md`);
-  other files point to it. The squad's rule files have word budgets (`WORD_BUDGETS` in
-  `tools/template-check.py`) that only warn; see *Writing rules*. The evidence behind a rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target
-  receives.
+- **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md`, `core/.squad/orchestration.md`
+  for what only the orchestrator does, and `core/.squad/team.md`); other files point to it. The evidence behind a
+  rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target receives. How the rule
+  files are kept from growing without losing a rule: *Writing rules*.
 
 ## Writing rules
 
-Every member reads the squad's rule files on every launch, so a rule text says what to do or not do, and when,
+Every member reads the rule files it is pointed to on every launch, so a rule text says what to do or not do, and when,
 and nothing else. A reason in a half sentence stays when it keeps the rule from being misread or worked
-around; so does an example of the case the rule exists for. Cut: a rule repeated from another file (point to
-it), the history of how it came about, incident reports and measured numbers (they go to
-`docs/squad-rationale.md`), and sentences that change nothing a member does. A file over its word budget or
-two files sharing a 20-word run (warnings from `template-check.py`) need one sentence in the PR description on why
-it stays so, or the copy becomes a pointer; a
-budget is never met by deleting reasons or examples.
+around; so does an example of the case the rule exists for. Leave out: a rule repeated from another file (point
+to it), the history of how it came about, incident reports and measured numbers (they go to
+`docs/squad-rationale.md`), and sentences that change nothing a member does. What only the orchestrator does goes
+into `core/.squad/orchestration.md`, which the members need not read.
+
+There is no word budget: a rule is never cut to make room for another. `template-check.py` reports instead:
+
+- how many words each changed rule file gained or lost against its merge base with `origin/main`, and the total against
+  `RULE_WORDS_BASELINE`, the size after the last consolidation — information for the PR description;
+- every sentence that left the rule files (found in none of them any more) — the PR description says for each
+  where it moved or why it goes;
+- a run of 20 words two rule files share — the copy becomes a pointer, or the PR says why both stay.
+
+Rule text is shortened only in a consolidation PR of its own, which `template-check.py` asks for once the total is
+more than 15 % over the baseline: a reviewer checks every removed sentence for a rule or a reason that would be
+lost, and the PR sets `RULE_WORDS_BASELINE` to the new total.
 
 ## Commit messages and pull requests
 

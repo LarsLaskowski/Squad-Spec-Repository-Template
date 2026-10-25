@@ -8,7 +8,8 @@ description: Use when the user asks to fix a bug reported in a specific GitHub i
 Fix a bug reported in a GitHub issue with the squad defined in `.squad/`. A feature runs through
 `squad-spec` instead (`.squad/routing.md`, *Bug or feature*). You are the **orchestrator**: you launch the
 members as subagents, pass their outputs on (they cannot talk to each other), enforce the tiers and loop
-limits of [`.squad/routing.md`](../../../.squad/routing.md) — the rules this procedure points to — and perform
+limits of [`.squad/routing.md`](../../../.squad/routing.md) and follow the procedures of
+[`.squad/orchestration.md`](../../../.squad/orchestration.md) — the rules this procedure points to — and perform
 every Git and GitHub action yourself, including follow-up issues the Lead decides on.
 
 - **You never do a member's work.** Production code, tests and the documentation the plan assigns go to their

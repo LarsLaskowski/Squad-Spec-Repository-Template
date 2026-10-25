@@ -36,16 +36,21 @@ Checks, without arguments:
   where it is installed (CI installs it), and trips none of the other SonarQube Cloud rules that have flagged one
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
   group, several spaces in a regex);
-- every squad rule file in `WORD_BUDGETS` (the squad's rules, skills and agents, the template parts of
-  `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) stays within its word
-  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words); a file over it is a warning, as is a run of
-  20 words that two of them share (a rule in two places). Every
-  member reads these files on every launch, so size is watched, but a rule is not cut to fit; the
+- every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
+  `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) exists. Against the
+  merge base with `origin/main` it reports, as information, how many words (counted like `wc -w` in a UTF-8
+  locale) each changed rule file gained or lost and the total against `RULE_WORDS_BASELINE`, the size after the
+  last consolidation; a total more than `CONSOLIDATION_GROWTH` above it is a warning to plan a consolidation PR.
+  Every sentence that left the rule files (found in none of them any more) is a warning the pull request answers:
+  where it moved or why it goes. A run of 20 words that two rule files share is a warning (a rule in two places).
+  Members read the rule files they are pointed to on every launch, so size is watched, but a rule is never cut to make room; the
   evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
 import ast
+import difflib
+import fnmatch
 import glob
 import importlib.util
 import io
@@ -112,28 +117,34 @@ REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall"
 FLAG_SETTER = re.compile(r"\(\?[aiLmsux-]+\)")
 MULTIPLE_SPACES = re.compile(r" {2,}")
 CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
-# Word ceilings of the squad's rule files under core/ (paths relative to core/).
-WORD_BUDGETS = {
-    ".squad/routing.md": 6500,
-    ".squad/team.md": 1230,
-    ".claude/skills/squad-issue/SKILL.md": 2690,
-    ".claude/skills/squad-spec/SKILL.md": 970,
-    ".claude/skills/create-pr/SKILL.md": 1390,
-    ".claude/skills/review-pr/SKILL.md": 840,
-    ".claude/agents/squad-code-officer.md": 600,
-    ".claude/agents/squad-dev.md": 870,
-    ".claude/agents/squad-devils-advocate.md": 820,
-    ".claude/agents/squad-lead.md": 2360,
-    ".claude/agents/squad-reviewer.md": 2140,
-    ".claude/agents/squad-security.md": 700,
-    ".claude/agents/squad-tester.md": 1170,
-    "AGENTS.md": 1550,
-    "docs/ARCHITECTURE.md": 350,
-    "specs/_template/log.md": 60,
-    "specs/_template/plan.md": 960,
-    "specs/_template/spec.md": 480,
-    "specs/_template/tasks.md": 110,
-}
+# The squad's rule files under core/ (paths relative to core/): watched for growth and for removed sentences.
+RULE_FILES = [
+    ".squad/routing.md",
+    ".squad/orchestration.md",
+    ".squad/team.md",
+    ".claude/skills/squad-issue/SKILL.md",
+    ".claude/skills/squad-spec/SKILL.md",
+    ".claude/skills/create-pr/SKILL.md",
+    ".claude/skills/review-pr/SKILL.md",
+    ".claude/agents/squad-code-officer.md",
+    ".claude/agents/squad-dev.md",
+    ".claude/agents/squad-devils-advocate.md",
+    ".claude/agents/squad-lead.md",
+    ".claude/agents/squad-reviewer.md",
+    ".claude/agents/squad-security.md",
+    ".claude/agents/squad-tester.md",
+    "AGENTS.md",
+    "docs/ARCHITECTURE.md",
+    "specs/_template/log.md",
+    "specs/_template/plan.md",
+    "specs/_template/spec.md",
+    "specs/_template/tasks.md",
+]
+# The words of all rule files after the last consolidation; set anew by each consolidation PR (AGENTS.md, Writing rules).
+RULE_WORDS_BASELINE = 25820
+CONSOLIDATION_GROWTH = 0.15
+SENTENCE_MIN_WORDS = 6
+NEAR_MATCH = 0.8
 MARKER = re.compile(r"<!-- (project|stack):(begin|end) ([\w-]+) -->")
 
 try:
@@ -779,28 +790,161 @@ def word_count(path):
     return len(read(path).split())
 
 
-def check_word_budgets(errors, base=CORE, budgets=None, warnings=None):
-    """A squad rule file past its budget is a warning, not an error: a rule is never cut to fit, but the PR says
-    why the file cannot be shorter (AGENTS.md, *Writing rules*). A budgeted file that is missing is an error."""
-    for rel, budget in (WORD_BUDGETS if budgets is None else budgets).items():
-        path = os.path.join(base, rel)
-        if not os.path.isfile(path):
-            errors.append(f"core/{rel}: listed in WORD_BUDGETS but missing")
-            continue
-        words = word_count(path)
-        if words > budget and warnings is not None:
-            warnings.append(f"WARNING core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
-                            "tools/template-check.py) — cut repetition and evidence, keep reasons and examples "
-                            "that change how a rule is read; justify the size in the pull request")
+def check_rule_files(errors, base=CORE, files=None):
+    """Every listed rule file exists."""
+    for rel in RULE_FILES if files is None else files:
+        if not os.path.isfile(os.path.join(base, rel)):
+            errors.append(f"core/{rel}: listed in RULE_FILES but missing")
+
+
+def rule_paths(listed):
+    """The listed rule files plus every squad agent and skill, so a renamed or retired one is compared too."""
+    names = set(listed)
+    for pattern in (".claude/agents/squad-*.md", ".claude/skills/*/SKILL.md"):
+        names |= {os.path.relpath(path, CORE) for path in glob.glob(os.path.join(CORE, pattern))}
+    return sorted(names)
+
+
+def base_rule_texts(files=None, root=ROOT):
+    """{rel: text or None} of the rule files at the merge base with origin/main (the listed ones, the squad agents and
+    skills of either side), or None without a merge base (a shallow checkout) or without git."""
+    def git(*args):
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, check=False)
+
+    try:
+        base = git("merge-base", "origin/main", "HEAD")
+        if base.returncode != 0:
+            return None
+        sha = base.stdout.strip()
+        listed = git("ls-tree", "-r", "--name-only", sha, "core/.claude/").stdout.split()
+        at_base = [path.removeprefix("core/") for path in listed
+                   if fnmatch.fnmatch(path, "core/.claude/agents/squad-*.md")
+                   or fnmatch.fnmatch(path, "core/.claude/skills/*/SKILL.md")]
+        texts = {}
+        for rel in sorted(set(rule_paths(RULE_FILES if files is None else files)) | set(at_base)):
+            shown = git("show", f"{sha}:core/{rel}")
+            texts[rel] = shown.stdout if shown.returncode == 0 else None
+        return texts
+    except OSError:
+        return None
+
+
+def current_rule_texts(base=CORE, files=None):
+    return {rel: read(os.path.join(base, rel)) for rel in rule_paths(RULE_FILES if files is None else files)
+            if os.path.isfile(os.path.join(base, rel))}
+
+
+def rule_growth(old, new, baseline=None):
+    """(information lines, warnings): the words each changed rule file gained or lost, and the total against the
+    size after the last consolidation."""
+    baseline = RULE_WORDS_BASELINE if baseline is None else baseline
+    info = []
+    for rel in sorted(set(old) | set(new)):
+        before = len((old.get(rel) or "").split())
+        after = len((new.get(rel) or "").split())
+        if before != after:
+            info.append(f"INFO core/{rel}: {before} -> {after} words ({after - before:+d})")
+    total = sum(len(text.split()) for text in new.values())
+    growth = total / baseline - 1 if baseline else 0.0
+    info.append(f"INFO rule files: {total} words, {growth:+.1%} against {baseline} after the last consolidation"
+                if baseline else f"INFO rule files: {total} words; no RULE_WORDS_BASELINE set")
+    warnings = []
+    if baseline and growth > CONSOLIDATION_GROWTH:
+        warnings.append(f"WARNING rule files: {total} words, more than {CONSOLIDATION_GROWTH:.0%} over the last "
+                        f"consolidation ({baseline}) — plan a consolidation pull request of its own; never cut a "
+                        "rule in another pull request to make room (AGENTS.md, Writing rules)")
+    return info, warnings
+
+
+BLOCK_START = re.compile(r"(?:#|[-*] |\d+[.)] |\|)")
+
+
+def blocks(text):
+    """The paragraphs, list items, headings and table rows of a rule text, each joined into one line."""
+    found, current = [], []
+    for line in re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S).splitlines():
+        stripped = line.strip()
+        if not stripped or BLOCK_START.match(stripped):
+            found.append(" ".join(current))
+            current = []
+        if stripped.startswith(("#", "|")):
+            found.append(stripped)  # a heading or a table row stands alone
+        elif stripped:
+            current.append(stripped)
+    return [block for block in found + [" ".join(current)] if block]
+
+
+def sentences(text):
+    """The sentences of a rule text of at least SENTENCE_MIN_WORDS words, YAML front matter left out."""
+    return [s.strip() for block in blocks(text) for s in re.split(r"(?<=[.!?])\s+", block)
+            if len(re.findall(r"\w+", s)) >= SENTENCE_MIN_WORDS]
+
+
+def normalized(text):
+    return " ".join(re.findall(r"\w+", text.lower()))
+
+
+def removed_sentences(old, new):
+    """(file, sentence, closest new sentence or None) for every sentence of the old rule files that none of the new
+    ones contains any more (moved text is found in its new place and does not count); the closest new sentence is
+    given when it shares at least NEAR_MATCH of the words, a rewording rather than a removal."""
+    everything = " " + normalized(" ".join(new.values())) + " "
+    candidates = [(normalized(s), s) for text in new.values() for s in sentences(text)]
+    found = []
+    for rel, text in sorted(old.items()):
+        for sentence in sentences(text or ""):
+            words = normalized(sentence)
+            if f" {words} " not in everything:
+                found.append((rel, sentence, closest(words, candidates)))
+    return found
+
+
+def closest(words, candidates):
+    """The candidate sentence most like `words` when it reaches NEAR_MATCH, else None."""
+    best, best_ratio = None, NEAR_MATCH
+    for other_words, other in candidates:
+        matcher = difflib.SequenceMatcher(None, words.split(), other_words.split())
+        if matcher.real_quick_ratio() >= best_ratio and matcher.quick_ratio() >= best_ratio:
+            ratio = matcher.ratio()
+            if ratio >= best_ratio:
+                best, best_ratio = other, ratio
+    return best
+
+
+def dropped_words(sentence, rewording):
+    """The words of `sentence` that its rewording no longer has, in order."""
+    old, new = normalized(sentence).split(), normalized(rewording).split()
+    matcher = difflib.SequenceMatcher(None, old, new)
+    return [w for tag, i1, i2, _, _ in matcher.get_opcodes() if tag in ("replace", "delete") for w in old[i1:i2]]
+
+
+def check_rule_changes(warnings, info, old=None, new=None):
+    """Growth and removed sentences of the rule files against origin/main (AGENTS.md, Writing rules)."""
+    old = base_rule_texts() if old is None else old
+    if old is None:
+        info.append("INFO rule files: no merge base with origin/main here, so growth and removed sentences are "
+                    "not compared")
+        return
+    new = current_rule_texts() if new is None else new
+    lines, growth_warnings = rule_growth(old, new)
+    info += lines
+    warnings += growth_warnings
+    for rel, sentence, rewording in removed_sentences(old, new):
+        if rewording is None:
+            warnings.append(f"WARNING core/{rel}: sentence removed — say in the pull request where it moved or why it "
+                            f"goes: \"{sentence}\"")
+        else:
+            dropped = " ".join(dropped_words(sentence, rewording)) or "none (words added)"
+            info.append(f"INFO core/{rel}: sentence reworded, words no longer in it: {dropped} — \"{sentence}\"")
 
 
 REPEAT_MIN_WORDS = 20
 
 
-def rule_words(base, budgets):
-    """The words of every existing budgeted rule file, YAML front matter left out."""
+def rule_words(base, files):
+    """The words of every existing rule file, YAML front matter left out."""
     texts = {}
-    for rel in WORD_BUDGETS if budgets is None else budgets:
+    for rel in RULE_FILES if files is None else files:
         path = os.path.join(base, rel)
         if os.path.isfile(path):
             body = re.sub(r"\A---\n.*?\n---\n", "", read(path), flags=re.S)
@@ -834,19 +978,19 @@ def run_lengths(starts, minimum):
     return runs
 
 
-def repeated_runs(base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
+def repeated_runs(base=CORE, files=None, minimum=REPEAT_MIN_WORDS):
     """(file, other file, words, snippet) for every run of at least `minimum` consecutive words that two squad
     rule files share word for word (case and punctuation aside): a rule stated in two places."""
-    texts = rule_words(base, budgets)
+    texts = rule_words(base, files)
     return [(rel, other, length, " ".join(texts[rel][i:i + 8]))
             for (rel, other), starts in sorted(shared_starts(texts, minimum).items())
             for i, length in run_lengths(starts, minimum)]
 
 
-def check_repeated_rules(warnings, base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
+def check_repeated_rules(warnings, base=CORE, files=None, minimum=REPEAT_MIN_WORDS):
     """A rule lives in exactly one place (AGENTS.md): two squad rule files sharing a long run of words is a
     warning to replace one copy by a pointer, or to say in the pull request why both stay."""
-    for rel, other, length, start in repeated_runs(base, budgets, minimum):
+    for rel, other, length, start in repeated_runs(base, files, minimum):
         warnings.append(f"WARNING core/{rel} and core/{other} share {length} words in a row (\"{start} …\") — "
                         "state the rule in one place and point to it from the other")
 
@@ -1052,7 +1196,9 @@ def main():
     check_core(errors)
     check_control_characters(errors)
     check_placeholders(errors)
-    check_word_budgets(errors, warnings=warnings)
+    info = []
+    check_rule_files(errors)
+    check_rule_changes(warnings, info)
     check_repeated_rules(warnings)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
@@ -1062,7 +1208,7 @@ def main():
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_complexity(errors)
-    for line in warnings + errors:
+    for line in info + warnings + errors:
         print(line)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")
     return 0 if not errors else 1

@@ -37,6 +37,20 @@ class FakeApi:
         return answers[path]()
 
 
+def make_repository():
+    """A git repository with a commit on `main` and a work branch that changes two files."""
+    git("init", "-q", "-b", "main")
+    write("sonar-project.properties", "sonar.projectKey=org_project\n")
+    write("a.go", "package a\n\nfunc A() {}\n")
+    git("add", ".")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "work")
+    write("a.go", "package a\n\nfunc A() {}\n\nfunc B() {}\n")
+    write("sp ace.go", "package a\n")
+    git("add", ".")
+    git("commit", "-q", "-m", "work")
+
+
 class SonarCheckCase(unittest.TestCase):
     def setUp(self):
         self.script = load_script("sonar-check")
@@ -56,19 +70,6 @@ class SonarCheckCase(unittest.TestCase):
             except SystemExit as stop:
                 code = stop.code
         return code, output.getvalue()
-
-    def repository(self):
-        """A git repository with a commit on `main` and a work branch that changes two files."""
-        git("init", "-q", "-b", "main")
-        write("sonar-project.properties", "sonar.projectKey=org_project\n")
-        write("a.go", "package a\n\nfunc A() {}\n")
-        git("add", ".")
-        git("commit", "-q", "-m", "base")
-        git("checkout", "-q", "-b", "work")
-        write("a.go", "package a\n\nfunc A() {}\n\nfunc B() {}\n")
-        write("sp ace.go", "package a\n")
-        git("add", ".")
-        git("commit", "-q", "-m", "work")
 
 
 class TestPullRequestMode(SonarCheckCase):
@@ -129,12 +130,12 @@ class TestPullRequestMode(SonarCheckCase):
 
 class TestBranchMode(SonarCheckCase):
     def test_changed_lines_keep_paths_with_spaces(self):
-        self.repository()
+        make_repository()
         lines = self.script.changed_line_map("main")
         self.assertEqual(lines, {"a.go": {4, 5}, "sp ace.go": {1}})
 
     def test_changed_lines_follow_renames_and_drop_deleted_files(self):
-        self.repository()
+        make_repository()
         write("b.go", "package a\n\nfunc C() {}\n")
         git("add", ".")
         git("commit", "-q", "-m", "b")
@@ -145,7 +146,7 @@ class TestBranchMode(SonarCheckCase):
         self.assertEqual(lines["c.go"], {1, 2, 3})
 
     def test_coverage_reports_may_lie_around_untracked(self):
-        self.repository()
+        make_repository()
         write("coverage/lcov.info", "TN:\n")
         settings = types.SimpleNamespace(BASE_REF="main", COVERAGE_FORMAT="lcov",
                                          COVERAGE_REPORT_GLOB="coverage/lcov.info")
@@ -162,14 +163,14 @@ class TestBranchMode(SonarCheckCase):
         self.assertTrue(self.script.on_changed_line({"component": f"{KEY}:c.go"}, KEY, lines))
 
     def test_without_token_is_not_checked(self):
-        self.repository()
+        make_repository()
         with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}):
             code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
         self.assertEqual(code, self.script.NOT_CHECKED)
         self.assertIn("SONAR_TOKEN", output)
 
     def test_dirty_tree_and_base_branch_are_not_scanned(self):
-        self.repository()
+        make_repository()
         write("scratch.txt", "secret\n")
         with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}):
             code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
@@ -183,7 +184,7 @@ class TestBranchMode(SonarCheckCase):
         self.assertIn("work branch", output)
 
     def test_failed_or_missing_scanner_is_not_checked_and_leaves_no_output(self):
-        self.repository()
+        make_repository()
         failing = ["python3", "-c", "import os; os.makedirs('.scannerwork'); raise SystemExit(1)"]
         for command in (failing, ["no-such-scanner-binary"]):
             with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}):
@@ -192,7 +193,7 @@ class TestBranchMode(SonarCheckCase):
             self.assertFalse(os.path.exists(".scannerwork"))
 
     def test_successful_scan_reports_findings_on_changed_lines_only(self):
-        self.repository()
+        make_repository()
         scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
                    "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
         fake = FakeApi(issues=[issue("a.go", 5), issue("a.go", 1, rule="go:S100")])

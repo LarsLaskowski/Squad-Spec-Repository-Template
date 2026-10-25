@@ -23,6 +23,8 @@ to the other repositories. It contains no product code. See [`README.md`](README
   complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass. It also
   checks those tools for the SonarQube Cloud rules a refresh has tripped before (`SONAR_RULES`); when a refresh
   brings a new Sonar finding in a template-managed file, fix it here and add its rule to that check.
+  CI also runs SonarQube Cloud's own analysis of these tools (`sonarqube` job, `sonar-project.properties`); fix a
+  finding there before merging and add its rule to `SONAR_RULES` where `template-check.py` can detect it.
 - A lesson from a squad run in another repository that concerns a template-managed file is fixed here and
   rolled out with `adopt-template`, never patched in the target only.
 - **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md` and `core/.squad/team.md`);

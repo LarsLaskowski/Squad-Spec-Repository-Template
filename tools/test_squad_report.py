@@ -1,6 +1,9 @@
 """Unit tests for tools/squad-report.py: run `python3 -m unittest discover tools`."""
 import importlib.util
+import contextlib
+import io
 import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -106,6 +109,30 @@ class TestSquadReport(unittest.TestCase):
                  "tokens": None, "fix_pushes": 5, "sonar": None, "ci_failures": 4}]
         line = report.totals(rows)[2]
         self.assertIn("| Vandox | 2026-W42 | 2 | 1/2 | 1/2 | 0.50 | security 1.50 M |", line)
+
+
+class TestMainOutput(unittest.TestCase):
+    ARGS = ["--repo", "o/r", "--since", "2026-10-01", "--until", "2026-10-02"]
+
+    def run_main(self, *extra):
+        stderr = io.StringIO()
+        with mock.patch.object(report, "merged_in_window", return_value=[]), contextlib.redirect_stderr(stderr), \
+                contextlib.redirect_stdout(io.StringIO()):
+            return report.main([*self.ARGS, *extra]), stderr.getvalue()
+
+    def test_out_writes_a_file_in_the_working_directory(self):
+        with tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
+            code, _ = self.run_main("--out", "report.md")
+            with open(os.path.join(folder, "report.md"), encoding="utf-8") as handle:
+                self.assertIn("# Squad report 2026-10-01 to 2026-10-02", handle.read())
+        self.assertEqual(code, 0)
+
+    def test_out_with_a_directory_is_refused(self):
+        for out in (os.path.join("..", "report.md"), os.path.join("sub", "report.md"), "sub" + os.sep):
+            with self.subTest(out=out), tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
+                code, message = self.run_main("--out", out)
+                self.assertEqual(code, 1)
+                self.assertIn("--out must name a file in the current directory", message)
 
 
 if __name__ == "__main__":

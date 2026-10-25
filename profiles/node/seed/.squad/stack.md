@@ -9,7 +9,7 @@ profile and owned by this repository: keep it true when the build changes.
 - Node.js `{{TODO: version, e.g. 22}}` (`engines` in `package.json`), npm with a committed `package-lock.json`.
 - TypeScript (`tsc`), **ESLint** with **eslint-plugin-sonarjs** (the SonarQube JS/TS rules locally, so
   SonarQube issues surface before the push) and **Prettier** as the formatter.
-- The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci` in remote sessions.
+- The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci --ignore-scripts` in remote sessions.
 
 ## Layout
 
@@ -23,7 +23,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 
 | Name | Command |
 | ---- | ------- |
-| *Restore* | `npm ci` |
+| *Restore* | `npm ci --ignore-scripts` (dependency lifecycle scripts stay off; a package that needs one gets an explicit `npm rebuild <pkg>` step) |
 | *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `npm run format` (`prettier --write .`) |
 | *Format check* | `npm run format:check` (`prettier --check .`) |
 | *Build* | `npm run build` |

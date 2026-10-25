@@ -85,7 +85,19 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"(?:^a)|(?:b$)", r"^(?:a|b)$", r"^a$|^b$", r"[|^]a|b", r"\\^a|b"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
-    def test_the_distributed_tools_pass(self):
+    def test_several_spaces_in_a_regex_are_reported(self):
+        self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])
+
+    def test_single_spaces_quantifiers_and_classes_pass(self):
+        for pattern in (r"^ {2}([a-z]+):", r"a b", r"[ ]{2}", r"[  ]x"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+
+    def test_the_checked_files_hold_the_distributed_tools_and_the_templates_own(self):
+        names = {os.path.relpath(path, self.script.ROOT) for path in self.script.checked_python_files()}
+        self.assertIn(os.path.join("tools", "template-check.py"), names)
+        self.assertIn(os.path.join("core", ".squad", "tools", "scope-check.py"), names)
+
+    def test_the_checked_tools_pass(self):
         errors = []
         self.script.check_sonar_rules(errors)
         self.assertEqual(errors, [])

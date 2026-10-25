@@ -29,6 +29,7 @@ cannot be read.
 import argparse
 import datetime
 import json
+import os
 import re
 import statistics
 import subprocess
@@ -38,8 +39,8 @@ import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
-TOTAL = re.compile(r"^\|\s*\*\*Total\*\*\s*\|[^|]*\|\s*(\d+)[^|]*\|\s*([\d,]+)\s*\|", re.M)
-CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)", re.I)
+TOTAL = re.compile(r"^\|\s*\*\*Total\*\*\s*\|[^|]*+\|\s*+(\d++)[^|]*+\|\s*+([\d,]++)\s*+\|", re.M)
+CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)(?:\s*+:)?+\s++#(\d+)", re.I)
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 MARKERS = ("Squad working record", "Squad run metrics")
 FAILED = {"failure", "timed_out"}
@@ -200,7 +201,12 @@ def table(rows):
              "Bot / human comments | Hours to merge |",
              "| ---- | -- | ---- | ---- | -------- | ------ | ----------- | ----------- | ----------- | ----- | "
              "-------------------- | -------------- |"]
-    show = lambda value: "-" if value is None else (f"{value:,}" if isinstance(value, int) else str(value))  # noqa: E731
+
+    def show(value):
+        if value is None:
+            return "-"
+        return f"{value:,}" if isinstance(value, int) else str(value)
+
     for r in rows:
         lines.append(f"| {r['repo']} | #{r['pr']} | {r['kind']} | {show(r['tier'])} | {show(r['launches'])} | "
                      f"{show(r['tokens'])} | {r['fix_pushes']} | {r['base_merges']} | {r['ci_failures']} | "
@@ -234,7 +240,8 @@ def main(argv=None):
             for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
                 rows.append(pull_request_row(repo, pr, key or None))
     except subprocess.CalledProcessError as error:
-        print(f"GitHub could not be read: {(error.stderr or '').strip() or error}", file=sys.stderr)
+        detail = str(error.stderr or "").strip() or str(error)
+        print(f"GitHub could not be read: {detail}", file=sys.stderr)
         return 1
     except (OSError, ValueError) as error:
         print(f"GitHub could not be read: {error}", file=sys.stderr)
@@ -242,7 +249,11 @@ def main(argv=None):
     report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
                         *totals(rows), "", "## Pull requests", "", *table(rows), ""])
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
+        name = os.path.basename(args.out)
+        if not name or name != args.out:
+            print(f"--out must name a file in the current directory: {args.out}", file=sys.stderr)
+            return 1
+        with open(name, "w", encoding="utf-8") as handle:
             handle.write(report)
     else:
         print(report)

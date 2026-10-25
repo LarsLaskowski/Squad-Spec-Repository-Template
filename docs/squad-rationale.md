@@ -271,10 +271,14 @@ agreed on the issue before a plan exists, and the maintainers stay its owners. I
 verbatim and a checkout of a fork can bring `.claude/` hooks and settings into the reviewing session, so outside
 text is data and a fork that changes those files is reviewed as a diff only. The *Fork scope* workflow runs on
 `pull_request_target` with `main`'s copy of `scope-check.py`: on `pull_request` the fork's own revision of the
-workflow and of the script would run, and the fork could weaken both. The fork's revision is only read, never
-executed. `scope-check.py` checks the repository it lies in (`os.chdir` to its own root), so the workflow copies
-`main`'s tools into an ignored folder of the pull request's checkout; measured with a scratch repository: a product
-change passes, a change to `.claude/settings.json` plus a neutered `scope-check.py` in the fork fails on both files.
+workflow and of the script would run, and the fork could weaken both. The fork is never checked out: a checkout
+of a fork under `pull_request_target` is what SonarQube Cloud reports as `githubactions:S7631` (a security finding
+that fails the quality gate), and an earlier version that copied `main`'s tools into the fork's checkout let a file
+the fork committed next to the script (`argparse.py`) run first, because Python imports from the script's folder
+before the standard library. `scope-check.py --pull-request NUMBER` reads the file list, the text at the merge base
+and the text at the head commit through the GitHub API with a read-only token, so no code of the fork is on the
+runner. Measured with a stubbed API: a product change passes, a change to `.claude/settings.json` plus a neutered
+`scope-check.py` in the fork fails on both files.
 No incident yet; the rules are preventive.
 
 ## Unchanged tests are checked against the new criteria (squad-lead.md, mode plan; squad-tester.md, mode tests-first)

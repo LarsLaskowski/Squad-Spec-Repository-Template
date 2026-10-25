@@ -29,9 +29,19 @@ to the other repositories. It contains no product code. See [`README.md`](README
   rolled out with `adopt-template`, never patched in the target only.
 - **Every squad rule lives in exactly one place** (mostly `core/.squad/routing.md` and `core/.squad/team.md`);
   other files point to it. The squad's rule files have word budgets (`WORD_BUDGETS` in
-  `tools/template-check.py`): a rule that grows a file over its budget replaces or shortens another. The
-  evidence behind a rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target
+  `tools/template-check.py`) that only warn; see *Writing rules*. The evidence behind a rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target
   receives.
+
+## Writing rules
+
+Every member reads the squad's rule files on every launch, so a rule text says what to do or not do, and when,
+and nothing else. A reason in a half sentence stays when it keeps the rule from being misread or worked
+around; so does an example of the case the rule exists for. Cut: a rule repeated from another file (point to
+it), the history of how it came about, incident reports and measured numbers (they go to
+`docs/squad-rationale.md`), and sentences that change nothing a member does. A file over its word budget or
+two files sharing a 20-word run (warnings from `template-check.py`) need one sentence in the PR description on why
+it stays so, or the copy becomes a pointer; a
+budget is never met by deleting reasons or examples.
 
 ## Commit messages and pull requests
 

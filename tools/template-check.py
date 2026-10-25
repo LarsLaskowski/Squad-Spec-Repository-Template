@@ -38,8 +38,9 @@ Checks, without arguments:
   group, several spaces in a regex);
 - every squad rule file in `WORD_BUDGETS` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) stays within its word
-  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words). Every member reads these files on
-  every launch, so a rule that would grow a file over its budget replaces or shortens another one there; the
+  budget, counted like `wc -w` in a UTF-8 locale (whitespace-separated words); a file over it is a warning, as is a run of
+  20 words that two of them share (a rule in two places). Every
+  member reads these files on every launch, so size is watched, but a rule is not cut to fit; the
   evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
@@ -48,6 +49,7 @@ import ast
 import glob
 import importlib.util
 import io
+import itertools
 import json
 import os
 import re
@@ -777,18 +779,76 @@ def word_count(path):
     return len(read(path).split())
 
 
-def check_word_budgets(errors, base=CORE, budgets=None):
-    """No squad rule file grows past its budget: a new rule replaces or shortens another one in the same file."""
+def check_word_budgets(errors, base=CORE, budgets=None, warnings=None):
+    """A squad rule file past its budget is a warning, not an error: a rule is never cut to fit, but the PR says
+    why the file cannot be shorter (AGENTS.md, *Writing rules*). A budgeted file that is missing is an error."""
     for rel, budget in (WORD_BUDGETS if budgets is None else budgets).items():
         path = os.path.join(base, rel)
         if not os.path.isfile(path):
             errors.append(f"core/{rel}: listed in WORD_BUDGETS but missing")
             continue
         words = word_count(path)
-        if words > budget:
-            errors.append(f"core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
-                          "tools/template-check.py) — replace or shorten another rule, move evidence to "
-                          "docs/squad-rationale.md")
+        if words > budget and warnings is not None:
+            warnings.append(f"WARNING core/{rel}: {words} words, over its budget of {budget} (WORD_BUDGETS in "
+                            "tools/template-check.py) — cut repetition and evidence, keep reasons and examples "
+                            "that change how a rule is read; justify the size in the pull request")
+
+
+REPEAT_MIN_WORDS = 20
+
+
+def rule_words(base, budgets):
+    """The words of every existing budgeted rule file, YAML front matter left out."""
+    texts = {}
+    for rel in WORD_BUDGETS if budgets is None else budgets:
+        path = os.path.join(base, rel)
+        if os.path.isfile(path):
+            body = re.sub(r"\A---\n.*?\n---\n", "", read(path), flags=re.S)
+            texts[rel] = re.findall(r"[\w`./<>*-]+", body.lower())
+    return texts
+
+
+def shared_starts(texts, minimum):
+    """{(file, other file): {(i, j)}} for every position pair where the two files share `minimum` words."""
+    index = {}
+    for rel, words in texts.items():
+        for i in range(len(words) - minimum + 1):
+            index.setdefault(tuple(words[i:i + minimum]), []).append((rel, i))
+    found = {}
+    for places in index.values():
+        for (rel, i), (other, j) in itertools.combinations(places, 2):
+            if rel != other:
+                found.setdefault((rel, other), set()).add((i, j))
+    return found
+
+
+def run_lengths(starts, minimum):
+    """[(i, length)] of the maximal runs the start pairs (i, j) of two files form."""
+    runs = []
+    for i, j in sorted(starts):
+        if (i - 1, j - 1) not in starts:
+            length = minimum
+            while (i + length - minimum + 1, j + length - minimum + 1) in starts:
+                length += 1
+            runs.append((i, length))
+    return runs
+
+
+def repeated_runs(base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
+    """(file, other file, words, snippet) for every run of at least `minimum` consecutive words that two squad
+    rule files share word for word (case and punctuation aside): a rule stated in two places."""
+    texts = rule_words(base, budgets)
+    return [(rel, other, length, " ".join(texts[rel][i:i + 8]))
+            for (rel, other), starts in sorted(shared_starts(texts, minimum).items())
+            for i, length in run_lengths(starts, minimum)]
+
+
+def check_repeated_rules(warnings, base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
+    """A rule lives in exactly one place (AGENTS.md): two squad rule files sharing a long run of words is a
+    warning to replace one copy by a pointer, or to say in the pull request why both stay."""
+    for rel, other, length, start in repeated_runs(base, budgets, minimum):
+        warnings.append(f"WARNING core/{rel} and core/{other} share {length} words in a row (\"{start} …\") — "
+                        "state the rule in one place and point to it from the other")
 
 
 def distributed_python_files():
@@ -986,12 +1046,14 @@ def check_complexity(errors):
 
 def main():
     errors = []
+    warnings = []
     check_agents_and_skills(ROOT, errors)
     check_agents_and_skills(CORE, errors)
     check_core(errors)
     check_control_characters(errors)
     check_placeholders(errors)
-    check_word_budgets(errors)
+    check_word_budgets(errors, warnings=warnings)
+    check_repeated_rules(warnings)
     profiles = check_profiles(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
@@ -1000,8 +1062,8 @@ def main():
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_complexity(errors)
-    for error in errors:
-        print(error)
+    for line in warnings + errors:
+        print(line)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")
     return 0 if not errors else 1
 

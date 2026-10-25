@@ -28,9 +28,9 @@ class TestWordBudgets(unittest.TestCase):
         self.dir.cleanup()
 
     def check(self, budgets):
-        errors = []
-        self.script.check_word_budgets(errors, base=self.dir.name, budgets=budgets)
-        return errors
+        errors, warnings = [], []
+        self.script.check_word_budgets(errors, base=self.dir.name, budgets=budgets, warnings=warnings)
+        return errors + warnings
 
     def test_words_are_counted_like_wc(self):
         self.assertEqual(self.script.word_count(os.path.join(self.dir.name, ".squad", "routing.md")), 10)
@@ -41,17 +41,72 @@ class TestWordBudgets(unittest.TestCase):
     def test_a_file_over_its_budget_names_file_count_and_budget(self):
         errors = self.check({".squad/routing.md": 9})
         self.assertEqual(len(errors), 1)
+        self.assertTrue(errors[0].startswith("WARNING"))
         self.assertIn("core/.squad/routing.md", errors[0])
         self.assertIn("10 words", errors[0])
         self.assertIn("budget of 9", errors[0])
 
+    def test_a_file_over_its_budget_is_no_error(self):
+        errors = []
+        self.script.check_word_budgets(errors, base=self.dir.name, budgets={".squad/routing.md": 9}, warnings=[])
+        self.assertEqual(errors, [])
+
     def test_a_budgeted_file_that_is_missing_fails(self):
         self.assertIn("missing", self.check({".squad/team.md": 100})[0])
 
-    def test_the_core_files_are_within_their_budgets(self):
+    def test_the_budgeted_core_files_exist(self):
         errors = []
         self.script.check_word_budgets(errors)
         self.assertEqual(errors, [])
+
+
+class TestRepeatedRules(unittest.TestCase):
+    RULE = " ".join(f"word{i}" for i in range(25))
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.budgets = {"a.md": 1000, "b.md": 1000}
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def write(self, name, text):
+        with open(os.path.join(self.dir.name, name), "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def check(self):
+        warnings = []
+        self.script.check_repeated_rules(warnings, base=self.dir.name, budgets=self.budgets)
+        return warnings
+
+    def test_a_long_shared_run_is_a_warning_naming_both_files_and_its_length(self):
+        self.write("a.md", "# A\n\nFirst. " + self.RULE + "\n")
+        self.write("b.md", "# B\n\n" + self.RULE.upper() + " Other.\n")
+        warnings = self.check()
+        self.assertEqual(len(warnings), 1)
+        self.assertTrue(warnings[0].startswith("WARNING"))
+        self.assertIn("core/a.md and core/b.md share 25 words", warnings[0])
+
+    def test_a_short_shared_run_passes(self):
+        self.write("a.md", "one two three four five six seven eight nine ten\n")
+        self.write("b.md", "one two three four five six seven eight nine ten\n")
+        self.assertEqual(self.check(), [])
+
+    def test_front_matter_is_ignored(self):
+        self.write("a.md", "---\ndescription: " + self.RULE + "\n---\nText a.\n")
+        self.write("b.md", "---\ndescription: " + self.RULE + "\n---\nText b.\n")
+        self.assertEqual(self.check(), [])
+
+    def test_a_rule_repeated_inside_one_file_is_not_reported(self):
+        self.write("a.md", self.RULE + "\n\n" + self.RULE + "\n")
+        self.write("b.md", "Nothing shared.\n")
+        self.assertEqual(self.check(), [])
+
+    def test_the_core_files_state_each_rule_once(self):
+        warnings = []
+        self.script.check_repeated_rules(warnings)
+        self.assertEqual(warnings, [])
 
 
 class TestSonarRules(unittest.TestCase):

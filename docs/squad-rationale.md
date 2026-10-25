@@ -316,3 +316,15 @@ cost 1,000 to 20,000. The Lead (Opus) wrote the area documents and `docs/ARCHITE
 frequent blocking review finding (five of six in DockerUpdateGuard, seven of twelve in PlexToJellyfinSync). The
 specs of PlexToJellyfinSync ran to 2,000 to 5,250 words for changes of 21 production lines in the median, and every
 later launch reads the spec in full.
+
+## Security areas of manual changes, the guard of the security tier, AGENTS.md project blocks (AGENTS.md, golden rules; routing.md, Tiers and Scope of a product PR; scope-check.py)
+
+Evidence: the squad runs and manual pull requests of 2026-10-18 to 2026-10-25. Manual pull requests changed a dependency (Seluna#92, npm
+`overrides` for eight Dependabot alerts) and workflow token permissions (DockerUpdateGuard#327, #328) without a
+review, because the rule for changes outside the squad named only the list in `.squad/project.md`, while the squad's
+own routing counts CI, build configuration and dependencies too. Leads read "a guard whose purpose is to stop an
+attacker" to cover any bounded parser of untrusted input and "in doubt the higher one" as doubt about the definition
+(Seluna#82, Vandox#282, #308): the extra Security diff review found nothing blocking in those runs. Seluna#106: the `docs`
+tier allowed the project blocks of `AGENTS.md`, but *Scope of a product PR* forbade the file, so a stale project
+block could be fixed only in a squad-maintenance PR. A pull request from a fork still changes neither file:
+those blocks are text every agent reads.

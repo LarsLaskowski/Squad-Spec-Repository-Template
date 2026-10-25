@@ -672,12 +672,43 @@ class TestScopeCheck(unittest.TestCase):
     def test_squad_files_are_reported_but_stack_and_project_are_allowed(self):
         write(".squad/routing.md", "# Routing\n")
         write(".squad/stack.md", "# Stack\n\nchanged\n")
-        write("AGENTS.md", "# x\n")
         write("CLAUDE.md", "# x\n")
-        write(".github/copilot-instructions.md", "# x\n")
         found = self.errors()
-        self.assertEqual([e.split(":")[0] for e in found],
-                         [".github/copilot-instructions.md", ".squad/routing.md", "AGENTS.md", "CLAUDE.md"])
+        self.assertEqual([e.split(":")[0] for e in found], [".squad/routing.md", "CLAUDE.md"])
+
+    def test_agents_md_and_its_mirror_change_only_in_project_blocks(self):
+        text = "# Rules\n\ntemplate rule\n<!-- project:begin about -->\nold\n<!-- project:end about -->\n"
+        for path in ("AGENTS.md", ".github/copilot-instructions.md"):
+            write(path, text)
+        git("add", "-A")
+        git("commit", "-q", "-m", "instructions")
+        git("branch", "-f", "main")
+        for path in ("AGENTS.md", ".github/copilot-instructions.md"):
+            write(path, text.replace("old", "new"))
+        self.assertEqual(self.errors(tier="docs"), [], "a project block may change, also in the docs tier")
+        write("AGENTS.md", text.replace("template rule", "edited rule").replace("old", "new"))
+        self.assertEqual([e.split(":")[0] for e in self.errors()], ["AGENTS.md"])
+        write("AGENTS.md", text.replace("old", "new"))
+        write(".github/copilot-instructions.md", text)
+        self.assertTrue(any("differ in the project block 'about'" in e for e in self.errors()),
+                        "a block changed in one file only")
+        write("AGENTS.md", text.replace("old", "new") + "<!-- project:begin extra -->\nx\n<!-- project:end extra -->\n")
+        self.assertTrue(any("project block 'extra'" in e for e in self.errors()), "a block in one file only")
+        os.remove("AGENTS.md")
+        write(".github/copilot-instructions.md", text.replace("old", "new"))
+        self.assertTrue(any("added or deleted" in e for e in self.errors()), "deleting AGENTS.md is no product change")
+
+    def test_a_fork_never_changes_the_rules_not_even_a_project_block(self):
+        text = "# Rules\n\n<!-- project:begin about -->\nold\n<!-- project:end about -->\n"
+
+        class Fork:
+            def before(self, path):
+                return text
+
+            def after(self, path):
+                return text.replace("old", "new")
+        found = self.script.check(["AGENTS.md"], None, None, False, Fork())
+        self.assertTrue(found and "squad or instruction file" in found[0], found)
 
     def test_marked_file_edit_inside_project_block_passes_outside_fails(self):
         write("docs/CONTRIBUTING.md", "# Contributing\n\ntemplate text\n<!-- project:begin areas -->\nnew\n"

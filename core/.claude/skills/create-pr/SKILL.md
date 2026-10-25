@@ -99,9 +99,8 @@ a round trip through pull request comments. Each pass is delegated to the
 
 1. **Pass 1** — launch `squad-reviewer` (subagent_type `squad-reviewer`).
    Tell it the base ref, the head to review, and that this is round 1. When
-   the diff touches a security area listed in `.squad/project.md` (*Security
-   areas*), launch `squad-security` in mode `diff` alongside it (`AGENTS.md`,
-   golden rules); its findings count like the reviewer's.
+   the diff touches a security area as `AGENTS.md` (golden rules) defines it,
+   launch `squad-security` in mode `diff` alongside it; its findings count like the reviewer's.
 2. **Act on the verdict** (with Security alongside: both verdicts):
    - `APPROVE` (and Security's `APPROVED`) → done, go push.
    - Security's `CHANGES_REQUIRED` → its findings are blocking findings like the reviewer's.

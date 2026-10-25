@@ -276,3 +276,11 @@ executed. `scope-check.py` checks the repository it lies in (`os.chdir` to its o
 `main`'s tools into an ignored folder of the pull request's checkout; measured with a scratch repository: a product
 change passes, a change to `.claude/settings.json` plus a neutered `scope-check.py` in the fork fails on both files.
 No incident yet; the rules are preventive.
+
+## Unchanged tests are checked against the new criteria (squad-lead.md, mode plan; squad-tester.md, mode tests-first)
+
+Evidence: the squad run of PlexToJellyfinSync#234 (filed as issue 174 of this repository). The plan listed an
+existing test as unchanged regression although a new criterion made the method throw for exactly its input (a
+65-character key). The conflict surfaced only in step 6, when the Dev's implementation left the test red, and cost
+one extra Lead `decide` launch and a plan correction. The Tester's tests-first run missed it too, because the old
+test still passes on the old code.

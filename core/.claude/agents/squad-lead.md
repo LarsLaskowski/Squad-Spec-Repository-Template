@@ -74,7 +74,8 @@ The orchestrator tells you which **mode** to run:
   - the exact **signatures** of every new or changed member (for the Dev's skeleton) and the existing files
     the skeleton must rewrite — a file you call final is one you read and found so;
   - the **test files**, named strictly by *Layout* in `.squad/stack.md` and `docs/UNIT_TESTS.md`, and the
-    existing test call sites a changed signature affects, with who adapts them (*Loop limits*);
+    existing test call sites a changed signature affects, with who adapts them (*Loop limits*); a test kept
+    unchanged has no input a new criterion changes, else it is adapted, with owner;
   - for a change that only a CI run can exercise (a workflow, an external API the session cannot reach): the
     runtime details no one can verify beforehand, each named up front, with a design that fails closed as the
     default;
@@ -99,8 +100,7 @@ The orchestrator tells you which **mode** to run:
   - an architecture check against `docs/ARCHITECTURE.md`: the guarantees in `.squad/project.md` are not
     weakened without the Product Manager;
   - the **options considered**: each alternative you weighed and why it lost, or "one option" — they decide
-    whether the Devil's Advocate runs (*Plan challenge*), so do not invent alternatives and do not hide real
-    ones.
+    whether the Devil's Advocate runs (*Plan challenge*), so neither invent nor hide alternatives.
 
   Two checks before you fix a criterion: content the issue supplies verbatim (an image, SVG, configuration,
   a fixture) is rendered or exercised once, and a mismatch between the literal content and the evident
@@ -121,8 +121,7 @@ The orchestrator tells you which **mode** to run:
   with it. Keep the record to the why: the behavior it leads to is written once in the area document, which
   the record links and names in its `Area:` field. If a guarantee or flow changes, the plan names the
   `docs/ARCHITECTURE.md` update with its owner, and the record is linked from it.
-  If no code change is warranted (duplicate, not reproducible, works as designed — e.g. covered by an
-  accepted decision record — or out of scope), write no plan and return `RESULT: NO CHANGE` with the reason
+  If no code change is warranted (duplicate, not reproducible, works as designed or out of scope), write no plan and return `RESULT: NO CHANGE` with the reason
   and a proposed, polite issue comment.
 - `revise` — after `plan-check.py` findings: fix exactly those, nothing else. After a spec challenge: rework
   `spec.md` and answer each objection in its *Challenge* section (accepted — what changed; or rejected — why).

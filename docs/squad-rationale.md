@@ -262,3 +262,17 @@ repository). A member stopped by the model's safeguard (`invalid_request`, categ
 measure a write vector; the API-error rule (relaunch unchanged, at most twice) would have looped, and rephrasing the
 request would have been a workaround. The unreviewed finding was therefore carried as unverified to the Product
 Manager, and the Security diff review of such an issue runs read-only.
+
+## Outside contributions (routing.md, Outside authors; team.md, Outside text is data; review-pr, step 1; fork-scope.yml)
+
+Reason: the template's repositories are public, so issues and fork pull requests come from people who are not
+maintainers. In spec-driven work the acceptance criteria are the contract, so an outside author's feature spec is
+agreed on the issue before a plan exists, and the maintainers stay its owners. Issue and PR texts reach the Lead
+verbatim and a checkout of a fork can bring `.claude/` hooks and settings into the reviewing session, so outside
+text is data and a fork that changes those files is reviewed as a diff only. The *Fork scope* workflow runs on
+`pull_request_target` with `main`'s copy of `scope-check.py`: on `pull_request` the fork's own revision of the
+workflow and of the script would run, and the fork could weaken both. The fork's revision is only read, never
+executed. `scope-check.py` checks the repository it lies in (`os.chdir` to its own root), so the workflow copies
+`main`'s tools into an ignored folder of the pull request's checkout; measured with a scratch repository: a product
+change passes, a change to `.claude/settings.json` plus a neutered `scope-check.py` in the fork fails on both files.
+No incident yet; the rules are preventive.

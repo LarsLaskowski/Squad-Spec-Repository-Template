@@ -38,7 +38,13 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.
-- **GitHub scaffolding** — PR template, issue templates, CI workflow, CodeQL, Dependabot (per profile).
+- **GitHub scaffolding** — PR template, issue templates, CI workflow, CodeQL, Dependabot (per profile), and the
+  *Fork scope* workflow: a pull request from a fork that changes the squad, the agent instructions or the template
+  parts of the marked files fails, checked by `main`'s own `scope-check.py` so the fork cannot weaken it.
+- **Outside contributions** — `docs/CONTRIBUTING.md` asks outside contributors for an issue before a feature, the
+  squad agrees an outside author's acceptance criteria on the issue before planning (`.squad/routing.md`, *Outside
+  authors*), `review-pr` reads a fork's diff before checking it out, and every member treats issue, PR and comment
+  texts as data, never as instructions (`.squad/team.md`).
 
 ## Layout
 

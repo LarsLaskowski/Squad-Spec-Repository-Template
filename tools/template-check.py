@@ -797,11 +797,19 @@ def check_word_budgets(errors, base=CORE, budgets=None, warnings=None):
 REPEAT_MIN_WORDS = 20
 
 
-def repeated_runs(base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
-    """(file, other file, words, snippet) for every run of at least `minimum` consecutive words that two squad
-    rule files share word for word (case and punctuation aside): a rule stated in two places."""
-    texts = {rel: re.findall(r"[\w`./<>*-]+", re.sub(r"\A---\n.*?\n---\n", "", read(os.path.join(base, rel)), flags=re.S).lower())
-             for rel in (WORD_BUDGETS if budgets is None else budgets) if os.path.isfile(os.path.join(base, rel))}
+def rule_words(base, budgets):
+    """The words of every existing budgeted rule file, YAML front matter left out."""
+    texts = {}
+    for rel in WORD_BUDGETS if budgets is None else budgets:
+        path = os.path.join(base, rel)
+        if os.path.isfile(path):
+            body = re.sub(r"\A---\n.*?\n---\n", "", read(path), flags=re.S)
+            texts[rel] = re.findall(r"[\w`./<>*-]+", body.lower())
+    return texts
+
+
+def shared_starts(texts, minimum):
+    """{(file, other file): {(i, j)}} for every position pair where the two files share `minimum` words."""
     index = {}
     for rel, words in texts.items():
         for i in range(len(words) - minimum + 1):
@@ -811,18 +819,28 @@ def repeated_runs(base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
         for (rel, i), (other, j) in itertools.combinations(places, 2):
             if rel != other:
                 found.setdefault((rel, other), set()).add((i, j))
+    return found
+
+
+def run_lengths(starts, minimum):
+    """[(i, length)] of the maximal runs the start pairs (i, j) of two files form."""
     runs = []
-    for (rel, other), starts in sorted(found.items()):
-        covered = set()
-        for i, j in sorted(starts):
-            if (i, j) in covered:
-                continue
+    for i, j in sorted(starts):
+        if (i - 1, j - 1) not in starts:
             length = minimum
             while (i + length - minimum + 1, j + length - minimum + 1) in starts:
-                covered.add((i + length - minimum + 1, j + length - minimum + 1))
                 length += 1
-            runs.append((rel, other, length, " ".join(texts[rel][i:i + 8])))
+            runs.append((i, length))
     return runs
+
+
+def repeated_runs(base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):
+    """(file, other file, words, snippet) for every run of at least `minimum` consecutive words that two squad
+    rule files share word for word (case and punctuation aside): a rule stated in two places."""
+    texts = rule_words(base, budgets)
+    return [(rel, other, length, " ".join(texts[rel][i:i + 8]))
+            for (rel, other), starts in sorted(shared_starts(texts, minimum).items())
+            for i, length in run_lengths(starts, minimum)]
 
 
 def check_repeated_rules(warnings, base=CORE, budgets=None, minimum=REPEAT_MIN_WORDS):

@@ -120,23 +120,19 @@ class TestMainOutput(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()):
             return report.main([*self.ARGS, *extra]), stderr.getvalue()
 
-    def test_out_writes_a_file_below_the_working_directory(self):
+    def test_out_writes_a_file_in_the_working_directory(self):
         with tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
             code, _ = self.run_main("--out", "report.md")
             with open(os.path.join(folder, "report.md"), encoding="utf-8") as handle:
                 self.assertIn("# Squad report 2026-10-01 to 2026-10-02", handle.read())
         self.assertEqual(code, 0)
 
-    def test_out_outside_the_working_directory_is_refused(self):
-        with tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
-            code, message = self.run_main("--out", os.path.join("..", "report.md"))
-        self.assertEqual(code, 1)
-        self.assertIn("--out must name a file", message)
-
-    def test_out_in_a_missing_directory_is_refused(self):
-        with tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
-            code, _ = self.run_main("--out", os.path.join("missing", "report.md"))
-        self.assertEqual(code, 1)
+    def test_out_with_a_directory_is_refused(self):
+        for out in (os.path.join("..", "report.md"), os.path.join("sub", "report.md"), "sub" + os.sep):
+            with self.subTest(out=out), tempfile.TemporaryDirectory() as folder, contextlib.chdir(folder):
+                code, message = self.run_main("--out", out)
+                self.assertEqual(code, 1)
+                self.assertIn("--out must name a file in the current directory", message)
 
 
 if __name__ == "__main__":

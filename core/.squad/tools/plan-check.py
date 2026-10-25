@@ -26,10 +26,9 @@ Checks, in the work folder `specs/<folder>/`:
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
   that settles it, starting with `to verify:`); no template placeholder is left; no Markdown file of the work
   folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A
-  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is reported as a warning, one longer than
-  `PLAN_HARD_WORDS` (default twice that) as a finding: a long plan costs every member that reads it, so the
-  Lead moves settled material (answered challenge entries, facts verified in earlier rounds) into the decision
-  record or the area document.
+  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is a finding: a long plan costs every
+  member that reads it, so the Lead moves settled material (answered challenge entries, facts verified in earlier
+  rounds) into the decision record or the area document, and a scope that still needs more is split.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.
@@ -50,7 +49,6 @@ import squad_settings as settings  # noqa: E402  (per-repository settings next t
 from analyzer_common import control_characters  # noqa: E402  (shared helpers next to this script)
 
 PLAN_MAX_WORDS = getattr(settings, "PLAN_MAX_WORDS", 4000)
-PLAN_HARD_WORDS = getattr(settings, "PLAN_HARD_WORDS", 2 * PLAN_MAX_WORDS)
 TIERS = ("trivial", "standard", "security")
 STATUSES = ("confirmed", "refuted", "unverified")
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
@@ -422,13 +420,11 @@ def check(folder):
             check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)))
             check_placeholders("tasks.md", tasks, errors)
     words = len(plan.split())
-    if words > PLAN_HARD_WORDS:
-        errors.append(f"plan.md has {words} words (PLAN_HARD_WORDS {PLAN_HARD_WORDS}): move settled material "
-                      "(answered challenge entries, facts verified in earlier rounds) into the decision record "
-                      "or the area document")
-    elif words > PLAN_MAX_WORDS:
-        warnings.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}): every member reads it — "
-                        "cut what the code, the spec or a decision record already says")
+    if words > PLAN_MAX_WORDS:
+        errors.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}), and every member reads it: "
+                      "move settled material (answered challenge entries, facts verified in earlier rounds) into "
+                      "the decision record or the area document, cut what the code, the spec or a record already "
+                      "says, and split a scope that still needs more")
     return errors, warnings
 
 

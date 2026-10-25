@@ -10,8 +10,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   Dev, Code Officer and Reviewer, run by the `squad-issue` (bug fixes) and `squad-spec` (features, also from issues)
   skills: for a feature first a spec (scenarios, edge cases, the acceptance criteria) and its challenge, then plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → PR approval by checklist → pull request. Details in
-  [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in every agent's front matter
-  (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members; only the orchestrating session
+  [`core/.squad/routing.md`](core/.squad/routing.md). A `PreToolUse` hook in `.claude/settings.json`
+  (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members (every `squad-*` agent); only the orchestrating session
   commits, pushes and posts.
 - **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
   Copilot's coding agent read directly. `CLAUDE.md` only imports it (`@AGENTS.md`): Claude Code reads
@@ -69,7 +69,7 @@ Four kinds of files in a target repository:
 | managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
 | generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
-| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again |
+| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard hook added when it lacks it |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
@@ -83,8 +83,8 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 
 `python3 tools/squad-report.py --repo <owner/name>[=<sonar-project-key>] … --since <date>` reads, for every pull
 request merged in the window, what happened after it was opened: fix pushes, CI failures, SonarQube Cloud issues and
-review comments, plus tier, launches and tokens of a squad run from its working record. Its totals per repository
-and week are the evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
+review comments, plus tier, launches and tokens of a squad run from its working record, and names the squad pull
+requests without run metrics (no step-12 wrap-up). Its totals per repository and week are the evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
 
 ## Profiles
 

@@ -341,7 +341,7 @@ output and caches (see *Concurrency* in `.squad/stack.md` for what this stack sh
 `squad-devils-advocate` and `squad-security` (mode `plan`) may run together, and in step 8 `squad-reviewer`
 and `squad-security`, because they are read-only and the reviewer builds in a scratch copy. Members
 experiment only in a scratch `git worktree`, never in the working tree (`team.md`, *Shared rules*); the
-members' `PreToolUse` hook (`.claude/hooks/git-guard.py`) denies every other Git and GitHub write.
+`PreToolUse` hook `.claude/hooks/git-guard.py` denies the members every other Git and GitHub write.
 
 ## Outcome "no change"
 

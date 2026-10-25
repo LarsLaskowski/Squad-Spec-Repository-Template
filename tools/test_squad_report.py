@@ -101,14 +101,19 @@ class TestSquadReport(unittest.TestCase):
         self.assertEqual(len(items), 101)
 
     def test_totals_per_repository_and_week(self):
-        rows = [{"repo": "Vandox", "kind": "squad", "merged_at": "2026-10-17T10:00:00Z", "tier": "security",
-                 "tokens": 1_000_000, "fix_pushes": 0, "sonar": 0, "ci_failures": 0},
-                {"repo": "Vandox", "kind": "squad", "merged_at": "2026-10-18T10:00:00Z", "tier": "security",
-                 "tokens": 2_000_000, "fix_pushes": 2, "sonar": 3, "ci_failures": 1},
-                {"repo": "Vandox", "kind": "manual", "merged_at": "2026-10-18T10:00:00Z", "tier": None,
-                 "tokens": None, "fix_pushes": 5, "sonar": None, "ci_failures": 4}]
+        rows = [{"repo": "Vandox", "pr": 1, "kind": "squad", "merged_at": "2026-10-17T10:00:00Z", "tier": "security",
+                 "launches": 9, "tokens": 1_000_000, "fix_pushes": 0, "sonar": 0, "ci_failures": 0},
+                {"repo": "Vandox", "pr": 2, "kind": "squad", "merged_at": "2026-10-18T10:00:00Z", "tier": "security",
+                 "launches": 12, "tokens": 2_000_000, "fix_pushes": 2, "sonar": 3, "ci_failures": 1},
+                {"repo": "Vandox", "pr": 3, "kind": "squad", "merged_at": "2026-10-18T11:00:00Z", "tier": "trivial",
+                 "launches": None, "tokens": None, "fix_pushes": 0, "sonar": 0, "ci_failures": 0},
+                {"repo": "Vandox", "pr": 4, "kind": "manual", "merged_at": "2026-10-18T10:00:00Z", "tier": None,
+                 "launches": None, "tokens": None, "fix_pushes": 5, "sonar": None, "ci_failures": 4}]
         line = report.totals(rows)[2]
-        self.assertIn("| Vandox | 2026-W42 | 2 | 1/2 | 1/2 | 0.50 | security 1.50 M |", line)
+        self.assertIn("| Vandox | 2026-W42 | 3 | 2/3 | 2/3 | 0.33 | 1 | security 1.50 M |", line)
+        self.assertIn("Vandox#3", report.without_metrics(rows)[-1], "a squad PR without run metrics is named")
+        self.assertNotIn("Vandox#4", report.without_metrics(rows)[-1], "a manual PR never has run metrics")
+        self.assertEqual(report.without_metrics(rows[:2]), [])
 
 
 class TestMainOutput(unittest.TestCase):

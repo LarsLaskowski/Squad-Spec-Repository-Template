@@ -106,9 +106,18 @@ class TestHookInput(unittest.TestCase):
         self.assertIn("git commit", decision["permissionDecisionReason"])
 
     def test_allowed_command_and_other_tools_give_no_decision(self):
-        for data in ({"tool_name": "Bash", "tool_input": {"command": "git status"}},
-                     {"tool_name": "Edit", "tool_input": {"file_path": "a"}}, "not json", "[]"):
+        for data in ({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": "git status"}},
+                     {"tool_name": "Edit", "agent_type": "squad-dev", "tool_input": {"file_path": "a"}},
+                     "not json", "[]"):
             self.assertEqual(self.run_hook(data), "", data)
+
+    def test_only_squad_members_are_guarded(self):
+        command = {"command": "git rm -r specs/x"}
+        self.assertIn("deny", self.run_hook({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": command}))
+        for data in ({"tool_name": "Bash", "tool_input": command},
+                     {"tool_name": "Bash", "agent_type": "Explore", "tool_input": command},
+                     {"tool_name": "Bash", "agent_type": None, "tool_input": command}):
+            self.assertEqual(self.run_hook(data), "", f"the orchestrator and other agents keep Git writes: {data}")
 
 
 if __name__ == "__main__":

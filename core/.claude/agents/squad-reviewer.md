@@ -4,12 +4,6 @@ description: Squad Reviewer. Reviews a change in this repository against its sta
 model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
-hooks:
-  PreToolUse:
-    - matcher: Bash
-      hooks:
-        - type: command
-          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Reviewer

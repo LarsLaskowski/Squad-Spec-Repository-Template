@@ -214,6 +214,15 @@ likely did not fire for that call; the one form found to pass it, a command run 
 `eval`, is checked now too. Since a guard can miss, the rule in *Shared rules* says how to read another
 revision, and the orchestrator checks `git symbolic-ref -q HEAD` before every commit.
 
+## The Git guard runs from the project settings (team.md, Git and GitHub; config-check.py)
+
+Members kept running Git writes the guard denies: `git checkout <sha>` in Seluna#15 and Vandox#286, `git rm` and
+`git mv` in Vandox#40, none of them refused. A test in a cloud session (2026-10-25) showed why: a `squad-*` agent
+ran `git rm` without a denial, because Claude Code skips the front-matter hooks of a project agent in a folder
+without workspace trust, and a cloud or `-p` session never gives that trust. Hooks in `.claude/settings.json` run
+there and also inside subagents, with the subagent's `agent_type` in the hook input, so the guard is declared there
+and decides only for `squad-*` agents; the orchestrator keeps its Git writes.
+
 It happened again in Vandox#286 (issue 172 of this repository): after the review round the working tree's
 `HEAD` was detached at the reviewed code SHA (reflog `checkout: moving from <branch> to 533be0d`), the
 orchestrator's next commits went onto it, and every `git push -q origin <branch>` printed nothing and pushed
@@ -247,7 +256,9 @@ it: the Tester wrote tests against code that did not compile (the whole package 
 included) and had to ask for a skeleton step; G9 (`procstats.ReadBootID`) went the same way in small. The plan
 grew to about 11,300 words through challenge rounds, three Security rounds and two decisions, against the soft
 limit of 4,000, because the warning named no consequence; now the Lead moves settled material out and the
-warning is a finding at twice the limit. A Dev launch with its own background gate produced five interim
+warning is a finding at twice the limit. That hard limit still let the plan of Vandox#40 grow to 5,300 words in two
+revise rounds with only a warning, and the Vandox plans of that week ran from 3,500 to 11,300 words (Vandox#288:
+11,281), read in full by each of 30 to 72 launches, so the limit itself became the finding (2026-10-25). A Dev launch with its own background gate produced five interim
 notifications with rising numbers; `--replace-last` was refused on a pending row and hit the wrong row once
 another row followed, and `--tokens 0` is refused by design, which cost several retries. Step 10 removes
 `specs/<folder>/`, so later log rows and `--summary` needed a manual restore of `log.md`, and rows written

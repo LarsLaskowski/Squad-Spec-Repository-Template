@@ -184,6 +184,20 @@ class TestPlanCheck(unittest.TestCase):
         plan = PLAN.replace("Tier: standard — a new", "Tier: trivial | standard | security — a new")
         self.assertTrue(any("Tier" in e for e in self.errors(self.feature(plan=plan))))
 
+    def test_long_spec_is_a_warning_and_guidance_comments_do_not_count(self):
+        folder = self.feature()
+        spec_path = os.path.join(folder, "spec.md")
+        with open(spec_path, encoding="utf-8") as handle:
+            spec = handle.read()
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            handle.write(spec + "\n<!-- " + "guidance " * 3000 + "-->\n")
+        self.assertEqual(self.script.check_spec_only(folder)[1], [], "comments are not counted")
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            handle.write(spec + "\nfiller " * 3000)
+        errors, warnings = self.script.check_spec_only(folder)
+        self.assertTrue(warnings and "SPEC_MAX_WORDS" in warnings[0], warnings)
+        self.assertFalse(any("words" in e for e in errors), "a long spec is no finding")
+
     def test_plan_over_the_limit_is_a_finding(self):
         errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 5000))
         self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), errors)
@@ -217,8 +231,20 @@ class TestPlanCheck(unittest.TestCase):
         self.assertTrue(any("`Kernel`" in e for e in errors), errors)
         none = PLAN + "\n## Signatures (for the Dev's skeleton)\n\nnone\n"
         self.assertEqual(self.errors(self.feature(plan=none)), [])
-        docs = TASKS.replace("| Dev |", "| Lead |")
-        self.assertFalse(any("group G1" in e for e in self.errors(self.feature(plan=plan, tasks=docs))))
+        docs = TASKS.replace("| src/Export.cs |", "| docs/areas/export.md, README.md |")
+        self.assertFalse(any("group G1" in e for e in self.errors(self.feature(plan=plan, tasks=docs))),
+                         "a group of documentation rows needs no skeleton")
+        noted = TASKS.replace("| src/Export.cs |", "| `docs/areas/export.md` (CSV section) |")
+        self.assertFalse(any("group G1" in e for e in self.errors(self.feature(plan=plan, tasks=noted))),
+                         "a note in the Files cell is no file")
+        dash = TASKS.replace("| src/Export.cs |", "| — |").replace("| Dev |", "| Lead |")
+        self.assertFalse(any("owned by the Lead" in e for e in self.errors(self.feature(tasks=dash))),
+                         "a Lead row naming no file is no documentation row")
+        lead = docs.replace("| Dev |", "| Lead |")
+        self.assertTrue(any("owned by the Lead" in e for e in self.errors(self.feature(plan=plan, tasks=lead))))
+        record = TASKS.replace("| src/Export.cs |", "| docs/decisions/0007-export.md |").replace("| Dev |", "| Lead |")
+        self.assertFalse(any("owned by the Lead" in e for e in self.errors(self.feature(tasks=record))),
+                         "a decision record stays the Lead's")
 
     def test_spec_mode_checks_the_spec_alone(self):
         self.feature(plan=None, tasks=None)

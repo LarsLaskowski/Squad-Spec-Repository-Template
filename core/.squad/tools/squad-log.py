@@ -27,7 +27,8 @@ mechanics out of the orchestrator's hands:
   the tokens of that member's last fresh launch and of the continuations logged after it, keeps tool uses and
   seconds as reported and marks the trailer `· continued`; a reported token figure below the earlier total can
   only be the round alone and is kept as it is. When the continued agent is not the member's last fresh launch
-  (one member ran several task groups, each in a fresh launch), `--continued-from "<step>"` names the step cell
+  (the Dev's `skeleton` and `implement` agents alternate across task groups, or a fresh launch followed the cap of
+  continuations), `--continued-from "<step>"` names the step cell
   of the fresh launch whose agent was continued: only that launch and its own continuations are subtracted, and
   the trailer records the step (`· continued from <step>`), so a later continuation of either agent is computed
   against the right rows. `--continued` needs an earlier row of that member with usage, `--continued-from` a

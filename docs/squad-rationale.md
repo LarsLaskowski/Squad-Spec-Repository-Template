@@ -304,3 +304,15 @@ existing test as unchanged regression although a new criterion made the method t
 65-character key). The conflict surfaced only in step 6, when the Dev's implementation left the test red, and cost
 one extra Lead `decide` launch and a plan correction. The Tester's tests-first run missed it too, because the old
 test still passes on the old code.
+
+## Task groups continue the member; the Dev writes the documentation; specs sized to the feature (routing.md, Continuing a member; squad-dev.md, Documentation; squad-lead.md, mode spec; plan-check.py)
+
+Evidence: the squad runs of 2026-10-18 to 2026-10-25. The Vandox features cost about 400 tokens per added line
+against about 245 before, with 30 to 72 launches a run: steps 4–6 launched the Dev and the Tester fresh for every
+task group (Vandox#288 had 9 to 11 groups), and each fresh launch first read the rules, the spec and the plan —
+about 60,000 to 100,000 tokens, a skeleton stub in Vandox#288 58,646 tokens in 16 seconds — while a continued launch
+cost 1,000 to 20,000. The Lead (Opus) wrote the area documents and `docs/ARCHITECTURE.md` in its own launches of
+150,000 to 300,000 tokens, written against the plan's strings: documentation that contradicted the code was the most
+frequent blocking review finding (five of six in DockerUpdateGuard, seven of twelve in PlexToJellyfinSync). The
+specs of PlexToJellyfinSync ran to 2,000 to 5,250 words for changes of 21 production lines in the median, and every
+later launch reads the spec in full.

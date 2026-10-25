@@ -194,9 +194,9 @@ suppression): its rules still apply, and those no local gate reports arrive in s
 | 3 | Plan security review | Security | Whenever *Security areas touched* is not "none" (always on tier `security`), in parallel with the plan challenge. `APPROVED` → 4; `CHANGES_REQUIRED` → Lead revision and Security delta confirmation (*Loop limits*) |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
-| 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; the plan's doc updates done, area documents included. The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
+| 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the plan's doc updates, area documents included, written by the Dev against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
 | 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`, commits, then runs the *Sonar gate* (NOT CHECKED — no SonarQube credential, or no scanner download — is logged and leaves it to step 11). It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics, Sonar findings and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
-| 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
+| 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) |
 | 11 | After the PR | Dev, Code Officer, Reviewer | *Draft until green* holds and the PR is marked ready for review; review comments worked |
@@ -230,9 +230,11 @@ new head has finished and passes.
 A fix round or a delta round of the same member within the same run continues that member's last launch
 (`SendMessage` to its agent id, or the Agent tool's resume) with the findings and the new head SHA, instead
 of a fresh launch. The same holds for the Lead within step 2: its `revise` rounds after `plan-check.py` or a
-challenge, and for a feature mode `plan` after mode `spec`. A fresh launch stays the rule for the first
-launch of any other mode, for the next task group of a feature, after a session restart (the agent id is
-gone) and when the previous launch ended on an API error. Once an agent has been continued five times or its
+challenge, and for a feature mode `plan` after mode `spec`. The next task group of a feature continues the
+member's last agent of the same mode (the Dev's `skeleton` agent for the next skeleton, its `implement` agent for
+the next implementation, the Tester's `tests-first` and `coverage` agents likewise) with the group's task rows and
+the head SHA. A fresh launch stays the rule for the first launch of any other mode, after a
+session restart (the agent id is gone) and when the previous launch ended on an API error. Once an agent has been continued five times or its
 reported tokens pass 300,000, the next round is a fresh launch with a short hand-over — the plan or task
 group, what the earlier rounds settled, the open findings and the head SHA. A continuation is logged as a
 launch with `--continued` or `--continued-from` (`squad-issue`, step 1); what a continued member may do is in

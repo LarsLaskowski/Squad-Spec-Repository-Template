@@ -1,0 +1,47 @@
+name: Fork scope
+
+# A pull request from a fork changes the product only: the squad, the agent
+# instructions and the template parts of the marked files arrive through
+# adopt-template, never from an outside contribution (docs/CONTRIBUTING.md,
+# Contributions from outside).
+#
+# pull_request_target runs this file and scope-check.py as they are on main, so
+# a fork cannot weaken the check in its own pull request. The fork's revision
+# is only read (file names, diffs, Markdown text), never built or executed:
+# never add a step here that runs code from the "pr" directory. Both checkouts
+# keep no credentials, and the token is read-only.
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    name: Scope of a fork pull request
+    if: ${{ github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main (the check)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: base
+          persist-credentials: false
+
+      - name: Check out the pull request (read only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          path: pr
+          fetch-depth: 0 # scope-check diffs against the merge base with origin/main
+          persist-credentials: false
+
+      # scope-check.py checks the repository it lies in, so main's tools are
+      # copied into an ignored folder of the pull request's checkout.
+      - name: Scope check
+        run: |
+          mkdir -p pr/.fork-scope/tools
+          cp base/.squad/tools/*.py pr/.fork-scope/tools/
+          echo "/.fork-scope/" >> pr/.git/info/exclude
+          python3 pr/.fork-scope/tools/scope-check.py --no-specs

@@ -128,6 +128,9 @@ Rules that hold throughout:
      exists; keep every other hook.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
+   - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description
+     and ask the user to make *Scope of a fork pull request* a required check of `main` and to require approval
+     for workflow runs of outside contributors (repository settings, *Actions*); neither can be set from a PR.
    - `.squad/decisions.md`, `.squad/agents/*/history.md` and `.squad/agents/*/charter.md` from older template
      versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
      the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is

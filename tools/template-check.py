@@ -396,7 +396,8 @@ def check_multi(names, target, errors):
         name = os.path.basename(path)
         if name == "codeql.yml":
             languages = [entry["language"] for entry in parsed["jobs"]["analyze"]["strategy"]["matrix"]["include"]]
-            expected = list(dict.fromkeys(single_value(n, "codeql.yml", r"- language: (\S+)") for n in names))
+            expected = list(dict.fromkeys(language for n in names
+                                            for language in re.findall(r"- language: (\S+)", profile_file(n, "codeql.yml"))))
             if languages != expected:
                 errors.append(f"profile {label}: codeql.yml languages {languages}, expected {expected}")
         elif name == "dependabot.yml":
@@ -423,10 +424,6 @@ def check_multi(names, target, errors):
 def profile_file(name, rel):
     return read(os.path.join(ROOT, "profiles", name, "seed", ".github", rel if rel == "dependabot.yml"
                              else os.path.join("workflows", rel)))
-
-
-def single_value(name, rel, pattern):
-    return re.search(pattern, profile_file(name, rel)).group(1)
 
 
 # Files an older template version wrote into every target; a refresh must remove them (RETIRED in apply-template.py).

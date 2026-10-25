@@ -118,10 +118,10 @@ class LocalSource:
 def api_get(path, token, raw=False):
     """The body of a GitHub API GET (the raw file text with `raw`), None on 404; any other failure ends the run."""
     accept = "application/vnd.github.raw+json" if raw else "application/vnd.github+json"
-    request = urllib.request.Request(GITHUB_API + path, headers={
+    request = urllib.request.Request(GITHUB_API + path, headers={  # noqa: S310  (fixed https host)
         "Authorization": f"Bearer {token}", "Accept": accept, "X-GitHub-Api-Version": "2022-11-28"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310  (request built above)
             return response.read().decode("utf-8-sig", errors="replace")
     except urllib.error.HTTPError as error:
         if error.code == 404:

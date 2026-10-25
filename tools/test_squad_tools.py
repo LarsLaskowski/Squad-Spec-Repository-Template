@@ -749,15 +749,14 @@ class TestScopeCheckPullRequest(unittest.TestCase):
         self.assertEqual(len(source.changed_files()), 101)
 
     def test_tier_cannot_be_combined_with_a_pull_request(self):
-        with mock.patch.object(sys, "argv", ["scope-check.py", "--pull-request", "7", "--tier", "docs"]):
-            with self.assertRaises(SystemExit) as raised:
-                self.script.main()
+        argv = ["scope-check.py", "--pull-request", "7", "--tier", "docs"]
+        with mock.patch.object(sys, "argv", argv), self.assertRaises(SystemExit) as raised:
+            self.script.main()
         self.assertEqual(raised.exception.code, 2)
 
     def test_pull_request_mode_needs_the_environment(self):
-        with mock.patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(SystemExit):
-                self.script.pull_request_source(7)
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaises(SystemExit):
+            self.script.pull_request_source(7)
 
 
 if __name__ == "__main__":

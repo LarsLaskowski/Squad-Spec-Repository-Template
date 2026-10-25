@@ -110,14 +110,16 @@ DECISION_RECORD = re.compile(r"^docs/decisions/\d{4}-[^/]*\.md$")
 RETIRED_REFERENCES = sorted(set(RETIRED) | {os.path.dirname(rel) for rel in RETIRED if rel.endswith("/SKILL.md")}
                             | {".squad/agents/"})
 # Stored under another name here, because a .gitattributes inside this repository would apply to it.
-RENAMES = {"gitattributes": ".gitattributes"}
+GITATTRIBUTES = ".gitattributes"
+TEMPLATE_JSON = ".squad/template.json"
+RENAMES = {"gitattributes": GITATTRIBUTES}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
 
 
 def recorded_profiles(target):
     """The profiles `.squad/template.json` of the target names: `profiles`, else `profile` plus the older
     `additionalProfiles`; empty when the file is missing or unreadable."""
-    path = os.path.join(target, ".squad", "template.json")
+    path = os.path.join(target, TEMPLATE_JSON)
     try:
         record = json.loads(read(path))
     except (OSError, ValueError):
@@ -197,19 +199,16 @@ def load_settings(path):
     return module
 
 
+def union_values(lists):
+    """The values of all lists, each once, in order of appearance."""
+    return list(dict.fromkeys(value for values in lists for value in values))
+
+
 def merge_settings(profile_dirs):
     """squad_settings.py of a repository with several profiles: the union of the paths and one coverage report
     per profile; the primary profile's other settings (e.g. SOLUTION) come first."""
     modules = [load_settings(os.path.join(p, "seed", ".squad", "tools", "squad_settings.py")) for p in profile_dirs]
     names = [os.path.basename(p) for p in profile_dirs]
-
-    def union(attr, default=()):
-        result = []
-        for module in modules:
-            for value in getattr(module, attr, default):
-                if value not in result:
-                    result.append(value)
-        return result
 
     lines = ['"""Per-repository settings for the squad tools (profiles: ' + ", ".join(names) + '). Seeded once by',
              'adopt-template and kept on later refreshes; the scripts that import it are template-managed."""', "",
@@ -225,11 +224,7 @@ def merge_settings(profile_dirs):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]
     reports = [(m.COVERAGE_FORMAT, m.COVERAGE_REPORT_GLOB) for m in modules]
-    tests = []
-    for module in modules:
-        for value in getattr(module, "COVERAGE_TEST_PATHSPECS", module.COVERAGE_EXCLUDES):
-            if value not in tests:
-                tests.append(value)
+    tests = union_values([getattr(m, "COVERAGE_TEST_PATHSPECS", m.COVERAGE_EXCLUDES) for m in modules])
     lines += ["# Coverage gate (.squad/tools/coverage-check.py): one (format, glob) report per profile, merged.",
               "# COVERAGE_OVERALL_THRESHOLD may start below COVERAGE_THRESHOLD in a repository adopted with a coverage debt;",
               "# it is never lowered and is raised towards COVERAGE_THRESHOLD as coverage improves.",
@@ -238,8 +233,8 @@ def merge_settings(profile_dirs):
               "COVERAGE_REPORTS = ["]
     lines += [f"    ({fmt!r}, {pattern!r})," for fmt, pattern in reports]
     lines += ["]",
-              f"COVERAGE_PATHSPECS = {union('COVERAGE_PATHSPECS')!r}",
-              f"COVERAGE_EXCLUDES = {union('COVERAGE_EXCLUDES')!r}",
+              f"COVERAGE_PATHSPECS = {union_values([getattr(m, 'COVERAGE_PATHSPECS', ()) for m in modules])!r}",
+              f"COVERAGE_EXCLUDES = {union_values([getattr(m, 'COVERAGE_EXCLUDES', ()) for m in modules])!r}",
               f"COVERAGE_TEST_PATHSPECS = {tests!r}  # a diff touching these is gated on overall coverage too", ""]
     return "\n".join(lines)
 
@@ -254,10 +249,10 @@ def split_chunks(text, pattern):
 
 def merge_dependabot(texts):
     head, chunks = split_chunks(texts[0], r"^  - package-ecosystem:")
-    seen = {re.match(r"  - package-ecosystem: *(\S+)", c).group(1).strip('"') for c in chunks}
+    seen = {re.match(r" {2}- package-ecosystem: *(\S+)", c).group(1).strip('"') for c in chunks}
     for text in texts[1:]:
         for chunk in split_chunks(text, r"^  - package-ecosystem:")[1]:
-            ecosystem = re.match(r"  - package-ecosystem: *(\S+)", chunk).group(1).strip('"')
+            ecosystem = re.match(r" {2}- package-ecosystem: *(\S+)", chunk).group(1).strip('"')
             if ecosystem not in seen:
                 seen.add(ecosystem)
                 chunks[-1] = chunks[-1].rstrip("\n") + "\n\n"
@@ -267,7 +262,7 @@ def merge_dependabot(texts):
 
 def merge_codeql(texts):
     """Matrix entries and the set-up steps before `Initialize CodeQL` of every profile, side by side."""
-    initialize = re.compile(r"^      - name: Initialize CodeQL", re.M)
+    initialize = re.compile(r"^ {6}- name: Initialize CodeQL", re.M)
 
     def parts(text):
         before, after = text.split("    steps:\n", 1)
@@ -288,20 +283,20 @@ def merge_codeql(texts):
 def merge_ci(texts, names):
     """Jobs of every profile under one `jobs:`; a job id that already exists gets the profile as prefix."""
     head, jobs = texts[0].split("\njobs:\n", 1)
-    taken = set(re.findall(r"^  ([\w-]+):", jobs, re.M))
-    permissions = set(re.findall(r"^  ([\w-]+: \w+)$", head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
+    taken = set(re.findall(r"^ {2}([\w-]+):", jobs, re.M))
+    permissions = set(re.findall(r"^ {2}([\w-]+: \w+)$", head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
     out = jobs.rstrip("\n") + "\n"
     for name, text in zip(names[1:], texts[1:], strict=True):
         other_head, other = text.split("\njobs:\n", 1)
-        permissions |= set(re.findall(r"^  ([\w-]+: \w+)$", other_head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
-        for job in re.findall(r"^  ([\w-]+):", other, re.M):
+        permissions |= set(re.findall(r"^ {2}([\w-]+: \w+)$", other_head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
+        for job in re.findall(r"^ {2}([\w-]+):", other, re.M):
             if job in taken:
                 other = re.sub(rf"^  {re.escape(job)}:", f"  {name}-{job}:", other, flags=re.M)
                 job = f"{name}-{job}"
             taken.add(job)
         out += "\n" + other.rstrip("\n") + "\n"
     block = "permissions:\n" + "".join(f"  {p}\n" for p in sorted(permissions))
-    head = re.sub(r"permissions:\n(?:  .*\n)+", lambda _: block, head + "\n", count=1).rstrip("\n")
+    head = re.sub(r"permissions:\n(?: {2}.*\n)+", lambda _: block, head + "\n", count=1).rstrip("\n")
     return head + "\n\njobs:\n" + out
 
 
@@ -361,7 +356,7 @@ def uses_crlf(target, profile_dirs):
     """The target's own .gitattributes decides; an existing repository without one keeps the line endings
     of its index; only an empty repository follows the profiles' seeded .gitattributes (CRLF if any has it, as
     that file is seeded then)."""
-    path = os.path.join(target, ".gitattributes")
+    path = os.path.join(target, GITATTRIBUTES)
     if os.path.isfile(path):
         return re.search(r"^\*\s+text=auto\s+eol=crlf", read(path), re.M) is not None
     if is_existing_repository(target):
@@ -404,7 +399,7 @@ def status_of(old, data):
 
 
 def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
-    dest = os.path.join(target, rel)
+    dest = target_path(target, rel)
     data = (text.replace("\n", "\r\n") if crlf else text).encode("utf-8")
     old = None
     if os.path.isfile(dest):
@@ -426,7 +421,7 @@ def write(target, rel, text, crlf, dry_run, report, status_if_new="created"):
 def retire(target, dry_run, report):
     """Remove the files an older template version wrote (RETIRED) and the folders that become empty."""
     for rel in RETIRED:
-        path = os.path.join(target, rel)
+        path = target_path(target, rel)
         if not os.path.isfile(path):
             continue
         report.append(("removed", rel))
@@ -483,11 +478,27 @@ def legacy_rules(target, template, dry_run, report):
 
 
 def backup(target, rel, dry_run, report):
-    dest = os.path.join(target, ".git", "adopt-template", "backup", rel)
+    dest = target_path(target, os.path.join(".git", "adopt-template", "backup", rel))
     report.append(("backed-up", rel + " -> .git/adopt-template/backup/" + rel))
     if not dry_run:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copyfile(os.path.join(target, rel), dest)
+        shutil.copyfile(target_path(target, rel), dest)
+
+
+def merge_seed(rel, found, names, report):
+    """One seed file that several profiles have: the merged text, or the primary profile's file (reported as a conflict)."""
+    texts = [read(src) for _, src in found]
+    owners = [name for name, _ in found]
+    if rel == ".squad/stack.md":
+        return merge_stack_md(list(zip(owners, texts, strict=True)))
+    if rel == "docs/UNIT_TESTS.md":
+        return merge_unit_tests(list(zip(owners, texts, strict=True)))
+    if rel == ".squad/tools/squad_settings.py":
+        return merge_settings([os.path.join(ROOT, "profiles", name) for name in names])
+    if rel in MERGERS:
+        return MERGERS[rel](texts, owners)
+    report.append(("conflict", f"{rel} (in {', '.join(owners)}; kept the {owners[0]} version, merge by hand)"))
+    return found[0][1]
 
 
 def seed_files(profile_dirs, names, report):
@@ -499,22 +510,7 @@ def seed_files(profile_dirs, names, report):
             sources.setdefault(rel, []).append((os.path.basename(profile), src))
     result = dict(files_under(os.path.join(ROOT, "seed")))
     for rel, found in sources.items():
-        if len(found) == 1:
-            result[rel] = found[0][1]
-            continue
-        texts = [read(src) for _, src in found]
-        owners = [name for name, _ in found]
-        if rel == ".squad/stack.md":
-            result[rel] = merge_stack_md(list(zip(owners, texts, strict=True)))
-        elif rel == "docs/UNIT_TESTS.md":
-            result[rel] = merge_unit_tests(list(zip(owners, texts, strict=True)))
-        elif rel == ".squad/tools/squad_settings.py":
-            result[rel] = merge_settings([os.path.join(ROOT, "profiles", name) for name in names])
-        elif rel in MERGERS:
-            result[rel] = MERGERS[rel](texts, owners)
-        else:
-            result[rel] = found[0][1]
-            report.append(("conflict", f"{rel} (in {', '.join(owners)}; kept the {owners[0]} version, merge by hand)"))
+        result[rel] = found[0][1] if len(found) == 1 else merge_seed(rel, found, names, report)
     return result
 
 
@@ -538,21 +534,25 @@ def managed_files(profile_dirs, names):
     return core, managed
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--target", required=True)
-    parser.add_argument("--profile", action="append", choices=PROFILES,
-                        help="stack profile; repeat for a repository with several (the first is the primary). "
-                             "Default: the profile(s) recorded in .squad/template.json")
-    parser.add_argument("--reset-profiles", action="store_true",
-                        help="accept a --profile set that differs from the one recorded in .squad/template.json")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
+def target_root(path):
+    """The target's real path, which must be the root of a git repository; every path the tool touches stays below it."""
+    root = os.path.realpath(path)
+    if not os.path.isdir(os.path.join(root, ".git")):
+        sys.exit(f"{root} is not the root of a git repository")
+    return root
 
-    target = os.path.abspath(args.target)
-    if not os.path.isdir(os.path.join(target, ".git")):
-        sys.exit(f"{target} is not the root of a git repository")
-    recorded = recorded_profiles(target)
+
+def target_path(target, rel):
+    """The path of a template-relative file inside the target; a path that would leave it is refused."""
+    dest = os.path.normpath(os.path.join(target, rel))
+    if os.path.commonpath([target, dest]) != target:
+        sys.exit(f"{rel} would leave the target repository")
+    return dest
+
+
+def profile_names(args, recorded):
+    """The profiles to apply: the ones named, else the ones the target records; refuses a changed set without
+    --reset-profiles."""
     names = list(dict.fromkeys(args.profile or recorded))
     if not names:
         sys.exit("No profile: pass --profile (repeat it for several), the target has no .squad/template.json")
@@ -562,18 +562,11 @@ def main():
     if args.profile and recorded and set(names) != set(recorded) and not args.reset_profiles:
         sys.exit(f"The target records the profiles {', '.join(recorded)}, but --profile names {', '.join(names)}: "
                  "refresh without --profile to keep the recorded ones, or add --reset-profiles to change them")
-    profile_dirs = [os.path.join(ROOT, "profiles", name) for name in names]
-    stack = combine_stack_blocks([(name, blocks(read(os.path.join(directory, "instructions.md")), "stack"))
-                                  for name, directory in zip(names, profile_dirs, strict=True)])
-    crlf = uses_crlf(target, profile_dirs)
-    report = []
+    return names
 
-    core, managed = managed_files(profile_dirs, names)
-    legacy = legacy_rules(target, read(core[CLAUDE]), args.dry_run, report)
-    eols = eol_attributes(target, [*managed, *MARKED, *GENERATED, ".squad/template.json"])
-    for rel, src in sorted(managed.items()):
-        write(target, rel, read(src), crlf_for(rel, eols, crlf), args.dry_run, report)
 
+def write_marked(target, core, legacy, stack, emit, dry_run, report):
+    """Rebuild the marked files from the template; returns {rel: text}."""
     rebuilt = {}
     for rel in MARKED:
         template = read(core[rel])
@@ -581,51 +574,55 @@ def main():
         current = read(dest) if os.path.isfile(dest) else ""
         project = blocks(current, "project")
         if current and not project:
-            backup(target, rel, args.dry_run, report)
+            backup(target, rel, dry_run, report)
         if rel == RULES and legacy:
             project = legacy
         rebuilt[rel] = fill(template, project, stack)
-        write(target, rel, rebuilt[rel], crlf_for(rel, eols, crlf), args.dry_run, report)
+        emit(rel, rebuilt[rel])
+    return rebuilt
 
-    for rel, text in generated_files(core, rebuilt[RULES]).items():
+
+def write_generated(target, core, rules, emit, dry_run, report):
+    for rel, text in generated_files(core, rules).items():
         dest = os.path.join(target, rel)
         if os.path.isfile(dest) and not blocks(read(dest), "project"):
-            backup(target, rel, args.dry_run, report)
-        write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
+            backup(target, rel, dry_run, report)
+        emit(rel, text)
 
-    seeds = seed_files(profile_dirs, names, report)
-    eols.update(eol_attributes(target, seeds))
+
+def seed_text(rel, src, crlf):
+    """The text of a seed file; a seeded .editorconfig gets the end_of_line of the repository default."""
+    text = read(src) if os.path.isfile(src) else src
+    if rel == ".editorconfig":
+        text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)[ \t]*$", r"\g<1>" + ("crlf" if crlf else "lf"), text, flags=re.M)
+    return text
+
+
+def seed_skip_reason(target, rel, names, existing):
+    """Why a seed file is left alone: (status, note), or None when it is to be written."""
+    if os.path.exists(os.path.join(target, rel)):
+        return "kept", rel
+    if SEEDS_REFUSED_WITH.get(rel) in names:
+        return "skipped", (f"{rel} (the profile {SEEDS_REFUSED_WITH[rel]} cannot use it: its Sonar scanner "
+                           "refuses a repository that has one and takes the settings as arguments)")
+    if rel == GITATTRIBUTES and existing:
+        # A new .gitattributes renormalizes line endings across the whole repository; that is a decision of
+        # its own, not a side effect of adopting the squad.
+        return "skipped", rel + " (existing repository without one; add it in a change of its own)"
+    return None
+
+
+def write_seeds(target, seeds, names, crlf, emit, report):
     existing = is_existing_repository(target)
     for rel, src in sorted(seeds.items()):
-        if os.path.exists(os.path.join(target, rel)):
-            report.append(("kept", rel))
-        elif SEEDS_REFUSED_WITH.get(rel) in names:
-            report.append(("skipped", f"{rel} (the profile {SEEDS_REFUSED_WITH[rel]} cannot use it: its Sonar scanner "
-                                      "refuses a repository that has one and takes the settings as arguments)"))
-        elif rel == ".gitattributes" and existing:
-            # A new .gitattributes renormalizes line endings across the whole repository; that is a decision of
-            # its own, not a side effect of adopting the squad.
-            report.append(("skipped", rel + " (existing repository without one; add it in a change of its own)"))
+        skipped = seed_skip_reason(target, rel, names, existing)
+        if skipped:
+            report.append(skipped)
         else:
-            text = read(src) if os.path.isfile(src) else src
-            if rel == ".editorconfig":
-                text = re.sub(r"^(end_of_line\s*=\s*)(crlf|lf)[ \t]*$", r"\g<1>" + ("crlf" if crlf else "lf"), text,
-                              flags=re.M)
-            write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
+            emit(rel, seed_text(rel, src, crlf))
 
-    retire(target, args.dry_run, report)
-    references = retired_references(target)
 
-    commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
-                            check=False).stdout.strip()
-    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": names[0],
-                         "profiles": names}, indent=2) + "\n"
-    write(target, ".squad/template.json", record, crlf_for(".squad/template.json", eols, crlf), args.dry_run, report)
-
-    known = set(managed) | set(seeds) | {".squad/template.json"}
-    unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))
-                     if f"{d}/{rel}" not in known)
-
+def print_report(report, unknown, references, dry_run):
     for status, rel in report:
         if status != "unchanged":
             print(f"{status:10} {rel}")
@@ -638,8 +635,58 @@ def main():
         print("\nReferences to removed files - fix by hand (link the replacement or drop the line):")
         for path, number, text in references:
             print(f"  {path}:{number}: {text[:120]}")
-    if args.dry_run:
+    if dry_run:
         print("\nDry run: nothing was written.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--profile", action="append", choices=PROFILES,
+                        help="stack profile; repeat for a repository with several (the first is the primary). "
+                             "Default: the profile(s) recorded in .squad/template.json")
+    parser.add_argument("--reset-profiles", action="store_true",
+                        help="accept a --profile set that differs from the one recorded in .squad/template.json")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    target = target_root(args.target)
+    names = profile_names(args, recorded_profiles(target))
+    profile_dirs = [os.path.join(ROOT, "profiles", name) for name in names]
+    stack = combine_stack_blocks([(name, blocks(read(os.path.join(directory, "instructions.md")), "stack"))
+                                  for name, directory in zip(names, profile_dirs, strict=True)])
+    crlf = uses_crlf(target, profile_dirs)
+    report = []
+
+    core, managed = managed_files(profile_dirs, names)
+    legacy = legacy_rules(target, read(core[CLAUDE]), args.dry_run, report)
+    eols = eol_attributes(target, [*managed, *MARKED, *GENERATED, TEMPLATE_JSON])
+
+    def emit(rel, text):
+        write(target, rel, text, crlf_for(rel, eols, crlf), args.dry_run, report)
+
+    for rel, src in sorted(managed.items()):
+        emit(rel, read(src))
+    rebuilt = write_marked(target, core, legacy, stack, emit, args.dry_run, report)
+    write_generated(target, core, rebuilt[RULES], emit, args.dry_run, report)
+
+    seeds = seed_files(profile_dirs, names, report)
+    eols.update(eol_attributes(target, seeds))
+    write_seeds(target, seeds, names, crlf, emit, report)
+
+    retire(target, args.dry_run, report)
+    references = retired_references(target)
+
+    commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
+                            check=False).stdout.strip()
+    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": names[0],
+                         "profiles": names}, indent=2) + "\n"
+    emit(TEMPLATE_JSON, record)
+
+    known = set(managed) | set(seeds) | {TEMPLATE_JSON}
+    unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))
+                     if f"{d}/{rel}" not in known)
+    print_report(report, unknown, references, args.dry_run)
     return 0
 
 

@@ -3,12 +3,6 @@ name: squad-dev
 description: Squad Dev. Implements the approved squad plan in production code until the Tester's tests and the full suite are green and the Coverage gate passes, and fixes blocking review findings. Formats its own files; edits tests only to adapt call sites mechanically to its own signature change; no Git write operations.
 model: sonnet
 effort: medium
-hooks:
-  PreToolUse:
-    - matcher: Bash
-      hooks:
-        - type: command
-          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"
 ---
 
 # Squad Dev

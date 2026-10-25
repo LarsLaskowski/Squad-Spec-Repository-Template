@@ -162,8 +162,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
 
-    Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), continuing
-    the member and the last round's reviewer, at most 2 fix rounds per failure before the Lead decides, and
+    Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), logged at
+    step 11 like every launch, continuing the member and the last round's reviewer, at most 2 fix rounds per failure before the Lead decides, and
     gets the re-approval of step 9. A red CI on a criterion the plan verifies only in CI is a normal outcome
     here (*Criteria verified only in CI*). The work folder is gone: give the Reviewer, Security and the Lead
     the plan (tiers `docs` and `patch`: the first log row; for a feature also `spec.md`, `tasks.md`) from the
@@ -176,7 +176,9 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     labels if missing) and link them from the working-record comment; with nothing to learn, add a `no
     lessons` row instead. Run `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's
     log table); exit code 3 names launch rows still without usage — amend them from their
-    notifications or mark them `--unreported`, and run it again. Append the tables exactly as printed (a run
+    notifications or mark them `--unreported`, and run it again; exit code 4 names commits after the PR that
+    no step-11 review row follows — run their delta review (step 11), or log a verbatim fix as such, and run it
+    again. Append the tables exactly as printed (a run
     without them is not wrapped up) to the comment under "Squad run metrics", and report the branch, the PR
     URL, the tier, the `squad` issues (or "no lessons"), the metrics tables and any escalation or Lead
     decision to the user.

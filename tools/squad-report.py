@@ -177,8 +177,10 @@ def share(rows, test):
 
 def totals(rows):
     """Markdown lines with the totals of the squad pull requests per repository and week."""
-    lines = ["| Repository | Week | Squad PRs | No fix commit | No Sonar issue | CI failures per PR | Median tokens by tier |",
-             "| ---------- | ---- | --------- | ------------- | -------------- | ------------------ | --------------------- |"]
+    lines = ["| Repository | Week | Squad PRs | No fix commit | No Sonar issue | CI failures per PR | Without run metrics | "
+             "Median tokens by tier |",
+             "| ---------- | ---- | --------- | ------------- | -------------- | ------------------ | ------------------- | "
+             "--------------------- |"]
     groups = {}
     for row in rows:
         if row["kind"] == "squad":
@@ -192,8 +194,18 @@ def totals(rows):
         known = [r for r in group if r["sonar"] is not None]
         failures = sum(r["ci_failures"] for r in group) / len(group)
         lines.append(f"| {repo} | {when} | {len(group)} | {share(group, lambda r: r['fix_pushes'] == 0)} | "
-                     f"{share(known, lambda r: r['sonar'] == 0)} | {failures:.2f} | {median} |")
+                     f"{share(known, lambda r: r['sonar'] == 0)} | {failures:.2f} | "
+                     f"{sum(1 for r in group if r['launches'] is None)} | {median} |")
     return lines
+
+
+def without_metrics(rows):
+    """Markdown lines naming the squad pull requests whose working record has no run metrics: the run's step 12
+    (wrap-up) did not happen, so its lessons and costs are missing too."""
+    missing = [f"{r['repo']}#{r['pr']}" for r in rows if r["kind"] == "squad" and r["launches"] is None]
+    if not missing:
+        return []
+    return ["", f"**Squad pull requests without run metrics** (no step 12 wrap-up): {', '.join(missing)}"]
 
 
 def table(rows):
@@ -247,7 +259,7 @@ def main(argv=None):
         print(f"GitHub could not be read: {error}", file=sys.stderr)
         return 1
     report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
-                        *totals(rows), "", "## Pull requests", "", *table(rows), ""])
+                        *totals(rows), *without_metrics(rows), "", "## Pull requests", "", *table(rows), ""])
     if args.out:
         name = os.path.basename(args.out)
         if not name or name != args.out:

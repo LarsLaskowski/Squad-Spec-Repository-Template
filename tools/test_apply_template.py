@@ -157,5 +157,56 @@ class TestRetiredReferences(unittest.TestCase):
         self.assertEqual([(path, number) for path, number, _ in hits], [("App.slnx", 1), ("docs/ARCHITECTURE.md", 3)])
 
 
+
+class TestGitGuardSetting(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    def test_existing_settings_get_the_guard_once_and_keep_their_hooks(self):
+        import json
+        text = json.dumps({"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "start.sh"}]}],
+                                     "PreToolUse": [{"matcher": "Read", "hooks": [{"command": "secrets.ps1"}]}]},
+                           "permissions": {"allow": ["Bash(ls)"]}})
+        merged = json.loads(self.script.with_git_guard(text))
+        self.assertEqual(merged["permissions"], {"allow": ["Bash(ls)"]}, "other settings stay")
+        self.assertEqual(len(merged["hooks"]["SessionStart"]), 1, "other hooks stay")
+        self.assertEqual(merged["hooks"]["PreToolUse"][-1], self.script.GIT_GUARD_HOOK)
+        self.assertIsNone(self.script.with_git_guard(json.dumps(merged)), "a second refresh adds nothing")
+        self.assertIn("git-guard.py", json.dumps(json.loads(self.script.with_git_guard("{}"))))
+
+    def test_odd_hook_groups_and_non_ascii_text_survive(self):
+        import json
+        text = json.dumps({"hooks": {"PreToolUse": [{"matcher": "Read", "hooks": 5}]}, "note": "Grüße"},
+                          ensure_ascii=False)
+        merged = self.script.with_git_guard(text)
+        self.assertIn("Grüße", merged, "non-ASCII text is kept as written")
+        self.assertIn("git-guard.py", merged)
+
+    def test_write_seeds_merges_an_existing_settings_file(self):
+        with tempfile.TemporaryDirectory() as target:
+            write(os.path.join(target, ".claude", "settings.json"), '{"hooks": {}}\n')
+            emitted, report = {}, []
+            seeds = {".claude/settings.json": "{}", "SECURITY.md": "x"}
+            self.script.write_seeds(target, seeds, ["go"], False, emitted.__setitem__, report)
+            self.assertIn("git-guard.py", emitted[".claude/settings.json"], "the existing file gets the guard")
+            self.assertEqual(emitted["SECURITY.md"], "x", "a missing seed is still written")
+
+    def test_settings_that_are_no_object_are_left_to_a_person(self):
+        for text in ("[]", '{"hooks": []}', '{"hooks": {"PreToolUse": {}}}', "not json"):
+            with self.assertRaises(ValueError, msg=text):
+                self.script.with_git_guard(text)
+
+    def test_refresh_adds_the_guard_to_an_existing_settings_file(self):
+        with tempfile.TemporaryDirectory() as target:
+            write(os.path.join(target, ".claude", "settings.json"), '{"hooks": {"SessionStart": []}}\n')
+            emitted, report = {}, []
+            self.script.merge_git_guard(target, emitted.__setitem__, report)
+            self.assertIn("git-guard.py", emitted[".claude/settings.json"])
+            write(os.path.join(target, ".claude", "settings.json"), emitted[".claude/settings.json"])
+            emitted.clear()
+            self.script.merge_git_guard(target, emitted.__setitem__, report)
+            self.assertEqual((emitted, report[-1]), ({}, ("kept", ".claude/settings.json")))
+
+
 if __name__ == "__main__":
     unittest.main()

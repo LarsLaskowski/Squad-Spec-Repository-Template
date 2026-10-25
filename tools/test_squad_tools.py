@@ -390,6 +390,48 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("`2 Challenge · squad-devils-advocate, squad-security`, `8 Review · squad-reviewer`", result.stdout)
         self.assertIn("| Orchestrator | 1,260 | 760 | 0 |", result.stdout, "a trailer without model/effort counts as missing")
 
+    def test_summary_fails_on_commits_after_the_pr_without_a_review_row(self):
+        root = os.path.join(self.dir.name, "repo")
+        os.makedirs(root)
+
+        def commit(message, when, *paths, remove=False):
+            env = {**os.environ, "GIT_COMMITTER_DATE": when, "GIT_AUTHOR_DATE": when}
+            for args in (["rm", "-q", "-r", *paths] if remove else ["add", *paths], ["commit", "-q", "-m", message]):
+                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
+                                *args], cwd=root, env=env, check=True, capture_output=True)
+
+        subprocess.run(["git", "init", "-q", "-b", "work"], cwd=root, check=True)
+        write(os.path.join(root, "specs", "issue-1-fix", "log.md"), "| Date |\n")
+        write(os.path.join(root, "a.py"), "a = 1\n")
+        commit("intake", "2026-01-02T13:00:00Z", "specs", "a.py")
+        commit("remove the work folder", "2026-01-02T14:00:00Z", "specs", remove=True)
+        write(os.path.join(root, "a.py"), "a = 2\n")
+        commit("fix a Sonar finding", "2026-01-02T15:00:00Z", "a.py")
+        log = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
+               "| 2026-01-02 14:50 | 11 Sonar | squad-code-officer | fixed (haiku/low · 9,000 tokens · 3 tool uses · 20 s) |\n")
+
+        def summary(text):
+            return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary",
+                                   "--stdin"], cwd=root, input=text, capture_output=True, text=True, check=False)
+        result = summary(log)
+        self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
+        self.assertIn("Unreviewed after the PR: 1 commit(s)", result.stderr)
+        self.assertNotIn("Unreviewed", result.stdout, "the posted tables stay clean")
+        reviewed = log + ("| 2026-01-02 15:05 | 11 Review delta | squad-reviewer | APPROVE "
+                          "(opus/medium · 20,000 tokens · 4 tool uses · 40 s) |\n")
+        self.assertEqual(summary(reviewed).returncode, 0, "a delta review after the last fix clears it")
+        verbatim = log + "| 2026-01-02 15:00 | 11 Fix | Orchestrator | verbatim fix of a doc sentence |\n"
+        self.assertEqual(summary(verbatim).returncode, 0, "a verbatim fix needs no delta round")
+        early = log + ("| 2026-01-02 14:55 | 11 Review delta | squad-reviewer | APPROVE "
+                       "(opus/medium · 20,000 tokens · 4 tool uses · 40 s) |\n")
+        self.assertEqual(summary(early).returncode, 4, "a review before the last fix does not cover it")
+        env = {**os.environ, "GIT_COMMITTER_DATE": "2026-01-02T16:00:00Z", "GIT_AUTHOR_DATE": "2026-01-02T16:00:00Z"}
+        for args in (["checkout", "-q", "-b", "main", "HEAD~2"], ["commit", "-q", "--allow-empty", "-m", "main moved"],
+                     ["checkout", "-q", "work"], ["merge", "-q", "--no-edit", "--no-ff", "main"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                           cwd=root, env=env, check=True, capture_output=True)
+        self.assertEqual(summary(reviewed).returncode, 0, "a merge of the base branch is no fix to review")
+
     def test_orchestrator_counts_parallel_launches_once(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
         self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch", today="2026-01-02 13:00")

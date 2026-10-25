@@ -26,10 +26,11 @@ Checks, in the work folder `specs/<folder>/`:
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
   that settles it, starting with `to verify:`); no template placeholder is left; no Markdown file of the work
   folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A
-  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is reported as a warning, one longer than
-  `PLAN_HARD_WORDS` (default twice that) as a finding: a long plan costs every member that reads it, so the
-  Lead moves settled material (answered challenge entries, facts verified in earlier rounds) into the decision
-  record or the area document.
+  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000) is a finding: a long plan costs every
+  member that reads it, so the Lead moves settled material (answered challenge entries, facts verified in earlier
+  rounds) into the decision record or the area document. A plan whose scope really needs more says why in a
+  `Plan size:` line under the header; then up to `PLAN_HARD_WORDS` (default twice the limit) is a warning that
+  quotes the reason, and beyond that the scope is split.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.
@@ -51,6 +52,7 @@ from analyzer_common import control_characters  # noqa: E402  (shared helpers ne
 
 PLAN_MAX_WORDS = getattr(settings, "PLAN_MAX_WORDS", 4000)
 PLAN_HARD_WORDS = getattr(settings, "PLAN_HARD_WORDS", 2 * PLAN_MAX_WORDS)
+PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
 TIERS = ("trivial", "standard", "security")
 STATUSES = ("confirmed", "refuted", "unverified")
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
@@ -421,15 +423,27 @@ def check(folder):
         else:
             check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)))
             check_placeholders("tasks.md", tasks, errors)
-    words = len(plan.split())
-    if words > PLAN_HARD_WORDS:
-        errors.append(f"plan.md has {words} words (PLAN_HARD_WORDS {PLAN_HARD_WORDS}): move settled material "
-                      "(answered challenge entries, facts verified in earlier rounds) into the decision record "
-                      "or the area document")
-    elif words > PLAN_MAX_WORDS:
-        warnings.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}): every member reads it — "
-                        "cut what the code, the spec or a decision record already says")
+    check_plan_size(plan, errors, warnings)
     return errors, warnings
+
+
+def check_plan_size(plan, errors, warnings):
+    """A plan within PLAN_MAX_WORDS, or up to PLAN_HARD_WORDS with a `Plan size:` line that says why."""
+    words = len(plan.split())
+    if words <= PLAN_MAX_WORDS:
+        return
+    match = PLAN_SIZE.search(plan)
+    reason = match.group(1).strip() if match and not empty(cell(match.group(1))) else None
+    if words > PLAN_HARD_WORDS:
+        errors.append(f"plan.md has {words} words, over PLAN_HARD_WORDS {PLAN_HARD_WORDS}: split the scope into "
+                      "separate issues the plan can describe within the limit")
+    elif reason and "<" not in reason:
+        warnings.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}), justified: {reason}")
+    else:
+        errors.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}), and every member reads it: "
+                      "move settled material (answered challenge entries, facts verified in earlier rounds) into the "
+                      "decision record or the area document and cut what the code, the spec or a record already says; "
+                      "a scope that really needs more says why in a `Plan size:` line under the header")
 
 
 def main(argv=None):

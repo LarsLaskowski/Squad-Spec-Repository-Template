@@ -48,8 +48,8 @@ runs *Format* from `stack.md` before handing back and keeps its result to those 
 formatter touched is reported as "formatted outside the change", not edited, and the orchestrator restores it.
 
 **Git and GitHub.** Members never run Git write operations and never post to GitHub (no GitHub MCP write tool
-either); the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in every `squad-*.md`, denies such Bash
-commands. Read-only Git, `git add` and a scratch `git worktree` stay allowed; a member that needs
+either); the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in `.claude/settings.json`, denies such Bash
+commands to every `squad-*` agent. Read-only Git, `git add` and a scratch `git worktree` stay allowed; a member that needs
 anything else reports it. The orchestrator checks `git status` after each report and restores any index or tree change. Another revision is read with `git show <sha>:<path>` or in a scratch worktree
 (`git worktree add --detach`), never by checking it out in the repository working tree.
 Session-management tools (`create_session`, `send_message`, `archive_session` and the other remote-session

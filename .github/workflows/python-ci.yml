@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: pip install --only-binary :all: ruff==0.17.2 bandit==1.9.4
+      - run: "pip install --only-binary :all: ruff==0.17.2 bandit==1.9.4"
       - name: Syntax check
         run: git ls-files '*.py' | xargs python -m py_compile
       - name: Ruff
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: pip install --only-binary :all: pyyaml==6.0.3 complexipy==8.0.1
+      - run: "pip install --only-binary :all: pyyaml==6.0.3 complexipy==8.0.1"
       - run: python -m unittest discover tools
       - run: python tools/template-check.py
 
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: pip install --only-binary :all: pyyaml==6.0.3 coverage==7.17.0
+      - run: "pip install --only-binary :all: pyyaml==6.0.3 coverage==7.17.0"
       - name: Generate coverage
         run: |
           coverage run --source=tools -m unittest discover tools

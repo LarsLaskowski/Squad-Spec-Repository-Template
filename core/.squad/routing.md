@@ -57,16 +57,17 @@ An issue's author is **outside** when its `author_association` (`gh api repos/<o
 ## Scope of a product PR
 
 An issue or feature PR changes the product and its documentation only. It never touches the squad or the
-agent instructions: `.squad/` (`team.md`, `routing.md`, tools), `.claude/`, `AGENTS.md`, `CLAUDE.md`
-and `.github/copilot-instructions.md`.
+agent instructions: `.squad/` (`team.md`, `routing.md`, tools), `.claude/`, `CLAUDE.md`, and `AGENTS.md` and
+`.github/copilot-instructions.md` outside their project blocks.
 Squad lessons are filed in step 12 (*Squad lessons*), never fixed in the product PR.
 `python3 .squad/tools/scope-check.py` reports any such file; the orchestrator runs it in step 7 and the
 Reviewer in step 8, and a finding is blocking.
 
-One exception: `.squad/stack.md` and `.squad/project.md` describe the product, not the squad. A product PR
-updates them when the change itself makes them untrue — a new build command, a new security area, a new
-guarantee or coupling point — without an escalation, and the Reviewer treats a stale entry there like stale
-documentation.
+One exception: `.squad/stack.md`, `.squad/project.md` and the project blocks of `AGENTS.md` describe the
+product, not the squad. A product PR updates them when the change itself makes them untrue — a new build command,
+a new security area, a new guarantee or coupling point — without an escalation, and the Reviewer treats a stale
+entry there like stale documentation. A project block of `AGENTS.md` changes identically in
+`.github/copilot-instructions.md` (`scope-check.py` compares them).
 
 ## Template-managed files
 
@@ -107,8 +108,8 @@ to create the issue, e.g. `add_repo`); only if attaching is refused it is filed 
 ## Tiers
 
 In step 2 the Lead picks the tier on the change, not only on the paths it touches, and justifies it in
-`plan.md` (`docs`, `patch`: in its result); in doubt the higher one (`docs` < `patch` < `trivial` <
-`standard` < `security`). Security or the Reviewer may raise it at any point, never lower it. A raise to
+`plan.md` (`docs`, `patch`: in its result); in doubt about what the change does, the higher one (`docs` <
+`patch` < `trivial` < `standard` < `security`) — not in doubt about the definition, which the table settles. Security or the Reviewer may raise it at any point, never lower it. A raise to
 `security` after step 2 adds only what is still ahead — Security's diff review in step 8, and its plan review
 when step 3 has not run and step 4 has not started — and does not re-run the plan challenge; the orchestrator
 records it in `plan.md` (with the area that made it) and launches the Lead only when it leaves a decision open.
@@ -125,7 +126,7 @@ it finds touched but not listed goes to *Unlisted security areas*.
 | `patch` | Issues only. The Lead can name the exact edits, and the diff stays within `PATCH_MAX_LINES` changed lines outside `specs/` (default 30, `squad_settings.py`): no change to production logic or control flow (an attribute, a literal, a condition rewritten equivalently, a configuration value, a script line), no new dependency, permission or schema change. An edit in a security area, a CI or build file makes it `patch/security`. `scope-check.py --tier patch` checks the line budget; the reviewer confirms that no logic changed and raises the tier otherwise. | As `docs`; the result also names, per edit, the test or check that covers it. An edit to production code without one gets the one test the Lead names, written once by `squad-tester` (the only extra launch). Step 7 runs only *Gates of a patch* (*Format* on the orchestrator's edits); the review round is `squad-reviewer`, or on `patch/security` `squad-security` in mode `diff` instead. No plan challenge, Security plan review, skeleton, tests first, Code Officer or step 9. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 4 and 5 skipped (no tests-first); no plan challenge; step 3 only with *Security areas touched*; code check, Reviewer and PR approval (step 9) still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that creates, changes or removes no security control (see `security`) — also when it touches a security area, Docker/CI or build configuration, or adds or updates a dependency | Plan challenge in step 2 when *Plan challenge* calls for it; step 3 with *Security areas touched*, in parallel with the challenge. No Security diff review: the Reviewer raises the tier when the diff changes a security control after all |
-| `security` | Creates, changes or removes a **security control**: authentication, authorization, sessions or CSRF protection, cryptography, the storage or handling of secrets and credentials, a permission, allow-list, sandbox or other guard whose purpose is to stop an attacker, the network exposure (a listener, a route reachable without login, a header or CORS policy), or the trust of the build and release (CI permissions and secrets, signing, provenance) — beyond what `patch/security` allows | Full pipeline; the plan challenge (*Plan challenge*) and the Security plan review run in parallel, answered by one Lead revision; Security reviews the diff in step 8 |
+| `security` | Creates, changes or removes a **security control**: authentication, authorization, sessions or CSRF protection, cryptography, the storage or handling of secrets and credentials, a permission, allow-list, sandbox or other guard that decides what an attacker may reach or do (a check that only keeps malformed or oversized input from breaking the program — a size bound, a parser's validation — is input handling: `standard` with the area under *Security areas touched*; a check that confines what a path, URL, redirect or query reaches, output escaping, or a rate limit against abuse is a guard, also inside a parser), the network exposure (a listener, a route reachable without login, a header or CORS policy), or the trust of the build and release (CI permissions and secrets, signing, provenance) — beyond what `patch/security` allows | Full pipeline; the plan challenge (*Plan challenge*) and the Security plan review run in parallel, answered by one Lead revision; Security reviews the diff in step 8 |
 
 An issue about `.squad/stack.md` or `.squad/project.md` is a product PR and counts as documentation for the
 `docs` tier — except an edit to *Security areas* or to a command the pipeline runs: `patch/security` within

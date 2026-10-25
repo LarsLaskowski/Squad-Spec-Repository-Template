@@ -28,7 +28,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
   previous member handed back is enough.
 - **Continue members** for their next round as *Continuing a member* says; keep the agent id of each member's
   last launch.
-- **Scope:** a product PR never touches the squad or the instruction files (*Scope of a product PR*);
+- **Scope:** a product PR touches neither the squad nor the instruction files outside their project blocks
+  (*Scope of a product PR*);
   `scope-check.py` enforces it, and squad lessons are filed in step 12.
 - **One build at a time:** launch the members that build or test one after another (*Concurrency*).
 - **Commits:** commit and push as *Commits* and *The stop hook* say; never commit to `main`. Stage with plain

@@ -38,8 +38,9 @@ Every member reads the squad's rule files on every launch, so a rule text says w
 and nothing else. A reason in a half sentence stays when it keeps the rule from being misread or worked
 around; so does an example of the case the rule exists for. Cut: a rule repeated from another file (point to
 it), the history of how it came about, incident reports and measured numbers (they go to
-`docs/squad-rationale.md`), and sentences that change nothing a member does. A file over its word budget
-(a warning from `template-check.py`) needs one sentence in the PR description on why it cannot be shorter; a
+`docs/squad-rationale.md`), and sentences that change nothing a member does. A file over its word budget or
+two files sharing a 20-word run (warnings from `template-check.py`) need one sentence in the PR description on why
+it stays so, or the copy becomes a pointer; a
 budget is never met by deleting reasons or examples.
 
 ## Commit messages and pull requests

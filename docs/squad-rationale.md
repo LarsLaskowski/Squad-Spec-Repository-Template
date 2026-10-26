@@ -85,6 +85,19 @@ that change a plan disappeared. One challenge costs about 55 k tokens on Sonnet,
 1.5 M of the run it protects. Every run records launches, tokens, tool uses and seconds per role in its
 working record (`squad-log.py --summary`), which is the evidence for the next change.
 
+The Tester of a `security` run runs on Opus, the Dev stays on Sonnet. Evidence: the working records of 123 issues
+in Vandox, Seluna and PlexToJellyfinSync up to 2026-10-25 (107 runs with review rows, 74 with usage per launch:
+984 launches, 81 M tokens — Lead 27 %, Tester 25 %, Dev 23 %, Security and Reviewer 9 % each). About 110
+blocking review findings: about 55 documentation that contradicted the code, about 30 missing or weak tests and
+about 27 implementation defects, the latter in a few runs and in cases neither plan nor tests named (lifecycle,
+parser edge cases, error paths). In all 16 runs in which the Dev disputed a Tester's test, the Lead found the
+test or a plan fact wrong, not the Dev (e.g. Vandox#286, #279, #278, Seluna#16, #65, #66). So the Dev on Sonnet
+implements the plan reliably, a more detailed approach in the plan addresses no measured defect, and the tests
+are the weak link: missing and wrong tests outnumber implementation defects. 85 of the 123 runs were tier
+`security`, where a missed edge case costs most. The override covers every Tester launch of such a run, not only
+`tests-first`, because the missing tests were found after the coverage step. The `squad-log.py --summary` rows
+per model show whether test gaps and disputed tests drop against the added tokens.
+
 ## Run metrics are posted as printed (squad-issue, steps 1 and 12)
 
 Launches, tokens, tool uses and seconds per role are what tunes the squad's models and effort over time, and

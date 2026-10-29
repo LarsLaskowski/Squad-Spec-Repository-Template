@@ -346,6 +346,23 @@ class TestSquadLog(unittest.TestCase):
                       amended.stdout)
         self.assertIn("| Dev | sonnet/medium | 4 (2 continued) | 155,000 | 46 | 1190 |", run("--summary").stdout)
 
+    def test_squad_prefixed_cells_of_non_launches_are_written_as_their_exact_cells(self):
+        for given, wanted in (("squad-orchestrator", "Orchestrator"), ("Squad-User", "User"), ("orchestrator", "Orchestrator"),
+                              ("product manager", "Product Manager"), ("squad-lead", "squad-lead"), ("Lead", "Lead")):
+            self.assertEqual(self.script.canonical_member(given), wanted, given)
+        self.assertIsNone(self.script.canonical_member(None))
+        root = os.path.join(self.dir.name, "repo")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n")
+        result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "7 Gates",
+                                 "squad-orchestrator", "ran"], cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary"],
+                                 cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(summary.returncode, 0, summary.stdout + summary.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("| 7 Gates | Orchestrator | ran |", handle.read())
+
     def test_first_row_replaces_the_placeholder_heading(self):
         for folder, heading in (("issue-3", "issue #3"), ("feature-incidents-view", "feature incidents-view")):
             path = os.path.join(self.dir.name, folder, "log.md")

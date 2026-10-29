@@ -80,7 +80,8 @@ hosts cover, and the package registry); without them it reports NOT CHECKED, and
 instead. A finding of a rule no local analyzer reports is noted in this section, in the same change, instead of a
 squad lesson.
 The .NET scanner is the `dotnet-sonarscanner` tool (`dotnet tool install dotnet-sonarscanner`, or the repository's
-tool manifest); its `begin` arguments mirror the CI step, plus the branch name and the repository root as base
+tool manifest, which `dotnet tool restore` must have restored before the gate in a fresh cloud session: the
+SessionStart hook does it, run it by hand where the hook did not); its `begin` arguments mirror the CI step, plus the branch name and the repository root as base
 directory, and it needs the full, non-incremental build between `begin` and `end`. The local coverage report is
 Cobertura, which the scanner does not read, so the branch analysis carries no coverage figure: the *Coverage
 gate* covers that.
@@ -147,6 +148,12 @@ reports it. The remedy is a neutral name for the value (a constant `WebLoginHash
 name, for example) whose text a test pins, never a suppression.
 
 ## Writing tests
+
+**Scripts only CI can run.** A script that needs systemd, root or a service the session lacks (an
+end-to-end install check, for example) has a local smoke substitute, which the Tester runs before handing back:
+`bash -n` and `shellcheck` on the script, and a mode of the script (or a test) that runs the documented lines
+against a scratch directory with stub commands, without systemd. The plan lists the rows that can only run in
+CI (`.squad/routing.md`, *Operator environments and documented procedures*).
 
 See `docs/UNIT_TESTS.md`. The rules the MSTest and Sonar analyzers enforce and the Code Officer cannot fix
 without handing back: pass `TestContext.CancellationToken` to every call that accepts a token

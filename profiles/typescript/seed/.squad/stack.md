@@ -125,6 +125,12 @@ reports it. The remedy is a neutral name for the value whose text a test pins, n
 
 ## Writing tests
 
+**Scripts only CI can run.** A script that needs systemd, root or a service the session lacks (an
+end-to-end install check, for example) has a local smoke substitute, which the Tester runs before handing back:
+`bash -n` and `shellcheck` on the script, and a mode of the script (or a test) that runs the documented lines
+against a scratch directory with stub commands, without systemd. The plan lists the rows that can only run in
+CI (`.squad/routing.md`, *Operator environments and documented procedures*).
+
 See `docs/UNIT_TESTS.md`. Tests follow the same type check and ESLint rules as production code; every
 assertion carries a message where the assertion API accepts one. Test doubles are typed against the real
 interface (`satisfies`, or `vi.fn<…>()` with the signature), never `as any`.

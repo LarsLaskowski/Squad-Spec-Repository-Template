@@ -5,6 +5,7 @@ import os
 import tempfile
 import types
 import unittest
+import urllib.error
 from unittest import mock
 
 from test_squad_tools import git, load_script, write
@@ -128,6 +129,41 @@ class TestPullRequestMode(SonarCheckCase):
         self.assertEqual(code, self.script.USAGE)
         code, _ = self.run_quiet(self.script.main, ["scan"])
         self.assertEqual(code, self.script.USAGE)
+
+
+class TestHttpErrors(SonarCheckCase):
+    def http_error(self, code=400, body=b'{"errors":[{"msg":"Unknown parameter"}]}'):
+        return urllib.error.HTTPError("https://sonarcloud.io/api/x", code, "", {}, io.BytesIO(body))
+
+    def api_error(self, error, path="ce/task", params=None, token=None):
+        with mock.patch.object(self.script.urllib.request, "urlopen", side_effect=error), \
+                self.assertRaises(self.script.ApiError) as raised:
+            self.script.api(path, params or {"id": "1"}, token)
+        return str(raised.exception)
+
+    def test_rejected_request_is_named_with_parameters_and_response_but_not_the_token(self):
+        message = self.api_error(self.http_error(), "issues/search", {"branch": "work"}, "s3cret")
+        self.assertIn("HTTP 400", message)
+        self.assertIn("/api/issues/search?branch=work", message)
+        self.assertIn("Unknown parameter", message)
+        self.assertNotIn("s3cret", message)
+
+    def test_empty_response_body_is_said_so(self):
+        self.assertIn("empty response body", self.api_error(self.http_error(502, b"")))
+
+    def test_long_response_body_is_cut(self):
+        self.assertLess(len(self.api_error(self.http_error(400, b"x" * 5000))), 700)
+
+    def test_main_prints_the_failing_request_as_not_checked(self):
+        make_repository()
+        with mock.patch.object(self.script, "api", side_effect=self.script.ApiError("HTTP 400 for GET u: bad")):
+            code, output = self.run_quiet(self.script.main, ["pr", "7"])
+        self.assertEqual(code, self.script.NOT_CHECKED)
+        self.assertIn("HTTP 400 for GET u: bad", output)
+
+    def test_http_error_while_probing_the_credential_means_no_credential(self):
+        with mock.patch.object(self.script, "api", side_effect=self.script.ApiError("HTTP 401")):
+            self.assertFalse(self.script.proxy_credential())
 
 
 class TestBranchMode(SonarCheckCase):

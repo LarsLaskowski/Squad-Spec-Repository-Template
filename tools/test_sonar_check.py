@@ -307,7 +307,25 @@ class TestBranchMode(SonarCheckCase):
         self.assertFalse(os.path.exists(".scannerwork"))
         searched = [params for path, params, _ in fake.calls if path == "issues/search"]
         self.assertEqual(searched[0]["branch"], "work")
-        self.assertEqual(set(searched[0]["componentKeys"].split(",")), {f"{KEY}:a.go", f"{KEY}:sp ace.go"})
+        self.assertEqual(searched[0]["componentKeys"], KEY, "the project is queried, never a list mixing FIL and UTS")
+
+    def test_non_main_branch_data_refused_is_not_checked_and_points_to_the_pull_request(self):
+        make_repository()
+        scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
+                   "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
+        refusal = self.script.ApiError("HTTP 403 for GET x: Organization is not allowed to access data from non "
+                                       "main branches", 403)
+        fake = FakeApi()
+
+        def refusing(path, params, token=None):
+            if path == "issues/search":
+                raise refusal
+            return fake(path, params, token)
+
+        with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}), mock.patch.object(self.script, "api", refusing):
+            code, output = self.run_quiet(self.script.main, ["branch", "--", *scanner])
+        self.assertEqual(code, self.script.NOT_CHECKED)
+        self.assertIn("pr <number>", output)
 
     def test_task_that_never_finishes_times_out(self):
         fake = FakeApi(task={"status": "IN_PROGRESS"})

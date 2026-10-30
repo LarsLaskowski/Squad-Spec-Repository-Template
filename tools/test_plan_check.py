@@ -184,6 +184,13 @@ class TestPlanCheck(unittest.TestCase):
         plan = PLAN.replace("Tier: standard — a new", "Tier: trivial | standard | security — a new")
         self.assertTrue(any("Tier" in e for e in self.errors(self.feature(plan=plan))))
 
+    def test_comment_opener_in_a_code_span_or_fence_hides_nothing(self):
+        strip = self.script.strip_comments
+        self.assertEqual(strip("a <!-- c --> b"), "a  b")
+        self.assertEqual(strip("a `<!--` b\n- [ ] AC1: x"), "a `<!--` b\n- [ ] AC1: x")
+        self.assertEqual(strip("```\n<!--\n```\nrest"), "```\n<!--\n```\nrest")
+        self.assertEqual(strip("<!-- use `x` -->after"), "after")
+
     def test_long_spec_is_a_warning_and_guidance_comments_do_not_count(self):
         folder = self.feature()
         spec_path = os.path.join(folder, "spec.md")

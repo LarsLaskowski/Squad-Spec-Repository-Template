@@ -166,6 +166,51 @@ class TestHttpErrors(SonarCheckCase):
             self.assertFalse(self.script.proxy_credential())
 
 
+class TestRefusedEndpoints(SonarCheckCase):
+    """A 403 on the first endpoint falls back to the one a browsing credential may read."""
+
+    def refusing(self, refused, answers):
+        def api(path, params, token=None):
+            if path in refused:
+                raise self.script.ApiError(f"HTTP 403 for GET {path}", 403)
+            return answers[path]
+        return api
+
+    def test_refused_pull_request_list_reads_the_revision_of_the_analysis(self):
+        answers = {"project_analyses/search": {"analyses": [{"revision": "abc1234def"}]}}
+        with mock.patch.object(self.script, "api", self.refusing({"project_pull_requests/list"}, answers)):
+            self.assertEqual(self.script.analysed_commit(KEY, 7), "abc1234def")
+        answers = {"project_analyses/search": {"analyses": []}}
+        with mock.patch.object(self.script, "api", self.refusing({"project_pull_requests/list"}, answers)):
+            self.assertEqual(self.script.analysed_commit(KEY, 7), "")
+
+    def test_other_http_errors_are_not_swallowed(self):
+        error = self.script.ApiError("HTTP 500", 500)
+        with mock.patch.object(self.script, "api", side_effect=error), self.assertRaises(self.script.ApiError):
+            self.script.analysed_commit(KEY, 7)
+        with mock.patch.object(self.script, "api", side_effect=error), self.assertRaises(self.script.ApiError):
+            self.script.ce_task("T1", None)
+
+    def test_refused_task_is_read_from_the_activity(self):
+        write("sonar-project.properties", f"sonar.projectKey={KEY}\n")
+        answers = {"ce/activity": {"tasks": [{"id": "T0", "status": "FAILED"}, {"id": "T1", "status": "SUCCESS"}]}}
+        with mock.patch.object(self.script, "api", self.refusing({"ce/task"}, answers)):
+            self.assertEqual(self.script.ce_task("T1", None)["status"], "SUCCESS")
+            self.assertEqual(self.script.ce_task("T9", None)["status"], "PENDING")
+
+    def test_http_error_carries_its_status(self):
+        error = urllib.error.HTTPError("https://sonarcloud.io/api/x", 403, "", {}, io.BytesIO(b"no"))
+        with mock.patch.object(self.script.urllib.request, "urlopen", side_effect=error), \
+                self.assertRaises(self.script.ApiError) as raised:
+            self.script.api("ce/task", {"id": "1"})
+        self.assertEqual(raised.exception.status, 403)
+
+    def test_pending_says_a_newer_analysis_is_to_come(self):
+        with mock.patch.object(self.script, "api", FakeApi(analysed="0ld0000")):
+            _, output = self.run_quiet(self.script.check_pr, KEY, 7, "1234567")
+        self.assertIn("newer analysis", output)
+
+
 class TestBranchMode(SonarCheckCase):
     def test_changed_lines_keep_paths_with_spaces(self):
         make_repository()

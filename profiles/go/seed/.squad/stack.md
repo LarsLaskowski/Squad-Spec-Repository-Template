@@ -105,6 +105,12 @@ remedy is a neutral name for the value whose text a test pins, never a suppressi
 
 ## Writing tests
 
+**Scripts only CI can run.** A script that needs systemd, root or a service the session lacks (an
+end-to-end install check, for example) has a local smoke substitute, which the Tester runs before handing back:
+`bash -n` and `shellcheck` on the script, and a mode of the script (or a test) that runs the documented lines
+against a scratch directory with stub commands, without systemd. The plan lists the rows that can only run in
+CI (`.squad/routing.md`, *Operator environments and documented procedures*).
+
 See `docs/UNIT_TESTS.md`: the standard `testing` package, table-driven tests with `t.Run`, `t.Helper()` in
 helpers, `t.TempDir()` for files, failure messages that state got and want.
 

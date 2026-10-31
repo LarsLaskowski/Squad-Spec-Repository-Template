@@ -350,7 +350,7 @@ def fill(template, project, stack):
 
 def tracked_eol(target):
     """Count text files stored with CRLF and with LF in the target's index."""
-    listing = subprocess.run(["git", "-C", target, "ls-files", "--eol"], capture_output=True, text=True,
+    listing = subprocess.run(["git", "ls-files", "--eol"], cwd=target, capture_output=True, text=True,
                              check=False).stdout.split()
     return listing.count("i/crlf"), listing.count("i/lf")
 
@@ -364,7 +364,7 @@ def uses_crlf(target, profile_dirs):
     """The target's own .gitattributes decides; an existing repository without one keeps the line endings
     of its index; only an empty repository follows the profiles' seeded .gitattributes (CRLF if any has it, as
     that file is seeded then)."""
-    path = os.path.join(target, GITATTRIBUTES)
+    path = target_path(target, GITATTRIBUTES)
     if os.path.isfile(path):
         return re.search(r"^\*\s+text=auto\s+eol=crlf", read(path), re.M) is not None
     if is_existing_repository(target):
@@ -381,7 +381,7 @@ def eol_attributes(target, rels):
     rels = [rel for rel in rels if rel]
     if not rels:
         return {}
-    listing = subprocess.run(["git", "-C", target, "check-attr", "--stdin", "-z", "eol"], input="\0".join(rels) + "\0",
+    listing = subprocess.run(["git", "check-attr", "--stdin", "-z", "eol"], cwd=target, input="\0".join(rels) + "\0",
                              capture_output=True, text=True, check=False).stdout.split("\0")
     # -z output: path, attribute, value, repeated; the trailing empty field after the last value is dropped.
     triples = zip(listing[0::3], listing[1::3], listing[2::3], strict=False)
@@ -447,7 +447,7 @@ def retired_references(target):
     Project blocks and build files are never rewritten by the apply step, so a reference there outlives the file.
     Decision records (DECISION_RECORD) are left out: they describe what was true when they were written."""
     terms = [arg for term in RETIRED_REFERENCES for arg in ("-e", term)]
-    listing = subprocess.run(["git", "-C", target, "grep", "-n", "-I", "-F", "--untracked", "--no-color", *terms],
+    listing = subprocess.run(["git", "grep", "-n", "-I", "-F", "--untracked", "--no-color", *terms], cwd=target,
                              capture_output=True, text=True, encoding="utf-8", errors="replace", check=False).stdout
     # A term inside a longer name (MY_AGENTS.md, docs.agents/skills) is not a reference.
     boundary = re.compile(r"(?<![\w.-])(?:" + "|".join(re.escape(term) for term in RETIRED_REFERENCES) + ")")
@@ -476,9 +476,9 @@ def legacy_rules(target, template, dry_run, report):
     """The project blocks of a target CLAUDE.md that still holds the rules (template versions before AGENTS.md held
     them), to carry into AGENTS.md; a hand-written CLAUDE.md (no project blocks, not the template's) is backed up
     before the managed one replaces it."""
-    if not os.path.isfile(os.path.join(target, CLAUDE)):
+    if not os.path.isfile(target_path(target, CLAUDE)):
         return {}
-    current = read(os.path.join(target, CLAUDE))
+    current = read(target_path(target, CLAUDE))
     project = blocks(current, "project")
     if not project and current != template:
         backup(target, CLAUDE, dry_run, report)

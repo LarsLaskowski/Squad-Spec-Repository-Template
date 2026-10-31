@@ -7,7 +7,8 @@ profile and owned by this repository: keep it true when the build changes.
 ## Toolchain
 
 - .NET SDK `{{TODO: version, e.g. 10.0.x}}` (target framework `{{TODO: net10.0}}`), solution `{{TODO: Solution}}.slnx`.
-- Formatter: `reihitsu-format` (`dotnet tool install -g Reihitsu.Cli`), on the same release line as the
+- Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
+  pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert
   code the analyzer considers correct.
 - Analyzers in every project via `Directory.Build.props`: **Reihitsu.Analyzer**, **SonarAnalyzer.CSharp**
@@ -26,8 +27,8 @@ profile and owned by this repository: keep it true when the build changes.
 | Name | Command |
 | ---- | ------- |
 | *Restore* | `dotnet restore {{TODO: Solution}}.slnx` |
-| *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `reihitsu-format --force ./` |
-| *Format check* | `reihitsu-format --check ./` |
+| *Format* (in the squad: by the member that changed the files, `.squad/team.md`) | `dotnet tool run reihitsu-format --force ./` |
+| *Format check* | `dotnet tool run reihitsu-format --check ./` |
 | *Build* | `dotnet build {{TODO: Solution}}.slnx -c Release --no-restore` |
 | *Test* | `dotnet test {{TODO: Solution}}.slnx -c Release --no-build` |
 | *Single test* | `dotnet test {{TODO: TestProject}}.csproj --filter "FullyQualifiedName~ClassName.MethodName"` |

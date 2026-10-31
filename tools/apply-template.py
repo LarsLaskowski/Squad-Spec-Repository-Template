@@ -88,6 +88,8 @@ MARKED = [
 # A seed the tooling of a profile in the repository refuses: the SonarScanner for .NET stops when the repository holds
 # a sonar-project.properties, so its settings are passed as scanner arguments (the dotnet profile's ci.yml does).
 SEEDS_REFUSED_WITH = {"sonar-project.properties": "dotnet"}
+# The dotnet profile seeds its tool manifest here; a repository with one at its root keeps that one.
+TOOL_MANIFEST = ".config/dotnet-tools.json"
 # Generated from AGENTS.md: {target path: core file holding its title and introduction}.
 GENERATED = {".github/copilot-instructions.md": ".github/copilot-instructions.md"}
 # A Claude Code memory import on a line of its own (`@.github/instructions/csharp.instructions.md`); GitHub Copilot
@@ -608,6 +610,8 @@ def seed_skip_reason(target, rel, names, existing):
     """Why a seed file is left alone: (status, note), or None when it is to be written."""
     if os.path.exists(os.path.join(target, rel)):
         return "kept", rel
+    if rel == TOOL_MANIFEST and os.path.exists(os.path.join(target, "dotnet-tools.json")):
+        return "kept", "dotnet-tools.json (the repository's tool manifest at its root)"
     if SEEDS_REFUSED_WITH.get(rel) in names:
         return "skipped", (f"{rel} (the profile {SEEDS_REFUSED_WITH[rel]} cannot use it: its Sonar scanner "
                            "refuses a repository that has one and takes the settings as arguments)")

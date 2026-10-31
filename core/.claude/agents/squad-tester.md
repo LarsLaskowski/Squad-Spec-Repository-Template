@@ -77,6 +77,9 @@ Rules:
 - A test asserts what the plan requires: where the plan fixes a format or an error text, compare the exact
   text instead of forbidding substrings, and make sure the test's own names and paths can neither satisfy
   nor defeat the check (the stack's *Writing tests* section names the pitfalls).
+- Commands of an image check that run inside the image (`docker exec`, `docker run --entrypoint`) must work on
+  the image's base: on a BusyBox base (Alpine) no GNU-only options such as `find -printf`, `grep -P` or `sed -z`;
+  print plain output and process it on the host. Name such a case that cannot run locally in your report.
 - **Runtime budget:** no single test takes more than 10 s under the *Test* command of `stack.md`, and a
   package stays well under half of the CI timeout; size stress tests with the smallest input that still
   detects the failure, and measure before handing over.

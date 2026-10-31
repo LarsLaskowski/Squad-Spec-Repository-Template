@@ -11,7 +11,7 @@ profile and owned by this repository: keep it true when the build changes.
   pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert
   code the analyzer considers correct.
-- Analyzers in every project via `Directory.Build.props`: **Reihitsu.Analyzer**, **SonarAnalyzer.CSharp**
+- Analyzers in every project via `Directory.Build.props`, rule severities in `.editorconfig`: **Reihitsu.Analyzer**, **SonarAnalyzer.CSharp**
   (the Sonar C# rules locally, so SonarQube issues surface before the push) and the MSTest analyzers.
 - The SessionStart hook `.claude/hooks/session-start.sh` installs the formatter, sets `DOTNET_ROOT` and
   restores the solution in remote sessions.

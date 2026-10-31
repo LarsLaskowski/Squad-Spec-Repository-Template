@@ -30,7 +30,8 @@ issue and the project's documentation are not needed for format and analyzer fix
 
 Limits: no change to behavior, signatures used across files, control flow, test assertions or test data. A
 new guard, branch, early return, null check or a changed assertion counts as structural: do not make it,
-hand it back with file, line and rule id to the Dev (production code) or Tester (tests). Never suppress a
+hand it back with file, line and rule id to the Dev (production code) or Tester (tests). A finding that contradicts a style rule is
+reported, not fixed (*Analyzer finding against a style rule*, `.squad/team.md`). Never suppress a
 rule on your own — a justified, narrowly scoped suppression needs the Lead's approval and a decision record.
 
 You also receive the findings of the *Sonar gate* (step 7) and, after the PR is open, of the CI code analysis

@@ -68,10 +68,11 @@ is agreed as acceptance criteria before it is built, and the maintainers own tho
   with the proposed scenarios and acceptance criteria; open a pull request once you agree on them, and link the
   issue with `Closes #…`. A feature pull request without an agreed issue is put on hold until there is one.
 - **Out of scope for an outside pull request:** the AI squad and agent instructions (`.squad/` except
-  `stack.md` and `project.md`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`), the
-  text outside the `<!-- project:… -->` blocks of the template's marked files, and the workflows under
-  `.github/workflows/`. They come from a shared template and are changed there; the *Fork scope* check fails
-  on the first two. Open an issue instead.
+  `stack.md` and `project.md`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`) and the
+  text outside the `<!-- project:… -->` blocks of the template's marked files. They come from a shared template
+  and are changed there; the *Fork scope* check fails on them, so open an issue instead. The workflows under
+  `.github/workflows/` belong to this project and are not checked by *Fork scope*; a maintainer reviews every
+  change to one.
 - **Checks on a fork:** pull requests from forks run without repository secrets, so the analysis that needs one
   (e.g. SonarQube Cloud) does not run there; a maintainer runs it before merging. Run the quality gates below
   locally so the pull request arrives clean. The CI run of a first-time contributor's fork waits for a maintainer's

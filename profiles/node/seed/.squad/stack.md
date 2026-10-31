@@ -7,7 +7,7 @@ profile and owned by this repository: keep it true when the build changes.
 ## Toolchain
 
 - Node.js `{{TODO: version, e.g. 22}}` (`engines` in `package.json`), npm with a committed `package-lock.json`.
-- TypeScript (`tsc`), **ESLint** with **eslint-plugin-sonarjs** (the SonarQube JS/TS rules locally, so
+- TypeScript (`tsc`), **ESLint** with **eslint-plugin-sonarjs** (configured in `eslint.config.mjs`; the SonarQube JS/TS rules locally, so
   SonarQube issues surface before the push) and **Prettier** as the formatter.
 - The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci --ignore-scripts` in remote sessions.
 

@@ -34,7 +34,8 @@ The orchestrator tells you which **mode** to run:
 - `fix` — fix the findings, CI failures or handed-back items you are given, then steps 2–3.
 
 1. Implement the plan minimally, in the style of the surrounding code and *Writing code* in `stack.md`
-   from the start — including the guards an analyzer asks for. The plan is the scope; an improvement you
+   from the start — including the guards an analyzer asks for. A finding that contradicts a style rule is reported, not coded around (*Analyzer finding against a style rule*,
+   `.squad/team.md`). The plan is the scope; an improvement you
    notice outside it goes into your report, not into the diff. Run the measurements the plan assigns you
    (`.squad/team.md`, *Test doubles that model a real component*) before any record or document you write
    states the claim; report each with its cases and output, and a result that refutes the claim goes to the

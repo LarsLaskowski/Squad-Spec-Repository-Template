@@ -10,7 +10,7 @@ profile and owned by this repository: keep it true when the build changes.
   `noImplicitOverride` and `verbatimModuleSyntax`; Node.js `{{TODO: version, e.g. 24}}` (`engines` in
   `package.json`), npm with a committed `package-lock.json`.
 - **ESLint** with **typescript-eslint** `strictTypeChecked` and `stylisticTypeChecked` (type-aware, through
-  `parserOptions.projectService`) and **eslint-plugin-sonarjs** (the SonarQube JS/TS rules locally, so SonarQube
+  `parserOptions.projectService`) and **eslint-plugin-sonarjs** (configured in `eslint.config.mjs`; the SonarQube JS/TS rules locally, so SonarQube
   issues surface before the push); **Prettier** as the formatter.
 - **Vitest** with `@vitest/coverage-v8` as test runner and coverage tool.
 - The SessionStart hook `.claude/hooks/session-start.sh` runs `npm ci --ignore-scripts` in remote sessions.

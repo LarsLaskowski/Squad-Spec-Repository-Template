@@ -267,6 +267,8 @@ PR is opened, the branch stays without one, and the user is told so.
   (the test is not changed silently). A defect the Dev reproduces without changing the test (a failing fixture
   or helper, not a disputed expectation) goes to the Tester as a fix round once the orchestrator has verified
   the reproduction. Not counted against a loop limit.
+- **Analyzer finding against a style rule** (`team.md`): the step stops and the Lead decides (mode `decide`); a
+  severity change it approves gets a decision record. Not counted against a loop limit.
 - **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted
   and the item goes to the Dev (or Tester for tests), then the code check runs again. Not counted
   against a loop limit.

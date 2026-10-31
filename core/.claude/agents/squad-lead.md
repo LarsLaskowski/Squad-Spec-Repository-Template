@@ -138,7 +138,7 @@ The orchestrator tells you which **mode** to run:
   `PLAN_MAX_WORDS` fails `plan-check.py` unless a `Plan size:` line under its header says in one sentence why
   the scope needs it (up to `PLAN_HARD_WORDS`; beyond that, split the scope). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
-- `decide` — a loop limit was hit or members disagree. Choose one option and justify it, or escalate: accept
+- `decide` — a loop limit was hit, members disagree or a member reports a conflict. Choose one option and justify it, or escalate: accept
   with justification (after the 2nd `CHANGES_REQUIRED` only for the defects *Loop limits* names, Plan ↔
   Security), split into a separate issue, narrow the scope, or abort. Name the owner of every change your
   decision requires by file: production code and documentation → Dev, tests and test documentation → Tester,

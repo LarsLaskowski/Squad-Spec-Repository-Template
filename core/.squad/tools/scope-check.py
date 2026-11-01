@@ -54,6 +54,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from analyzer_common import BASE_REF, control_characters, git, merge_base, settings  # noqa: E402  (shared helpers next to this script)
 
 SQUAD_FILES_ALLOWED = {".squad/stack.md", ".squad/project.md"}
+# The repository's own settings (coverage exclusions, thresholds): a product PR may change them, a fork's never
+# (the file is executed Python).
+SETTINGS_FILE = ".squad/tools/squad_settings.py"
 INSTRUCTION_FILES = {"CLAUDE.md"}
 RULES, MIRROR = "AGENTS.md", ".github/copilot-instructions.md"
 # The rules every agent reads: a product PR of the squad may change their project blocks (identically in both), a
@@ -82,7 +85,7 @@ def changed_files(base):
 
 
 def is_squad_file(path, fork=False):
-    if path in SQUAD_FILES_ALLOWED:
+    if path in SQUAD_FILES_ALLOWED or (path == SETTINGS_FILE and not fork):
         return False
     return path.startswith((".squad/", ".claude/")) or path in INSTRUCTION_FILES or (fork and path in RULE_FILES)
 

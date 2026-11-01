@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** YYYY-MM-DD
+- **Area:** —
 - **Source:** Squad adopted from Squad-Spec-Repository-Template
 - **Supersedes:** —
 

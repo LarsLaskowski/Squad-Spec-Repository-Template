@@ -24,9 +24,9 @@ if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
 fi
 
 # Local tools of the repository's manifest: the formatter (*Format* in .squad/stack.md) and dotnet-sonarscanner
-# (*Sonar gate*), both pinned there.
+# (which CI runs), both pinned there.
 if [[ -e dotnet-tools.json || -e .config/dotnet-tools.json ]]; then
-  dotnet tool restore || echo "dotnet tool restore failed; run it before Format and the Sonar gate" >&2
+  dotnet tool restore || echo "dotnet tool restore failed; run it before Format" >&2
 else
   echo "no dotnet tool manifest (.config/dotnet-tools.json); the formatter is not installed" >&2
 fi

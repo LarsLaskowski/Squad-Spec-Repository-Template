@@ -13,7 +13,7 @@ Run from the repository root, where the solution file lives, in this order: *Res
 in `.squad/stack.md` as they stand, never a copy from memory: they carry the solution name, the build
 configuration the project tests in, and the formatter's `--force` (`reihitsu-format` asks for confirmation
 for more than 25 files and, without a terminal, formats nothing). The formatter is restored from the repository's tool
-manifest (`.config/dotnet-tools.json`) with `dotnet tool restore` and run as `dotnet tool run reihitsu-format`.
+manifest (`.config/dotnet-tools.json`, or `dotnet-tools.json` at the root) with `dotnet tool restore` and run as `dotnet tool run reihitsu-format`.
 <!-- stack:end commands -->
 <!-- stack:begin configuration -->
 - **Target framework** as set in the project files (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and

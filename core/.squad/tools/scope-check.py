@@ -5,8 +5,8 @@ instead of remembered by a reviewer.
 Checks, over every file changed since the merge base with BASE_REF (working tree and untracked files
 included; BASE_REF from `.squad/tools/squad_settings.py`, default origin/main):
 
-- no squad or instruction file is changed: `.squad/` except `stack.md` and `project.md`, `.claude/`,
-  `CLAUDE.md` (`.squad/routing.md`, *Scope of a product PR*; squad lessons become issues);
+- no squad or instruction file is changed: `.squad/` except `stack.md`, `project.md` and, outside a fork,
+  `tools/squad_settings.py`, `.claude/`, `CLAUDE.md` (`.squad/routing.md`, *Scope of a product PR*; squad lessons become issues);
 - a marked file (`AGENTS.md` and its Copilot mirror `.github/copilot-instructions.md`, `docs/CONTRIBUTING.md`,
   `docs/ARCHITECTURE.md`, the bug report and pull request templates, the decision and area index) is changed only
   inside its `<!-- project:… -->` blocks; `AGENTS.md` and its mirror are neither added nor deleted, and a project

@@ -13,7 +13,9 @@ mechanics out of the orchestrator's hands:
 - a control character (Unicode categories Cc, Cf, Zl, Zp other than tab and line break) is written as its
   escape (`U+202E`), never as the character itself; a tab becomes a space;
 - for a subagent launch, `--agent squad-<role>` (model and effort read from `.claude/agents/squad-<role>.md`,
-  so nothing is typed from memory) or `--launch MODEL/EFFORT`, with `--tokens N --tool-uses N --seconds N` from
+  so nothing is typed from memory) or `--launch MODEL/EFFORT` (a launch that overrode the agent file; a default
+  override of `.squad/orchestration.md`, *Launch model*, read against the *Tier* line of the folder's `plan.md`, is
+  refused with `--agent`), with `--tokens N --tool-uses N --seconds N` from
   the usage block of the launch's task notification, appends a trailer `(opus/high · 37,445 tokens · 6 tool
   uses · 57 s)` the summary can read back;
 - the first row replaces the template's heading `# Log: <issue #number | feature name>` with the work folder's
@@ -143,6 +145,9 @@ SPECS_PREFIX = "specs/"
 FOLDER_NAME = re.compile(r"\w[\w.-]*")
 FIX_STEP = re.compile(r"^\s*11\b")
 FRONT_MATTER_KEY = re.compile(r"^(model|effort):\s*(\S+)\s*$", re.M)
+PLAN_TIER = re.compile(r"^Tier:\s*`?(\w+)", re.M)
+# The launches the orchestrator overrides by default (.squad/orchestration.md, *Launch model*): agent -> (tier, model).
+LAUNCH_OVERRIDES = {"squad-tester": ("security", "opus")}
 
 
 def escape_controls(text):
@@ -603,14 +608,40 @@ def unreported_launch(parser, model, args):
     return (model, None, None, None)
 
 
-def launch_metrics(parser, root, args):
+def plan_tier(log_path):
+    """The tier the *Tier* line of the work folder's `plan.md` names, or None (no plan: tiers `docs` and `patch`,
+    or a log read from standard input after step 10)."""
+    path = os.path.join(os.path.dirname(log_path), "plan.md")
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8-sig") as handle:
+        found = PLAN_TIER.search(handle.read())
+    return found.group(1) if found else None
+
+
+def default_override(log_path, agent, launch):
+    """The `model/effort` the orchestrator launches `agent` with by default in this run instead of `launch` from
+    its agent file, or None when no override applies."""
+    override = LAUNCH_OVERRIDES.get(os.path.basename(agent or "").removesuffix(".md"))
+    if override is None or launch is None or plan_tier(log_path) != override[0]:
+        return None
+    return f"{override[1]}/{launch.split('/', 1)[1]}"
+
+
+def launch_metrics(parser, root, args, path):
     """(model/effort, tokens, tool uses, seconds) from the options, or None when no metric option is given; an
-    incomplete set is a usage error, an unknown agent file ends the run with exit code 1."""
+    incomplete set is a usage error, an unknown agent file ends the run with exit code 1. A launch the orchestrator
+    overrides by default is refused with `--agent` alone, so the override is logged as launched."""
     if not (args.agent or args.launch or has_numbers(args)):
         return None
     model = args.launch or (agent_launch(root, args.agent) if args.agent else None)
     if args.agent and not args.launch and model is None:
         sys.exit(f"No .claude/agents/{args.agent}.md with a model and an effort")
+    expected = None if args.launch else default_override(path, args.agent, model)
+    if expected:
+        parser.error(f"{args.agent} is launched with model {expected.split('/')[0]} in a tier-"
+                     f"{plan_tier(path)} run (.squad/orchestration.md, *Launch model*): log the launch with "
+                     f"--launch {expected} instead of --agent, or with the model it really ran on")
     if args.unreported:
         return unreported_launch(parser, model, args)
     if model and is_pending_row(args):
@@ -719,7 +750,7 @@ def run(parser, args, root, path):
     if target is not None and is_not_launch(target) and uses_metrics:
         parser.error(f"'{target}' is no launch: its rows are written without any metric option and never "
                      "amended, and the summary asks no usage for them")
-    launch = launch_metrics(parser, root, args)
+    launch = launch_metrics(parser, root, args, path)
     args.continued = args.continued or args.continued_from is not None
     if args.amend_last and args.replace_last:
         parser.error("--amend-last and --replace-last exclude each other")

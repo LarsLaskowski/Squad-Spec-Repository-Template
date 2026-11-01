@@ -586,6 +586,32 @@ class TestSquadLog(unittest.TestCase):
         self.assertNotIn("pending", text)
         self.assertEqual(run("--summary").returncode, 0)
 
+    def test_default_override_is_refused_with_agent_alone_and_logged_with_launch(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-tester.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        plan = os.path.join(root, "specs", "issue-1", "plan.md")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True, text=True,
+                                  check=False)
+
+        write(plan, "# Plan: x\n\nTier: `security` — parses input\n")
+        refused = run("5 Tests first", "Tester", "tests", "--agent", "squad-tester")
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("--launch opus/medium", refused.stderr)
+        self.assertEqual(run("5 Tests first", "Tester", "tests", "--launch", "opus/medium").returncode, 0)
+        self.assertEqual(run("--amend-last", "Tester", "--launch", "opus/medium", "--tokens", "9000", "--tool-uses",
+                             "3", "--seconds", "40").returncode, 0)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("tests (opus/medium · 9,000 tokens · 3 tool uses · 40 s) |", handle.read())
+        write(plan, "# Plan: x\n\nTier: standard — no security area\n")
+        self.assertEqual(run("6 Coverage", "Tester", "coverage", "--agent", "squad-tester").returncode, 0)
+        os.remove(plan)
+        self.assertEqual(run("6 Coverage", "Tester", "again", "--agent", "squad-tester").returncode, 0, "no plan")
+
     def test_pending_rows_take_amend_replace_unreported_and_continued(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")

@@ -41,7 +41,7 @@ squash-merging in [`decisions/`](decisions/README.md)).
 
 For PR naming use the following convention: `[area] Description` (no period at the end).
 
-- For the area, use one of the areas listed below, capitalized.
+- For the area, use one of the areas listed below, capitalized. Issue titles use the same `[area]` prefix.
 - For the description, do not reference an issue number in there. A clear, short summary of what
   the change entails is enough; there is room to elaborate in the description.
 

@@ -33,7 +33,7 @@ All commands go through `package.json` scripts; a missing script is added, not w
 | *Test with coverage* | `npm run coverage:lcov` (overwrites `coverage/lcov.info`) |
 | *Coverage gate* | `python3 .squad/tools/coverage-check.py` |
 | *Analyzer gate* | `python3 .squad/tools/analyzer-check.py` |
-| *Sonar gate* | `python3 .squad/tools/sonar-check.py branch -- npx --yes @sonar/scan@5.0.1 -Dsonar.branch.name="$(git branch --show-current)"` (after *Test with coverage*, so the analysis carries coverage; needs a SonarQube credential, see *Sonar gate* below) |
+| *Sonar gate* | `python3 .squad/tools/sonar-check.py pr <number>` (step 11, on the draft pull request once its CI has finished; see *Sonar gate* below) |
 | *Image build check* | `docker build -f {{TODO: Dockerfile, or "none" when the repository builds no image}} .` where Docker runs; otherwise the reproduction under *Image build check* below (`.squad/routing.md`, *Criteria verified only in CI*) |
 
 ## Analyzer gate
@@ -45,8 +45,7 @@ Fixable style findings are the Code Officer's (`eslint --fix` on the changed fil
 findings that need a code change go to the Dev or Tester.
 
 SonarQube Cloud can still report rules the local plugin version does not have, and its non-lint checks
-(hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate* below is the first to
-report their issues and hotspots, and squad step 11 reads the quality gate, duplication included.
+(hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate* below reports their issues and hotspots and the quality gate, duplication included, on the draft pull request.
 
 Changed shell scripts (`*.sh`), GitHub workflows (`.github/workflows/*.yml`) and Dockerfiles are checked with
 `shellcheck`, `actionlint` and `hadolint`; the SessionStart hook installs the three as pinned, checksum-verified
@@ -56,16 +55,14 @@ download, for example). The gate itself checks two SonarQube Cloud shell rules s
 local variable first) and `shelldre:S7688` (`[ … ]` instead of `[[ … ]]`). Other `shelldre:*` findings are first
 reported by the *Sonar gate* below.
 
-*Sonar gate* runs SonarQube Cloud's own analysis on the work branch before the pull request (squad step 7):
-`sonar-check.py` runs the scanner with the branch name, waits for the analysis and fails on every open issue or
-security hotspot on a line the branch changed, so the rules no local analyzer has stop surfacing only after the
-pull request. It runs on the committed change (the scanner uploads the working tree, so it refuses uncommitted or
-untracked files other than the coverage reports) and needs a SonarQube credential: a network secret of the cloud environment for `sonarcloud.io` and
-`*.sonarcloud.io` (the agent proxy attaches the token to those requests, so no session or member sees it), or
-else `SONAR_TOKEN` in the environment, which every process of the session can read. The scanner also needs
-network access to its download hosts (`api.sonarcloud.io` and `scanner.sonarcloud.io`, which the secret's
-hosts cover, and the package registry); without them it reports NOT CHECKED, and step 11 reads the draft pull request with `python3 .squad/tools/sonar-check.py pr <number>`
-instead. A finding of a rule no local analyzer reports is noted in this section, in the same change, instead of a
+*Sonar gate* reads the CI code analysis of the draft pull request (squad step 11, *Draft until green* in
+`.squad/orchestration.md`): `sonar-check.py pr <number>` checks that the analysis belongs to the pushed head and
+fails on a failed quality gate, on every open issue and on every security hotspot to review. The work branch is
+not scanned before the pull request: SonarQube Cloud does not let every organization read the data of non-main
+branches through its API. A private project needs a SonarQube credential: a network secret of the cloud
+environment for `sonarcloud.io` and `*.sonarcloud.io` (the agent proxy attaches the token to those requests, so no
+session or member sees it), or else `SONAR_TOKEN` in the environment, which every process of the session can
+read. A finding of a rule no local analyzer reports is noted in this section, in the same change, instead of a
 squad lesson.
 
 ## Image build check

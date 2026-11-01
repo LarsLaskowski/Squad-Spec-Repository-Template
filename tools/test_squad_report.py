@@ -88,6 +88,25 @@ class TestSquadReport(unittest.TestCase):
             row = report.pull_request_row("o/r", pr, None)
         self.assertEqual((row["kind"], row["tier"], row["fix_pushes"], row["ci_failures"]), ("squad", "standard", 1, 1))
 
+    def test_issue_record_of_an_earlier_run_is_not_counted(self):
+        record = {"body": "Squad working record\n\nTier: **security**", "created_at": "2026-10-26T19:43:05Z"}
+        release = {"number": 118, "title": "[Release] Prepare version 0.7.0", "body": "Closes #69",
+                   "user": {"login": "me"}, "created_at": "2026-10-27T17:57:18Z", "merged_at": "2026-10-27T18:02:57Z"}
+        lists = {"repos/o/r/issues/69/comments": [record], "repos/o/r/issues/118/comments": [],
+                 "repos/o/r/pulls/118/commits": [commit("c", "2026-10-27T17:50:00Z")],
+                 "repos/o/r/pulls/118/comments": [], "repos/o/r/pulls/118/reviews": []}
+        with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), \
+                mock.patch.object(report, "failed_checks", return_value=0):
+            self.assertEqual(report.pull_request_row("o/r", release, None)["kind"], "manual")
+        early = {"body": "Squad working record", "created_at": "2026-10-27T18:00:00Z"}
+        self.assertEqual(len(report.own_issue_comments([record, early], [commit("c", "2026-10-27T17:50:00Z")],
+                                                       "2026-10-27T18:02:57Z")), 1,
+                         "a record posted after an early draft PR opened still counts")
+
+    def test_merge_before_creation_shows_no_hours(self):
+        self.assertIsNone(report.hours("2026-11-01T09:52:13Z", "2026-11-01T09:31:03Z"))
+        self.assertEqual(report.hours("2026-11-01T09:00:00Z", "2026-11-01T10:30:00Z"), 1.5)
+
     def test_dates_are_validated(self):
         self.assertEqual(report.day("2026-10-01"), "2026-10-01")
         with self.assertRaises(ValueError):

@@ -29,8 +29,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
   freeze; the `decision-consolidate` skill folds unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
-  file), *Sonar gate* (`sonar-check.py`: SonarQube Cloud's own analysis of the work branch when the session has a
-  SonarQube credential (a network secret of the cloud environment, or `SONAR_TOKEN`), and of the draft pull request's head otherwise) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
+  file), *Sonar gate* (`sonar-check.py pr`: the CI code analysis of the draft pull request's head, read in step 11 with a
+  SonarQube credential — a network secret of the cloud environment, or `SONAR_TOKEN` — where the project is private) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
   `squad_settings.py`; Cobertura, lcov or Go coverprofile), plus `config-check.py` (agents and skills load,
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec

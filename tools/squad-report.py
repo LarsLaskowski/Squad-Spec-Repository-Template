@@ -141,18 +141,31 @@ def review_comments(repo, number, author):
 
 
 def hours(start, end):
+    """Hours from `start` to `end`; None when GitHub reports the end before the start (a pull request whose
+    creation time is later than its merge)."""
     parse = lambda value: datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))  # noqa: E731
-    return round((parse(end) - parse(start)).total_seconds() / 3600, 1)
+    value = round((parse(end) - parse(start)).total_seconds() / 3600, 1)
+    return value if value >= 0 else None
+
+
+def own_issue_comments(comments, commits, merged_at):
+    """The comments of a linked issue that belong to this pull request's run: posted from the branch's first
+    commit to the merge. An issue that two pull requests close (a feature, then its release) carries the working
+    record of the earlier run only, which was posted before the later branch started."""
+    dates = [c["commit"]["committer"]["date"] for c in commits]
+    first = min(dates) if dates else None
+    return [c for c in comments
+            if not c.get("created_at") or ((first is None or c["created_at"] >= first) and c["created_at"] <= merged_at)]
 
 
 def pull_request_row(repo, pr, sonar_key):
     number = pr["number"]
+    commits = gh_list(f"repos/{repo}/pulls/{number}/commits")
     comments = []
     for issue in (i for i in linked_issues(pr.get("body")) if i != number):
-        comments += gh_list(f"repos/{repo}/issues/{issue}/comments")
+        comments += own_issue_comments(gh_list(f"repos/{repo}/issues/{issue}/comments"), commits, pr["merged_at"])
     comments += gh_list(f"repos/{repo}/issues/{number}/comments")
     record = parse_record(comments)
-    commits = gh_list(f"repos/{repo}/pulls/{number}/commits")
     fixes, merges, checked = pushes_after_open(commits, pr["created_at"])
     failures = sum(failed_checks(repo, commit["sha"]) for commit in checked)
     bots, humans = review_comments(repo, number, (pr.get("user") or {}).get("login"))
@@ -222,7 +235,7 @@ def table(rows):
     for r in rows:
         lines.append(f"| {r['repo']} | #{r['pr']} | {r['kind']} | {show(r['tier'])} | {show(r['launches'])} | "
                      f"{show(r['tokens'])} | {r['fix_pushes']} | {r['base_merges']} | {r['ci_failures']} | "
-                     f"{show(r['sonar'])} | {r['bot_comments']} / {r['human_comments']} | {r['hours_to_merge']} |")
+                     f"{show(r['sonar'])} | {r['bot_comments']} / {r['human_comments']} | {show(r['hours_to_merge'])} |")
     return lines
 
 

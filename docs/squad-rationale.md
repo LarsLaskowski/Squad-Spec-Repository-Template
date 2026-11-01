@@ -370,3 +370,32 @@ draft until green, merge conflicts and the like). So size is now information, a 
 the pull request, cuts happen only in a consolidation of their own (decided 2026-10-25), and those procedures moved to
 `orchestration.md`, which the members need not read.
 
+
+## New scope on an open PR, no deliberately red head, continuation cap reported (routing.md, Loop limits; orchestration.md, Commits; squad-log.py)
+
+Vandox#324 (feature 42) took 57 commits and 70 failed CI runs over 58 hours after it was opened. Most of it was no
+defect: after the PR opened, the Product Manager asked for an install bundle instead of a repository checkout, then
+for single-command installs and a manifest, and the run built each request on the open PR with "work in progress"
+commits. Its tests-first skeletons were pushed red on purpose, so CI failed by design on several heads. A request
+that adds behavior now goes to the Lead first (a follow-up issue by default), and a red tests-first commit is
+pushed only with the implementation that makes it pass. In the week of 2026-10-25 several runs also continued one
+agent 9 to 12 times and up to 590,000 tokens (Seluna#123 and #130, Vandox#322, #324 and #349) although
+*Continuing a member* asks for a fresh launch after 5 continuations or 300,000 tokens; Seluna#123 reported it as an
+orchestrator miss. `squad-log.py` now warns when such a continuation is logged and lists it in the summary.
+
+## A code convention binds only its own language (team.md, Shared rules)
+
+In Vandox#346 the Dev applied the .NET profile's `== false` instead of `!` to Go code: in a repository with two
+profiles, `AGENTS.md` lists both profiles' conventions next to each other, and nothing said that one profile's rule
+stops at its language.
+
+## The Sonar gate reads the pull request only (routing.md, Pipeline step 7 and Early draft PR; sonar-check.py)
+
+In the week of 2026-10-25 the branch scan of step 7 ran in every squad run across five repositories and never
+produced a result. With the network secret the scan uploaded, but reading it back failed: SonarQube Cloud answered
+HTTP 403 ("not allowed to access data from non main branches") for the organization, and before #203 also HTTP 400
+on mixed file qualifiers; where no `dotnet-sonarscanner` was restored it did not start at all. Every real finding
+(Seluna `text:S6389`, Vandox `S5332`, `S1192` and `S7684`, Censio `S7020`, `S8233` and `S8431`) came from the
+analysis of the pull request in step 11. #211 had made a Sonar gate that could not run a reason to open the draft
+pull request right after step 7, but every later push then runs all of CI again, so the Product Manager decided
+(2026-11-01) to drop the branch scan and that trigger: `sonar-check.py` keeps only its `pr` mode, read in step 11.

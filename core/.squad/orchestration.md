@@ -90,7 +90,8 @@ detached HEAD is switched back to it first (`git switch <branch>`, then `git mer
 commits made on the detached HEAD) and logged with the launch that left it. Push without `-q` and check after
 every push that `git rev-parse origin/<branch>` equals `git rev-parse HEAD`: a push that did not move the branch
 is a failure, not a success. After the PR every push re-triggers CI and the code analysis, so edits are
-batched and committed once per round.
+batched and committed once per round, and a tests-first commit that fails on purpose is pushed only together
+with the implementation that makes it pass: the head of an open PR never fails by design.
 
 ## The stop hook
 

@@ -42,7 +42,9 @@ Product Manager*).
 
 `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CONTRIBUTING.md`, `docs/UNIT_TESTS.md`, `.squad/stack.md` and
 `.squad/project.md` are binding: unit tests for all new code until the *Coverage gate* passes, and the code
-conventions from `stack.md` while writing.
+conventions from `stack.md` while writing. In a repository with more than one profile a code convention binds
+only the code of its own language: a rule under **Profile `<name>`** in `AGENTS.md`, or one `stack.md` states for
+one language, is never carried over to another (the .NET profile's `== false` is no rule for Go code).
 
 **Format.** The member that changed files — Dev, Tester, Code Officer, or the orchestrator for its own edits —
 runs *Format* from `stack.md` before handing back and keeps its result to those files: every other file the

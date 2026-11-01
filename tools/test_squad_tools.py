@@ -279,6 +279,40 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(amended.returncode, 0, amended.stderr)
         self.assertIn("WARNING: '9 Approve' continues Dev's launch of step '4 Skeleton'", amended.stdout)
 
+    def test_continuation_past_the_cap_warns_and_shows_in_the_summary(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-tester.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n| 2026-01-02 13:00 | 5 Tests first G1 | Tester | red (sonnet/medium · 50,000 tokens "
+                   "· 10 tool uses · 100 s) |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+
+        def usage(tokens):
+            return ["--agent", "squad-tester", "--tokens", str(tokens), "--tool-uses", "2", "--seconds", "20"]
+        for group in range(2, 7):
+            done = run(f"5 Tests first G{group}", "Tester", "red", "--continued", *usage(50000 + group * 1000))
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertNotIn("WARNING", done.stdout, f"continuation {group - 1} is within the cap")
+        sixth = run("5 Tests first G7", "Tester", "red", "--continued", *usage(60000))
+        self.assertEqual(sixth.returncode, 0, sixth.stderr)
+        self.assertIn("WARNING: Tester's agent was already continued 5 time(s) at 56,000 tokens", sixth.stdout)
+        summary = run("--summary")
+        self.assertEqual(summary.returncode, 0, "a note, not a failing exit code")
+        self.assertIn("**Past the continuation cap:**", summary.stdout)
+        self.assertIn("`Tester · 5 Tests first G7`", summary.stdout)
+        # A fresh launch starts a new agent: its first continuations are within the cap again.
+        self.assertEqual(run("5 Tests first G8", "Tester", "red", *usage(30000)).returncode, 0)
+        self.assertNotIn("WARNING", run("5 Tests first G9", "Tester", "red", "--continued", *usage(31000)).stdout)
+        # The token figure alone reaches the cap as well.
+        write(log, "| Date |\n| 2026-01-02 13:00 | 6 Implement G1 | Tester | green (sonnet/medium · 310,000 tokens "
+                   "· 10 tool uses · 100 s) |\n")
+        self.assertIn("at 310,000 tokens", run("6 Implement G2", "Tester", "green", "--continued",
+                                                *usage(320000)).stdout)
+
     def test_continued_from_subtracts_the_continued_launch_only(self):
         write(self.path, "| Date |\n")
         implement, docs = "6 Implement (rows 9-14)", "6 Docs (rows 15-18)"

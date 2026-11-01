@@ -236,6 +236,11 @@ class TestPlanCheck(unittest.TestCase):
         errors = self.errors(self.feature(plan=plan, tasks=stated))
         self.assertFalse(any("group G1" in e for e in errors), errors)
         self.assertTrue(any("`Kernel`" in e for e in errors), errors)
+        method = PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `func (c *Collector) Run(ctx context.Context) error`\n"
+        self.assertTrue(any("`Run`" in e for e in self.errors(self.feature(plan=method))),
+                        "a Go method is named after the method, not after its receiver")
+        self.assertEqual(self.script.signature_names("`func (o *Options) Kernel() string` `func ReadBootID() error`"),
+                         ["Kernel", "ReadBootID"])
         none = PLAN + "\n## Signatures (for the Dev's skeleton)\n\nnone\n"
         self.assertEqual(self.errors(self.feature(plan=none)), [])
         docs = TASKS.replace("| src/Export.cs |", "| docs/areas/export.md, README.md |")

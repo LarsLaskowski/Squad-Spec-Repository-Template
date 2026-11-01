@@ -96,7 +96,7 @@ class TestSquadReport(unittest.TestCase):
                  "repos/o/r/pulls/118/commits": [commit("c", "2026-10-27T17:50:00Z")],
                  "repos/o/r/pulls/118/comments": [], "repos/o/r/pulls/118/reviews": []}
         with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), \
-                mock.patch.object(report, "failed_checks", lambda repo, sha: 0):
+                mock.patch.object(report, "failed_checks", return_value=0):
             self.assertEqual(report.pull_request_row("o/r", release, None)["kind"], "manual")
         early = {"body": "Squad working record", "created_at": "2026-10-27T18:00:00Z"}
         self.assertEqual(len(report.own_issue_comments([record, early], [commit("c", "2026-10-27T17:50:00Z")],

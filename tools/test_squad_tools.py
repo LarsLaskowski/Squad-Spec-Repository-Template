@@ -851,3 +851,21 @@ class TestScopeCheckPullRequest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSquadSettingsScope(unittest.TestCase):
+    def test_product_pr_may_change_settings_but_a_fork_may_not(self):
+        scope = load_script("scope-check")
+        self.assertFalse(scope.is_squad_file(".squad/tools/squad_settings.py"))
+        self.assertTrue(scope.is_squad_file(".squad/tools/squad_settings.py", fork=True))
+        self.assertTrue(scope.is_squad_file(".squad/tools/scope-check.py"))
+
+
+class TestDecisionCheckUnknownReleases(unittest.TestCase):
+    def test_unknown_release_state_is_worded_as_possibly_released(self):
+        decision = load_script("decision-check")
+        errors = []
+        decision.assigned_area("0001", {"rel": "docs/decisions/0001-x.md"}, {}, None, errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("possibly released", errors[0])
+        self.assertNotIn("released without", errors[0])

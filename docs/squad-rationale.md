@@ -85,7 +85,7 @@ that change a plan disappeared. One challenge costs about 55 k tokens on Sonnet,
 1.5 M of the run it protects. Every run records launches, tokens, tool uses and seconds per role in its
 working record (`squad-log.py --summary`), which is the evidence for the next change.
 
-The Tester of a `security` run runs on Opus, the Dev stays on Sonnet. Evidence: the working records of 123 issues
+The Tester of a `security` run runs on Opus (orchestration.md, *Launch model*), the Dev stays on Sonnet. Evidence: the working records of 123 issues
 in Vandox, Seluna and PlexToJellyfinSync up to 2026-10-25 (107 runs with review rows, 74 with usage per launch:
 984 launches, 81 M tokens — Lead 27 %, Tester 25 %, Dev 23 %, Security and Reviewer 9 % each). About 110
 blocking review findings: about 55 documentation that contradicted the code, about 30 missing or weak tests and
@@ -95,8 +95,25 @@ test or a plan fact wrong, not the Dev (e.g. Vandox#286, #279, #278, Seluna#16, 
 implements the plan reliably, a more detailed approach in the plan addresses no measured defect, and the tests
 are the weak link: missing and wrong tests outnumber implementation defects. 85 of the 123 runs were tier
 `security`, where a missed edge case costs most. The override covers every Tester launch of such a run, not only
-`tests-first`, because the missing tests were found after the coverage step. The `squad-log.py --summary` rows
-per model show whether test gaps and disputed tests drop against the added tokens.
+`tests-first`, because the missing tests were found after the coverage step.
+
+The override stands in orchestration.md, where the orchestrator reads its launch procedures, and `squad-log.py`
+refuses `--agent squad-tester` alone in a run whose plan names tier `security`. Evidence: in the week after the rule
+was added to team.md (47 runs in Vandox, Seluna, DockerUpdateGuard and Censio, 2026-10-26 to 2026-11-01, all on
+the refreshed template), all 55 Tester launches of security runs were logged as `sonnet/medium`. The skills'
+launch step named no model, and `--agent` reads the model from the agent file, so even an applied override
+would have been logged as Sonnet; the per-model summary rows that are to measure the override need the
+`--launch` the script now asks for.
+
+## Documentation claims are traced (squad-dev.md, Documentation)
+
+Evidence: the same 47 runs. About 34 of about 50 blocking review findings were documentation that contradicted
+the code, more than in the runs before, although the Dev has written the documentation against the green code
+since 2026-10-25. Most were a claim of completeness, order or number the code did not bear out: "contacts only the
+Trivy server and the registries" while the Docker socket is contacted first (DockerUpdateGuard#372), a check
+described as automated that was not (Censio, feature 4), a budget one D1 statement short and then a new wrong
+figure in the fix (Seluna#110), a step order the code reverses (Censio, feature 9). Naming the line or measurement
+a sentence rests on is the check that finds these before the review does.
 
 ## Run metrics are posted as printed (squad-issue, steps 1 and 12)
 

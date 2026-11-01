@@ -124,9 +124,9 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    reported as not unit-testable go to `squad-lead` in mode `decide`.
 7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
    for a change without code and for `patch` their sections) with the commands from `.squad/stack.md`,
-   once they pass, commit, then run the *Sonar gate*; keep the output for step 8. When *Format check* fails, run *Format*,
+   once they pass, commit (the *Sonar gate* runs on the draft PR in step 11). When *Format check* fails, run *Format*,
    `git restore -- <file>` every file it changed outside the change, and check again. Launch
-   `squad-code-officer` with the base ref only for analyzer diagnostics, Sonar findings or style findings that
+   `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that
    need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
    owner, a file it formatted outside the change you restore. Run the gates again until they pass.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — on tier `security` — `squad-security` in mode

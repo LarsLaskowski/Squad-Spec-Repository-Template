@@ -3,7 +3,6 @@ import contextlib
 import io
 import os
 import tempfile
-import types
 import unittest
 import urllib.error
 from unittest import mock
@@ -21,10 +20,8 @@ def issue(path, line, rule="go:S1192", message="Define a constant"):
 class FakeApi:
     """Answers the endpoints sonar-check.py reads from canned data, and records the calls."""
 
-    def __init__(self, analysed="abc1234def", gate="OK", issues=(), hotspots=(), task=None, valid=False):
+    def __init__(self, analysed="abc1234def", gate="OK", issues=(), hotspots=()):
         self.analysed, self.gate, self.issues, self.hotspots = analysed, gate, list(issues), list(hotspots)
-        self.valid = valid
-        self.task = task or {"status": "SUCCESS", "branch": "work"}
         self.calls = []
 
     def __call__(self, path, params, token=None):
@@ -34,8 +31,6 @@ class FakeApi:
             "qualitygates/project_status": lambda: {"projectStatus": {"status": self.gate}},
             "issues/search": lambda: {"issues": self.issues, "paging": {"total": len(self.issues)}},
             "hotspots/search": lambda: {"hotspots": self.hotspots, "paging": {"total": len(self.hotspots)}},
-            "ce/task": lambda: {"task": self.task},
-            "users/current": lambda: {"isLoggedIn": self.valid},
         }
         return answers[path]()
 
@@ -161,11 +156,6 @@ class TestHttpErrors(SonarCheckCase):
         self.assertEqual(code, self.script.NOT_CHECKED)
         self.assertIn("HTTP 400 for GET u: bad", output)
 
-    def test_http_error_while_probing_the_credential_means_no_credential(self):
-        with mock.patch.object(self.script, "api", side_effect=self.script.ApiError("HTTP 401")):
-            self.assertFalse(self.script.proxy_credential())
-
-
 class TestRefusedEndpoints(SonarCheckCase):
     """A 403 on the first endpoint falls back to the one a browsing credential may read."""
 
@@ -188,15 +178,6 @@ class TestRefusedEndpoints(SonarCheckCase):
         error = self.script.ApiError("HTTP 500", 500)
         with mock.patch.object(self.script, "api", side_effect=error), self.assertRaises(self.script.ApiError):
             self.script.analysed_commit(KEY, 7)
-        with mock.patch.object(self.script, "api", side_effect=error), self.assertRaises(self.script.ApiError):
-            self.script.ce_task("T1", None)
-
-    def test_refused_task_is_read_from_the_activity(self):
-        write("sonar-project.properties", f"sonar.projectKey={KEY}\n")
-        answers = {"ce/activity": {"tasks": [{"id": "T0", "status": "FAILED"}, {"id": "T1", "status": "SUCCESS"}]}}
-        with mock.patch.object(self.script, "api", self.refusing({"ce/task"}, answers)):
-            self.assertEqual(self.script.ce_task("T1", None)["status"], "SUCCESS")
-            self.assertEqual(self.script.ce_task("T9", None)["status"], "PENDING")
 
     def test_http_error_carries_its_status(self):
         error = urllib.error.HTTPError("https://sonarcloud.io/api/x", 403, "", {}, io.BytesIO(b"no"))
@@ -211,7 +192,13 @@ class TestRefusedEndpoints(SonarCheckCase):
         self.assertIn("newer analysis", output)
 
 
-class TestBranchMode(SonarCheckCase):
+class TestChangedLines(SonarCheckCase):
+    """`changed_line_map` of analyzer_common, which the coverage gate uses."""
+
+    def setUp(self):
+        super().setUp()
+        self.script = load_script("coverage-check")
+
     def test_changed_lines_keep_paths_with_spaces(self):
         make_repository()
         lines = self.script.changed_line_map("main")
@@ -227,112 +214,3 @@ class TestBranchMode(SonarCheckCase):
         lines = self.script.changed_line_map("main")
         self.assertEqual(set(lines), {"a.go", "c.go"})
         self.assertEqual(lines["c.go"], {1, 2, 3})
-
-    def test_coverage_reports_may_lie_around_untracked(self):
-        make_repository()
-        write("coverage/lcov.info", "TN:\n")
-        settings = types.SimpleNamespace(BASE_REF="main", COVERAGE_FORMAT="lcov",
-                                         COVERAGE_REPORT_GLOB="coverage/lcov.info")
-        with mock.patch.object(self.script, "settings", settings):
-            self.assertEqual(self.script.unexpected_files(), [])
-            write("notes.txt", "scratch\n")
-            self.assertEqual(self.script.unexpected_files(), ["notes.txt"])
-
-    def test_findings_count_only_on_changed_lines(self):
-        lines = {"a.go": {3, 4}, "c.go": set()}
-        self.assertTrue(self.script.on_changed_line(issue("a.go", 4), KEY, lines))
-        self.assertFalse(self.script.on_changed_line(issue("a.go", 5), KEY, lines))
-        self.assertFalse(self.script.on_changed_line(issue("b.go", 3), KEY, lines))
-        self.assertTrue(self.script.on_changed_line({"component": f"{KEY}:c.go"}, KEY, lines))
-
-    def test_without_token_or_network_secret_is_not_checked(self):
-        make_repository()
-        fake = FakeApi(valid=False)
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}), mock.patch.object(self.script, "api", fake):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
-        self.assertEqual(code, self.script.NOT_CHECKED)
-        self.assertIn("network secret", output)
-        self.assertEqual([path for path, _, token in fake.calls], ["users/current"])
-
-    def test_unreachable_sonarqube_means_no_network_secret(self):
-        def unreachable(path, params, token=None):
-            raise OSError("blocked")
-        with mock.patch.object(self.script, "api", unreachable):
-            self.assertFalse(self.script.proxy_credential())
-
-    def test_network_secret_scans_without_a_token_of_its_own(self):
-        make_repository()
-        scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
-                   "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
-        fake = FakeApi(valid=True)
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": ""}), mock.patch.object(self.script, "api", fake):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", *scanner])
-        self.assertEqual(code, self.script.CLEAN, output)
-        self.assertEqual({token for _, _, token in fake.calls}, {None}, "no token of its own is sent")
-        self.assertIn("ce/task", [path for path, _, _ in fake.calls])
-
-    def test_dirty_tree_and_base_branch_are_not_scanned(self):
-        make_repository()
-        write("scratch.txt", "secret\n")
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
-        self.assertEqual(code, self.script.NOT_CHECKED)
-        self.assertIn("uncommitted", output)
-        os.remove("scratch.txt")
-        git("checkout", "-q", "main")
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", "true"])
-        self.assertEqual(code, self.script.NOT_CHECKED)
-        self.assertIn("work branch", output)
-
-    def test_failed_or_missing_scanner_is_not_checked_and_leaves_no_output(self):
-        make_repository()
-        failing = ["python3", "-c", "import os; os.makedirs('.scannerwork'); raise SystemExit(1)"]
-        for command in (failing, ["no-such-scanner-binary"]):
-            with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}):
-                code, _ = self.run_quiet(self.script.main, ["branch", "--", *command])
-            self.assertEqual(code, self.script.NOT_CHECKED)
-            self.assertFalse(os.path.exists(".scannerwork"))
-
-    def test_successful_scan_reports_findings_on_changed_lines_only(self):
-        make_repository()
-        scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
-                   "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
-        fake = FakeApi(issues=[issue("a.go", 5), issue("a.go", 1, rule="go:S100")])
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}), mock.patch.object(self.script, "api", fake):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", *scanner])
-        self.assertEqual(code, self.script.FINDINGS)
-        self.assertIn("go:S1192 a.go:5", output)
-        self.assertNotIn("go:S100", output)
-        self.assertFalse(os.path.exists(".scannerwork"))
-        searched = [params for path, params, _ in fake.calls if path == "issues/search"]
-        self.assertEqual(searched[0]["branch"], "work")
-        self.assertEqual(searched[0]["componentKeys"], KEY, "the project is queried, never a list mixing FIL and UTS")
-
-    def test_non_main_branch_data_refused_is_not_checked_and_points_to_the_pull_request(self):
-        make_repository()
-        scanner = ["python3", "-c", "import os; os.makedirs('.scannerwork'); "
-                   "open('.scannerwork/report-task.txt', 'w').write('ceTaskId=T1\\n')"]
-        refusal = self.script.ApiError("HTTP 403 for GET x: Organization is not allowed to access data from non "
-                                       "main branches", 403)
-        fake = FakeApi()
-
-        def refusing(path, params, token=None):
-            if path == "issues/search":
-                raise refusal
-            return fake(path, params, token)
-
-        with mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}), mock.patch.object(self.script, "api", refusing):
-            code, output = self.run_quiet(self.script.main, ["branch", "--", *scanner])
-        self.assertEqual(code, self.script.NOT_CHECKED)
-        self.assertIn("pr <number>", output)
-
-    def test_task_that_never_finishes_times_out(self):
-        fake = FakeApi(task={"status": "IN_PROGRESS"})
-        with mock.patch.object(self.script, "api", fake), mock.patch.object(self.script, "WAIT_SECONDS", 0), \
-                mock.patch.object(self.script, "POLL_SECONDS", 0):
-            self.assertEqual(self.script.wait_for_task("T1", "t")["status"], "TIMEOUT")
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -224,10 +224,6 @@ def merge_settings(profile_dirs):
              f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", "",
              "# Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.",
              f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", ""]
-    scanner = modules[names.index(sonar_profile(names))]
-    if hasattr(scanner, "SONAR_REPORT_TASK"):
-        lines += ["# Sonar gate (.squad/tools/sonar-check.py): the report file the repository's scanner writes.",
-                  f"SONAR_REPORT_TASK = {scanner.SONAR_REPORT_TASK!r}", ""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]

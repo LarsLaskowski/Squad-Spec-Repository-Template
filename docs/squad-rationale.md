@@ -388,3 +388,14 @@ orchestrator miss. `squad-log.py` now warns when such a continuation is logged a
 In Vandox#346 the Dev applied the .NET profile's `== false` instead of `!` to Go code: in a repository with two
 profiles, `AGENTS.md` lists both profiles' conventions next to each other, and nothing said that one profile's rule
 stops at its language.
+
+## The Sonar gate reads the pull request only (routing.md, Pipeline step 7 and Early draft PR; sonar-check.py)
+
+In the week of 2026-10-25 the branch scan of step 7 ran in every squad run across five repositories and never
+produced a result. With the network secret the scan uploaded, but reading it back failed: SonarQube Cloud answered
+HTTP 403 ("not allowed to access data from non main branches") for the organization, and before #203 also HTTP 400
+on mixed file qualifiers; where no `dotnet-sonarscanner` was restored it did not start at all. Every real finding
+(Seluna `text:S6389`, Vandox `S5332`, `S1192` and `S7684`, Censio `S7020`, `S8233` and `S8431`) came from the
+analysis of the pull request in step 11. #211 had made a Sonar gate that could not run a reason to open the draft
+pull request right after step 7, but every later push then runs all of CI again, so the Product Manager decided
+(2026-11-01) to drop the branch scan and that trigger: `sonar-check.py` keeps only its `pr` mode, read in step 11.

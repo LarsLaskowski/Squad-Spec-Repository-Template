@@ -166,12 +166,12 @@ suppression): its rules still apply, and those no local gate reports arrive in s
 
 ### Early draft PR
 
-CI runs on pull requests only, so a change whose **CI-only criteria** (*Criteria verified only in CI*), **dry
-run** (*Operator environments and documented procedures*) or **Sonar gate** that could not run (step 7: NOT
-CHECKED) needs a CI or code-analysis result before the review, and a PR opened in step 10 comes too late for it. For such a
-change the plan says so, and the orchestrator opens the PR as a draft right after step 7 (`create-pr` step 8,
-`specs/` still in the diff, no working record comment yet), then waits for CI and reads `sonar-check.py pr <n>`
-before step 8; findings are worked as in step 11. The dry run runs on that head, before the documentation is
+CI runs on pull requests only, so a change whose **CI-only criteria** (*Criteria verified only in CI*) or **dry
+run** (*Operator environments and documented procedures*) needs a CI result before the review, and a PR opened in
+step 10 comes too late for it. For such a change the plan says so, and the orchestrator opens the PR as a draft
+right after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment yet), then waits for CI
+and reads `sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar gate* alone is no
+reason for an early PR: every push to an open PR runs all of CI again, and step 11 reads the analysis anyway. The dry run runs on that head, before the documentation is
 reviewed. Step 9 additionally requires the green CI run, the dry-run result and the Reviewer's round on the same
 head; step 10 then only posts the working record, removes `specs/` and marks nothing ready (*Draft until green*).
 
@@ -185,7 +185,7 @@ head; step 10 then only posts the working record, removes `specs/` and marks not
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the plan's doc updates, area documents included, written by the Dev against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`, commits, then runs the *Sonar gate* (NOT CHECKED — no SonarQube credential, or no scanner download — is logged; the change opens its draft PR early, *Early draft PR*, otherwise step 11 reads it). It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics, Sonar findings and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
+| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`, then commits; the *Sonar gate* runs in step 11 on the draft PR. It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
 | 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below; with an *Early draft PR* also green CI, the dry-run result and the Reviewer's round on the same head |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |

@@ -189,7 +189,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     no step-11 review row follows — run their delta review (step 11), or log a verbatim fix as such, and run it
     again. Append the tables exactly as printed (a run
     without them is not wrapped up) to the comment under "Squad run metrics". In a Claude Code session, ask the user for a
-    screenshot of `/usage` (you cannot run it) and add what it shows below the tables under "Session usage (`/usage`)" as `.squad/routing.md`, step 12, says. Report the branch, the PR
+    screenshot of `/usage` (you cannot run it) and add only its numbers (never the image, never personal data) below the tables under "Session usage (`/usage`)" as `.squad/routing.md`, step 12, says. Report the branch, the PR
     URL, the tier, the `squad` issues (or "no lessons"), the metrics tables and any escalation or Lead
     decision to the user.
 

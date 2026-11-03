@@ -415,3 +415,17 @@ said $1.33 where `/usage` said $3.85, because it predated the day's work. The Pr
 cost entirely: `session-usage.py` prints the transcript tokens as a lower bound, and costs are calculated from
 them with the prices given when they are needed. The format is Claude Code's internal one; a record the script
 cannot read is skipped.
+
+## Pending continuations, Tester model, manual-test build, skeleton body, changelog row, clock exceptions (squad-log.py; orchestration.md, Launch model and Continuing a member; routing.md, Criteria verified only in CI; squad-dev.md, mode skeleton; squad-lead.md, mode plan; profile testing blocks)
+
+In LarsLaskowski/Censio#11 (#222) `squad-log.py` refused `--continued-from` on a pending row, so a continued
+launch's row could only be written once its notification arrived; the same run passed the agent-file model of
+a first Tester launch in a tier-`security` run on to every continuation, and a plan asked for a manual test by
+the Product Manager before step 9 that only worked from a local publish of the branch head, since no CI build
+exists before step 10 without an *Early draft PR*. In LarsLaskowski/Seluna#140 (#228) the first Tester launch
+of a `security` run again omitted `model: opus` (only `squad-log.py` caught it, after the launch), the Dev wrote
+`return false` stubs without having read *Skeleton* in `stack.md`, and the plan left out the `CHANGELOG.md` entry
+the project's PR checklist asks for, which cost a fix round and a delta review after the PR approval. In
+LarsLaskowski/Vandox#315 (#229) the project added a second real-clock exception to its `docs/UNIT_TESTS.md`
+(library timers without an injectable clock), which made the template-owned testing block's "the one exception"
+false in its `AGENTS.md`.

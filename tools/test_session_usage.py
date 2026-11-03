@@ -74,11 +74,11 @@ class TestSessionUsage(unittest.TestCase):
         self.assertIn("| unknown | 1 | claude-haiku-5-5 | 3 | 7 | 0 | 0 |", out, "an odd agent type is not printed")
         self.assertIn("| **Total** | 3 | | 6 | 117 | 15,000 | 1,000 |", out)
 
-    def test_reports_the_last_cost_snapshot_without_estimating(self):
+    def test_prints_no_cost(self):
         self.write_session()
         out = self.run_script().stdout
-        self.assertIn("**Cost (last snapshot):** $26.80 · API time 1 h 20 min · lines +424 −12", out)
-        self.assertNotIn("$0.50", out)
+        for cost in ("$", "26.8", "Cost", "API time", "lines +"):
+            self.assertNotIn(cost, out)
 
     def test_prints_no_transcript_text_and_no_path(self):
         self.write_session()
@@ -86,11 +86,11 @@ class TestSessionUsage(unittest.TestCase):
         for private in ("secret text", "hello", "someone", self.dir.name, SESSION):
             self.assertNotIn(private, out)
 
-    def test_without_subagents_and_snapshot(self):
+    def test_without_subagents(self):
         write_jsonl(os.path.join(self.project, SESSION + ".jsonl"), [response("m", "claude-opus-5-5", 1, 2, 3, 4)])
         out = self.run_script().stdout
         self.assertIn("No subagent was launched in this session.", out)
-        self.assertIn("**Cost:** no cost snapshot in the transcript yet.", out)
+        self.assertIn("| claude-opus-5-5 | 1 | 2 | 3 | 4 |", out)
 
     def test_no_transcript_is_not_provided(self):
         self.write_session()

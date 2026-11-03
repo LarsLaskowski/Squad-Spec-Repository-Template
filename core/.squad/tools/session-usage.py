@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print what this Claude Code session used, read from Claude Code's own session transcript, for the "Squad run
+"""Print the tokens this Claude Code session used, read from Claude Code's own session transcript, for the "Squad run
 metrics" of the wrap-up (`.squad/routing.md`, step 12).
 
 `/usage` shows the same numbers on screen only; this script reads them where Claude Code writes them:
@@ -9,12 +9,13 @@ metrics" of the wrap-up (`.squad/routing.md`, step 12).
 - every subagent's transcript `<session id>/subagents/agent-<id>.jsonl` next to it, with its agent type from
   `agent-<id>.meta.json` — a subagent's tokens are in its own transcript only, never in the session's;
 - per model, the input, output, cache-read and cache-write tokens of every API response (a response written
-  once per content block is counted once, by its message id);
-- the last `cost-state` record of the session transcript: cost in USD, API time, lines added and removed. Claude
-  Code writes it only now and then (when the session pauses), so it may miss the last part of the session; the
-  output says so instead of estimating anything. Calls Claude Code makes on its own (permission checks of auto
-  mode, titles, compaction) are in that snapshot only, never in a transcript, so the token tables are a lower
-  bound and the snapshot is the complete figure up to its time.
+  once per content block is counted once, by its message id).
+
+Calls Claude Code makes on its own (permission checks of auto mode, titles, compaction) are in no transcript, so
+the tables are a lower bound: against `/usage`, output and cache-write tokens matched within a few percent, input
+and cache-read tokens were 15-20 % lower. No cost is printed: Claude Code's own cost snapshot is written only
+when the session pauses and mostly predates the run, and a cost computed here would be an estimate; the costs
+are calculated from the token tables where they are needed.
 
 Only these numbers, model ids and agent types are printed; no text of the transcripts, no path, account or other
 personal data. The format of these files is Claude Code's internal one and may change with an update: a record
@@ -23,7 +24,7 @@ this script cannot read is skipped, never guessed.
 Usage, from anywhere:
     python3 .squad/tools/session-usage.py [--session <session id>]
 
-Prints Markdown tables (per model, per subagent type) and the cost line. Exit code 0 when a transcript was read,
+Prints Markdown tables (per model, per subagent type). Exit code 0 when a transcript was read,
 2 when none was found (not a Claude Code session, or the id is unknown): it then prints "not provided", which the
 wrap-up records as it stands.
 """
@@ -102,13 +103,9 @@ def add_usage(counter, usage):
 
 
 def read_transcript(path, per_model, seen):
-    """Add the transcript's responses to `per_model`; return its own per-model usage and its last cost-state."""
+    """Add the transcript's responses to `per_model`; return its own per-model usage."""
     own = collections.defaultdict(collections.Counter)
-    cost_state = None
     for record in records(path):
-        if record.get("type") == "cost-state":
-            cost_state = record
-            continue
         found = response_usage(record)
         if not found:
             continue
@@ -118,7 +115,7 @@ def read_transcript(path, per_model, seen):
         seen.add(message_id)
         add_usage(per_model[model], usage)
         add_usage(own[model], usage)
-    return own, cost_state
+    return own
 
 
 def agent_type(transcript):
@@ -132,20 +129,20 @@ def agent_type(transcript):
 
 
 def read_session(path):
-    """(per model, per agent type, last cost-state) of the session and all its subagents."""
+    """(per model, per agent type) of the session and all its subagents."""
     per_model = collections.defaultdict(collections.Counter)
     seen = set()
-    _, cost_state = read_transcript(path, per_model, seen)
+    read_transcript(path, per_model, seen)
     agents = {}
     pattern = os.path.join(path[: -len(JSONL)], "subagents", "agent-*.jsonl")
     for transcript in sorted(glob.glob(pattern)):
-        own, _ = read_transcript(transcript, per_model, seen)
+        own = read_transcript(transcript, per_model, seen)
         entry = agents.setdefault(agent_type(transcript), {"launches": 0, "models": set(), "tokens": collections.Counter()})
         entry["launches"] += 1
         for model, counter in own.items():
             entry["models"].add(model)
             entry["tokens"].update(counter)
-    return per_model, agents, cost_state
+    return per_model, agents
 
 
 def number(value):
@@ -182,42 +179,17 @@ def agent_table(agents):
     return lines
 
 
-def duration(milliseconds):
-    seconds = int(milliseconds // 1000)
-    hours, rest = divmod(seconds, 3600)
-    return f"{hours} h {rest // 60} min" if hours else f"{rest // 60} min {rest % 60} s"
-
-
-def cost_line(cost_state):
-    if not cost_state:
-        return "**Cost:** no cost snapshot in the transcript yet."
-    parts = []
-    cost = cost_state.get("totalCostUSD")
-    if isinstance(cost, (int, float)):
-        parts.append(f"${cost:,.2f}")
-    api = cost_state.get("totalAPIDuration")
-    if isinstance(api, (int, float)):
-        parts.append(f"API time {duration(api)}")
-    added, removed = cost_state.get("totalLinesAdded"), cost_state.get("totalLinesRemoved")
-    if isinstance(added, int) and isinstance(removed, int):
-        parts.append(f"lines +{added} −{removed}")
-    shown = " · ".join(parts) or "no readable values"
-    return (f"**Cost (last snapshot):** {shown} — Claude Code's own snapshot, written when the session last paused; "
-            "usage after it is in the token tables only.")
-
-
-def report(per_model, agents, cost_state):
-    lines = ["Tokens per model (the session and all its subagents; Claude Code's own background calls are in the "
-             "cost snapshot only):", ""]
+def report(per_model, agents):
+    lines = ["Tokens per model (the session and all its subagents; Claude Code's own background calls are not in "
+             "the transcripts, so this is a lower bound):", ""]
     lines += model_table(per_model)
     lines += ["", "Subagents:", ""]
     lines += agent_table(agents) if agents else ["No subagent was launched in this session."]
-    lines += ["", cost_line(cost_state)]
     return "\n".join(lines)
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Print this Claude Code session's token and cost figures.")
+    parser = argparse.ArgumentParser(description="Print this Claude Code session's tokens per model and per subagent type.")
     parser.add_argument("--session", help="session id (default: CLAUDE_CODE_SESSION_ID)")
     args = parser.parse_args(argv)
     path = find_transcript(projects_dir(), args.session or os.environ.get("CLAUDE_CODE_SESSION_ID"))

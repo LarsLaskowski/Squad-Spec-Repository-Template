@@ -408,7 +408,10 @@ the Product Manager found impractical for every run (2026-11-03). Claude Code wr
 session transcripts: every API response carries its model and token usage, every subagent has its own transcript
 under `<session>/subagents/` with its agent type in a `.meta.json` (its tokens are not in the session's
 transcript), and a `cost-state` record holds cost, API time and lines. That record is written only when the
-session pauses (five times in a two-day session), and it alone includes Claude Code's background calls: in that
-session the transcripts showed 4.9 M Sonnet cache reads where the snapshot showed 6.0 M. So `session-usage.py`
-prints the transcript tokens as a lower bound and the last snapshot as such, and estimates nothing. The format is
-Claude Code's internal one; a record the script cannot read is skipped.
+session pauses (five times in a two-day session), and it alone includes Claude Code's background calls. Compared
+with `/usage` on 2026-11-03, the transcripts matched output and cache-write tokens within a few percent (Haiku
+exactly: subagent plus background calls), but showed 15-20 % fewer input and cache-read tokens, and the snapshot
+said $1.33 where `/usage` said $3.85, because it predated the day's work. The Product Manager decided to drop the
+cost entirely: `session-usage.py` prints the transcript tokens as a lower bound, and costs are calculated from
+them with the prices given when they are needed. The format is Claude Code's internal one; a record the script
+cannot read is skipped.

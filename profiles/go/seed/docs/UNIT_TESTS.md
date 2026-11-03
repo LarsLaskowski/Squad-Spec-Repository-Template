@@ -34,7 +34,7 @@ neighboring test file before inventing a new pattern.
 - `t.Helper()` in helpers; `t.TempDir()` for files; no real network, no real clock (inject a clock or a
   fixture path); tests pass under `-race`.
 - **Time bounds as a ratio.** A time bound that cannot be tested as a count (allocations, iterations) — a
-  quadratic check that must stay linear, say — is the one exception to the real clock: measure two durations
+  quadratic check that must stay linear, say — is an exception to the real clock: measure two durations
   in the same test (the base input and a multiple of it) and assert their **ratio**, never an absolute
   duration; set the limit to at least three times the highest ratio measured, with the coverage
   instrumentation of *Test with coverage* included.

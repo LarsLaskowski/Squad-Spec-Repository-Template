@@ -688,6 +688,40 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("| **Total** |", stdin.stdout)
         self.assertEqual(run("1 Intake", "Orchestrator", "branch", "--agent", "squad-dev").returncode, 2)
 
+    def test_pending_continued_row_is_written_and_completed_by_the_amend(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True, text=True,
+                                  check=False)
+
+        numbers = ["--tool-uses", "5", "--seconds", "60"]
+        self.assertEqual(run("6 Skeleton", "Dev", "stubs", "--agent", "squad-dev", "--tokens", "50000", *numbers)
+                         .returncode, 0)
+        self.assertEqual(run("6 Implement", "Dev", "done", "--agent", "squad-dev", "--tokens", "100000", *numbers)
+                         .returncode, 0)
+        refused = run("7 Fix", "Dev", "fixed", "--agent", "squad-dev", "--continued-from", "5 Nothing")
+        self.assertEqual(refused.returncode, 1, "no fresh launch of that step")
+        pending = run("7 Fix", "Dev", "fixed", "--agent", "squad-dev", "--continued-from", "6 Skeleton")
+        self.assertEqual(pending.returncode, 0, pending.stdout + pending.stderr)
+        self.assertIn("fixed (sonnet/medium · usage pending · continued from 6 Skeleton) |", pending.stdout)
+        self.assertEqual(run("--summary").returncode, 3, "the pending continuation is incomplete")
+        amended = run("--amend-last", "Dev", "--agent", "squad-dev", "--tokens", "70000", *numbers)
+        self.assertEqual(amended.returncode, 0, amended.stdout + amended.stderr)
+        self.assertIn("fixed (sonnet/medium · 20,000 tokens · 5 tool uses · 60 s · continued from 6 Skeleton) |",
+                      amended.stdout)
+        self.assertEqual(run("8 Fix", "Dev", "again", "--agent", "squad-dev", "--continued").returncode, 0)
+        amended = run("--amend-last", "Dev", "--agent", "squad-dev", "--tokens", "130000", *numbers, "--continued")
+        self.assertEqual(amended.returncode, 0, amended.stdout + amended.stderr)
+        self.assertIn("again (sonnet/medium · 30,000 tokens · 5 tool uses · 60 s · continued) |", amended.stdout)
+        summary = run("--summary")
+        self.assertEqual(summary.returncode, 0, summary.stdout)
+        self.assertIn("4 (2 continued)", summary.stdout)
+
     def test_tool_uses_or_seconds_alone_are_an_incomplete_set(self):
         root = os.path.join(self.dir.name, "repo")
         log = os.path.join(root, "specs", "issue-1", "log.md")

@@ -227,7 +227,8 @@ again. Each objection is ranked `major` (the plan would build the wrong thing or
 `minor`, so the orchestrator routes without judgment:
 
 - **Only minor objections** (when step 3 runs: and Security approved): no Lead launch; the orchestrator
-  appends them verbatim to `plan.md` as *Challenge notes* (bookkeeping, like `log.md`). Dev and Tester follow
+  appends them verbatim to `plan.md` as *Challenge notes* (bookkeeping, like `log.md`). `plan-check.py` does not count
+  *Challenge notes* and *Security notes* against `PLAN_MAX_WORDS`. Dev and Tester follow
   them or report a deviation; the Reviewer checks them in round 1.
 - **Non-blocking findings of Security's `APPROVED` plan review** go verbatim into a *Security notes* section
   the same way — except a note that leaves the plan a choice ("document it, or reject"): the Lead decides it

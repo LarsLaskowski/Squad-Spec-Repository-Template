@@ -212,6 +212,13 @@ class TestPlanCheck(unittest.TestCase):
         errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))
         self.assertFalse(any("words" in e for e in errors), "a plan within the limit passes")
 
+    def test_appended_notes_do_not_count_against_the_plan_limit(self):
+        notes = "\n## Security notes\n\n" + "note " * 5000 + "\n\n## Challenge notes\n\n" + "note " * 5000 + "\n"
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000 + notes))
+        self.assertFalse(any("words" in e for e in errors), "the appended notes are not counted")
+        errors, _ = self.script.check(self.feature(plan=PLAN + notes + "\n## Later\n\n" + "filler " * 5000))
+        self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "a section after the notes is counted")
+
     def test_justified_plan_size_is_a_warning_up_to_the_hard_limit(self):
         justified = PLAN.replace("\n## ", "\nPlan size: eleven task groups across agent and backend\n\n## ", 1)
         errors, warnings = self.script.check(self.feature(plan=justified + "\nfiller " * 5000))

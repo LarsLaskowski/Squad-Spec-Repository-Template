@@ -399,3 +399,16 @@ on mixed file qualifiers; where no `dotnet-sonarscanner` was restored it did not
 analysis of the pull request in step 11. #211 had made a Sonar gate that could not run a reason to open the draft
 pull request right after step 7, but every later push then runs all of CI again, so the Product Manager decided
 (2026-11-01) to drop the branch scan and that trigger: `sonar-check.py` keeps only its `pr` mode, read in step 11.
+
+## Session usage from the transcripts, not from `/usage` (routing.md, Pipeline step 12; session-usage.py)
+
+`/usage` cannot be run by the agent, and copying its panel gives only the "What's contributing" text; the cost and
+token table exists on screen only. #223 and #224 had the orchestrator ask for a screenshot and transcribe it, which
+the Product Manager found impractical for every run (2026-11-03). Claude Code writes the same figures to its
+session transcripts: every API response carries its model and token usage, every subagent has its own transcript
+under `<session>/subagents/` with its agent type in a `.meta.json` (its tokens are not in the session's
+transcript), and a `cost-state` record holds cost, API time and lines. That record is written only when the
+session pauses (five times in a two-day session), and it alone includes Claude Code's background calls: in that
+session the transcripts showed 4.9 M Sonnet cache reads where the snapshot showed 6.0 M. So `session-usage.py`
+prints the transcript tokens as a lower bound and the last snapshot as such, and estimates nothing. The format is
+Claude Code's internal one; a record the script cannot read is skipped.

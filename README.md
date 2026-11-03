@@ -35,7 +35,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
-  evidence, no control character); `squad-log.py` appends the pipeline's log rows.
+  evidence, no control character); `squad-log.py` appends the pipeline's log rows; `session-usage.py` prints the
+  session's token and cost figures (its subagents included) from Claude Code's session transcripts for the wrap-up.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.

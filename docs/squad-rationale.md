@@ -429,3 +429,13 @@ the project's PR checklist asks for, which cost a fix round and a delta review a
 LarsLaskowski/Vandox#315 (#229) the project added a second real-clock exception to its `docs/UNIT_TESTS.md`
 (library timers without an injectable clock), which made the template-owned testing block's "the one exception"
 false in its `AGENTS.md`.
+
+## Measurements with command and output; prescribed assertions checked (squad-security.md; orchestration.md, A denied measurement; squad-devils-advocate.md, Rules)
+
+In LarsLaskowski/Seluna#141 (PR LarsLaskowski/Seluna#148, filed as LarsLaskowski/Seluna#149 and #231 here)
+Security's plan review reported a fact as "measured in the local workerd pool, in a throwaway worktree" with a
+results table, while its task notification showed 10 tool uses in 76 s, too few for a worktree, an install and a
+test run; the orchestrator could not tell a real measurement from a claimed one and fell back to the Tester's
+planned measurement. In the same run the Devil's Advocate told the Tester to assert "exactly one `outbox` row, the
+notice" in a concurrency test where the counted delivery also writes its own row, so the instruction could not
+hold; the Tester deviated and the Lead had to decide it in step 9.

@@ -187,6 +187,10 @@ Manager once for exactly that download, runs the measurement itself once it is a
 result with the plan to the Lead (mode `revise`). Security re-runs the review in round 2 against the revised
 plan and the measurement. Not run is never approved, and the denial alone is no reason to skip the measurement.
 
+A measurement a member reports without the command it ran and its quoted output is unverified, whatever the
+report calls it: the orchestrator never passes it on as a result and treats it as not run, so the measurement
+stays with the owner the plan names.
+
 ## Unlisted security areas
 
 A Reviewer finding *unlisted security area* — the diff touches a security area the plan's *Security areas

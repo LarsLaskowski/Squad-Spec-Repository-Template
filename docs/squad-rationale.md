@@ -439,3 +439,17 @@ test run; the orchestrator could not tell a real measurement from a claimed one 
 planned measurement. In the same run the Devil's Advocate told the Tester to assert "exactly one `outbox` row, the
 notice" in a concurrency test where the counted delivery also writes its own row, so the instruction could not
 hold; the Tester deviated and the Lead had to decide it in step 9.
+
+## Coverage launch fresh, verbatim rewrap, dotnet skeleton pragmas and surrogate escapes (squad-issue step 6; orchestration.md, Verbatim documentation fixes; dotnet stack.md seed, Skeleton and Known pitfalls)
+
+From the DockerUpdateGuard runs for #358 and #363 (DockerUpdateGuard#392, #397, #398). The orchestrator continued
+the Tester's `tests-first` agent for the coverage pass: *Continuing a member* already makes the first launch of
+another mode fresh, but step 6 named that only for the Dev, so it now names it for the Tester too; `squad-log.py`
+warns on the pending row of such a continuation since the pending-continuation change. A Reviewer's verbatim
+sentence that is longer than the original inside a hard-wrapped paragraph cannot be applied without rewrapping;
+the rewrap is whitespace only and shows as such in `git diff --word-diff`, so it needs no delta round. A .NET
+skeleton with private helpers nothing calls yet failed the Release build on S1144 and S1172, and the Dev
+improvised pragmas; the seed now names the sanctioned pragma and its removal. `reihitsu-format` also rewrote a
+surrogate-pair escape (`\uD83D\uDE00`) into the emoji; the Tester rebuilt the input at run time. The run of #363
+(DockerUpdateGuard#392) launched the tier-`security` Tester on Sonnet; the explicit `model: opus` at steps 5
+and 6 came with the pending-continuation change.

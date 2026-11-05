@@ -115,7 +115,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    — a fresh launch, never a continuation of its `skeleton` agent — with the plan and the test names. If the
    Dev disputes a test, launch `squad-lead` in mode `decide`; the Tester changes a test only if the Lead says
    so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`
-   (model as in step 5), with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
+   (model as in step 5; a fresh launch, never a continuation of its `tests-first` agent), with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
    plan has no test yet, a deferred test or test documentation is open (also when the gate passes) or a reviewer
    asks for a test;
    otherwise log why the pass is skipped. Repeat until the gate passes. Then, when the plan lists documentation

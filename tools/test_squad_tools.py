@@ -278,6 +278,10 @@ class TestSquadLog(unittest.TestCase):
         amended = run("--amend-last", "Dev", "--continued-from", "4 Skeleton", *usage)
         self.assertEqual(amended.returncode, 0, amended.stderr)
         self.assertIn("WARNING: '9 Approve' continues Dev's launch of step '4 Skeleton'", amended.stdout)
+        # The pending row of a continued launch warns already, before its amend.
+        pending = run("6 Implement docs", "Dev", "done", "--continued-from", "4 Skeleton", "--agent", "squad-dev")
+        self.assertEqual(pending.returncode, 0, pending.stderr)
+        self.assertIn("WARNING: '6 Implement docs' continues Dev's launch of step '4 Skeleton'", pending.stdout)
 
     def test_continuation_past_the_cap_warns_and_shows_in_the_summary(self):
         root = os.path.join(self.dir.name, "repo")

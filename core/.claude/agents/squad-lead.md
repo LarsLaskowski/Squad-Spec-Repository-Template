@@ -45,7 +45,8 @@ The orchestrator tells you which **mode** to run:
   `spec.md`); `plan-check.py` checks its structure. For a feature you also close the spec: answer each entry of
   its *Challenge notes* in a *Challenge* section of the spec (accepted — what changed; or rejected — why) and
   fold the notes into it, fix a spec defect you find while planning in the spec itself (named in your result),
-  and set its status to `Approved by Lead` (`Approved by Product Manager` when an escalation settled it).
+  and set its status to `Approved by Lead` (`Approved by Product Manager` when the orchestrator passes on the
+  Product Manager's approval or an escalation settled it).
   Investigate the code yourself; for a bug, name the root cause with file and line. Check **every factual
   claim** of the issue against the code, plan from what the code actually does, state which claims were
   confirmed or refuted, and name a related defect you find on the way. Check by reading: run a tool or an

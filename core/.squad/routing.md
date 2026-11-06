@@ -186,7 +186,7 @@ head; step 10 then only posts the working record, removes `specs/` and marks not
 | # | Step | Owner | Exit condition |
 | - | ---- | ----- | -------------- |
 | 1 | Intake | Orchestrator | Branch off `main`, work folder and `log.md` created (rows appended with `squad-log.py`), committed and pushed |
-| 2 | Plan | Lead, Devil's Advocate | Features first: `spec.md`, `plan-check.py --spec` clean, one spec challenge (`squad-spec` step 2a). Then `plan.md` from `specs/_template/plan.md` (features: and `tasks.md`), decision records `Proposed` and indexed, `plan-check.py` clean before anyone else reads it — or the `docs`/`patch` result (*Tiers*), or outcome **no change**. One plan challenge when *Plan challenge* calls for it, routed as that section says |
+| 2 | Plan | Lead, Devil's Advocate | Features first: `spec.md`, `plan-check.py --spec` clean, one spec challenge and, where *Spec approval* in `orchestration.md` calls for it, the Product Manager's approval (`squad-spec` step 2a). Then `plan.md` from `specs/_template/plan.md` (features: and `tasks.md`), decision records `Proposed` and indexed, `plan-check.py` clean before anyone else reads it — or the `docs`/`patch` result (*Tiers*), or outcome **no change**. One plan challenge when *Plan challenge* calls for it, routed as that section says |
 | 3 | Plan security review | Security | Whenever *Security areas touched* is not "none" (always on tier `security`), in parallel with the plan challenge. `APPROVED` → 4; `CHANGES_REQUIRED` → Lead revision and Security delta confirmation (*Loop limits*) |
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
@@ -319,11 +319,11 @@ the options and the Lead's recommendation. Follow-up issues the Lead decides on 
 listed in the PR under Next Steps.
 
 Besides the Lead's escalation, the orchestrator involves the Product Manager only where one of these rules says so:
-the kind of an issue labelled both bug and feature (*Bug or feature*); the public issue comment of *Outcome "no
-change"* and of *Outside authors*; a download a member was denied (*A denied measurement* in `orchestration.md`); a
-Security rejection of a fix the Lead accepted, and a safeguard stop (*Loop limits*); the dry run and the
-confirmation of statements no run has shown (*Operator environments and documented procedures*); a manual test
-before step 9 (*Criteria verified only in CI*). A request the Product Manager makes on the open pull request goes to
+the kind of an issue labelled both bug and feature (*Bug or feature*); the approval of a feature's spec (*Spec
+approval* in `orchestration.md`); the public issue comment of *Outcome "no change"* and of *Outside authors*; a
+download a member was denied (*A denied measurement* in `orchestration.md`); a Security rejection of a fix the Lead
+accepted, and a safeguard stop (*Loop limits*); the dry run and the confirmation of statements no run has shown
+(*Operator environments and documented procedures*); a manual test before step 9 (*Criteria verified only in CI*). A request the Product Manager makes on the open pull request goes to
 the Lead first (*Loop limits*, New scope on the open PR).
 
 ## Non-blocking findings

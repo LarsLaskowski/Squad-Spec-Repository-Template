@@ -42,7 +42,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
   approved it (tiers `docs` and `patch`: once the latest review round is clean). It opens as a draft and is
   marked ready in step 11 (*Draft until green*).
 - **Product Manager:** the user is asked only when the Lead returns `RESULT: ESCALATE` (relay the question
-  verbatim with its options and wait) or in the other cases *Escalation to the Product Manager* lists.
+  verbatim with its options and wait) or in the other cases *Escalation to the Product Manager* lists — for a
+  feature also to approve its spec (`squad-spec` step 2a, *Spec approval*).
 
 ## Steps
 

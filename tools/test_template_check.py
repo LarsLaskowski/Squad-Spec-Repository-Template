@@ -206,7 +206,8 @@ class TestSonarRules(unittest.TestCase):
     def test_an_assertion_with_a_more_specific_one_is_reported(self):
         for call in ("self.assertTrue(a == b)", "self.assertFalse(a in b)", "self.assertTrue(a < b)",
                      "self.assertTrue(isinstance(a, int))", "self.assertEqual(a, None)", "self.assertIsNot(None, a)",
-                     "self.assertEqual(a, round(b, 2))", 'self.assertEqual(a.new, None, "message")'):
+                     "self.assertEqual(a, round(b, 2))", 'self.assertEqual(a.new, None, "message")',
+                     "self.assertEqual(a[3], False)", "self.assertIs(True, a)"):
             self.assertEqual(self.rules(f"{call}\n", "test_tool.py"), ["python:S5906"], call)
 
     def test_specific_assertions_pass(self):

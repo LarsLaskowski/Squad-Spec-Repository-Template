@@ -132,7 +132,7 @@ COGNITIVE_LIMIT = 15
 SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6326",
                "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
-# None or round(), have a more specific unittest assertion.
+# None, True, False or round(), have a more specific unittest assertion.
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
                  "assertFalse": (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)}
 VALUE_ASSERTS = ("assertEqual", "assertNotEqual", "assertIs", "assertIsNot", "assertAlmostEqual", "assertNotAlmostEqual")
@@ -1477,12 +1477,14 @@ def needs_specific_assertion(name, args):
     if name in TRUTH_ASSERTS:
         compared = isinstance(first, ast.Compare) and len(first.ops) == 1 and isinstance(first.ops[0], TRUTH_ASSERTS[name])
         return compared or is_call_of(first, "isinstance")
-    none = any(isinstance(arg, ast.Constant) and arg.value is None for arg in args[:2])
-    return name in VALUE_ASSERTS and (none or (len(args) > 1 and is_call_of(args[1], "round")))
+    constant = any(isinstance(arg, ast.Constant) and (arg.value is None or isinstance(arg.value, bool))
+                   for arg in args[:2])
+    return name in VALUE_ASSERTS and (constant or (len(args) > 1 and is_call_of(args[1], "round")))
 
 
 def specific_assertions(tree):
-    """python:S5906: `assertTrue(x == y)`, `assertEqual(x, None)` and the like; the dedicated assertion says more."""
+    """python:S5906: `assertTrue(x == y)`, `assertEqual(x, None)`, `assertEqual(x, False)` and the like; the dedicated
+    assertion says more."""
     return [(node.lineno, "python:S5906", f"{node.func.attr} here has a more specific unittest assertion")
             for node in ast.walk(tree)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args

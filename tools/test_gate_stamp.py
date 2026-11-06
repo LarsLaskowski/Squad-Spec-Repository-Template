@@ -235,7 +235,7 @@ class TestGatePlanning(unittest.TestCase):
         tool = self.tool
         full = ["Format check", "Analyzer gate", "Test with coverage", "Coverage gate"]
         self.assertEqual(tool.due_gates("standard", plan_text(), {"production"}), (full, [], False, True))
-        self.assertEqual(tool.due_gates("security", plan_text(), {"documentation", "test"})[3], False,
+        self.assertFalse(tool.due_gates("security", plan_text(), {"documentation", "test"})[3],
                          "figure-check.py only when a file is neither documentation nor a test")
         self.assertEqual(tool.due_gates("trivial", plan_text(code_free=True), {"lint"})[0], full[:3],
                          "a plan without production or test code drops the Coverage gate")

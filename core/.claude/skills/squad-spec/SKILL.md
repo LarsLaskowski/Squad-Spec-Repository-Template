@@ -62,8 +62,12 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
   `docs/decisions/` (extend an existing unreleased record on the topic rather than adding one). The behavior
   belongs in the area documents the spec names, user-facing configuration in `README.md`, a changed flow or
   guarantee in `docs/ARCHITECTURE.md` — not in `spec.md`, which leaves with the working record.
-- **Step 8:** the Reviewer checks the diff against the spec's scenarios, edge cases and criteria, and that the
-  area documents now say what the spec's *Area documents* section promised.
+- **Amendments** (steps 3–11): a Lead decision that changes, adds or drops a criterion amends the spec (mode
+  `decide` in `squad-lead.md`); run `plan-check.py <folder>` on it before any member reads it, and hand later
+  launches the amended spec.
+- **Step 8:** the Reviewer checks the diff against the spec's scenarios, edge cases, non-functional
+  requirements and criteria as amended, and that the area documents now say what the spec's *Area documents*
+  section promised.
 - **Step 10:** the working record (`spec.md`, `plan.md`, `tasks.md`, `log.md`) is posted to the feature
   request issue if one exists (`Closes #<n>` in the PR), otherwise as the first comment on the PR right after
   opening it; every log row and amend after it goes through `squad-log.py … --stdin` on that comment's log

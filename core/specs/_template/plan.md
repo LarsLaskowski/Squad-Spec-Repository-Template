@@ -26,6 +26,7 @@ and the step. `.squad/tools/plan-check.py` rejects a row without evidence or sta
 ## Acceptance criteria
 
 Bug fix only — a feature's criteria live in `spec.md` and are referred to by their id; do not copy them here.
+A bug fix's criterion changed after step 2 gets an *Amendments* section at the end, as `spec.md`'s template says.
 
 - [ ] AC1: ... (in a plan without production or test code, *Verification without tests* below says how it is
   verified instead)

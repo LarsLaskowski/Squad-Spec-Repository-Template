@@ -548,3 +548,19 @@ orchestrator follows step by step: LarsLaskowski/Vandox#337 posted the working r
 early draft pull request before the review, and logged that as improvised. The Lead read every decision record
 (110 records of about 98,000 words in Vandox, #236), the Devil's Advocate only the index and the records of the
 topic; the Lead now reads them the same way, the first step of #236.
+
+## Numbered non-functional requirements; amendments after approval (spec.md and plan.md templates; plan-check.py; squad-lead.md, mode decide; squad-reviewer.md; squad-spec, Amendments; routing.md, Loop limits)
+
+Found in the review of 2026-11-05 against the five consumers (#241, scope in #234). `plan-check.py` traced every
+scenario and edge case to a criterion or to *Out of scope*, but the non-functional requirements were plain bullets,
+so a limit, a timeout, a compatibility promise or a new setting with its default could stand in the spec without a
+criterion or a test and no check reported it. They are numbered `N1`, `N2`, … now and traced the same way; a bullet
+or a paragraph without an id is reported, so the trace cannot be bypassed by leaving the number off.
+
+No rule said whether or how `spec.md` changes once the Lead has closed it in step 2b, although a Dev ↔ Tester
+dispute or a plan deviation in steps 4–8 can show that a criterion is wrong; the record could then describe criteria
+the code no longer follows. The Lead, which decides those cases in mode `decide`, now records each change in an
+*Amendments* table, `plan-check.py` checks the table (columns, a known or dropped criterion, decided by the Lead or
+the Product Manager) and accepts a dropped criterion still named in the plan or the tasks, and the Reviewer reads
+the criteria as amended. A bug fix's criteria live in `plan.md` and can turn out wrong in the same way, so the same
+table applies there. *New scope on the open PR* records its new criteria as amendments too.

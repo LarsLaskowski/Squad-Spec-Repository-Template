@@ -31,11 +31,11 @@ Users cannot take their watch history elsewhere.
 
 ## Non-functional requirements
 
-- An export of 10,000 items finishes within the request timeout.
+- N1: An export of 10,000 items finishes within the request timeout.
 
 ## Acceptance criteria
 
-- [ ] AC1: an export writes one row per item (S1)
+- [ ] AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)
 - [ ] AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)
 
 ## Out of scope
@@ -145,6 +145,44 @@ class TestPlanCheck(unittest.TestCase):
         errors = self.errors(self.feature(spec=spec))
         self.assertTrue(any("E2 is named by no acceptance criterion" in e for e in errors), errors)
         self.assertTrue(any("open question without" in e for e in errors), errors)
+
+    def test_non_functional_requirements_are_numbered_and_traced(self):
+        untraced = SPEC.replace("(S1, N1)", "(S1)")
+        self.assertIn("spec.md: N1 is named by no acceptance criterion and not listed under *Out of scope*",
+                      self.errors(self.feature(spec=untraced)))
+        out_of_scope = untraced.replace("## Out of scope\n", "## Out of scope\n\n- N1: measured in a later issue.\n")
+        self.assertEqual(self.errors(self.feature(spec=out_of_scope)), [])
+        bullet = SPEC.replace("- N1: An export", "- An export")
+        self.assertTrue(any("non-functional requirement not written" in e for e in self.errors(self.feature(spec=bullet))))
+        prose = SPEC.replace("- N1: An export", "An export")
+        self.assertTrue(any("names no `- N1: …`" in e for e in self.errors(self.feature(spec=prose))))
+        none = SPEC.replace("- N1: An export of 10,000 items finishes within the request timeout.", "none")
+        self.assertEqual(self.errors(self.feature(spec=none.replace("(S1, N1)", "(S1)"))), [])
+        ranged = SPEC.replace("- N1: An export", "- N1: A config value `limit`, default 10.\n- N2: An export").replace(
+            "(S1, N1)", "(S1, N1-N2)")
+        self.assertEqual(self.errors(self.feature(spec=ranged)), [])
+
+    def test_amendments_record_a_criterion_changed_after_approval(self):
+        table = ("\n## Amendments\n\n| Criterion | Change | Reason | Step | Decided by |\n| - | - | - | - | - |\n"
+                 "| AC1 | the limit is 5,000 items | the request timeout is 30 s | 6 | Lead |\n")
+        self.assertEqual(self.errors(self.feature(spec=SPEC + table)), [])
+        self.feature(spec=SPEC + table, plan=None, tasks=None)
+        self.assertEqual(self.script.check_spec_only(os.path.join("specs", "feature-12-export"))[0], [])
+        dropped = (SPEC.replace("- [ ] AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)\n",
+                                "").replace("- S2: concurrent", "- E1, E2: in a follow-up issue.\n- S2: concurrent")
+                   + table.replace("| AC1 | the limit", "| AC2 | dropped: moved to a follow-up issue; the limit"))
+        self.assertEqual(self.errors(self.feature(spec=dropped)), [], "a dropped criterion may stay in plan and tasks")
+        still = SPEC + table.replace("| AC1 | the limit", "| AC1 | dropped: the limit")
+        self.assertIn("spec.md: *Amendments* drops AC1, which is still a criterion", self.errors(self.feature(spec=still)))
+        unknown = SPEC + table.replace("| AC1 |", "| AC9 |")
+        self.assertTrue(any("changes AC9, which no criterion" in e for e in self.errors(self.feature(spec=unknown))))
+        for bad, expected in ((table.replace("| Lead |", "| Dev |"), "not decided by"),
+                              (table.replace("| 6 |", "| — |"), "empty cell"),
+                              (table.replace("| Step |", "| When |"), "needs the columns"),
+                              ("\n## Amendments\n\nAC1 changed.\n", "holds no table")):
+            self.assertTrue(any(expected in e for e in self.errors(self.feature(spec=SPEC + bad))), expected)
+        write("specs/issue-34/plan.md", BUG_PLAN + table)
+        self.assertEqual(self.errors("specs/issue-34"), [], "a bug fix records its amendments in plan.md")
 
     def test_criteria_live_in_the_spec_only_and_each_needs_a_test_and_a_task(self):
         plan = PLAN + "\n## Acceptance criteria\n\n- [ ] AC3: copied from the spec\n"
@@ -277,7 +315,7 @@ class TestPlanCheck(unittest.TestCase):
             spec = handle.read()
         spec = (spec.replace("# Spec: <title>", "# Spec: Export").replace("Issue #<number> | the user's description", "Issue #12")
                 .replace("- S1: …", "- S1: Given a library, when the user exports it, then a CSV file is written.")
-                .replace("- E1: …", "- E1: An empty library writes the header only.")
+                .replace("- E1: …", "- E1: An empty library writes the header only.").replace("- N1: …\n", "")
                 .replace("- [ ] AC1: …", "- [ ] AC1: an export writes one row per item (S1, E1)"))
         for heading, text in (("## Problem", "Users cannot export."), ("## Non-functional requirements", "none"),
                               ("## Out of scope", "none"), ("## Open questions", "none"),
@@ -365,8 +403,9 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
 
     def test_sub_bullet_and_prose_questions(self):
-        spec = SPEC.replace("- [ ] AC1: an export writes one row per item (S1)",
-                            "- [ ] AC1: an export writes one row per item (S1)\n  - complements AC2 for empty input")
+        criterion = "- [ ] AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)"
+        spec = SPEC.replace(criterion, criterion + "\n  - complements AC2 for empty input")
+        self.assertNotEqual(spec, SPEC)
         self.assertEqual(self.errors(self.feature(spec=spec)), [])
         prose = SPEC.replace("- Which delimiter? Answered: comma, as the issue's example shows.", "Which delimiter?")
         self.assertTrue(any("Open questions" in e for e in self.errors(self.feature(spec=prose))))

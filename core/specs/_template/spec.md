@@ -29,22 +29,25 @@ repeated or concurrent action — numbered, each with what the user sees (the ex
 ## Non-functional requirements
 
 <!-- Limits and sizes, time and memory, security and privacy, compatibility (versions, platforms, existing data
-and configuration), new configuration with its default, logs and metrics — one bullet each, or "none". For an
-installer or deployment feature also what the target host has and may have (tools, network access, DNS, the
-console, the order of steps the operator pastes), as the Product Manager answered (*Operator environments and
-documented procedures* in `.squad/routing.md`). -->
+and configuration), new configuration with its default, logs and metrics — numbered, one each: "N1: …", or
+"none". For an installer or deployment feature also what the target host has and may have (tools, network access,
+DNS, the console, the order of steps the operator pastes), as the Product Manager answered (*Operator environments
+and documented procedures* in `.squad/routing.md`). -->
+
+- N1: …
 
 ## Acceptance criteria
 
-<!-- The only list of criteria of this feature. Each is one testable statement and names the scenarios and edge
-cases it covers, e.g. "AC1: an export of an empty library writes a file with the header only (S1, E2)". -->
+<!-- The only list of criteria of this feature. Each is one testable statement and names the scenarios, edge
+cases and non-functional requirements it covers, e.g. "AC1: an export of an empty library writes a file with the
+header only (S1, E2)". -->
 
 - [ ] AC1: …
 
 ## Out of scope
 
-<!-- What the feature deliberately does not do. A scenario or edge case listed here by its id needs no
-criterion. -->
+<!-- What the feature deliberately does not do. A scenario, edge case or non-functional requirement listed here
+by its id needs no criterion. -->
 
 ## Open questions
 
@@ -59,3 +62,7 @@ say, in outline. This is what stays on main when the working record leaves. -->
 
 <!-- Challenge: left out when the spec is written. After the spec challenge the Lead adds a "## Challenge"
 section: each objection of the Devil's Advocate and the answer (accepted — what changed; or rejected — why). -->
+
+<!-- Amendments: left out until a criterion changes after the Lead approved the spec. Then the Lead (mode
+`decide`) adds a "## Amendments" section at the end: a table `| Criterion | Change | Reason | Step | Decided by |`,
+one row per criterion it changes, adds or drops (`dropped: …`), decided by `Lead` or `Product Manager`. -->

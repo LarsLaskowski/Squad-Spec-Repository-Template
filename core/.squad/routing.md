@@ -297,7 +297,8 @@ PR is opened, the branch stays without one, and the user is told so.
 - **New scope on the open PR (step 11):** a Product Manager request on the open pull request that adds or
   changes behavior beyond the spec's acceptance criteria (not a criterion the change misses) goes to the Lead
   before any edit. The Lead decides, recorded in `log.md`: a follow-up issue (the default), or this change grows,
-  and then the spec gets the new criteria and the plan a new task group, which runs steps 3–8 like the others
+  and then the spec gets the new criteria as amendments (mode `decide` in `squad-lead.md`) and the plan a new
+  task group, which runs steps 3–8 like the others
   (plan challenge and Security plan review as the tier asks) before step 9 approves again.
 - **Safeguard stop (any member, any step):** an API `invalid_request` of category `cyber` is not an API error:
   relaunching unchanged loops, and rephrasing the request is a workaround. The orchestrator escalates to the

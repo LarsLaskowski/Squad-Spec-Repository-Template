@@ -11,7 +11,8 @@ Checks, in the work folder `specs/<folder>/`:
   *Errors and edge cases*, *Non-functional requirements*, *Acceptance criteria*, *Out of scope*, *Open
   questions*, *Area documents* ("none" counts as filled, the template's guidance comments do not); there is at
   least one scenario `S<n>` and one criterion written `- [ ] AC<n>: …`, and a line that names a criterion in
-  another form is reported; every scenario and edge case `E<n>` is named by a criterion or listed under *Out of
+  another form is reported; *Non-functional requirements* says "none" or numbers them `- N<n>: …`; every
+  scenario, edge case `E<n>` and non-functional requirement is named by a criterion or listed under *Out of
   scope*; every open question is answered (`Answered:`) or the section says "none"; `plan.md` defines no
   criterion of its own; every criterion of the spec has a row in the plan's *Tests per criterion* and appears in
   the *Criteria* column of `tasks.md` (every table of it), and neither names a criterion the spec lacks; every
@@ -22,6 +23,11 @@ Checks, in the work folder `specs/<folder>/`:
   *Signatures* (the identifier of each backticked declaration) appears in a skeleton row of some group.
 - **Bug fix** (no `spec.md`): `plan.md` defines its acceptance criteria, and each has a row in *Tests per
   criterion* (tier `trivial`, which writes no tests first, needs none).
+- **Amendments** (a criterion changed after approval, in the file that defines the criteria): the *Amendments*
+  table has the columns Criterion, Change, Reason, Step and Decided by, every cell filled; each row names a
+  criterion the file defines, or one it no longer defines with a change that starts with `dropped`; it is decided
+  by the Lead or the Product Manager. A dropped criterion needs no test or task, and naming it there is no
+  finding.
 - **Both:** the *Tier* line names exactly one tier, and the *Security areas touched* line says "none" or lists
   them (it decides the Security plan review); *Verified facts* has at least
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
@@ -34,7 +40,7 @@ Checks, in the work folder `specs/<folder>/`:
   more says why in a `Plan size:` line under the header; then up to `PLAN_HARD_WORDS` (default twice the limit) is a warning that
   quotes the reason, and beyond that the scope is split.
 
-Ids may be written as ranges (`AC1–AC3`, `S2-S4`); backticks and emphasis around a cell are ignored. A criterion
+Ids may be written as ranges (`AC1–AC3`, `S2-S4`, `N1-N2`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.
 
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge. A spec longer
@@ -64,19 +70,20 @@ STATUSES = ("confirmed", "refuted", "unverified")
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
                  "Acceptance criteria", "Out of scope", "Open questions", "Area documents"]
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC\d+):", re.M)
-CASE = re.compile(r"^\s*- (?:\*\*)?([SE]\d+)(?:\*\*)?:", re.M)
+CASE = re.compile(r"^\s*- (?:\*\*)?([SEN]\d+)(?:\*\*)?:", re.M)
 # A range repeats the prefix (`AC1\u2013AC3`, `S2 .. S4`) or joins the numbers without spaces (`AC1-3`), so
 # that "E1 \u2013 10 s at most" stays one id and a number.
-RANGE = re.compile(r"\b(AC|S|E)(\d+)(?:\s*(?:[-\u2013\u2014]|\.\.)\s*\1(\d+)|[-\u2013](\d+))\b")
-ID = re.compile(r"\b(AC|S|E)(\d+)\b")
+RANGE = re.compile(r"\b(AC|S|E|N)(\d+)(?:\s*(?:[-\u2013\u2014]|\.\.)\s*\1(\d+)|[-\u2013](\d+))\b")
+ID = re.compile(r"\b(AC|S|E|N)(\d+)\b")
 ELLIPSIS = r"(?:\.\.\.|\u2026)"
 PLACEHOLDERS = [re.compile(p) for p in (r"<title>", r"Issue #<number>", r"<one-sentence justification>",
                                          r"NNNN-title", rf"\bAC\d+: {ELLIPSIS}\s*$",
-                                         rf"^\s*- [SE]\d+: {ELLIPSIS}\s*$", rf"^\|.*\|\s*{ELLIPSIS}\s*\|")]
+                                         rf"^\s*- [SEN]\d+: {ELLIPSIS}\s*$", rf"^\|.*\|\s*{ELLIPSIS}\s*\|")]
 EMPTY_CELLS = {"", "-", "\u2013", "\u2014", "...", "\u2026", "none", "n/a", "tbd", "todo"}
 COMMENT = re.compile(r"(```.*?```|`[^`\n]*`)|<!--.*?-->", re.S)  # a code span or fenced block is kept whole
 EMPHASIS = "`*_"
 SPEC = "spec.md"
+PLAN = "plan.md"
 SPECS_PREFIX = "specs/"
 LEAD_FILES = (SPECS_PREFIX, "docs/decisions/")
 NONE = re.compile(r"^\s*(?:[-*]\s+)?none\.?\s*$", re.I)
@@ -89,6 +96,9 @@ DECLARATION_KEYWORDS = {"func", "def", "fn", "public", "private", "protected", "
                         "readonly", "final", "async", "export", "function", "type", "class", "struct", "record",
                         "interface", "enum", "var", "let", "val", "abstract", "override"}
 TOP_ITEM = re.compile(r"^(?:[-*]|\d+[.)])\s+")
+AMENDMENT_COLUMNS = ("criterion", "change", "reason", "step", "decided by")
+DECIDERS = ("lead", "product manager")
+DROPPED = "dropped"
 
 
 def strip_comments(text):
@@ -121,7 +131,7 @@ def resolve_folder(root, folder):
 
 
 def ids(text, kind=None):
-    """Every id the text names (`AC1`, `S2`, `E3`), ranges expanded; only those of `kind` when given."""
+    """Every id the text names (`AC1`, `S2`, `E3`, `N4`), ranges expanded; only those of `kind` when given."""
     found = set()
     for prefix, low, spaced, joined in RANGE.findall(text):
         high = spaced or joined
@@ -209,8 +219,20 @@ def check_open_questions(questions, errors):
             errors.append(f"spec.md: open question without `Answered:`: {item[0].strip()}")
 
 
+def check_requirements(requirements, errors):
+    """*Non-functional requirements* says "none" or numbers each requirement `- N<n>: …`, so that a limit, a timeout,
+    a compatibility promise or a new setting is traced like a scenario."""
+    if not requirements or NONE.match(requirements):
+        return
+    lines = [line for line in requirements.splitlines() if TOP_ITEM.match(line) and not CASE.match(line)]
+    for line in lines:
+        errors.append(f"spec.md: non-functional requirement not written `- N<n>: …`: {line.strip()}")
+    if not lines and not CASE.search(requirements):
+        errors.append("spec.md: *Non-functional requirements* names no `- N1: …` (or write \"none\")")
+
+
 def check_spec(spec, errors):
-    """The spec's sections; returns its criterion ids."""
+    """The spec's sections; returns its criterion ids and the criteria its *Amendments* drop."""
     parts = sections(spec)
     for section in SPEC_SECTIONS:
         if not parts.get(section):
@@ -224,7 +246,10 @@ def check_spec(spec, errors):
     for line in block.splitlines():
         if re.match(r"^[-*\d]", line) and ids(line, "AC") and not CRITERION.match(line):
             errors.append(f"spec.md: criterion not written `- [ ] AC<n>: …`: {line.strip()}")
-    cases = CASE.findall(parts.get("Scenarios", "")) + CASE.findall(parts.get("Errors and edge cases", ""))
+    requirements = parts.get("Non-functional requirements", "")
+    check_requirements(requirements, errors)
+    cases = [case for name in ("Scenarios", "Errors and edge cases") for case in CASE.findall(parts.get(name, ""))]
+    cases += CASE.findall(requirements)
     if not any(case.startswith("S") for case in cases):
         errors.append("spec.md: no scenario written `- S1: …` under *Scenarios*")
     covered = ids(block) | ids(parts.get("Out of scope", ""))
@@ -232,10 +257,57 @@ def check_spec(spec, errors):
         if case not in covered:
             errors.append(f"spec.md: {case} is named by no acceptance criterion and not listed under *Out of scope*")
     check_open_questions(parts.get("Open questions", ""), errors)
-    return set(criteria)
+    return set(criteria), check_amendments(SPEC, parts, set(criteria), errors)
 
 
-def check_tests(plan_parts, criteria, tier, errors):
+def check_amendment_row(name, cells, criteria, dropped, errors):
+    """One row of *Amendments*: (criterion, change, reason, step, decided by)."""
+    shown = f"| {' | '.join(cells)} |"
+    if any(empty(value) for value in cells):
+        errors.append(f"{name}: *Amendments* row with an empty cell: {shown}")
+        return
+    named, change = ids(cells[0], "AC"), cells[1].lower()
+    if not named:
+        errors.append(f"{name}: *Amendments* row names no criterion: {shown}")
+    if not cells[4].lower().startswith(DECIDERS):
+        errors.append(f"{name}: *Amendments* row not decided by the Lead or the Product Manager: {shown}")
+    for criterion in sorted(named):
+        if change.startswith(DROPPED):
+            dropped.add(criterion)
+            if criterion in criteria:
+                errors.append(f"{name}: *Amendments* drops {criterion}, which is still a criterion")
+        elif criterion not in criteria:
+            errors.append(f"{name}: *Amendments* changes {criterion}, which no criterion defines (a dropped one "
+                          "says `dropped`)")
+
+
+def check_amendments(name, parts, criteria, errors):
+    """The *Amendments* table of the file that defines the criteria (a criterion changed after approval); returns
+    the criteria it drops."""
+    body = parts.get("Amendments")
+    dropped = set()
+    if body is None:
+        return dropped
+    found = tables(body)
+    if not found:
+        errors.append(f"{name}: *Amendments* holds no table (Criterion, Change, Reason, Step, Decided by)")
+    for header, rows in found:
+        index = [column(header, wanted) for wanted in AMENDMENT_COLUMNS]
+        if None in index:
+            errors.append(f"{name}: the *Amendments* table needs the columns Criterion, Change, Reason, Step and "
+                          "Decided by")
+            continue
+        for cells in amendment_rows(rows, index):
+            check_amendment_row(name, cells, criteria, dropped, errors)
+    return dropped
+
+
+def amendment_rows(rows, index):
+    """The cells of each *Amendments* row in the order of AMENDMENT_COLUMNS, a missing cell empty."""
+    return [[row[i] if i < len(row) else "" for i in index] for row in rows]
+
+
+def check_tests(plan_parts, criteria, tier, errors, dropped=frozenset()):
     named = set()
     for header, rows in tables(plan_parts.get("Tests per criterion")):
         test = column(header, "test(s)", "tests", "test")
@@ -249,7 +321,7 @@ def check_tests(plan_parts, criteria, tier, errors):
     without_tests = ids(plan_parts.get("Verification without tests", ""), "AC")
     for criterion in sorted(criteria - named - without_tests):
         errors.append(f"plan.md: {criterion} has no row in *Tests per criterion* (nor in *Verification without tests*)")
-    for criterion in sorted(named - criteria):
+    for criterion in sorted(named - criteria - dropped):
         errors.append(f"plan.md: *Tests per criterion* names {criterion}, which no acceptance criterion defines")
 
 
@@ -365,7 +437,7 @@ def check_skeleton(header, rows, signatures, errors):
     return skeleton
 
 
-def check_tasks(tasks, criteria, errors, signatures=()):
+def check_tasks(tasks, criteria, errors, signatures=(), dropped=frozenset()):
     named, found_column, skeleton = set(), False, ""
     for header, rows in tables(tasks):
         index = column(header, "criteria", "criterion", "tests (ac)", "ac")
@@ -382,7 +454,7 @@ def check_tasks(tasks, criteria, errors, signatures=()):
         errors.append("tasks.md: no table with a *Criteria* column")
     for criterion in sorted(criteria - named):
         errors.append(f"tasks.md: {criterion} is covered by no task")
-    for criterion in sorted(named - criteria):
+    for criterion in sorted(named - criteria - dropped):
         errors.append(f"tasks.md: names {criterion}, which spec.md does not define")
 
 
@@ -402,7 +474,8 @@ def check_security_areas(plan, errors):
 
 
 def check_plan(plan, spec, errors):
-    """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder."""
+    """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder and the ones
+    its *Amendments* drop."""
     parts = sections(plan)
     tier = re.search(r"^Tier:\s*`?(\w+)`?([^\n]*)", plan, re.M)
     name = tier.group(1) if tier else None
@@ -414,13 +487,14 @@ def check_plan(plan, spec, errors):
         criteria = own
         if not criteria:
             errors.append("plan.md: no acceptance criterion (`- [ ] AC1: …`) under *Acceptance criteria*")
+        dropped = check_amendments(PLAN, parts, criteria, errors)
     else:
-        criteria = check_spec(spec, errors)
+        criteria, dropped = check_spec(spec, errors)
         for criterion in sorted(own):
             errors.append(f"plan.md: defines {criterion}; a feature's criteria live in spec.md only")
-    check_tests(parts, criteria, name, errors)
+    check_tests(parts, criteria, name, errors, dropped)
     check_facts(parts, errors)
-    return criteria
+    return criteria, dropped
 
 
 def check_spec_only(folder):
@@ -456,12 +530,12 @@ def check(folder):
     """All findings for the work folder, and the warnings."""
     errors, warnings = [], []
     check_control_characters(folder, errors)
-    plan = read(os.path.join(folder, "plan.md"), errors)
+    plan = read(os.path.join(folder, PLAN), errors)
     spec = read(os.path.join(folder, SPEC), errors)
     if plan is None:
         return ["plan.md is missing (tiers docs and patch write none: there is nothing to check)"], warnings
-    criteria = check_plan(plan, spec, errors)
-    for name, text in (("plan.md", plan), (SPEC, spec)):
+    criteria, dropped = check_plan(plan, spec, errors)
+    for name, text in ((PLAN, plan), (SPEC, spec)):
         if text is not None:
             check_placeholders(name, text, errors)
     if spec is not None:
@@ -469,7 +543,7 @@ def check(folder):
         if tasks is None:
             errors.append("tasks.md is missing")
         else:
-            check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)))
+            check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)), dropped)
             check_placeholders("tasks.md", tasks, errors)
     check_plan_size(plan, errors, warnings)
     return errors, warnings

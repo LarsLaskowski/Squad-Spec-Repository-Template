@@ -23,10 +23,10 @@ The orchestrator tells you which **mode** to run:
   scenarios (`S1`, `S2`, …: given, when, then, in the words of the interface the user reads) with the usual
   path first; the errors and edge cases (`E1`, …: invalid and hostile input, a failing dependency, a limit, an
   empty or huge input, a repeated or concurrent action — each with what the user sees); the non-functional
-  requirements (limits, time, security, compatibility, new configuration with its default, logs); the
-  acceptance criteria (`AC1`, …), each one testable statement naming the scenarios and edge cases it covers;
-  out of scope (a scenario or edge case listed there by id needs no criterion); the open questions, each with
-  `Answered:` and the answer from the code, the documentation or an accepted record — a question only the
+  requirements (`N1`, …: limits, time, security, compatibility, new configuration with its default, logs); the
+  acceptance criteria (`AC1`, …), each one testable statement naming the scenarios, edge cases and
+  non-functional requirements it covers; out of scope (an id listed there needs no criterion); the open
+  questions, each with `Answered:` and the answer from the code, the documentation or an accepted record — a question only the
   Product Manager can answer is `RESULT: ESCALATE` now, not a guess; and the area documents that will describe
   the behavior. Size the spec to the feature: one scenario per behavior a user can tell apart, only the edge
   cases that change what the user sees, and a link instead of a restatement of the issue, an area document or a
@@ -144,7 +144,12 @@ The orchestrator tells you which **mode** to run:
   with justification (after the 2nd `CHANGES_REQUIRED` only for the defects *Loop limits* names, Plan ↔
   Security), split into a separate issue, narrow the scope, or abort. Name the owner of every change your
   decision requires by file: production code and documentation → Dev, tests and test documentation → Tester,
-  formatting/analyzer-only edits → Code Officer, plans/records → yourself. State the outcome in your result for the orchestrator to log, and record
+  formatting/analyzer-only edits → Code Officer, plans/records → yourself. A decision that changes, adds or drops
+  an acceptance criterion after step 2 (a disputed test, a plan deviation, new scope) is an **amendment**: change
+  the criterion in place (never renumber; a dropped one leaves the list, and a scenario it alone covered goes to
+  *Out of scope*), add its row to the *Amendments* table of the file that defines it (`spec.md`, a bug fix's
+  `plan.md`; the template names the columns), and bring *Tests per criterion* and `tasks.md` in line;
+  `plan-check.py` checks the folder before the next launch. State the outcome in your result for the orchestrator to log, and record
   it as a decision record when it affects the code (a finding accepted unfixed, work split into a follow-up
   issue). A decision about the squad itself goes into your result for the step-12 `squad` issue.
 - `approve-pr` — launched only when the orchestrator's checklist (`.squad/routing.md`, *PR approval*) passed

@@ -454,6 +454,43 @@ surrogate-pair escape (`\uD83D\uDE00`) into the emoji; the Tester rebuilt the in
 (DockerUpdateGuard#392) launched the tier-`security` Tester on Sonnet; the explicit `model: opus` at steps 5
 and 6 came with the pending-continuation change.
 
+## The report reads the run's own total row (squad-report.py)
+
+Since #225 the wrap-up appends the output of `session-usage.py` under a "Session usage" heading below the run
+metrics, and its per-model table ends in a `| **Total** | … |` row as well. `squad-report.py` took the last total
+row of the record, so from then on it read that one (#235): the launches became the leading digit group of the
+session's output tokens and the tokens its cache-read tokens. LarsLaskowski/Seluna#144 was reported with 256
+launches and 36,619,921 tokens for a run whose own metrics say 24 launches and 1,070,203 tokens; Seluna#148
+(141 / 21,205,367), Seluna#150 (107 / 17,217,521) and LarsLaskowski/Censio#99 (359 / 56,874,701) were read the same
+way, and the weekly medians from 2026-W45 on were wrong (Censio `security` 29.51 M, Vandox `security` 20.76 M,
+Seluna `standard` 21.21 M). The report now reads launches and tokens only above the "Session usage" heading and
+only from a total row of `squad-log.py`'s shape, whose Model/effort cell is empty, so a session table posted without
+its heading is not taken either. For merges from 2026-11-03 to 2026-11-05 it reads Seluna#144 as 24 / 1,070,203,
+Seluna#148 as 9 / 817,445, Seluna#150 as 11 / 529,734 and Censio#99 as 25 / 1,400,838, with the medians Seluna
+`standard` 0.82 M and Censio `security` 1.77 M. The session figures count the whole session, the orchestrator and
+the cache reads included (#234), so they get four columns of their own (input, output, cache read, cache write)
+instead of standing in for the run metrics.
+
+## config-check.py without PyYAML, decision-check.py before the first release, seed text without braces (config-check.py; decision-check.py)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #250). `create-pr` step 4, `squad-reviewer.md`
+(*Inputs*) and `adopt-template` step 9 run `config-check.py`, which stopped with "PyYAML is required" on a plain
+Python 3.12 in every consumer; only its docstring named the dependency, no `stack.md` seed, SessionStart hook or
+README. Installing PyYAML from the hooks would add a network step to every session start and still fail where pip
+cannot reach its index, so the script reads the front matter itself when PyYAML is missing: the agents and skills
+use `key: value` lines, quoted values, block scalars and lists, and the built-in parser still refuses what made
+Claude Code drop a file, above all an unquoted value with `: `. PyYAML stays the parser where it is installed;
+a test applies the template and compares the findings of both. `decision-check.py` warned "no local 'v*' tags
+although a remote is configured" in every repository before its first release and then treated each record as
+possibly released, which LarsLaskowski/Censio met until its first tag on 2026-11-05 (LarsLaskowski/Censio#58);
+it now asks the remotes with `git ls-remote --tags` and warns only when one has a release tag or cannot be asked.
+Censio's `.squad/project.md` kept the seed's integration-surface bullets with their braces removed ("its
+interface", "registration and lifetime", "the test double in the test project", "the component list in
+`docs/ARCHITECTURE.md`"), which `config-check.py` found only by the braces; it now also reports a bullet of a
+seeded file that reads like a seed bullet's placeholder. Censio's *Guarantees* section said "None recorded yet"
+although accepted records such as 0019 state deliberate behavior; no text comparison can tell that, so it stays
+with `adopt-template` step 6, which fills the guarantees from the decision records.
+
 ## Aliases, every gh write and file ownership in the guards; no security boundary (team.md, Git and GitHub and Files; git-guard.py; file-guard.py; config-check.py)
 
 Found in the review of 2026-11-05 against the five consumers (#248, scope in #234). Hook inputs with `agent_type:

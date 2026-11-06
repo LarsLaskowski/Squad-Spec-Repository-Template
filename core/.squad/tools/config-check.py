@@ -27,12 +27,19 @@ it. This script checks, without arguments:
 - `.squad/tools/decision-check.py` passes (decision records consistent, released records frozen);
 - `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
   template seeded or rebuilt still contains a template placeholder (`{{TODO: …}}` — a marker that
-  ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain).
+  ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain);
+- no bullet of a seeded file is still a seed's placeholder text with the braces removed (`- its interface` in
+  `.squad/project.md`, from the seed's `- {{TODO: its interface}}`; `SEEDED_BULLETS`).
+
+The front matter is parsed with PyYAML where it is installed. Without it, a built-in parser reads the YAML that
+agents and skills use (`key: value` lines, quoted values, block scalars, lists) and still rejects what makes
+Claude Code drop a file: a `: ` or a final `:` in an unquoted value, an unterminated quote, text after a closing
+quote, a value starting with a reserved character or `- `, a line that is no `key: value`.
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/config-check.py
 
-Exit code 0 when everything is valid, 1 otherwise. Requires PyYAML (`pip install pyyaml`).
+Exit code 0 when everything is valid, 1 otherwise.
 """
 import glob
 import json
@@ -66,11 +73,45 @@ PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [
     os.path.join(SQUAD_DIR, "**", "*.md"), os.path.join("docs", "**", "*.md"),
     os.path.join(GITHUB_DIR, "**", "*.md"), os.path.join(GITHUB_DIR, "**", "*.yml"),
 ]
+# The text of every seed bullet that starts with a placeholder, braces and `TODO:` removed, by the file it is seeded
+# as: a bullet that still reads like this was never filled in (tools/test_config_check.py keeps it equal to the seeds).
+SEEDED_BULLETS = {
+    os.path.join(SQUAD_DIR, "project.md"): (
+        "Secrets and tokens: where they are read, stored, compared, logged",
+        "Authentication and sessions",
+        "File writes and paths derived from external input",
+        "Parsing of external input (XML/JSON/YAML, uploads, CLI arguments)",
+        "Outbound calls (HTTP clients, TLS, timeouts)",
+        "Logging of external data",
+        "guarantee — [decision NNNN](../docs/decisions/NNNN-title.md)",
+        "the options type / config schema",
+        "registration / binding",
+        "default config file",
+        "the configuration table in `README.md` (key, environment variable, default)",
+        "the test that pins the binding",
+        "its interface",
+        "registration and lifetime",
+        "the test double in the test project",
+        "the component list in `docs/ARCHITECTURE.md`",
+        "the client and its DTOs — the external shape must not leak past it",
+        "the fake/stub in the tests",
+        "`FakeX` — what it stands in for",
+    ),
+    "SECURITY.md": (
+        "The project's attack surface — the same areas as *Security areas* in `.squad/project.md`.",
+    ),
+    os.path.join(SQUAD_DIR, "stack.md"): (
+        "project-specific conventions",
+        "project-specific conventions: naming, module layout, error handling",
+    ),
+}
+BULLET = re.compile(r"^[ \t]*+[-*+][ \t]++(\S.*)$", re.M)
 
 try:
     import yaml
-except ImportError:
-    sys.exit("PyYAML is required: pip install pyyaml")
+except ImportError:  # the front matter is then read by parse_front_matter
+    yaml = None
+PARSE_ERRORS = (ValueError, yaml.YAMLError) if yaml else (ValueError,)
 
 
 def read_text(path):
@@ -85,16 +126,98 @@ def front_matter(path):
     end = text.find("\n---", 4)
     if end < 0:
         raise ValueError("unterminated front matter")
-    data = yaml.safe_load(text[4:end])
+    data = yaml.safe_load(text[4:end]) if yaml else parse_front_matter(text[4:end])
     if not isinstance(data, dict):
         raise ValueError("front matter is not a mapping")
     return data
 
 
+FRONT_MATTER_KEY = re.compile(r"(\w[\w .-]*?):(?: ++(.*+))?$")
+DOUBLE_QUOTED = re.compile(r"\"((?:[^\"\\]|\\.)*+)\"(?:[ \t]++#.*+)?")
+SINGLE_QUOTED = re.compile(r"'((?:[^']|'')*+)'(?:[ \t]++#.*+)?")
+BLOCK_HEADER = re.compile(r"[|>][1-9+-]{0,2}(?:[ \t]++#.*+)?")
+COMMENT = re.compile(r"(?:^|[ \t])#.*$")
+# Characters a plain value cannot start with, and `- ` (a list where a value belongs).
+RESERVED_STARTS = ("@", "`", "%", ",", "]", "}", "- ")
+
+
+def front_matter_entries(text):
+    """(line number, key, first line of the value, the lines continuing it) of every top-level key."""
+    entries = []
+    for number, line in enumerate(text.split("\n"), start=1):
+        if line[:1] in (" ", "\t") or line.startswith("- ") or not line.strip():
+            if entries:
+                entries[-1][3].append(line)
+            elif line.strip():
+                raise ValueError(f"line {number}: indented line before the first key")
+        elif not line.startswith("#"):
+            key = FRONT_MATTER_KEY.fullmatch(line)
+            if not key:
+                raise ValueError(f"line {number}: expected 'key: value'")
+            entries.append((number, key.group(1), (key.group(2) or "").strip(), []))
+    return entries
+
+
+def parse_front_matter(text):
+    """The front matter's top-level mapping without PyYAML: {key: value} for its `key: value` lines, a value continued
+    on indented lines; a ValueError, with its line, for what PyYAML (and Claude Code) would not parse."""
+    data = {}
+    for number, name, first, rest in front_matter_entries(text):
+        try:
+            data[name] = scalar_value(first, rest)
+        except ValueError as error:
+            raise ValueError(f"line {number}: {error} ('{name}')") from None
+    return data or None
+
+
+def scalar_value(first, rest):
+    """The value of a key from its first line and the lines continuing it."""
+    if not first or first.startswith("#"):
+        return "\n".join(line.strip() for line in rest if line.strip()) or None
+    if first[0] in "|>":
+        return block_scalar(first, rest)
+    if first[0] in "\"'":
+        return quoted_scalar(" ".join([first, *(line.strip() for line in rest if line.strip())]))
+    if first[0] in "[{":
+        return " ".join([first, *(line.strip() for line in rest)]).strip()
+    if first.startswith(RESERVED_STARTS) or first == "-":
+        raise ValueError(f"a value cannot start with '{first[0]}' unless it is quoted")
+    return plain_scalar(first, rest)
+
+
+def block_scalar(first, rest):
+    """A `|` (literal) or `>` (folded) value from its indented lines."""
+    if not BLOCK_HEADER.fullmatch(first):
+        raise ValueError("a block scalar header ('|' or '>') takes no text on its line")
+    lines = [line.strip() for line in rest]
+    return ("\n" if first[0] == "|" else " ").join(lines).strip()
+
+
+def quoted_scalar(text):
+    """A double- or single-quoted value; text after its closing quote, other than a comment, is an error."""
+    double = DOUBLE_QUOTED.fullmatch(text)
+    if double:
+        return json.loads(f'"{double.group(1)}"', strict=False)
+    single = SINGLE_QUOTED.fullmatch(text)
+    if single:
+        return single.group(1).replace("''", "'")
+    raise ValueError("unterminated quoted value, or text after its closing quote")
+
+
+def plain_scalar(first, rest):
+    """An unquoted value, continued on its indented lines; a `: ` or a final `:` in it is an error (YAML would read a
+    mapping there: quote the value)."""
+    lines = [COMMENT.sub("", line).strip() for line in [first, *rest]]
+    text = " ".join(line for line in lines if line)
+    if ": " in text or text.endswith(":"):
+        raise ValueError("mapping values are not allowed here: quote a value that contains ': '")
+    return text
+
+
 def check(path, expected_name, errors, agent=False):
     try:
         data = front_matter(path)
-    except (ValueError, yaml.YAMLError) as error:
+    except PARSE_ERRORS as error:
         errors.append(f"{path}: {str(error).splitlines()[0]}")
         return
     for key in ("name", "description"):
@@ -242,6 +365,28 @@ def check_project_files(errors):
             line = text.count("\n", 0, match.start()) + 1
             first = " ".join(match.group(1).split())[:60]
             errors.append(f"{path}:{line}: template placeholder '{{{{TODO: {first}}}}}' not filled in")
+    for path, bullets in SEEDED_BULLETS.items():
+        if os.path.isfile(path):
+            check_seeded_bullets(path, {bullet_key(bullet) for bullet in bullets}, errors)
+
+
+def bullet_key(text):
+    """A bullet's text as it is compared with the seed's: no `TODO:` prefix, Markdown emphasis, code marks or final
+    punctuation, dashes and whitespace unified, case ignored."""
+    text = re.sub(r"[`*]", "", text).replace("\u2014", "-").replace("\u2013", "-")
+    text = " ".join(text.split()).strip(" .;:,").casefold()
+    return text.removeprefix("todo:").strip()
+
+
+def check_seeded_bullets(path, seeded, errors):
+    """A bullet of the seeded file that still reads like the seed's placeholder, its braces removed."""
+    text = read_text(path)
+    for match in BULLET.finditer(text):
+        if bullet_key(match.group(1)) in seeded:
+            line = text.count("\n", 0, match.start()) + 1
+            shown = " ".join(match.group(1).split())[:60]
+            errors.append(f"{path}:{line}: '{shown}' is the seed's placeholder text without its braces - describe "
+                          "this project instead")
 
 
 ERROR_PREFIX = "ERROR: "
@@ -281,7 +426,8 @@ def main():
         errors.append("no agents or skills found - has the squad been adopted in this repository?")
     for error in errors:
         print(error)
-    print(f"\nChecked {len(agents)} agents and {len(skills)} skills: {'PASS' if not errors else 'FAIL'}")
+    parser = "" if yaml else " (front matter read without PyYAML)"
+    print(f"\nChecked {len(agents)} agents and {len(skills)} skills{parser}: {'PASS' if not errors else 'FAIL'}")
     return 0 if not errors else 1
 
 

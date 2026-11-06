@@ -86,6 +86,10 @@ mechanics out of the orchestrator's hands:
   continued from <step>)`, and the amend with the numbers (with or without the continuation options) completes it
   as that continuation.
 
+- the summary refuses a code head without a passing gate stamp: when the branch changes anything outside `specs/`,
+  the log's last stamp row of `gate-stamp.py` (step 7, after the PR step 11) must have passed on a commit that holds the
+  same code as HEAD (`gate-stamp.py`, `--verify` without the merge check), so a gate result from a member's report
+  never stands in for the orchestrator's own run;
 - the summary starts with the template version the run worked under, read from `.squad/template.json`:
   `Template: <repository> <release tag> (commit <sha>)` (`untagged` when the template was applied from a commit
   without a release tag), so `squad-report.py` can group the runs by it;
@@ -147,7 +151,8 @@ error. Exit code 0 when the row was written, amended or
 the summary is complete, 1 when the folder has no `log.md`, the agent file is unknown, `--agent-id` finds no
 transcript of that agent in the session, no row can be amended or replaced, or `--continued` finds no earlier usage
 of the member (`--continued-from`: no fresh launch of that step), 3 when the summary lists launch rows without
-usage, 4 when commits after the pull request have no review row after them, 5 when no step-12 lessons row exists.
+usage, 4 when commits after the pull request have no review row after them, 5 when no step-12 lessons row exists, 6
+when the code head has no passing gate stamp.
 """
 import argparse
 import collections
@@ -208,6 +213,7 @@ LAUNCH_OVERRIDES = {"squad-tester": ("security", "opus")}
 
 
 _TRANSCRIPTS = []
+_GATE_STAMP = []
 
 
 def transcripts():
@@ -219,6 +225,17 @@ def transcripts():
         spec.loader.exec_module(module)
         _TRANSCRIPTS.append(module)
     return _TRANSCRIPTS[0]
+
+
+def gate_stamp():
+    """`gate-stamp.py` next to this script, which reads the log's gate stamps, as a module (loaded once)."""
+    if not _GATE_STAMP:
+        here = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location("gate_stamp", os.path.join(here, "gate-stamp.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _GATE_STAMP.append(module)
+    return _GATE_STAMP[0]
 
 
 def escape_controls(text):
@@ -1056,7 +1073,8 @@ def row_command(parser, path, args, launch):
 
 def summary_command(root, folder, path, session=None):
     """Print the summary; the exit code: 3 with launch rows still without usage, 4 with unreviewed fixes after
-    the pull request, 5 without a step-12 lessons row (`lessons_check`)."""
+    the pull request, 5 without a step-12 lessons row (`lessons_check`), 6 without a passing gate stamp on the code
+    head (`stamp_check`)."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
     version = template_line(root)
@@ -1067,7 +1085,17 @@ def summary_command(root, folder, path, session=None):
     if note:
         print(note, file=sys.stderr)
         return 4
-    return lessons_check(root, path, rows)
+    return lessons_check(root, path, rows) or stamp_check(root, rows)
+
+
+def stamp_check(root, rows):
+    """0 when the branch changes no code or the code head carries a passing gate stamp (`gate-stamp.py`), else 6
+    with a note."""
+    problem = gate_stamp().summary_problem(root, rows)
+    if problem is None:
+        return 0
+    print(f"No passing gate stamp on the code head: {problem}; then run the summary again.", file=sys.stderr)
+    return 6
 
 
 def template_line(root):

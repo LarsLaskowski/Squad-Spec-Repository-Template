@@ -467,8 +467,13 @@ class TestSquadLog(unittest.TestCase):
         commit("remove the work folder", "2026-01-02T14:00:00Z", "specs", remove=True)
         write(os.path.join(root, "a.py"), "a = 2\n")
         commit("fix a Sonar finding", "2026-01-02T15:00:00Z", "a.py")
-        log = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n" + LESSONS +
-               "| 2026-01-02 14:50 | 11 Sonar | squad-code-officer | fixed (haiku/low · 9,000 tokens · 3 tool uses · 20 s) |\n")
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True,
+                              check=True).stdout.strip()
+        unstamped = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n" + LESSONS +
+                     "| 2026-01-02 14:50 | 11 Sonar | squad-code-officer | fixed (haiku/low · 9,000 tokens · 3 tool uses · "
+                     "20 s) |\n")
+        log = unstamped + f"| 2026-01-02 14:58 | 11 Gate stamp | Orchestrator | PASS on {head} (tier standard): " \
+                          "Format check pass |\n"
 
         def summary(text):
             return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary",
@@ -491,6 +496,31 @@ class TestSquadLog(unittest.TestCase):
             subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
                            cwd=root, env=env, check=True, capture_output=True)
         self.assertEqual(summary(reviewed).returncode, 0, "a merge of the base branch is no fix to review")
+        no_stamp = summary(unstamped + reviewed[len(log):])
+        self.assertEqual(no_stamp.returncode, 6, no_stamp.stderr)
+        self.assertIn("No passing gate stamp on the code head: no gate stamp in the log", no_stamp.stderr)
+
+    def test_summary_needs_a_passing_gate_stamp_on_a_changed_code_head(self):
+        root = os.path.join(self.dir.name, "repo")
+        rows = self.script.parse_rows(LESSONS)
+        os.makedirs(root)
+        self.assertEqual(self.script.stamp_check(root, rows), 0, "outside a Git repository there is no code to stamp")
+        for args in (["init", "-q", "-b", "main"], ["commit", "-q", "--allow-empty", "-m", "base"],
+                     ["checkout", "-q", "-b", "work"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                           cwd=root, check=True, capture_output=True)
+        self.assertEqual(self.script.stamp_check(root, rows), 0, "no change outside specs/")
+        write(os.path.join(root, "a.py"), "a = 1\n")
+        for args in (["add", "a.py"], ["commit", "-q", "-m", "code"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                           cwd=root, check=True, capture_output=True)
+        with mock.patch("sys.stderr") as stderr:
+            self.assertEqual(self.script.stamp_check(root, rows), 6)
+        self.assertIn("no gate stamp in the log", str(stderr.write.call_args_list))
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
+        stamped = rows + self.script.parse_rows(f"| 2026-01-02 | 7 Gate stamp | Orchestrator | PASS on {head} (tier "
+                                                "standard): Format check pass |\n")
+        self.assertEqual(self.script.stamp_check(root, stamped), 0)
 
     def test_summary_needs_a_lessons_row_and_lists_the_candidates(self):
         root = os.path.join(self.dir.name, "repo")

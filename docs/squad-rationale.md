@@ -453,3 +453,15 @@ improvised pragmas; the seed now names the sanctioned pragma and its removal. `r
 surrogate-pair escape (`\uD83D\uDE00`) into the emoji; the Tester rebuilt the input at run time. The run of #363
 (DockerUpdateGuard#392) launched the tier-`security` Tester on Sonnet; the explicit `model: opus` at steps 5
 and 6 came with the pending-continuation change.
+
+## The code check measures coverage again; a stale report is refused (routing.md, Pipeline step 7; squad-issue, step 7; coverage-check.py)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #245). Step 7 ran *Test*, which writes no
+coverage report, so its *Coverage gate* judged the report of step 6, and `coverage-check.py` did not check the
+report's age. Between the two runs step 7 merges `main` when it moved, and the Code Officer may edit the changed
+files (regions, documentation comments, formatting): the report's line numbers then no longer match the files,
+and changed lines are counted as covered or as uncovered by mistake. The Reviewer's gate list and the
+production-code row of *Gates of a patch* already ran *Test with coverage*. `coverage-check.py` compares the
+modification times of the reports with those of the tracked production and test files rather than with the HEAD
+commit time: the Code Officer's edits are still uncommitted when the gates run, and a test changed after the run
+makes the report stale as well.

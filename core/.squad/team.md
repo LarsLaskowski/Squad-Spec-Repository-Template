@@ -50,15 +50,25 @@ one language, is never carried over to another (the .NET profile's `== false` is
 runs *Format* from `stack.md` before handing back and keeps its result to those files: every other file the
 formatter touched is reported as "formatted outside the change", not edited, and the orchestrator restores it.
 
-**Git and GitHub.** Members never run Git write operations and never post to GitHub (no GitHub MCP write tool
-either); the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared in `.claude/settings.json`, denies such Bash
-commands to every `squad-*` agent. Read-only Git, `git add` and a scratch `git worktree` stay allowed; a member that needs
+**Git and GitHub.** Members never run Git write operations (nor an alias set for the call, `git -c alias.…`) and
+never post to GitHub (no GitHub MCP write tool either); the `PreToolUse` hook `.claude/hooks/git-guard.py`, declared
+in `.claude/settings.json`, denies such Bash commands to every `squad-*` agent. Read-only Git, `git add` and a scratch `git worktree` stay allowed; a member that needs
 anything else reports it. The orchestrator checks `git status` after each report and restores any index or tree change. Another revision is read with `git show <sha>:<path>` or in a scratch worktree
 (`git worktree add --detach`), never by checking it out in the repository working tree.
 Session-management tools (`create_session`, `send_message`, `archive_session`, the scheduled-task tools and the
 other remote-session tools) belong to the orchestrator alone, also for "handing over" work or tidying up: a member
 never calls one, with a placeholder session id least of all. Experiments (mutation tests, trial
 edits, baselines) run in a scratch `git worktree` (`git stash` is a Git write, too). The orchestrator commits, pushes and opens the pull request (`routing.md`, *Pipeline*).
+
+**Files.** A member writes only what its row in *Members* names, and nothing under `.git/`, `.claude/` or `.squad/`
+(the Code Officer's notes in `.squad/stack.md` excepted). The `PreToolUse` hook `.claude/hooks/file-guard.py`, declared
+next to the Git guard, denies every other Write or Edit call in the repository to the `squad-*` agents: the Lead
+writes only under `specs/` and `docs/decisions/`, the Tester only in the test paths (`COVERAGE_TEST_PATHSPECS` in
+`.squad/tools/squad_settings.py`, by default its `COVERAGE_EXCLUDES`) and `docs/UNIT_TESTS.md`, a read-only role
+nothing. A file outside the repository's directory (a scratch worktree) is not checked. A member that needs another
+file changed (a test fixture outside the test paths, `.squad/project.md`) reports it. Both hooks prevent accidents and
+are no security boundary: an interpreter (`python3 -c …`) or a shell redirect gets past them, and these rules bind
+there all the same.
 
 **Reporting against a SHA.** Before the PR the orchestrator may commit your edits as work in progress while
 you work (`orchestration.md`, *The stop hook*), so a clean `git status` at hand-back is expected: report your

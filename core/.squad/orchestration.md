@@ -36,9 +36,9 @@ its `adopt-template` skill (`.squad/template.json` records the repository, its c
   `.github/copilot-instructions.md` is generated from `AGENTS.md` (from the first `##` heading on, kept
   identical by `config-check.py`), so a change to that body, a project block too, is made in both files.
 - **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`, `.squad/project.md`,
-  `.squad/tools/squad_settings.py`, `.claude/settings.json` (a refresh adds the members' git-guard hook when it is
-  missing), `SECURITY.md`, `docs/UNIT_TESTS.md` and the profile's CI, CodeQL, Dependabot and tool configuration
-  files.
+  `.squad/tools/squad_settings.py`, `.claude/settings.json` (a refresh adds the members' hooks `git-guard.py` and
+  `file-guard.py` when one is missing), `SECURITY.md`, `docs/UNIT_TESTS.md` and the profile's CI, CodeQL, Dependabot
+  and tool configuration files.
 
 ## Squad lessons
 

@@ -32,7 +32,10 @@ Rules that hold throughout:
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
-   becomes "in the squad: by the member that changed the files, `.squad/team.md`").
+   becomes "in the squad: by the member that changed the files, `.squad/team.md`"). The same diff covers
+   `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
+   `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
+   other change to the seed's hooks is carried over by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `tsconfig.json` → `typescript`, `package.json` without `tsconfig.json` → `node` (a repository already on
    `node` keeps it on a refresh). If several match and each is product code (e.g. a Go agent and a .NET
@@ -124,9 +127,16 @@ Rules that hold throughout:
      if it is unreleased (no release tag contains it), edit it in place or delete it in favor of the seed;
      if it is released, the seed gets the next number with *Supersedes* set, and the old record's status
      becomes `Superseded by NNNN`.
-   - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`
-     and the PreToolUse `Bash` hook running `.claude/hooks/git-guard.py` exist (the apply step adds the
-     latter; a `conflict` for `.claude/settings.json` means adding it by hand); keep every other hook.
+   - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`, the
+     PreToolUse `Bash` hook running `.claude/hooks/git-guard.py` and the PreToolUse
+     `Write|Edit|MultiEdit|NotebookEdit` hook running `.claude/hooks/file-guard.py` exist, as in the template's
+     `seed/.claude/settings.json` (the apply step adds a missing PreToolUse hook; a `conflict` for
+     `.claude/settings.json` means adding them by hand); keep every other hook. `config-check.py` fails while one
+     is missing.
+   - The file guard lets the Tester write only the test paths (`COVERAGE_TEST_PATHSPECS` in `squad_settings.py`, by
+     default its `COVERAGE_EXCLUDES`) and `docs/UNIT_TESTS.md`: when the target keeps test files elsewhere (fixtures,
+     test data, a test project file), set `COVERAGE_TEST_PATHSPECS` to every test location, the default's patterns
+     included, and name the guard and that setting in the PR description.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
    - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description

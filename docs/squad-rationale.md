@@ -453,3 +453,30 @@ improvised pragmas; the seed now names the sanctioned pragma and its removal. `r
 surrogate-pair escape (`\uD83D\uDE00`) into the emoji; the Tester rebuilt the input at run time. The run of #363
 (DockerUpdateGuard#392) launched the tier-`security` Tester on Sonnet; the explicit `model: opus` at steps 5
 and 6 came with the pending-continuation change.
+
+## Aliases, every gh write and file ownership in the guards; no security boundary (team.md, Git and GitHub and Files; git-guard.py; file-guard.py; config-check.py)
+
+Found in the review of 2026-11-05 against the five consumers (#248, scope in #234). Hook inputs with `agent_type:
+squad-dev` fed to `git-guard.py` at 7571677 let through `git -c alias.ci=commit ci -m x` and `git -c alias.p=push p
+origin HEAD` (`-c` was skipped as an option with a value, so the alias's command was never checked), `gh api -XPOST
+repos/o/r/issues` (only `-X POST`, `--method POST` and `--method=POST` were read), `gh workflow run`, `gh run
+rerun`, `gh secret set`, `gh variable set` and `gh gist create` (groups missing from the list), a `python3 -c` that
+runs `git push`, and `echo x > .git/HEAD`. Checking the list against `gh help reference` of gh 2.102 found more that
+passed: the command aliases `gh pr new`, `gh issue new`, `gh repo new`, `gh release new` and `gh pr co`, `gh pr
+checkout` (a checkout of the working tree), `gh pr update-branch`, `gh issue develop`, `gh repo set-default`, a `-R
+<repo>` before the subcommand (`gh pr -R o/r create`), an attached field (`gh api … -ftitle=x`), and `gh alias set`,
+the `gh` form of the alias bypass. `gh ruleset` has only `check`, `list` and `view`; a ruleset is written through `gh
+api`, which the method check covers. An interpreter, a script, an alias from the user's own configuration or a shell
+redirect still reaches Git and every file, and closing that would mean reading every language a member can run, so
+the guards are stated to prevent accidents, not to be a boundary.
+
+Which files a member may write was stated only in the agent files and `team.md`; no hook checked it, and every
+writing member could edit `.claude/` or `.squad/`. The read-only roles have no Write or Edit tool, but they have
+Bash, which the file guard does not read. `NotebookEdit` is guarded with Write, Edit and MultiEdit, so a notebook is
+no way around it. The Tester's paths are the ones the coverage gate already reads as tests (`COVERAGE_TEST_PATHSPECS`,
+by default `COVERAGE_EXCLUDES`), so one list says what a test file is; a fixture outside it (Go `testdata/`, a .NET
+test project file) is reported to the orchestrator or added to that list. Files outside the repository's directory
+stay unchecked, because the Tester's throwaway mutation of production code (mode `coverage`) and the Reviewer's
+builds run in scratch worktrees there; a worktree nested in the repository (Claude Code's `.claude/worktrees/`) is
+judged by its own paths, so working in one is not refused by the `.claude/` rule. The hook runs before every file
+write of a session, the orchestrator's included, so a machine without `python3` shows a hook error there too.

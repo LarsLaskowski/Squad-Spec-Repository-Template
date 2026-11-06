@@ -29,7 +29,8 @@ procedures*) gets the Product Manager's approval with either value.
 
 The approval runs like the agreement of *Outside authors*, without a public comment. After the spec challenge (and
 the Lead's revision after a major objection) the orchestrator shows the Product Manager a summary — one line per
-scenario, edge case, acceptance criterion and out-of-scope item, with its id, and the open *Challenge notes* — with a
+scenario, edge case, non-functional requirement, acceptance criterion and out-of-scope item, with its id, and the
+open *Challenge notes* — with a
 link to `spec.md` on the pushed work branch, and waits. The answer is logged as a Product Manager row (`spec
 approved`, or `spec corrected` with the corrections) and passed on to the Lead's step 2b. Corrections go first to the
 Lead in mode `revise` on the spec (continued, or fresh after a session restart), then `plan-check.py --spec` runs

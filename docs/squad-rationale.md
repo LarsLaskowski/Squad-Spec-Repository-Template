@@ -668,3 +668,8 @@ record does. The trigger also rested on the challenged party's own *Options cons
 requires the section on the challenged tiers, reads a new record from the branch's base rather than from the
 plan's wording, and prints the verdict, and the Lead lists every alternative the issue, its comments, the spec's
 challenge or a record raises.
+
+After #255 (*Spec approval*) came in: a criterion of a spec the Product Manager approved is amended only on the
+Product Manager's answer, since the Lead alone would otherwise undo that approval; the approval summary lists the
+non-functional requirements with their ids like the scenarios; and `apply-template.py` writes the size settings
+into the merged `squad_settings.py` of a repository with several profiles, which is built from a fixed list of keys.

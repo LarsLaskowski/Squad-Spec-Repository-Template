@@ -160,7 +160,8 @@ The orchestrator tells you which **mode** to run:
   the criterion in place (never renumber; a dropped one leaves the list, and a scenario it alone covered goes to
   *Out of scope*; a waiver of one no one can verify is the Product Manager's), add its row to the *Amendments* table of the file that defines it (`spec.md`, a bug fix's
   `plan.md`; the template names the columns), and bring *Tests per criterion* and `tasks.md` in line;
-  `plan-check.py` checks the folder before the next launch.
+  `plan-check.py` checks the folder before the next launch. A criterion of a spec the Product Manager approved
+  changes only on the Product Manager's answer (`RESULT: ESCALATE`).
   State the outcome in your result for the orchestrator to log, and record
   it as a decision record when it affects the code (a finding accepted unfixed, work split into a follow-up
   issue). A decision about the squad itself goes into your result for the step-12 `squad` issue.

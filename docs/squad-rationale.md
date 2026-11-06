@@ -936,7 +936,8 @@ rating C on five findings in template-managed tools (`gate-stamp.py`, `figure-ch
 below a source directory, so it analysed the four files in `tools/` (2,211 lines) and none of the 23 a target receives.
 A local scan of those 23 files found exactly the five findings and nothing else. `sonar-project.properties` now lists
 each hidden tool directory as a source, and `template-check.py` fails when a distributed Python file lies outside
-them, so CI's analysis sees what the targets' analysis will.
+them, so CI's analysis sees what the targets' analysis will. `.coveragerc` measures the same directories (`source` had been
+`tools` alone), so the coverage of these files reaches the analysis as well.
 
 Three of the rules have a local check in `SONAR_RULES` (S5850 in a lookahead, which the check missed because it read
 the `?=` of a group as the start of its first alternative; S6019; S7632, which Sonar raised only for the one `noqa`

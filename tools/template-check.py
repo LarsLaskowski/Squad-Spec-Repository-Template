@@ -147,8 +147,9 @@ FLAG_SETTER = re.compile(r"\(\?[aiLmsux-]+\)")
 GROUP_OPENER = re.compile(r"\((?:\?(?:[:=!>]|<[=!]|P?<\w+>|[aiLmsux-]+:))?")
 # python:S6019: a reluctant quantifier, and what may follow one without matching a character (lookarounds, anchors,
 # the end of groups), outside character classes.
-LAZY_QUANTIFIER = re.compile(r"(?<!\\)(?:[*+?]|\{\d*,?\d*\})\?")
-ZERO_WIDTH_REST = re.compile(r"(?:\(\?<?[=!].*\)|[$)]|\\[AZzbB])*", re.S)
+LAZY_QUANTIFIER = re.compile(r"(?<!\\)(?:[*+?]|\{\d*+(?:,\d*+)?+\})\?")
+ZERO_WIDTH_PREFIX = re.compile(r"(?:[$)]|\\[AZzbB])*+")
+LOOKAROUNDS = ("(?=", "(?!", "(?<=", "(?<!")
 # python:S7632: a `noqa` comment whose explanation holds a colon, which Sonar reads as broken suppression syntax.
 NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*(?P<rest>[^#]*)")
 MULTIPLE_SPACES = re.compile(r" {2,}")
@@ -1472,13 +1473,20 @@ def anchor_precedence(tree):
             if ungrouped_anchors(alternatives)]
 
 
+def zero_width(rest):
+    """Whether the rest of a regex matches no character: nothing but group ends and anchors, then at most a lookaround
+    that runs to the end."""
+    rest = rest[ZERO_WIDTH_PREFIX.match(rest).end():]
+    return not rest or (rest.startswith(LOOKAROUNDS) and rest.endswith(")"))
+
+
 def lazy_quantifiers(tree):
     """python:S6019: a reluctant quantifier followed by nothing that has to match a character (`.*?(?=^## |\\Z)`)
     only ever matches its minimum; write the end it should stop at as a character it consumes, or split the text."""
     return [(line, "python:S6019", "reluctant quantifier followed only by zero-width assertions")
             for line, pattern in regex_calls(tree)
             for found in LAZY_QUANTIFIER.finditer(CHAR_CLASS.sub("x", pattern))
-            if ZERO_WIDTH_REST.fullmatch(CHAR_CLASS.sub("x", pattern), found.end())]
+            if zero_width(CHAR_CLASS.sub("x", pattern)[found.end():])]
 
 
 def suppression_comments(source):

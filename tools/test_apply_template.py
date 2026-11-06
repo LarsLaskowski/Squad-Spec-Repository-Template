@@ -25,6 +25,19 @@ def write(path, text, newline="\n"):
         handle.write(text)
 
 
+class TestMergedSettings(unittest.TestCase):
+    def test_merged_settings_keep_the_primary_profiles_squad_settings(self):
+        profiles = os.path.join(os.path.dirname(SCRIPT), "..", "profiles")
+        script = load_script()
+        merged = script.merge_settings([os.path.join(profiles, "go"), os.path.join(profiles, "dotnet")])
+        with tempfile.TemporaryDirectory() as folder:
+            write(os.path.join(folder, "squad_settings.py"), merged)
+            settings = script.load_settings(os.path.join(folder, "squad_settings.py"))
+        self.assertEqual(settings.PLAN_MAX_WORDS, {"tests": 800, "trivial": 800, "standard": 2500, "security": 4000})
+        self.assertEqual((settings.SPEC_BASE_WORDS, settings.SPEC_WORDS_PER_CRITERION, settings.SPEC_MAX_WORDS,
+                          settings.SMALL_FEATURE_CRITERIA, settings.SPEC_APPROVAL), (300, 200, 2500, 3, "lead"))
+
+
 class TestLineEndings(unittest.TestCase):
     def setUp(self):
         self.script = load_script()

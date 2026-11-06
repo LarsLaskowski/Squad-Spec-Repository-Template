@@ -34,7 +34,8 @@ promise awaited or explicitly handled; formatting is Prettier's, never hand-tune
 <!-- stack:end code-style -->
 <!-- stack:begin testing -->
 **Unit tests are mandatory for newly written code.** One test file per module under test
-(`<module>.test.ts`), test names describing scenario and expected result, an assertion message where the
+(`<module>.test.ts`), test names describing scenario and expected result (a test for a squad acceptance
+criterion starts with its id, `"AC3 …"`: `docs/UNIT_TESTS.md`, *Criterion ids*), an assertion message where the
 assertion API accepts one, no real network or clock (the narrow exceptions, such as a time bound tested as the
 ratio of two durations, are in `docs/UNIT_TESTS.md`). Test code is type-checked and linted like production
 code.

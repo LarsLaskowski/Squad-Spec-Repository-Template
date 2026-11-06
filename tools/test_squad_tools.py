@@ -1083,6 +1083,22 @@ class TestScopeCheck(unittest.TestCase):
         self.assertIn("31 changed lines outside specs/", found[0])
         self.assertEqual(self.errors(tier="standard"), [], "the budget applies to tier patch only")
 
+    def test_tests_tier_allows_only_the_test_paths_and_the_test_document(self):
+        self.script.settings = types.SimpleNamespace(COVERAGE_EXCLUDES=["*_test.go"])
+        write("src/a_test.go", "package a\n")
+        write("docs/UNIT_TESTS.md", "# Unit tests\n")
+        write("specs/issue-1/plan.md", "# Plan\n")
+        self.assertEqual(self.errors(tier="tests"), [])
+        write("src/a.go", "package a\n\nvar X = 1\n")
+        found = self.errors(tier="tests")
+        self.assertEqual([e.split(":")[0] for e in found], ["src/a.go"], found)
+        self.assertIn("COVERAGE_TEST_PATHSPECS", found[0])
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["src/*_test.go", "testdata/*"])
+        write("testdata/sample.txt", "x\n")
+        self.assertEqual([e.split(":")[0] for e in self.errors(tier="tests")], ["src/a.go"])
+        self.script.settings = types.SimpleNamespace()
+        self.assertEqual(len(self.errors(tier="tests")), 3, "without test paths nothing is test code")
+
 
 class TestScopeCheckPullRequest(unittest.TestCase):
     """The pull request mode: files and texts come from the GitHub API, nothing is checked out."""

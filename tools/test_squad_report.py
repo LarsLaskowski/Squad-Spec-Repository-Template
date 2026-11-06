@@ -58,6 +58,8 @@ class TestSquadReport(unittest.TestCase):
                           "| **Total** | | 9 | 600,000 | 1 | 2 |\n"}
         record = report.parse_record([prose, {"body": "Squad working record\n\nTier: **standard**"}, raised])
         self.assertEqual(record, ("security", 9, 600000, None))
+        tests = report.parse_record([{"body": "Squad working record\n\nTier: `tests`"}])
+        self.assertEqual(tests, ("tests", None, None, None))
 
     def test_session_usage_below_the_run_metrics_is_not_the_runs_total(self):
         both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}\n{SESSION}"}

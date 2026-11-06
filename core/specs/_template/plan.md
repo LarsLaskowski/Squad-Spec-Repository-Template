@@ -1,12 +1,11 @@
 # Plan: <title>
 
 Source: Issue #<number> | [spec.md](spec.md)
-Status: Draft | Revised (n) | Approved by Security
-Tier: trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
+Tier: tests | trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
 Security areas touched: none | <areas>
 <!-- Each security area of `.squad/project.md`, Docker/CI or build configuration and dependency the change
-touches, or "none" — in every plan (`.squad/routing.md`, *Tiers*). Only a plan over PLAN_MAX_WORDS words adds the
-line "Plan size: <why the scope needs it>" here (`plan-check.py`). -->
+touches, or "none" — in every plan (`.squad/routing.md`, *Tiers*). Only a plan over its tier's PLAN_MAX_WORDS adds
+the line "Plan size: <why the scope needs it>" here (`plan-check.py`). -->
 
 ## Problem / root cause
 
@@ -26,8 +25,9 @@ and the step. `.squad/tools/plan-check.py` rejects a row without evidence or sta
 ## Acceptance criteria
 
 Bug fix only — a feature's criteria live in `spec.md` and are referred to by their id; do not copy them here.
+A bug fix's criterion changed after step 2 gets an *Amendments* section at the end, as `spec.md`'s template says.
 
-- [ ] AC1: ... (in a plan without production or test code, *Verification without tests* below says how it is
+- AC1: ... (in a plan without production or test code, *Verification without tests* below says how it is
   verified instead)
 
 Content the issue supplies verbatim (an image, SVG, configuration, a fixture) was rendered or exercised once
@@ -40,8 +40,11 @@ project's documentation) or the CI artifact of an *Early draft PR* (*Criteria ve
 ## Tests per criterion
 
 One row per acceptance criterion (of this plan, or of `spec.md` for a feature): the tests the Tester writes
-first, named strictly by *Layout* in `.squad/stack.md`. A criterion verified without a test is listed under
-*Verification without tests* instead. `.squad/tools/plan-check.py` reports a criterion without a row.
+first, named strictly by *Layout* in `.squad/stack.md`; each test carries its criterion id (*Criterion ids* in
+`docs/UNIT_TESTS.md`). A criterion no unit test can verify names its kind and check instead: `CI: <the check>`,
+`manual: <who, on which build>` or `after merge: <what, by whom>` (a linked verification issue, step 10). A plan
+without production or test code lists its criteria under *Verification without tests* instead.
+`.squad/tools/plan-check.py` reports a criterion without a row; `--matrix` shows each one's result.
 
 | AC | Test(s) | Test file |
 | -- | ------- | --------- |
@@ -57,8 +60,9 @@ CI.
 
 Only when the change touches no production or test code, in any tier: steps 4, 5 and the *Coverage gate*
 are not applicable (*Changes without production or test code* in `.squad/routing.md`). Every acceptance
-criterion is then verified here instead of by a test: where and by whom (workflow step, PR dry run,
-read-only check). Otherwise delete this section.
+criterion is then verified here instead of by a test, one line each with its kind as above (`- AC1: CI: …`, `check:`
+for a read-only check): where and by whom (workflow step, PR dry run, read-only check). Otherwise delete this
+section.
 
 ## Approach
 
@@ -67,7 +71,7 @@ read-only check). Otherwise delete this section.
 ## Options considered
 
 Each alternative weighed and why it lost — or "one option: <why the fix is the only reasonable one>"
-(*Plan challenge* in `.squad/routing.md`).
+(*Plan challenge* in `.squad/routing.md`). Tiers `standard` and `security` only.
 
 ## Affected projects and types
 

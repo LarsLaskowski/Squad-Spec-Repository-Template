@@ -65,7 +65,7 @@ CONSUMERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 # The first line of `squad-log.py --summary`: the template version the run worked under.
 TEMPLATE_LINE = re.compile(r"^Template: [\w./-]++ (v\d{4}\.\d{2}\.\d++)\b", re.M)
 UPSTREAM = "squad-upstream"
-TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
+TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|tests|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
 # total rows (`session-usage.py`) carry a number in that cell, so they never match; the total row of the table of
 # tokens per kind ends in a share of 100 % and is left out before matching (`without_shares`).

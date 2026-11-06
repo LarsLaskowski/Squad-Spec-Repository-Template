@@ -45,7 +45,16 @@ Checks, without arguments:
   Every sentence that left the rule files (found in none of them any more) is a warning the pull request answers:
   where it moved or why it goes. A run of 20 words that two rule files share is a warning (a rule in two places).
   Members read the rule files they are pointed to on every launch, so size is watched, but a rule is never cut to make room; the
-  evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives.
+  evidence behind a rule goes into `docs/squad-rationale.md`, which no target receives;
+- as information, the words each role reads on every launch: its charter and the files of its *Read first* list
+  (only the sections it names, where it names some), split into the template's text and the seeded files a target
+  starts with (its own text replaces those), and the orchestrator's skills with the rule files they link — where a
+  split of a rule file would pay shows here;
+- `consumers.json` lists every repository that uses the template, each with its profiles, its SonarQube Cloud project
+  key (or null) and a status `active` or `legacy`;
+- `CHANGELOG.md` has the format `tools/release.py` expects, and a branch that changes what the targets receive
+  (`CHANGELOG_PATHS`) adds a line under its `## Unreleased` against the merge base with `origin/main`
+  (`AGENTS.md`, *Releases*).
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -86,6 +95,7 @@ SUPERSEDED = "Superseded by 0003"
 UNRELEASED_EDIT = "Changed before any release."
 SKILLS = os.path.join(CLAUDE_DIR, "skills")
 RULES = "AGENTS.md"
+ORIGIN_MAIN = "origin/main"
 CLAUDE = "CLAUDE.md"
 INSTRUCTIONS = [RULES, CLAUDE, os.path.join(GITHUB_DIR, "copilot-instructions.md")]
 COPILOT = os.path.join(GITHUB_DIR, "copilot-instructions.md")
@@ -220,7 +230,7 @@ def check_markers(path, errors):
 def load_scope_check():
     """core/.squad/tools/scope-check.py as a module; it imports the target's squad_settings, which is stubbed here."""
     tools = os.path.join(CORE, SQUAD_DIR, "tools")
-    sys.modules.setdefault("squad_settings", types.SimpleNamespace(BASE_REF="origin/main"))
+    sys.modules.setdefault("squad_settings", types.SimpleNamespace(BASE_REF=ORIGIN_MAIN))
     if tools not in sys.path:
         sys.path.insert(0, tools)
     spec = importlib.util.spec_from_file_location("scope_check", os.path.join(tools, "scope-check.py"))
@@ -832,7 +842,7 @@ def base_rule_texts(files=None, root=ROOT):
         return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, check=False)
 
     try:
-        base = git("merge-base", "origin/main", "HEAD")
+        base = git("merge-base", ORIGIN_MAIN, "HEAD")
         if base.returncode != 0:
             return None
         sha = base.stdout.strip()
@@ -1013,6 +1023,190 @@ def check_repeated_rules(warnings, base=CORE, files=None, minimum=REPEAT_MIN_WOR
     for rel, other, length, start in repeated_runs(base, files, minimum):
         warnings.append(f"WARNING core/{rel} and core/{other} share {length} words in a row (\"{start} …\") — "
                         "state the rule in one place and point to it from the other")
+
+
+# The words each role reads on every launch (#249): its charter and the files of its *Read first* list.
+READ_FIRST = re.compile(r"^Read first:(.*?)(?=\n[ \t]*\n|\Z)", re.S | re.M)
+READ_ITEM = re.compile(r"(?:the\s+((?:\*[^*]+\*[\s,]*(?:and\s+|or\s+)?)+)sections?\s+of\s+)?`([^`\s]+\.md)`"
+                       r"(?:\s*\(([^()]*)\))?")
+ITALIC = re.compile(r"\*([^*]+)\*")
+HEADING_LINE = re.compile(r"^(#+) (.+)$")
+SKILL_LINK = re.compile(r"\]\((?:\.\./)+(\.squad/[\w./-]+\.md)\)")
+# The orchestrator of each squad skill reads that skill, the skills it follows and the rule files they link.
+ORCHESTRATOR_SKILLS = {"squad-issue": [], "squad-spec": ["squad-issue"]}
+
+
+def section_text(text, name):
+    """The section whose heading starts with `name`, to the next heading of the same or a higher level; None when
+    there is none."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        match = HEADING_LINE.match(line)
+        if not match or not match.group(2).startswith(name):
+            continue
+        level = len(match.group(1))
+        end = next((later for later in range(index + 1, len(lines))
+                    if (found := HEADING_LINE.match(lines[later])) and len(found.group(1)) <= level), len(lines))
+        return "\n".join(lines[index:end])
+    return None
+
+
+def read_words(text, names):
+    """Words of the named sections of `text` (all of it without names, or when none of them is found)."""
+    parts = [part for part in (section_text(text, name) for name in names) if part is not None]
+    return len(("\n".join(parts) if parts else text).split())
+
+
+def read_first_sources(rel):
+    """(template text or None, [seed texts]) of a file a charter names: the core file, or the seeds a target starts
+    with (one per profile for a profile's seed)."""
+    if os.path.isfile(os.path.join(CORE, rel)):
+        return read(os.path.join(CORE, rel)), []
+    seeds = [os.path.join(ROOT, "seed", rel)] + sorted(glob.glob(os.path.join(ROOT, "profiles", "*", "seed", rel)))
+    return None, [read(path) for path in seeds if os.path.isfile(path)]
+
+
+def read_first(charter_text):
+    """[(file, section names)] of a charter's *Read first* paragraph."""
+    found = READ_FIRST.search(charter_text)
+    if not found:
+        return []
+    items = []
+    for before, rel, after in READ_ITEM.findall(found.group(1)):
+        names = ITALIC.findall(before or "") + ITALIC.findall(after or "")
+        items.append((rel, [" ".join(name.split()) for name in names]))
+    return items
+
+
+def launch_words(name, text, items):
+    """(template words, seeded minimum, seeded maximum, parts) a launch reads: `text` (the charter or skill) and the
+    listed files."""
+    template, low, high, parts = len(text.split()), 0, 0, [f"{name} {len(text.split()):,}"]
+    for rel, names in items:
+        core_text, seeds = read_first_sources(rel)
+        label = rel + (f" ({', '.join(names)})" if names else "")
+        if core_text is not None:
+            words = read_words(core_text, names)
+            template += words
+            parts.append(f"{label} {words:,}")
+        elif seeds:
+            counts = [read_words(seed, names) for seed in seeds]
+            low, high = low + min(counts), high + max(counts)
+            parts.append(f"{label} {min(counts):,}" + (f"–{max(counts):,}" if max(counts) != min(counts) else ""))
+    return template, low, high, parts
+
+
+def words_per_launch():
+    """INFO lines with the words each role reads on every launch, and the orchestrator per squad skill."""
+    lines = ["INFO words read per launch (the charter and its Read first files; template text, then the seeded "
+             "files a target starts with, which its own text replaces):"]
+    entries = []
+    for path in sorted(glob.glob(os.path.join(CORE, ".claude", "agents", "squad-*.md"))):
+        text = read(path)
+        entries.append((os.path.basename(path)[:-3], launch_words(os.path.basename(path), text, read_first(text))))
+    for skill, followed in ORCHESTRATOR_SKILLS.items():
+        paths = [os.path.join(SKILLS, name, SKILL_MD) for name in followed]
+        if not os.path.isfile(os.path.join(CORE, SKILLS, skill, SKILL_MD)):
+            continue
+        text = read(os.path.join(CORE, SKILLS, skill, SKILL_MD))
+        links = SKILL_LINK.findall(text + "".join(read(os.path.join(CORE, rel)) for rel in paths))
+        items = [(rel, []) for rel in dict.fromkeys(paths + links)]
+        entries.append((f"orchestrator ({skill})", launch_words(f"{skill}/{SKILL_MD}", text, items)))
+    for name, (template, low, high, parts) in entries:
+        seeded = ""
+        if high:
+            seeded = f" + {low:,}" + (f"–{high:,}" if high != low else "") + " seeded"
+        lines.append(f"INFO   {name}: {template:,} template{seeded} — {'; '.join(parts)}")
+    return lines
+
+
+CONSUMER_REPOSITORY = re.compile(r"[\w.-]+/[\w.-]+")
+CONSUMER_STATUS = ("active", "legacy")
+
+
+def check_consumer(entry, profiles, seen, errors):
+    """Findings of one entry of consumers.json."""
+    if not isinstance(entry, dict) or not CONSUMER_REPOSITORY.fullmatch(str(entry.get("repository", ""))):
+        errors.append(f"consumers.json: an entry without a valid 'repository' (owner/name): {entry!r}")
+        return
+    name = entry["repository"]
+    if name in seen:
+        errors.append(f"consumers.json: {name} is listed twice")
+    seen.add(name)
+    listed = entry.get("profiles")
+    if not isinstance(listed, list) or not listed or not set(listed) <= set(profiles):
+        errors.append(f"consumers.json: {name} needs 'profiles', a list of {', '.join(profiles)}")
+    if entry.get("sonar") is not None and not re.fullmatch(r"[\w.:-]+", str(entry.get("sonar"))):
+        errors.append(f"consumers.json: {name} has an invalid 'sonar' project key")
+    if entry.get("status") not in CONSUMER_STATUS:
+        errors.append(f"consumers.json: {name} needs 'status' {' or '.join(CONSUMER_STATUS)}")
+
+
+def check_consumers(errors, profiles, path=None):
+    """consumers.json lists the repositories that use the template: repository, profiles, Sonar key and status."""
+    path = path or os.path.join(ROOT, "consumers.json")
+    try:
+        data = json.loads(read(path))
+    except (OSError, ValueError) as error:
+        errors.append(f"consumers.json: {error}")
+        return
+    entries = data.get("consumers") if isinstance(data, dict) else None
+    if not isinstance(entries, list) or not entries:
+        errors.append("consumers.json: no 'consumers' list")
+        return
+    seen = set()
+    for entry in entries:
+        check_consumer(entry, profiles, seen, errors)
+
+
+# A change under these paths reaches the targets and needs a line in CHANGELOG.md (AGENTS.md, Releases).
+CHANGELOG_PATHS = ("core/", "profiles/", "multi/", "seed/", "decision-seeds/", "tools/apply-template.py")
+
+
+def load_release():
+    """tools/release.py as a module."""
+    spec = importlib.util.spec_from_file_location("release", os.path.join(ROOT, "tools", "release.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def changed_since_base(root):
+    """(merge base with origin/main, the paths changed since it, untracked files included), or (None, []) without
+    one."""
+    def git(*args):
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, check=False)
+    base = git("merge-base", ORIGIN_MAIN, "HEAD")
+    if base.returncode != 0:
+        return None, []
+    sha = base.stdout.strip()
+    paths = git("diff", "--name-only", sha).stdout.split() + git("ls-files", "--others", "--exclude-standard").stdout.split()
+    return sha, paths
+
+
+def check_changelog(errors, info, root=ROOT):
+    """CHANGELOG.md has the format tools/release.py expects, and a branch that changes what the targets receive adds
+    a line under its `## Unreleased`."""
+    release = load_release()
+    path = os.path.join(root, release.CHANGELOG)
+    if not os.path.isfile(path):
+        errors.append(f"{release.CHANGELOG} is missing (AGENTS.md, Releases)")
+        return
+    text = read(path)
+    errors += release.check(text)
+    base, paths = changed_since_base(root)
+    if base is None:
+        info.append(f"INFO {release.CHANGELOG}: no merge base with origin/main here, so the entry of this change is not "
+                    "checked")
+        return
+    reaching = sorted(name for name in paths if name.startswith(CHANGELOG_PATHS))
+    shown = subprocess.run(["git", "-C", root, "show", f"{base}:{release.CHANGELOG}"], capture_output=True, text=True,
+                           check=False)
+    before = set(release.unreleased_entries(shown.stdout if shown.returncode == 0 else ""))
+    if reaching and not set(release.unreleased_entries(text)) - before:
+        errors.append(f"{release.CHANGELOG}: this branch changes what the targets receive ({', '.join(reaching[:3])}"
+                      f"{', …' if len(reaching) > 3 else ''}) but adds no line under '{release.UNRELEASED}' (AGENTS.md, "
+                      "Releases)")
 
 
 def distributed_python_files():
@@ -1220,7 +1414,10 @@ def main():
     check_rule_files(errors)
     check_rule_changes(warnings, info)
     check_repeated_rules(warnings)
+    info += words_per_launch()
     profiles = check_profiles(errors)
+    check_consumers(errors, profiles)
+    check_changelog(errors, info)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
     check_area_checks(errors)

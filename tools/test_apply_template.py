@@ -230,5 +230,24 @@ class TestSquadHookSettings(unittest.TestCase):
             self.assertEqual((emitted, report[-1]), ({}, ("kept", ".claude/settings.json")))
 
 
+
+class TestReleaseTag(unittest.TestCase):
+    def test_the_release_tag_of_head_is_read_from_the_local_tags(self):
+        script = load_script()
+        with tempfile.TemporaryDirectory() as root:
+            def git(*args):
+                subprocess.run(["git", "-C", root, "-c", "user.name=t", "-c", "user.email=t@t", "-c",
+                                "commit.gpgsign=false", "-c", "tag.gpgsign=false", *args], check=True, capture_output=True)
+            git("init", "-q")
+            git("commit", "-q", "--allow-empty", "-m", "one")
+            self.assertIsNone(script.release_tag(root))
+            git("tag", "v2026.11.9")
+            git("tag", "-a", "v2026.11.10", "-m", "release")
+            git("tag", "not-a-release")
+            self.assertEqual(script.release_tag(root), "v2026.11.10")
+            git("commit", "-q", "--allow-empty", "-m", "two")
+            self.assertIsNone(script.release_tag(root), "a commit after the tag is no release")
+
+
 if __name__ == "__main__":
     unittest.main()

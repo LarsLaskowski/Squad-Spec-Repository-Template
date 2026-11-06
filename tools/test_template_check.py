@@ -214,5 +214,89 @@ class TestSonarRules(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+
+class TestWordsPerLaunch(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    def test_read_first_names_files_and_their_sections(self):
+        charter = ("---\nname: x\n---\n\nRead first: `.squad/team.md` (*Shared rules*), the *Code style* and *Architecture*\n"
+                   "sections of `AGENTS.md`, `.squad/stack.md` (commands, *Writing\ntests*) and the plan.\n\nMore.\n")
+        self.assertEqual(self.script.read_first(charter), [(".squad/team.md", ["Shared rules"]),
+                                                           ("AGENTS.md", ["Code style", "Architecture"]),
+                                                           (".squad/stack.md", ["Writing tests"])])
+
+    def test_a_section_runs_to_the_next_heading_of_its_level(self):
+        text = "# T\n\n## A one\n\nx y\n\n### Sub\n\nz\n\n## B\n\nw\n"
+        self.assertEqual(self.script.section_text(text, "A"), "## A one\n\nx y\n\n### Sub\n\nz\n")
+        self.assertEqual(self.script.read_words(text, ["B"]), 3)
+        self.assertEqual(self.script.read_words(text, ["Missing"]), len(text.split()), "unknown names count it all")
+
+    def test_every_role_and_both_orchestrators_are_reported(self):
+        lines = self.script.words_per_launch()
+        for name in ("squad-lead", "squad-tester", "orchestrator (squad-issue)", "orchestrator (squad-spec)"):
+            self.assertTrue(any(line.startswith(f"INFO   {name}: ") for line in lines), name)
+        tester = next(line for line in lines if line.startswith("INFO   squad-tester: "))
+        self.assertIn(".squad/team.md (Shared rules)", tester)
+        self.assertIn("seeded", tester, "stack.md and UNIT_TESTS.md come from the seeds")
+
+
+class TestConsumersAndChangelog(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+
+    def write(self, rel, text):
+        path = os.path.join(self.dir.name, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        return path
+
+    def test_the_repository_consumers_pass_and_bad_entries_fail(self):
+        errors = []
+        self.script.check_consumers(errors, ["dotnet", "go", "node", "typescript"])
+        self.assertEqual(errors, [])
+        path = self.write("consumers.json", '{"consumers": [{"repository": "o/a", "profiles": ["cobol"], "sonar": null, '
+                                            '"status": "active"}, {"repository": "o/a", "profiles": ["go"], "sonar": "a b", '
+                                            '"status": "gone"}, {"repository": "noslash"}]}')
+        self.script.check_consumers(errors, ["go"], path)
+        for finding in ("o/a needs 'profiles'", "o/a is listed twice", "invalid 'sonar'", "needs 'status'",
+                        "without a valid 'repository'"):
+            self.assertTrue(any(finding in error for error in errors), finding)
+
+    def git(self, *args):
+        subprocess.run(["git", "-C", self.dir.name, "-c", "user.name=t", "-c", "user.email=t@t", "-c",
+                        "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+    def test_a_change_that_reaches_the_targets_needs_a_changelog_line(self):
+        self.git("init", "-q")
+        self.write("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n- [Core] Earlier (#1)\n")
+        self.write("core/a.md", "a\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        errors, info = [], []
+        self.write("docs/x.md", "x\n")
+        self.script.check_changelog(errors, info, root=self.dir.name)
+        self.assertEqual(errors, [], "a change that no target receives needs no line")
+        self.write("core/a.md", "b\n")
+        self.script.check_changelog(errors, info, root=self.dir.name)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("core/a.md", errors[0])
+        errors.clear()
+        self.write("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n- [Core] Earlier (#1)\n- [Core] This one (#2)\n")
+        self.script.check_changelog(errors, info, root=self.dir.name)
+        self.assertEqual(errors, [])
+
+    def test_without_a_merge_base_the_entry_is_not_checked(self):
+        self.write("CHANGELOG.md", "# Changelog\n\n## Unreleased\n")
+        errors, info = [], []
+        self.script.check_changelog(errors, info, root=self.dir.name)
+        self.assertEqual(errors, [])
+        self.assertIn("not checked", info[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -504,6 +504,7 @@ class TestSquadLog(unittest.TestCase):
                "| 2026-01-02 13:30 | 8 Decide | Lead | accept the gap (opus/medium · 5,000 tokens · 1 tool uses · 9 s) |\n"
                "| 2026-01-02 13:40 | 8 Review | Orchestrator | loop limit reached after round 2 |\n")
         write(os.path.join(root, "specs", "issue-1", "log.md"), log)
+        write(os.path.join(root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: standard\n")
 
         def summary(*rows):
             write(os.path.join(root, "specs", "issue-1", "log.md"), log + "".join(rows))
@@ -517,6 +518,12 @@ class TestSquadLog(unittest.TestCase):
                           "`5 Tests first · Tester`: ran on opus/medium, not sonnet/medium"):
             self.assertIn(candidate, missing.stderr)
         self.assertNotIn("candidates", missing.stdout, "the posted tables stay clean")
+        after_step_10 = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary",
+                                        "--stdin"], cwd=root, input=log, capture_output=True, text=True, check=False)
+        self.assertIn("`5 Tests first · Tester`: ran on opus/medium", missing.stderr)
+        self.assertNotIn("5 Tests first", after_step_10.stderr, "without the plan the tier is unknown: opus may be due")
+        self.assertEqual(self.script.member_agent("squad-devils-advocate"), "squad-devils-advocate")
+        self.assertEqual(self.script.member_agent("Devil's Advocate"), "squad-devils-advocate")
         none = summary("| 2026-01-02 14:00 | 12 Wrap-up | Orchestrator | no lessons |\n")
         self.assertEqual(none.returncode, 0)
         self.assertIn("Lesson candidates in this log", none.stderr)
@@ -527,6 +534,23 @@ class TestSquadLog(unittest.TestCase):
                       "| 2026-01-02 14:00 | 11 CI | Orchestrator | https://github.com/o/r/issues/7 |\n",
                       "| 2026-01-02 14:00 | 12 Wrap-up | Product Manager | no lessons |\n"):
             self.assertEqual(summary(wrong).returncode, 5, wrong)
+
+    def test_summary_starts_with_the_template_version(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, "specs", "issue-1", "log.md"), "| Date |\n" + LESSONS)
+        record = os.path.join(root, ".squad", "template.json")
+
+        def first_line():
+            done = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary"],
+                                  cwd=root, capture_output=True, text=True, check=False)
+            return done.stdout.splitlines()[0]
+        self.assertTrue(first_line().startswith("| Member |"), "no template.json, no line")
+        write(record, json.dumps({"repository": "o/t", "tag": "v2026.11.1", "commit": "0123456789abcdef0123"}))
+        self.assertEqual(first_line(), "Template: o/t v2026.11.1 (commit 0123456789ab)")
+        write(record, json.dumps({"repository": "o/t", "tag": None, "commit": "0123456789abcdef0123"}))
+        self.assertEqual(first_line(), "Template: o/t untagged (commit 0123456789ab)")
+        write(record, json.dumps({"repository": "o/t | x", "tag": "v1\n## y"}))
+        self.assertEqual(first_line(), "Template: unknown untagged (commit unknown)", "odd values are not printed")
 
     def test_orchestrator_counts_parallel_launches_once(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")

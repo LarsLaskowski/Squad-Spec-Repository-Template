@@ -6,6 +6,8 @@ For every pull request merged in the window it reports:
 
 - **kind** — `squad` (its issue or the PR carries a "Squad working record" comment), `refresh` (a template
   refresh: "Update the squad from …"), `dependabot`, or `manual`;
+- the **template version** a squad run worked under: the release tag of the "Template: …" line `squad-log.py
+  --summary` prints first (`untagged` for older records and runs on a template commit without a tag);
 - **tier**, **launches** and **tokens** of a squad run, read from its working record and the total row of its "Squad
   run metrics" (`squad-log.py --summary`: `| **Total** | | <launches> | <tokens> | …`) above a "Session usage" heading,
   and the run's **weighted** figure (every token at its list price, the orchestrator's share included) from the total
@@ -24,8 +26,11 @@ For every pull request merged in the window it reports:
 
 The totals per repository and week show what the squad's rules changed: the share of squad pull requests that
 needed no fix commit, that SonarQube found nothing on, the CI failures per pull request, and the median tokens and
-weighted figure per tier. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a
-reading task.
+weighted figure per tier; the same totals per template version show a rule change against the runs before and after
+its release. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a reading task.
+
+Without `--repo`, the report and `--upstream` cover every active consumer of `consumers.json` (with its SonarQube Cloud
+project key); legacy entries are left out.
 
 With `--upstream` it instead lists the open issues labelled `squad-upstream` of the repositories: the squad lessons
 a run filed in its own repository because they concern a template-managed file (`core/.squad/orchestration.md`, *Squad
@@ -35,7 +40,8 @@ with its title, its body and a link back, and the original gets a comment linkin
 Usage (needs `gh` with read access to the repositories; `--move` also needs write access to their issues):
     python3 tools/squad-report.py --repo LarsLaskowski/Vandox=networlddev_vandox --repo LarsLaskowski/Seluna \\
         --since 2026-10-11 [--until 2026-10-18] [--out report.md]
-    python3 tools/squad-report.py --upstream --repo LarsLaskowski/Vandox --repo LarsLaskowski/Seluna [--move]
+    python3 tools/squad-report.py --since 2026-10-11          # every active consumer of consumers.json
+    python3 tools/squad-report.py --upstream [--repo LarsLaskowski/Vandox …] [--move]
 
 `owner/name=sonar-key` adds the SonarQube Cloud project key of that repository. Exit code 0, or 1 when GitHub
 cannot be read or written.
@@ -53,6 +59,9 @@ import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
+CONSUMERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "consumers.json")
+# The first line of `squad-log.py --summary`: the template version the run worked under.
+TEMPLATE_LINE = re.compile(r"^Template: [\w./-]++ (v\d{4}\.\d{2}\.\d++)\b", re.M)
 UPSTREAM = "squad-upstream"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
@@ -156,6 +165,21 @@ def parse_session(comments):
     return tuple(int(cell.strip().replace(",", "")) for cell in found[-1].split("|")[1:5])
 
 
+def parse_template(comments):
+    """The release tag of the last "Template: …" line of the run's record (above "Session usage"), or None."""
+    parts = record_bodies(comments)
+    found = TEMPLATE_LINE.findall("\n".join(run for run, _ in parts)) if parts else []
+    return found[-1] if found else None
+
+
+def consumer_repos(path=CONSUMERS):
+    """`owner/name=sonar-key` (or `owner/name`) of every active consumer in consumers.json."""
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    return [entry["repository"] + (f"={entry['sonar']}" if entry.get("sonar") else "")
+            for entry in data.get("consumers", []) if entry.get("status") == "active"]
+
+
 def linked_issues(body):
     """The issue numbers a pull request body closes, outside HTML comments (a kept template example is no link)."""
     return sorted({int(n) for n in CLOSES.findall(COMMENT.sub("", body or ""))})
@@ -236,6 +260,7 @@ def pull_request_row(repo, pr, sonar_key):
         "repo": repo, "pr": number, "title": pr["title"], "kind": classify(pr, record),
         "tier": record[0] if record else None, "launches": record[1] if record else None,
         "tokens": record[2] if record else None, "weighted": record[3] if record else None, "session": session,
+        "template": parse_template(comments),
         "fix_pushes": fixes, "base_merges": merges,
         "ci_failures": failures, "sonar": sonar_issues(sonar_key, number) if sonar_key else None,
         "bot_comments": bots, "human_comments": humans,
@@ -265,6 +290,15 @@ def by_repository_and_week(row):
     return row["repo"], week(row["merged_at"])
 
 
+def by_template(row):
+    return (row.get("template") or "untagged",)
+
+
+def natural(text):
+    """A sort key that orders the numbers in `text` by value (v2026.11.10 after v2026.11.9)."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
+
+
 def totals(rows, key=by_repository_and_week, heads=("Repository", "Week")):
     """Markdown lines with the totals of the squad pull requests per group: per repository and week by default, or
     per the cells `key` returns for a row (`heads` names them)."""
@@ -278,7 +312,7 @@ def totals(rows, key=by_repository_and_week, heads=("Repository", "Week")):
     for row in rows:
         if row["kind"] == "squad":
             groups.setdefault(key(row), []).append(row)
-    for cells, group in sorted(groups.items()):
+    for cells, group in sorted(groups.items(), key=lambda item: natural(" ".join(item[0]))):
         known = [r for r in group if r["sonar"] is not None]
         failures = sum(r["ci_failures"] for r in group) / len(group)
         lines.append(f"| {' | '.join(cells)} | {len(group)} | {share(group, lambda r: r['fix_pushes'] == 0)} | "
@@ -387,7 +421,8 @@ def report_rows(args):
 def write_report(args, rows):
     """Print the report, or write it to `--out` (a file in the current directory); the exit code."""
     report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
-                        *totals(rows), *without_metrics(rows), "", "## Pull requests", "", *table(rows), ""])
+                        *totals(rows), *without_metrics(rows), "", "## Totals per template version", "",
+                        *totals(rows, by_template, ("Template version",)), "", "## Pull requests", "", *table(rows), ""])
     if not args.out:
         print(report)
         return 0
@@ -403,7 +438,8 @@ def write_report(args, rows):
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Quality report of squad pull requests, or the open squad-upstream "
                                                  "issues of the repositories (--upstream).")
-    parser.add_argument("--repo", action="append", required=True, help="owner/name, or owner/name=sonar-project-key")
+    parser.add_argument("--repo", action="append", help="owner/name, or owner/name=sonar-project-key (default: every "
+                                                        "active consumer of consumers.json)")
     parser.add_argument("--since", type=day, help="first merge date, YYYY-MM-DD (required for the report)")
     parser.add_argument("--until", type=day, help="last merge date, YYYY-MM-DD (default: today, UTC)")
     parser.add_argument("--out", help="write the report to this file instead of printing it")
@@ -416,6 +452,7 @@ def parse_args(argv):
     if not args.upstream and not args.since:
         parser.error("the report needs --since")
     args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
+    args.repo = args.repo or consumer_repos()
     return args
 
 

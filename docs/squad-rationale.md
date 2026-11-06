@@ -613,3 +613,37 @@ issues with the owner's `gh`, and `--move` files each here with a link back and 
 lesson's history findable from the product repository. The lessons row is checked by `squad-log.py --summary` (exit 5
 without it), and the candidates it lists come from the cases above: a Lead `decide` or a loop limit, an improvised
 step, a member error, a tool refusal and a warning of `squad-log.py` itself (the Tester model of Vandox#301).
+
+## Versioned releases, the consumer list, words per launch and what needs Claude Code (AGENTS.md of the template, Releases; consumers.json; apply-template.py; squad-log.py `--summary`; squad-report.py; template-check.py; README)
+
+Found in the review of 2026-11-05 against the five consumers (#249, scope as in #234). About 40 `squad` issues were
+filed in the template between 2026-10-17 and 2026-11-05, and the consumers took refresh pull requests at that pace:
+LarsLaskowski/Seluna 13 in 19 days, LarsLaskowski/PlexToJellyfinSync 9 since 2026-10-25 against one product pull
+request (PlexToJellyfinSync#260), LarsLaskowski/Censio 8 in 5 days (#62, #83, #89, #93, #94, #97, #98, #100). Runs
+therefore worked under changing rules, and `squad-report.py` could not tell which version a run used, because
+`.squad/template.json` recorded only a commit. Batched releases with a tag and a changelog section each give every
+run a version (`.squad/template.json` `tag`, the first line of `squad-log.py --summary`), and the report's totals per
+template version compare the runs before and after the release of a rule change. The tag is set on the release pull
+request's merge commit because pull requests are squash-merged, so no branch commit reaches `main`; `apply-template.py`
+reads only local tags, so a rollout from a checkout of the tag records it without a network call (a cloud checkout
+has no tags until they are fetched, *Fetch main and the tags at intake*).
+
+The README's *Profiles* table listed F1-Telemetry, OpenHabLogViewer, e-networld and PiMonitor. F1-Telemetry,
+OpenHabLogViewer and PiMonitor have no `.squad/` on `main` but an older template version with `.agents/`, so a rollout
+over the repositories with a `.squad/template.json` silently left them out; e-networld is private and was not checked;
+LarsLaskowski/Vandox (`go` and `dotnet`), Censio (`dotnet`) and Seluna (`typescript`) were missing, and the
+`typescript` row still said "first repository refines it". `consumers.json` keeps them as data with their profiles,
+SonarQube Cloud keys (read from the SonarQube Cloud organization `networlddev` on 2026-11-06; e-networld has no
+project there) and a status; the four older ones are `legacy` until the owner decides whether to refresh or drop them.
+
+`RULE_WORDS_BASELINE` measured the rule files as a whole, while the cost is what each role reads on every launch, its
+*Read first* list plus the project's own files; a fresh launch costs 40 k to 100 k tokens (*Model and effort per
+role*). On the template after #234 and #239 (2026-11-06), `template-check.py` reports from 1,611 template words per
+launch (Code Officer) to 11,715 (Lead, of them 5,386 for all of `routing.md`), and about 11,000 for the orchestrator;
+the Devil's Advocate reads 2,204 words of `routing.md` for *Tiers* alone. That is where a split of `routing.md` (tiers
+for every role, pipeline and loop limits for the orchestrator and the Lead) would pay.
+
+The README called the template "one rule set for every AI coding agent", which holds for `AGENTS.md` only. The squad
+depends on Claude Code's subagents, `SendMessage`, transcripts and hooks, and its skills on Claude Code's web
+environment: `subscribe_pr_activity`, the `mcp__github__*` tools, `add_repo`, network secrets and the blocked GraphQL
+API that `team.md` works around.

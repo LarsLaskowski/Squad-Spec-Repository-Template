@@ -27,8 +27,8 @@ Rules that hold throughout:
 1. **Target and branch.** Clone the target if needed, `git fetch origin main`, and create the work branch
    off `origin/main`. Read its `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
    files before changing anything.
-   If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
-   records without `repository` get it on this run), move the target's open `squad-upstream` issues here
+   If `.squad/template.json` exists, this is a **refresh**: note its `tag`, `commit` and `profile`/`profiles` (older
+   records without `repository` or `tag` get them on this run), move the target's open `squad-upstream` issues here
    (*Updating the template itself*) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
@@ -47,9 +47,10 @@ Rules that hold throughout:
 3. **Apply.** First, on a first adoption, move documents the template expects under `docs/` but the target
    keeps elsewhere (e.g. a root-level `ARCHITECTURE.md` or `CONTRIBUTING.md`) there with `git mv` and fix
    every link to them: the apply step then backs them up like any other marked file, and their content
-   lands in the template's file instead of living twice. Then, from the template repository's root, on an
-   up-to-date checkout of its `main` (the commit
-   is recorded in `.squad/template.json`; a branch commit disappears with the squash merge), run
+   lands in the template's file instead of living twice. Then, from the template repository's root, on a checkout
+   of its latest release tag (`git fetch origin --tags`, `git checkout <tag>`: the tag and its commit are recorded in
+   `.squad/template.json`, and a change not yet released waits for its release, `AGENTS.md` there, *Releases*;
+   before the template's first release, an up-to-date `main`, recorded with `"tag": null`), run
    `python3 tools/apply-template.py --target <path> [--profile <profile> …] --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
@@ -160,7 +161,8 @@ Rules that hold throughout:
    review only the delta.
 10. **Pull request** in the target, opened as a draft (`draft: true`), from its
     `.github/pull_request_template.md`: title `[Docs] Adopt the Squad-Spec-Repository-Template squad and agent rules` (refresh:
-    `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description of what was added, replaced,
+    `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description naming the release (its
+    `CHANGELOG.md` section) and what was added, replaced,
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
     Subscribe to the PR's activity and stay with it until it merges cleanly, CI is green and the code
     analysis lists no new issue, then mark it ready for review (the target's `.squad/orchestration.md`, *Draft
@@ -173,8 +175,8 @@ Rules that hold throughout:
 
 A lesson about a template-managed file arrives as a `squad-upstream` issue in a target (squad runs file their
 lessons in their own repository) and is moved here as a `squad` issue: `python3 tools/squad-report.py --upstream`
-(one `--repo` per target) lists the open ones, `--move` moves them in one batch (a new issue here with the title, the
+lists the open ones of every active consumer in `consumers.json` (or of the `--repo` given), `--move` moves them in one batch (a new issue here with the title, the
 body and a link back; the original gets a comment linking it and is closed). Without `gh` write access, move each the
 same way with the GitHub tools. A lesson is fixed here: change `core/` or the profile, run
-`python3 tools/template-check.py`, open a PR here, and after its merge refresh every target that has a
-`.squad/template.json` with this skill (README, *Rolling out a change*).
+`python3 tools/template-check.py`, open a PR here with its `CHANGELOG.md` line, and once a release contains it refresh
+every active target of `consumers.json` with this skill (README, *Rolling out a change*).

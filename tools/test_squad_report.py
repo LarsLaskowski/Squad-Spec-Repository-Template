@@ -190,6 +190,41 @@ class TestSquadReport(unittest.TestCase):
         self.assertEqual(report.without_metrics(rows[:2]), [])
 
 
+class TestTemplateVersions(unittest.TestCase):
+    def test_the_template_line_of_the_summary_names_the_version(self):
+        line = {"body": "### Squad run metrics\n\nTemplate: LarsLaskowski/Squad-Spec-Repository-Template v2026.11.2 "
+                        "(commit 1a2b3c4d5e6f)\n\n| **Total** | | 3 | 90,000 | 9 | 99 |\n"}
+        self.assertEqual(report.parse_template([RECORD, line]), "v2026.11.2")
+        untagged = {"body": "### Squad run metrics\n\nTemplate: LarsLaskowski/Squad-Spec-Repository-Template untagged "
+                            "(commit 1a2b3c4d5e6f)\n"}
+        self.assertIsNone(report.parse_template([RECORD, untagged]))
+        self.assertIsNone(report.parse_template([{"body": line["body"]}]), "only a working record's lines count")
+
+    def test_totals_per_template_version_in_version_order(self):
+        base = {"repo": "o/r", "kind": "squad", "merged_at": "2026-11-17T10:00:00Z", "tier": "standard", "launches": 9,
+                "tokens": 1_000_000, "weighted": 3_000_000, "fix_pushes": 0, "sonar": 0, "ci_failures": 0}
+        rows = [{**base, "template": "v2026.11.10"}, {**base, "template": "v2026.11.9", "fix_pushes": 1},
+                {**base, "template": None}]
+        lines = report.totals(rows, report.by_template, ("Template version",))
+        self.assertTrue(lines[0].startswith("| Template version | Squad PRs |"))
+        self.assertEqual([line.split(" | ")[0] for line in lines[2:]], ["| untagged", "| v2026.11.9", "| v2026.11.10"])
+        self.assertIn("| v2026.11.9 | 1 | 0/1 | 1/1 | 0.00 | 0 | standard 1.00 M | standard 3.00 M |", lines[3])
+
+    def test_consumers_json_gives_the_active_repositories(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "consumers.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('{"consumers": [{"repository": "o/a", "sonar": "o_a", "status": "active"}, '
+                             '{"repository": "o/b", "sonar": null, "status": "active"}, '
+                             '{"repository": "o/c", "sonar": "o_c", "status": "legacy"}]}')
+            self.assertEqual(report.consumer_repos(path), ["o/a=o_a", "o/b"])
+        self.assertIn("LarsLaskowski/Vandox=networlddev_vandox", report.consumer_repos(), "the repository's own list")
+        with mock.patch.object(report, "consumer_repos", return_value=["o/a=o_a"]), \
+                mock.patch.object(report, "upstream_command", return_value=0) as command:
+            report.main(["--upstream"])
+        command.assert_called_once_with(["o/a"], report.TEMPLATE_REPOSITORY, False)
+
+
 class TestUpstream(unittest.TestCase):
     ISSUE = {"number": 7, "title": "[Squad] Tester model (from o/r#3)", "body": "Proposal.", "user": {"login": "me"},
              "html_url": "https://github.com/o/r/issues/7", "created_at": "2026-11-05T10:00:00Z"}

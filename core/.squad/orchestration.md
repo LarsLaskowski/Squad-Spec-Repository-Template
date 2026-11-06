@@ -23,7 +23,8 @@ An issue's author is **outside** when its `author_association` (`gh api repos/<o
 ## Template-managed files
 
 Many squad, instruction and documentation files come from the template repository and are refreshed with
-its `adopt-template` skill (`.squad/template.json` records the repository, its commit and the stack profile):
+its `adopt-template` skill (`.squad/template.json` records the repository, its release tag and commit, and the stack
+profile):
 
 - **Managed** — overwritten on every refresh: `CLAUDE.md`, `.squad/team.md`, `.squad/routing.md`,
   `.squad/orchestration.md`,

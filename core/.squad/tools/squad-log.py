@@ -86,6 +86,9 @@ mechanics out of the orchestrator's hands:
   continued from <step>)`, and the amend with the numbers (with or without the continuation options) completes it
   as that continuation.
 
+- the summary starts with the template version the run worked under, read from `.squad/template.json`:
+  `Template: <repository> <release tag> (commit <sha>)` (`untagged` when the template was applied from a commit
+  without a release tag), so `squad-report.py` can group the runs by it;
 - the wrap-up's lessons row is an Orchestrator row at step 12 whose result names the URL of every lesson issue,
   or is exactly `no lessons` (`.squad/orchestration.md`, *Squad lessons*); the summary fails without one and, while
   there is none or it says `no lessons`, lists on standard error the lesson candidates the log shows: Lead
@@ -151,6 +154,7 @@ import collections
 import contextlib
 import datetime
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -186,6 +190,7 @@ ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 SPECS_PREFIX = "specs/"
 FOLDER_NAME = re.compile(r"\w[\w.-]*")
 FIX_STEP = re.compile(r"^\s*11\b")
+TEMPLATE_VALUE = re.compile(r"[\w./-]{1,100}")
 # The step-12 lessons row (.squad/orchestration.md, *Squad lessons*): a lesson issue's URL, or exactly "no lessons".
 LESSONS_STEP = re.compile(r"^\s*12\b")
 ISSUE_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
@@ -1054,7 +1059,8 @@ def summary_command(root, folder, path, session=None):
     the pull request, 5 without a step-12 lessons row (`lessons_check`)."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
-    print(summary(path, orchestrator_usage(rows, session)))
+    version = template_line(root)
+    print((f"{version}\n\n" if version else "") + summary(path, orchestrator_usage(rows, session)))
     if missing_usage(rows):
         return 3
     note = unreviewed_fixes(root, folder, rows)
@@ -1062,6 +1068,23 @@ def summary_command(root, folder, path, session=None):
         print(note, file=sys.stderr)
         return 4
     return lessons_check(root, path, rows)
+
+
+def template_line(root):
+    """`Template: <repository> <tag> (commit <sha>)` from `.squad/template.json`, the template version the run worked
+    under (`untagged` for a template applied from a commit without a release tag), or None without the file."""
+    try:
+        with open(os.path.join(root, ".squad", "template.json"), encoding="utf-8-sig") as handle:
+            record = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict):
+        return None
+
+    def value(key, fallback):
+        found = record.get(key)
+        return found if isinstance(found, str) and TEMPLATE_VALUE.fullmatch(found) else fallback
+    return f"Template: {value('repository', 'unknown')} {value('tag', 'untagged')} (commit {value('commit', 'unknown')[:12]})"
 
 
 def lessons_rows(rows):
@@ -1119,20 +1142,35 @@ def mode_changes(rows):
 
 
 def member_agent(member):
-    """The agent of a member cell: `squad-devils-advocate` for `Devil's Advocate`."""
-    return "squad-" + re.sub(r"[^a-z]+", "-", member.lower().replace("'", "")).strip("-")
+    """The agent of a member cell: `squad-devils-advocate` for `Devil's Advocate` (and for `squad-devils-advocate`)."""
+    name = re.sub(r"^squad[- ]", "", member.strip().lower().replace("'", ""))
+    return "squad-" + re.sub(r"[^a-z]+", "-", name).strip("-")
+
+
+def allowed_launches(root, path, agent):
+    """The model/effort values a launch of `agent` may have run on in this run: its agent file's, or the default
+    override of *Launch model* in a run of its tier; both when the plan is gone (after step 10) and the tier unknown."""
+    base = agent_launch(root, agent)
+    override = LAUNCH_OVERRIDES.get(agent)
+    if base is None or override is None:
+        return [base] if base else []
+    replaced = f"{override[1]}/{base.split('/', 1)[1]}"
+    tier = plan_tier(path)
+    if tier is None:
+        return [base, replaced]
+    return [replaced] if tier == override[0] else [base]
 
 
 def model_mismatches(root, path, rows):
     """A candidate for every launch whose trailer names another model family or effort than its agent file or the
-    default override of *Launch model*."""
+    default override of *Launch model* allows."""
     found = []
     for _, step, member, result in rows:
         match = TRAILER.search(result)
         agent = member_agent(member) if match else None
-        expected = expected_launch(root, path, agent)[0] if agent else None
-        if expected and model_warning(agent, match.group("launch"), expected, False):
-            found.append(f"`{step} · {member}`: ran on {match.group('launch')}, not {expected}")
+        allowed = allowed_launches(root, path, agent) if agent else []
+        if allowed and all(model_warning(agent, match.group("launch"), launch, False) for launch in allowed):
+            found.append(f"`{step} · {member}`: ran on {match.group('launch')}, not {' or '.join(allowed)}")
     return found
 
 

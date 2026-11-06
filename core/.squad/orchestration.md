@@ -20,10 +20,31 @@ An issue's author is **outside** when its `author_association` (`gh api repos/<o
 - **Bug fix:** no extra step; a missing reproduction is asked for on the issue like any missing sample
   (*Escalation to the Product Manager*).
 
+## Spec approval
+
+`SPEC_APPROVAL` in `.squad/tools/squad_settings.py` says who approves a feature's spec before it is planned:
+`"lead"` (the default, also when the setting is missing) leaves it to the Lead in `squad-spec` step 2b, `"pm"` has
+the Product Manager approve it first. An installer or deployment feature (*Operator environments and documented
+procedures*) gets the Product Manager's approval with either value.
+
+The approval runs like the agreement of *Outside authors*, without a public comment. After the spec challenge (and
+the Lead's revision after a major objection) the orchestrator shows the Product Manager a summary — one line per
+scenario, edge case, non-functional requirement, acceptance criterion and out-of-scope item, with its id, and the
+open *Challenge notes* — with a
+link to `spec.md` on the pushed work branch, and waits. The answer is logged as a Product Manager row (`spec
+approved`, or `spec corrected` with the corrections) and passed on to the Lead's step 2b. Corrections go first to the
+Lead in mode `revise` on the spec (continued, or fresh after a session restart), then `plan-check.py --spec` runs
+again; there is no new challenge round, and the corrected spec counts as approved. An answer that cannot come in this
+session makes the run wait as for an outside author: log `spec waits for approval`, push the work branch and stop;
+`squad-spec` on the same issue or branch resumes it. With an outside author as well, the draft comment of *Outside
+authors* goes with the summary: an approval without corrections confirms both, and after a correction the comment is
+drafted again from the revised spec.
+
 ## Template-managed files
 
 Many squad, instruction and documentation files come from the template repository and are refreshed with
-its `adopt-template` skill (`.squad/template.json` records the repository, its commit and the stack profile):
+its `adopt-template` skill (`.squad/template.json` records the repository, its release tag and commit, and the stack
+profile):
 
 - **Managed** — overwritten on every refresh: `CLAUDE.md`, `.squad/team.md`, `.squad/routing.md`,
   `.squad/orchestration.md`,
@@ -43,28 +64,38 @@ its `adopt-template` skill (`.squad/template.json` records the repository, its c
 
 ## Squad lessons
 
-Every lesson from step 12 is filed once, where it can actually be fixed:
+Every lesson from step 12 is filed once, as an issue in **this** repository (no other repository's access is needed),
+labelled by where it can actually be fixed:
 
-| The lesson concerns | Filed as | Fixed by |
-| ------------------- | -------- | -------- |
-| a **managed** file, or the template part of a **marked** file | an issue labelled `squad` in the template repository (`repository` in `.squad/template.json`), titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | a template PR, then a refresh with `adopt-template` — never a local edit, which the next refresh overwrites |
-| **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, a `<!-- project:… -->` block, another seeded file | an issue labelled `squad` in this repository | a squad-maintenance PR here, checked with `.squad/tools/config-check.py` |
+| The lesson concerns | Label | Fixed by |
+| ------------------- | ----- | -------- |
+| a **managed** file, or the template part of a **marked** file | `squad-upstream`, titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | the template repository (`repository` in `.squad/template.json`), which moves these issues there in one batch, fixes them in a template PR and rolls the fix out with `adopt-template` — never worked here, and never a local edit, which the next refresh overwrites |
+| **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, a `<!-- project:… -->` block, another seeded file | `squad` | a squad-maintenance PR here, checked with `.squad/tools/config-check.py` |
 
 No lesson: a SonarQube rule the local analyzers do not report (the Code Officer notes it in `stack.md` in the
 same change), and a stop hook's demand for a commit (*The stop hook*).
 
-One run's lessons go into at most one issue per destination. A general lesson — one that would change the
-template — is filed in the template repository, which the session attaches first if needed (with the access
-to create the issue, e.g. `add_repo`); only if attaching is refused it is filed here with the label
-`squad-upstream`, the user is told to move it, and it is never worked here.
+One run's lessons go into at most one issue per label; the labels are created when missing. Before "no lessons",
+the orchestrator compares that answer with its log; each of these **candidates** is a lesson unless it says
+nothing about the squad's rules, agents or tools (a Lead `decide` that settled a product question):
+
+- a Lead launch in mode `decide`, or a loop limit reached;
+- a step the orchestrator improvised, because no rule covered it or two contradicted each other;
+- a member error: a report against the wrong head, a claim the member did not verify, a tool it may not call;
+- a tool refusal: a script, hook or permission check that refused a step of the pipeline;
+- a model or continuation warning from `squad-log.py`.
+
+Step 12 then logs one Orchestrator row whose result names the URL of every lesson issue, or is exactly `no
+lessons`; `squad-log.py --summary` exits 5 without it and lists the candidates the log shows.
 
 ## Launch model
 
 Every member is launched with the model and effort of its agent file, except: every `squad-tester` launch of a run
 whose `plan.md` names tier `security` gets `model: opus` (effort unchanged); a continued agent keeps the model it
-was launched with, so the first Tester launch of such a run already passes `model: opus` explicitly. Log such a
-launch with `--launch opus/<effort>` instead of `--agent squad-tester`, on the pending row and on its amend;
-`squad-log.py` refuses `--agent` alone there, so the summary shows the model the launch really ran on.
+was launched with, so the first Tester launch of such a run already passes `model: opus` explicitly.
+`squad-log.py --agent-id` logs the model and effort a launch really ran on and warns when they differ from the
+agent file or this override. Outside Claude Code, log such a launch with
+`--launch opus/<effort>` instead of `--agent squad-tester` (the script refuses `--agent` alone there).
 
 ## Continuing a member
 
@@ -178,9 +209,10 @@ paragraph, the other lines of that paragraph may be rewrapped: whitespace only, 
 which then shows the proposed change and nothing else, and the log row says `rewrapped`. No launch, no
 build, no confirming delta round: a blocking finding resolved this way makes its round clean, and the text is read
 again only by a delta round due for another change. An edit beyond the proposed text, or a fix the reviewer cannot
-state verbatim, is an ordinary fix for its owner with a delta round. One exception: a fix that changes a behavior
-statement an acceptance criterion or a guarantee in `.squad/project.md` relies on is not applied; the reviewer says
-so, and the Lead decides (mode `decide`).
+state verbatim, is an ordinary fix for its owner with a delta round. A decision record's wording is fixed this way
+too, without a Lead launch. One exception: a fix that changes a behavior statement an acceptance criterion or a
+guarantee in `.squad/project.md` relies on, or a record's decision (the option it takes or why), is not applied;
+the reviewer says so, and the Lead decides (mode `decide`).
 
 ## A denied measurement
 

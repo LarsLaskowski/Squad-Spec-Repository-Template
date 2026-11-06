@@ -102,7 +102,7 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
 - `create-pr` — verify (format, build, tests, analyzer and coverage gates), review the change locally,
   then open a PR following [`.github/pull_request_template.md`](/.github/pull_request_template.md).
 - `squad-issue` — fix a bug reported in a GitHub issue with the squad: the Lead plans and picks a tier
-  (`docs` / `patch` / `trivial` / `standard` / `security`), the Devil's Advocate challenges a plan once when
+  (`docs` / `patch` / `tests` / `trivial` / `standard` / `security`), the Devil's Advocate challenges a plan once when
   `.squad/routing.md` calls for it, Security reviews the plan whenever a security area is touched and the
   diff of a change to a security control, the Tester writes failing tests first, the Dev implements until the
   *Coverage gate* passes, the Code Officer clears analyzer diagnostics, the Reviewer reviews the diff, and
@@ -124,9 +124,10 @@ and the round semantics. The squad's members (`.squad/team.md`) run as subagents
 commits, pushes and posts. The pipeline, its limits and escalations are in [`.squad/routing.md`](/.squad/routing.md),
 the project's guarantees, security areas and integration surface in [`.squad/project.md`](/.squad/project.md).
 Working records stay under `specs/` on the work branch. A product PR never changes the squad or these
-instructions (`.squad/stack.md`, `.squad/project.md`, `.squad/tools/squad_settings.py` and the project blocks of this file excepted); squad lessons become `squad` issues where they can be fixed (`.squad/orchestration.md`, *Squad
-lessons*). The user acts as Product Manager and is asked only when the Lead escalates or in the other cases
-`.squad/routing.md` lists (*Escalation to the Product Manager*).
+instructions (`.squad/stack.md`, `.squad/project.md`, `.squad/tools/squad_settings.py` and the project blocks of this file excepted); squad lessons become `squad` or `squad-upstream` issues in this repository (`.squad/orchestration.md`, *Squad
+lessons*). The user acts as Product Manager and is asked only when the Lead escalates, when a feature's spec
+needs the Product Manager's approval (`SPEC_APPROVAL` in `.squad/tools/squad_settings.py`; `.squad/orchestration.md`,
+*Spec approval*), or in the other cases `.squad/routing.md` lists (*Escalation to the Product Manager*).
 
 The reasoning behind code decisions — why something was built the way it was — is recorded by the Lead
 as one decision record per decision in [`docs/decisions/`](/docs/decisions/README.md) (unreleased records are

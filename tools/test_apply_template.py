@@ -27,6 +27,19 @@ def write(path, text, newline="\n"):
         handle.write(text)
 
 
+class TestMergedSettings(unittest.TestCase):
+    def test_merged_settings_keep_the_primary_profiles_squad_settings(self):
+        profiles = os.path.join(os.path.dirname(SCRIPT), "..", "profiles")
+        script = load_script()
+        merged = script.merge_settings([os.path.join(profiles, "go"), os.path.join(profiles, "dotnet")])
+        with tempfile.TemporaryDirectory() as folder:
+            write(os.path.join(folder, "squad_settings.py"), merged)
+            settings = script.load_settings(os.path.join(folder, "squad_settings.py"))
+        self.assertEqual(settings.PLAN_MAX_WORDS, {"tests": 800, "trivial": 800, "standard": 2500, "security": 4000})
+        self.assertEqual((settings.SPEC_BASE_WORDS, settings.SPEC_WORDS_PER_CRITERION, settings.SPEC_MAX_WORDS,
+                          settings.SMALL_FEATURE_CRITERIA, settings.SPEC_APPROVAL), (300, 200, 2500, 3, "lead"))
+
+
 class TestLineEndings(unittest.TestCase):
     def setUp(self):
         self.script = load_script()
@@ -304,7 +317,7 @@ class TestProcessRecords(unittest.TestCase):
         self.assertEqual(self.script.process_records(self.target), [])
 
 
-class TestMergedSettings(unittest.TestCase):
+class TestMergedWarningSettings(unittest.TestCase):
     """squad_settings.py of a repository with several profiles carries the size limits and the stale-figure settings
     like a single profile's seed."""
 
@@ -316,12 +329,30 @@ class TestMergedSettings(unittest.TestCase):
             path = os.path.join(folder, "squad_settings.py")
             write(path, script.merge_settings([os.path.join(root, "profiles", name) for name in ("go", "dotnet")]))
             merged = script.load_settings(path)
-        for name, (default, _) in script.SIZE_SETTINGS.items():
+        for name, (default, _) in script.WARNING_SETTINGS.items():
             with self.subTest(name=name):
                 self.assertEqual(getattr(merged, name), getattr(seed, name))
                 self.assertEqual(getattr(merged, name), default)
         self.assertEqual(merged.FIGURE_TRIVIAL, seed.FIGURE_TRIVIAL)
         self.assertEqual(merged.FIGURE_EXCLUDES, ["go.sum", "*.svg", "packages.lock.json"], "every profile's, once")
+
+
+class TestReleaseTag(unittest.TestCase):
+    def test_the_release_tag_of_head_is_read_from_the_local_tags(self):
+        script = load_script()
+        with tempfile.TemporaryDirectory() as root:
+            def git(*args):
+                subprocess.run(["git", "-C", root, "-c", "user.name=t", "-c", "user.email=t@t", "-c",
+                                "commit.gpgsign=false", "-c", "tag.gpgsign=false", *args], check=True, capture_output=True)
+            git("init", "-q")
+            git("commit", "-q", "--allow-empty", "-m", "one")
+            self.assertIsNone(script.release_tag(root))
+            git("tag", "v2026.11.9")
+            git("tag", "-a", "v2026.11.10", "-m", "release")
+            git("tag", "not-a-release")
+            self.assertEqual(script.release_tag(root), "v2026.11.10")
+            git("commit", "-q", "--allow-empty", "-m", "two")
+            self.assertIsNone(script.release_tag(root), "a commit after the tag is no release")
 
 
 if __name__ == "__main__":

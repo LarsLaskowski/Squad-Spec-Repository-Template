@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,10 @@ def load_script(name):
 
 def git(*args):
     subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True, capture_output=True)
+
+
+# The wrap-up's lessons row, without which `--summary` exits 5.
+LESSONS = "| 2026-01-02 | 12 Wrap-up | Orchestrator | no lessons |\n"
 
 
 def write(path, text, newline="\n"):
@@ -221,7 +226,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-reviewer.md"), "---\nmodel: opus\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n| 2026-01-02 13:00 | 8 Review | Reviewer | 1 finding "
+        write(log, "| Date |\n" + LESSONS + "| 2026-01-02 13:00 | 8 Review | Reviewer | 1 finding "
                    "(opus/medium · 100,000 tokens · 30 tool uses · 200 s) |\n")
         script = os.path.join(TOOLS, "squad-log.py")
 
@@ -287,7 +292,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-tester.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n| 2026-01-02 13:00 | 5 Tests first G1 | Tester | red (sonnet/medium · 50,000 tokens "
+        write(log, "| Date |\n" + LESSONS + "| 2026-01-02 13:00 | 5 Tests first G1 | Tester | red (sonnet/medium · 50,000 tokens "
                    "· 10 tool uses · 100 s) |\n")
         script = os.path.join(TOOLS, "squad-log.py")
 
@@ -312,8 +317,8 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(run("5 Tests first G8", "Tester", "red", *usage(30000)).returncode, 0)
         self.assertNotIn("WARNING", run("5 Tests first G9", "Tester", "red", "--continued", *usage(31000)).stdout)
         # The token figure alone reaches the cap as well.
-        write(log, "| Date |\n| 2026-01-02 13:00 | 6 Implement G1 | Tester | green (sonnet/medium · 310,000 tokens "
-                   "· 10 tool uses · 100 s) |\n")
+        write(log, "| Date |\n" + LESSONS + "| 2026-01-02 13:00 | 6 Implement G1 | Tester | green "
+                   "(sonnet/medium · 310,000 tokens · 10 tool uses · 100 s) |\n")
         self.assertIn("at 310,000 tokens", run("6 Implement G2", "Tester", "green", "--continued",
                                                 *usage(320000)).stdout)
 
@@ -391,7 +396,7 @@ class TestSquadLog(unittest.TestCase):
         self.assertIsNone(self.script.canonical_member(None))
         root = os.path.join(self.dir.name, "repo")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n")
+        write(log, "| Date |\n" + LESSONS)
         result = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "7 Gates",
                                  "squad-orchestrator", "ran"], cwd=root, capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -431,7 +436,7 @@ class TestSquadLog(unittest.TestCase):
     def test_summary_lists_launch_rows_without_usage(self):
         root = os.path.join(self.dir.name, "repo")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n"
+        write(log, "| Date |\n" + LESSONS + ""
                    "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
                    "| 2026-01-02 13:10 | 2 Plan | squad-lead | done (opus/medium · 50,000 tokens · 9 tool uses · 500 s) |\n"
                    "| 2026-01-02 13:12 | 2 Challenge | squad-devils-advocate, squad-security | both fine |\n"
@@ -462,7 +467,7 @@ class TestSquadLog(unittest.TestCase):
         commit("remove the work folder", "2026-01-02T14:00:00Z", "specs", remove=True)
         write(os.path.join(root, "a.py"), "a = 2\n")
         commit("fix a Sonar finding", "2026-01-02T15:00:00Z", "a.py")
-        log = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
+        log = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n" + LESSONS +
                "| 2026-01-02 14:50 | 11 Sonar | squad-code-officer | fixed (haiku/low · 9,000 tokens · 3 tool uses · 20 s) |\n")
 
         def summary(text):
@@ -486,6 +491,66 @@ class TestSquadLog(unittest.TestCase):
             subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
                            cwd=root, env=env, check=True, capture_output=True)
         self.assertEqual(summary(reviewed).returncode, 0, "a merge of the base branch is no fix to review")
+
+    def test_summary_needs_a_lessons_row_and_lists_the_candidates(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-tester.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
+        log = ("| Date |\n"
+               "| 2026-01-02 13:00 | 2 Plan | Lead | plan (opus/medium · 9,000 tokens · 3 tool uses · 20 s) |\n"
+               "| 2026-01-02 13:10 | 5 Tests first | Tester | red (opus/medium · 9,000 tokens · 3 tool uses · 20 s) |\n"
+               "| 2026-01-02 13:20 | 6 Coverage | Tester | ok (sonnet/medium · 2,000 tokens · 1 tool uses · 5 s · "
+               "continued) |\n"
+               "| 2026-01-02 13:30 | 8 Decide | Lead | accept the gap (opus/medium · 5,000 tokens · 1 tool uses · 9 s) |\n"
+               "| 2026-01-02 13:40 | 8 Review | Orchestrator | loop limit reached after round 2 |\n")
+        write(os.path.join(root, "specs", "issue-1", "log.md"), log)
+        write(os.path.join(root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: standard\n")
+
+        def summary(*rows):
+            write(os.path.join(root, "specs", "issue-1", "log.md"), log + "".join(rows))
+            return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary"],
+                                  cwd=root, capture_output=True, text=True, check=False)
+        missing = summary()
+        self.assertEqual(missing.returncode, 5, missing.stderr)
+        self.assertIn("No lessons row", missing.stderr)
+        for candidate in ("`8 Decide · Lead`: a Lead decide launch", "`8 Review · Orchestrator`: a loop limit",
+                          "`6 Coverage · Tester`: continued into another mode",
+                          "`5 Tests first · Tester`: ran on opus/medium, not sonnet/medium"):
+            self.assertIn(candidate, missing.stderr)
+        self.assertNotIn("candidates", missing.stdout, "the posted tables stay clean")
+        after_step_10 = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary",
+                                        "--stdin"], cwd=root, input=log, capture_output=True, text=True, check=False)
+        self.assertIn("`5 Tests first · Tester`: ran on opus/medium", missing.stderr)
+        self.assertNotIn("5 Tests first", after_step_10.stderr, "without the plan the tier is unknown: opus may be due")
+        self.assertEqual(self.script.member_agent("squad-devils-advocate"), "squad-devils-advocate")
+        self.assertEqual(self.script.member_agent("Devil's Advocate"), "squad-devils-advocate")
+        none = summary("| 2026-01-02 14:00 | 12 Wrap-up | Orchestrator | no lessons |\n")
+        self.assertEqual(none.returncode, 0)
+        self.assertIn("Lesson candidates in this log", none.stderr)
+        url = "| 2026-01-02 14:00 | 12 Lessons | Orchestrator | https://github.com/o/r/issues/7 |\n"
+        filed = summary(url)
+        self.assertEqual((filed.returncode, filed.stderr), (0, ""))
+        for wrong in ("| 2026-01-02 14:00 | 12 Wrap-up | Orchestrator | no lessons this time |\n",
+                      "| 2026-01-02 14:00 | 11 CI | Orchestrator | https://github.com/o/r/issues/7 |\n",
+                      "| 2026-01-02 14:00 | 12 Wrap-up | Product Manager | no lessons |\n"):
+            self.assertEqual(summary(wrong).returncode, 5, wrong)
+
+    def test_summary_starts_with_the_template_version(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, "specs", "issue-1", "log.md"), "| Date |\n" + LESSONS)
+        record = os.path.join(root, ".squad", "template.json")
+
+        def first_line():
+            done = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "--summary"],
+                                  cwd=root, capture_output=True, text=True, check=False)
+            return done.stdout.splitlines()[0]
+        self.assertTrue(first_line().startswith("| Member |"), "no template.json, no line")
+        write(record, json.dumps({"repository": "o/t", "tag": "v2026.11.1", "commit": "0123456789abcdef0123"}))
+        self.assertEqual(first_line(), "Template: o/t v2026.11.1 (commit 0123456789ab)")
+        write(record, json.dumps({"repository": "o/t", "tag": None, "commit": "0123456789abcdef0123"}))
+        self.assertEqual(first_line(), "Template: o/t untagged (commit 0123456789ab)")
+        write(record, json.dumps({"repository": "o/t | x", "tag": "v1\n## y"}))
+        self.assertEqual(first_line(), "Template: unknown untagged (commit unknown)", "odd values are not printed")
 
     def test_orchestrator_counts_parallel_launches_once(self):
         write(self.path, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
@@ -533,7 +598,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-devils-advocate.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n"
+        write(log, "| Date |\n" + LESSONS + ""
                    "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n"
                    "| 2026-01-02 13:10 | 2 Plan | Lead | done (opus/medium · 50,000 tokens · 9 tool uses · 500 s) |\n")
         script = os.path.join(TOOLS, "squad-log.py")
@@ -576,7 +641,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date |\n| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n")
+        write(log, "| Date |\n" + LESSONS + "| 2026-01-02 13:00 | 1 Intake | Orchestrator | branch |\n")
         script = os.path.join(TOOLS, "squad-log.py")
 
         def run(*args):
@@ -603,7 +668,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n" + LESSONS)
         script = os.path.join(TOOLS, "squad-log.py")
 
         def run(*args):
@@ -654,7 +719,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n" + LESSONS)
         script = os.path.join(TOOLS, "squad-log.py")
 
         def run(*args):
@@ -696,7 +761,7 @@ class TestSquadLog(unittest.TestCase):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
         log = os.path.join(root, "specs", "issue-1", "log.md")
-        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        write(log, "| Date | Step | Member | Result |\n| - | - | - | - |\n" + LESSONS)
         script = os.path.join(TOOLS, "squad-log.py")
 
         def run(*args):
@@ -743,6 +808,162 @@ class TestSquadLog(unittest.TestCase):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")
         self.assertEqual(row, "| 2026-01-02 | 2 Plan | Lead | a\\|b<br>second U+202E line end |")
+
+
+SESSION_ID = "0d1e2f30-aaaa-4bbb-8ccc-123456789abc"
+
+
+def usage(inputs, output, read, written, one_hour=0):
+    return {"input_tokens": inputs, "output_tokens": output, "cache_read_input_tokens": read,
+            "cache_creation_input_tokens": written,
+            "cache_creation": {"ephemeral_5m_input_tokens": written - one_hour, "ephemeral_1h_input_tokens": one_hour}}
+
+
+def answer(message_id, stamp, tokens, model="claude-opus-5-5", effort="medium", tools=()):
+    content = [{"type": "tool_use", "id": tool, "name": "Read", "input": {}} for tool in tools] or [{"type": "text"}]
+    return {"type": "assistant", "timestamp": stamp, "effort": effort,
+            "message": {"id": message_id, "model": model, "usage": tokens, "content": content}}
+
+
+def prompt(stamp, text="do it"):
+    return {"type": "user", "timestamp": stamp, "message": {"role": "user", "content": text}}
+
+
+def tool_result(stamp, tool):
+    return {"type": "user", "timestamp": stamp, "message": {"content": [{"type": "tool_result", "tool_use_id": tool}]}}
+
+
+def write_jsonl(path, items):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.writelines(json.dumps(item) + "\n" for item in items)
+
+
+class TestSquadLogTranscripts(unittest.TestCase):
+    """`--agent-id` reads a launch from the agent's transcript; the summary weighs the tokens per kind."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.root = os.path.join(self.dir.name, "repo")
+        self.log = os.path.join(self.root, "specs", "issue-1", "log.md")
+        write(self.log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        for role, model in (("lead", "opus"), ("reviewer", "opus"), ("tester", "sonnet")):
+            write(os.path.join(self.root, ".claude", "agents", f"squad-{role}.md"),
+                  f"---\nmodel: {model}\neffort: medium\n---\n")
+        self.session = os.path.join(self.dir.name, "config", "projects", "-repo", SESSION_ID)
+        write_jsonl(self.session + ".jsonl", [
+            answer("o0", "2026-01-02T09:00:00Z", usage(1, 100, 900_000, 0), effort="xhigh"),  # before the run
+            answer("o1", "2026-01-02T10:01:00Z", usage(2, 1_000, 100_000, 20_000, one_hour=20_000), effort="xhigh"),
+            answer("o1", "2026-01-02T10:01:01Z", usage(2, 1_000, 100_000, 20_000, one_hour=20_000), effort="xhigh"),
+        ])
+        self.agent("a1", "squad-lead", [
+            prompt("2026-01-02T10:02:00Z"), prompt("2026-01-02T10:02:00Z", "a reminder"),
+            answer("m1", "2026-01-02T10:02:10Z", usage(3, 400, 30_000, 10_000), tools=["t1", "t2"]),
+            answer("m1", "2026-01-02T10:02:10Z", usage(3, 400, 30_000, 10_000), tools=["t1", "t2"]),
+            tool_result("2026-01-02T10:02:20Z", "t1"),
+            answer("m2", "2026-01-02T10:03:40Z", usage(5, 600, 40_000, 2_000)),
+        ])
+        self.agent("a2", "squad-reviewer", [
+            prompt("2026-01-02T10:10:00Z"), answer("r1", "2026-01-02T10:11:00Z", usage(1, 300, 50_000, 20_000)),
+            prompt("2026-01-02T10:20:00Z", "delta round"),
+            answer("r2", "2026-01-02T10:20:30Z", usage(1, 200, 60_000, 3_000), tools=["t9"]),
+        ])
+        self.agent("a3", "squad-tester", [
+            prompt("2026-01-02T10:30:00Z"),
+            answer("s1", "2026-01-02T10:31:00Z", usage(2, 500, 70_000, 9_000), model="claude-sonnet-5-5"),
+        ])
+
+    def agent(self, name, kind, items):
+        folder = os.path.join(self.session, "subagents")
+        write_jsonl(os.path.join(folder, f"agent-{name}.jsonl"), items)
+        with open(os.path.join(folder, f"agent-{name}.meta.json"), "w", encoding="utf-8") as handle:
+            json.dump({"agentType": kind}, handle)
+
+    def run_log(self, *args):
+        env = dict(os.environ, CLAUDE_CONFIG_DIR=os.path.join(self.dir.name, "config"),
+                   CLAUDE_CODE_SESSION_ID=SESSION_ID)
+        return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", *args], cwd=self.root,
+                              capture_output=True, text=True, check=False, env=env)
+
+    def text(self):
+        with open(self.log, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_rounds_of_a_transcript(self):
+        reader = load_script("session-usage")
+        rounds = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a1.jsonl"))
+        self.assertEqual(len(rounds), 1, "a message before the first answer belongs to the first round")
+        first = rounds[0]
+        self.assertEqual((first["tool_uses"], first["context"], first["effort"]), (2, 42_605, "medium"))
+        self.assertEqual(dict(first["usage"]), {"input_tokens": 8, "output_tokens": 1_000,
+                                                "cache_read_input_tokens": 70_000,
+                                                "cache_creation_input_tokens": 12_000})
+        self.assertEqual((first["end"] - first["start"]).total_seconds(), 100)
+        two = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a2.jsonl"))
+        self.assertEqual([(r["tool_uses"], r["context"]) for r in two], [(0, 70_301), (1, 63_201)])
+
+    def test_weighted_counts_every_kind_at_its_price(self):
+        reader = load_script("session-usage")
+        counter = reader.collections.Counter(input_tokens=1_000_000, output_tokens=1_000_000,
+                                             cache_read_input_tokens=1_000_000, cache_creation_input_tokens=2_000_000,
+                                             cache_write_1h=1_000_000)
+        # Opus: 4 + 20 + 0.2 + 5 + 8 dollars, in tokens of Sonnet input at 2 dollars per million.
+        self.assertEqual(reader.weighted(counter, "claude-opus-5-5"), 18_600_000)
+        self.assertEqual(reader.weighted(counter, "sonnet"), 9_350_000)
+        self.assertIsNone(reader.weighted(counter, "<synthetic>"))
+        self.assertEqual((reader.family("claude-haiku-5-5"), reader.family("inherit")), ("haiku", None))
+
+    def test_agent_id_logs_the_round_from_the_transcript(self):
+        done = self.run_log("2 Plan", "Lead", "plan written", "--agent-id", "a1")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("WARNING", done.stdout)
+        self.assertIn("plan written (opus/medium · 42,605 tokens · 2 tool uses · 100 s · 8 in · 1,000 out · "
+                      "70,000 cache read · 12,000 cache write · 47,016 weighted) |", self.text())
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--agent", "squad-reviewer")
+                         .returncode, 2, "the transcript names another agent")
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--tokens", "5000").returncode, 2)
+        missing = self.run_log("2 Plan", "Lead", "x", "--agent-id", "../a1")
+        self.assertEqual(missing.returncode, 1)
+        self.assertIn("task notification", missing.stderr)
+
+    def test_a_continued_agent_logs_its_latest_round(self):
+        self.assertEqual(self.run_log("8 Review", "Reviewer", "2 findings", "--agent-id", "a2").returncode, 2,
+                         "two rounds without --continued")
+        self.assertEqual(self.run_log("8 Review", "Reviewer", "2 findings", "--agent", "squad-reviewer", "--tokens",
+                                      "70301", "--tool-uses", "0", "--seconds", "60").returncode, 0)
+        done = self.run_log("8 Review delta", "Reviewer", "APPROVE", "--agent-id", "a2", "--continued")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("APPROVE (opus/medium · 63,201 tokens · 1 tool uses · 30 s · 1 in · 200 out · 60,000 cache read "
+                      "· 3,000 cache write · 15,502 weighted · continued) |", self.text(),
+                      "a context below the earlier total is the round's own")
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--continued").returncode, 2,
+                         "one round is a fresh launch")
+
+    def test_a_launch_on_another_model_is_logged_as_run_with_a_warning(self):
+        write(os.path.join(self.root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: `security`\n")
+        done = self.run_log("5 Tests first", "Tester", "tests", "--agent-id", "a3")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("WARNING: squad-tester ran on sonnet/medium, but .squad/orchestration.md, *Launch model*, names "
+                      "opus/medium", done.stdout)
+        self.assertIn("tests (sonnet/medium · 79,502 tokens", self.text())
+
+    def test_summary_weighs_the_kinds_and_adds_the_orchestrators_share(self):
+        self.assertEqual(self.run_log("1 Intake", "Orchestrator", "bug").returncode, 0)
+        with open(self.log, encoding="utf-8") as handle:
+            text = handle.read()
+        write(self.log, re.sub(r"\| \d{4}-\d\d-\d\d \d\d:\d\d \| 1 Intake", "| 2026-01-02 10:00 | 1 Intake", text))
+        self.run_log("2 Plan", "Lead", "plan", "--agent-id", "a1")
+        self.run_log("8 Review", "Reviewer", "ok", "--agent", "squad-reviewer", "--tokens", "70301", "--tool-uses", "0",
+                     "--seconds", "60")
+        out = self.run_log("--summary").stdout
+        self.assertIn("| Lead | opus/medium | 8 | 1,000 | 70,000 | 12,000 | 47,016 | 32% |", out)
+        # The orchestrator's own responses from 10:00 on: 2 in, 1,000 out, 100,000 read, 20,000 written for an hour.
+        self.assertIn("| Orchestrator | opus/xhigh | 2 | 1,000 | 100,000 | 20,000 | 100,004 | 68% |", out)
+        self.assertIn("| **Total** | | 10 | 2,000 | 170,000 | 32,000 | 147,020 | 100% |", out)
+        self.assertIn("1 launch(es) logged from task notifications carry no tokens per kind", out)
+        outside = self.run_log("--summary", "--session", "unknown-session").stdout
+        self.assertIn("The orchestrator's own share: not provided", outside)
 
 
 class TestScopeCheck(unittest.TestCase):
@@ -861,6 +1082,22 @@ class TestScopeCheck(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn("31 changed lines outside specs/", found[0])
         self.assertEqual(self.errors(tier="standard"), [], "the budget applies to tier patch only")
+
+    def test_tests_tier_allows_only_the_test_paths_and_the_test_document(self):
+        self.script.settings = types.SimpleNamespace(COVERAGE_EXCLUDES=["*_test.go"])
+        write("src/a_test.go", "package a\n")
+        write("docs/UNIT_TESTS.md", "# Unit tests\n")
+        write("specs/issue-1/plan.md", "# Plan\n")
+        self.assertEqual(self.errors(tier="tests"), [])
+        write("src/a.go", "package a\n\nvar X = 1\n")
+        found = self.errors(tier="tests")
+        self.assertEqual([e.split(":")[0] for e in found], ["src/a.go"], found)
+        self.assertIn("COVERAGE_TEST_PATHSPECS", found[0])
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["src/*_test.go", "testdata/*"])
+        write("testdata/sample.txt", "x\n")
+        self.assertEqual([e.split(":")[0] for e in self.errors(tier="tests")], ["src/a.go"])
+        self.script.settings = types.SimpleNamespace()
+        self.assertEqual(len(self.errors(tier="tests")), 3, "without test paths nothing is test code")
 
 
 class TestScopeCheckPullRequest(unittest.TestCase):

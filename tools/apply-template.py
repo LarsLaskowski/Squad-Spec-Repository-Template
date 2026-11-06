@@ -31,7 +31,9 @@ with more than one language, see "Several profiles" below:
 - the squad's process decisions are the managed `docs/decisions/process.md`; the numbered records an older template
   version added for them (and the records superseding or amending those) that are still in force are listed, for
   `adopt-template` step 8 to retire;
-- `.squad/template.json` records the template repository, its commit and the profile(s).
+- `.squad/template.json` records the template repository, its release tag (the `v*` tag the template's HEAD carries,
+  read from the local tags, or null with a note), its commit and the profile(s); a rollout applies a release, so the
+  template's checkout is its tag (`AGENTS.md`, *Releases*).
 
 Several profiles (`--profile go --profile dotnet`, the first one is the primary): the stack blocks of the
 instruction files get one labelled part per profile, `.squad/stack.md` one section per profile,
@@ -72,7 +74,7 @@ import shutil
 import subprocess
 import sys
 
-# Where squad lessons about template-managed files are filed; recorded in every target's .squad/template.json.
+# Where the targets' squad-upstream lessons are moved and fixed; recorded in every target's .squad/template.json.
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
@@ -227,6 +229,18 @@ def union_values(lists):
     return list(dict.fromkeys(value for values in lists for value in values))
 
 
+SIZE_SETTINGS = ("PLAN_MAX_WORDS", "SPEC_BASE_WORDS", "SPEC_WORDS_PER_CRITERION", "SPEC_MAX_WORDS",
+                 "SMALL_FEATURE_CRITERIA")
+SIZE_COMMENT = ("# Size of the squad's working records (.squad/tools/plan-check.py): words of plan.md per tier (a `Plan size:` "
+                "line",
+                "# under its header allows up to twice as many), and of spec.md SPEC_BASE_WORDS plus "
+                "SPEC_WORDS_PER_CRITERION per",
+                "# acceptance criterion, at most SPEC_MAX_WORDS. A feature of at most SMALL_FEATURE_CRITERIA criteria "
+                "and no security",
+                "# area may let its criteria be its scenarios. Each is a ceiling for the largest change of its kind, "
+                "not a target.")
+
+
 def merge_settings(profile_dirs):
     """squad_settings.py of a repository with several profiles: the union of the paths and one coverage report
     per profile; the primary profile's other settings (e.g. SOLUTION) come first."""
@@ -238,7 +252,12 @@ def merge_settings(profile_dirs):
              "# Base branch the gates diff against (merge base with HEAD); fetch it before running the gates.",
              f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", "",
              "# Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.",
-             f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", ""]
+             f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", "",
+             "# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "
+             '"lead" or "pm".',
+             f"SPEC_APPROVAL = {getattr(modules[0], 'SPEC_APPROVAL', 'lead')!r}", ""]
+    lines += list(SIZE_COMMENT) + [f"{key} = {getattr(modules[0], key)!r}" for key in SIZE_SETTINGS
+                                   if hasattr(modules[0], key)] + [""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]
@@ -255,13 +274,13 @@ def merge_settings(profile_dirs):
               f"COVERAGE_PATHSPECS = {union_values([getattr(m, 'COVERAGE_PATHSPECS', ()) for m in modules])!r}",
               f"COVERAGE_EXCLUDES = {union_values([getattr(m, 'COVERAGE_EXCLUDES', ()) for m in modules])!r}",
               f"COVERAGE_TEST_PATHSPECS = {tests!r}  # a diff touching these is gated on overall coverage too", ""]
-    lines += size_settings(modules[0])
+    lines += warning_settings(modules[0])
     lines += figure_settings(modules)
     return "\n".join(lines)
 
 
 # The size warnings of config-check.py and decision-check.py: {setting: (default, comment)}, as in the profile seeds.
-SIZE_SETTINGS = {
+WARNING_SETTINGS = {
     "PROJECT_MAX_WORDS": (1500, ".squad/project.md, read by five members on every launch"),
     "AREA_MAX_WORDS": (5000, "each area document in docs/areas/"),
     "RECORD_MAX_WORDS": (1500, "each unreleased decision record"),
@@ -279,11 +298,12 @@ def figure_settings(modules):
             "files, generated files).", f"FIGURE_TRIVIAL = {list(trivial)!r}", f"FIGURE_EXCLUDES = {excludes!r}", ""]
 
 
-def size_settings(module):
+def warning_settings(module):
     """The size-warning lines of a merged squad_settings.py, with the primary profile's values."""
     lines = ["# Size warnings (config-check.py, decision-check.py): a file past its limit is reported with the split "
              "it needs."]
-    lines += [f"{name} = {getattr(module, name, default)!r}  # {comment}" for name, (default, comment) in SIZE_SETTINGS.items()]
+    lines += [f"{name} = {getattr(module, name, default)!r}  # {comment}"
+              for name, (default, comment) in WARNING_SETTINGS.items()]
     return [*lines, ""]
 
 
@@ -648,6 +668,19 @@ def managed_files(profile_dirs, names):
     return core, managed
 
 
+RELEASE_TAG = re.compile(r"v\d{4}\.\d{2}\.\d+")
+
+
+def release_tag(root):
+    """The release tag (`vYYYY.MM.N`) the checkout's HEAD carries, or None; only local tags are read, so the
+    rollout's checkout of the tag decides, never a network call."""
+    tags = subprocess.run(["git", "-C", root, "tag", "--points-at", "HEAD", "--list", "v*"], capture_output=True,
+                          text=True, check=False).stdout.split()
+    found = sorted((tag for tag in tags if RELEASE_TAG.fullmatch(tag)),
+                   key=lambda tag: tuple(int(part) for part in tag[1:].split(".")))
+    return found[-1] if found else None
+
+
 def target_root(path):
     """The target's real path, which must be the root of a git repository; every path the tool touches stays below it."""
     root = os.path.realpath(path)
@@ -842,7 +875,8 @@ def main():
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()
-    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": names[0],
+    tag = release_tag(ROOT)
+    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "tag": tag, "commit": commit, "profile": names[0],
                          "profiles": names}, indent=2) + "\n"
     emit(TEMPLATE_JSON, record)
 
@@ -850,6 +884,10 @@ def main():
     unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))
                      if f"{d}/{rel}" not in known)
     print_report(report, unknown, references, args.dry_run, process)
+    if tag is None:
+        print("\nNo release tag: the template's HEAD carries no 'v*' tag (or the tags are not fetched), so "
+              f"{TEMPLATE_JSON} records \"tag\": null. A rollout applies a release: 'git fetch origin --tags', check "
+              "out the release tag and apply again (AGENTS.md, Releases).")
     return 0
 
 

@@ -6,8 +6,13 @@ For every pull request merged in the window it reports:
 
 - **kind** — `squad` (its issue or the PR carries a "Squad working record" comment), `refresh` (a template
   refresh: "Update the squad from …"), `dependabot`, or `manual`;
+- the **template version** a squad run worked under: the release tag of the "Template: …" line `squad-log.py
+  --summary` prints first (`untagged` for older records and runs on a template commit without a tag);
 - **tier**, **launches** and **tokens** of a squad run, read from its working record and the total row of its "Squad
-  run metrics" (`squad-log.py --summary`: `| **Total** | | <launches> | <tokens> | …`) above a "Session usage" heading;
+  run metrics" (`squad-log.py --summary`: `| **Total** | | <launches> | <tokens> | …`) above a "Session usage" heading,
+  and the run's **weighted** figure (every token at its list price, the orchestrator's share included) from the total
+  row of the table of tokens per kind below it (`| **Total** | | … | <weighted> | 100% |`), for runs whose launches
+  were logged from their transcripts (`squad-log.py --agent-id`);
 - the **session tokens** per kind (input, output, cache read, cache write), read from the per-model total row under
   that heading (`session-usage.py`), in columns of their own: they count the whole session, the orchestrator and the
   cache reads included, and are never taken for the run metrics;
@@ -20,15 +25,26 @@ For every pull request merged in the window it reports:
   from opening to merge.
 
 The totals per repository and week show what the squad's rules changed: the share of squad pull requests that
-needed no fix commit, that SonarQube found nothing on, the CI failures per pull request, and the median tokens per
-tier. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a reading task.
+needed no fix commit, that SonarQube found nothing on, the CI failures per pull request, and the median tokens and
+weighted figure per tier; the same totals per template version show a rule change against the runs before and after
+its release. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a reading task.
 
-Usage (needs `gh` with read access to the repositories):
+Without `--repo`, the report and `--upstream` cover every active consumer of `consumers.json` (with its SonarQube Cloud
+project key); legacy entries are left out.
+
+With `--upstream` it instead lists the open issues labelled `squad-upstream` of the repositories: the squad lessons
+a run filed in its own repository because they concern a template-managed file (`core/.squad/orchestration.md`, *Squad
+lessons*). `--move` moves them here in one batch: each becomes an issue labelled `squad` in the template repository
+with its title, its body and a link back, and the original gets a comment linking the new issue and is closed.
+
+Usage (needs `gh` with read access to the repositories; `--move` also needs write access to their issues):
     python3 tools/squad-report.py --repo LarsLaskowski/Vandox=networlddev_vandox --repo LarsLaskowski/Seluna \\
         --since 2026-10-11 [--until 2026-10-18] [--out report.md]
+    python3 tools/squad-report.py --since 2026-10-11          # every active consumer of consumers.json
+    python3 tools/squad-report.py --upstream [--repo LarsLaskowski/Vandox …] [--move]
 
 `owner/name=sonar-key` adds the SonarQube Cloud project key of that repository. Exit code 0, or 1 when GitHub
-cannot be read.
+cannot be read or written.
 """
 import argparse
 import datetime
@@ -42,12 +58,24 @@ import urllib.parse
 import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
-TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
+TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
+REPOSITORY = re.compile(r"\w[\w.-]*+/[\w.-]++")
+ISSUES_PATH = re.compile(r"repos/\w[\w.-]*+/[\w.-]++/issues(?:/\d++(?:/comments)?+)?+")
+CONSUMERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "consumers.json")
+# The first line of `squad-log.py --summary`: the template version the run worked under.
+TEMPLATE_LINE = re.compile(r"^Template: [\w./-]++ (v\d{4}\.\d{2}\.\d++)\b", re.M)
+UPSTREAM = "squad-upstream"
+TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|tests|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
-# total rows (`session-usage.py`) carry a number in that cell, so they never match.
+# total rows (`session-usage.py`) carry a number in that cell, so they never match; the total row of the table of
+# tokens per kind ends in a share of 100 % and is left out before matching (`without_shares`).
 RUN_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|[ \t]*+(\d++)[^|\n]*+\|[ \t]*+([\d,]++)[ \t]*+\|", re.M)
-# The per-model total row of `session-usage.py`: input, output, cache-read and cache-write tokens and nothing else.
-SESSION_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+((?:\|[ \t]*+[\d,]++[ \t]*+){4})\|[ \t]*+$", re.M)
+# The total row of the table of tokens per kind: six cells (Total, Model/effort, input, output, cache read, cache
+# write), then the weighted figure and a share of 100 %.
+WEIGHTED_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*(?:[^|\n]*+\|){6}[ \t]*+([\d,]++)[ \t]*+\|[ \t]*+100%", re.M)
+# The per-model total row of `session-usage.py`: input, output, cache-read and cache-write tokens, and the weighted
+# figure since the template added it.
+SESSION_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+((?:\|[ \t]*+[\d,]++[ \t]*+){4,5})\|[ \t]*+$", re.M)
 SESSION_HEADING = re.compile(r"^[#*_ \t]*+Session usage[*_: \t]*+$", re.M | re.I)
 CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)(?:\s*+:)?+\s++#(\d+)", re.I)
 COMMENT = re.compile(r"<!--.*?-->", re.S)
@@ -60,8 +88,18 @@ PER_PAGE = 100
 
 def gh(path):
     """GET a GitHub API path through `gh api`."""
-    result = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
+    result = subprocess.run(["gh", "api", "--", path], capture_output=True, text=True, check=True)
     return json.loads(result.stdout or "null") or None
+
+
+def gh_write(method, path, fields):
+    """Send `fields` as JSON to a GitHub issues path through `gh api` (POST, PATCH); the answer as JSON. Only an
+    issues path of a validated repository is accepted, and it follows `--`, so it is never read as an option."""
+    if method not in ("POST", "PATCH") or not ISSUES_PATH.fullmatch(path):
+        raise ValueError(f"refused GitHub write: {method} {path}")
+    result = subprocess.run(["gh", "api", "--method", method, "--input", "-", "--", path], input=json.dumps(fields),
+                            capture_output=True, text=True, check=True)
+    return json.loads(result.stdout or "null") or {}
 
 
 def gh_list(path, stop=None):
@@ -105,17 +143,24 @@ def record_bodies(comments):
 
 
 def parse_record(comments):
-    """(tier, launches, tokens) from the "Squad working record" and "Squad run metrics" comments only, the last
-    match winning (a later record of the same issue, a raised tier); None when there is no working record. Launches
-    and tokens come from the run metrics' total row only, never from the "Session usage" tables below them."""
+    """(tier, launches, tokens, weighted) from the "Squad working record" and "Squad run metrics" comments only, the
+    last match winning (a later record of the same issue, a raised tier); None when there is no working record.
+    Launches and tokens come from the run metrics' total row only, never from the "Session usage" tables below them;
+    the weighted figure from the total row of the table of tokens per kind (None for a run without one)."""
     parts = record_bodies(comments)
     if parts is None:
         return None
     runs = "\n".join(run for run, _ in parts)
-    tiers, totals_found = TIER.findall(runs), RUN_TOTAL.findall(runs)
+    tiers, totals_found, weights = TIER.findall(runs), RUN_TOTAL.findall(without_shares(runs)), WEIGHTED_TOTAL.findall(runs)
     return (tiers[-1].lower() if tiers else None,
             int(totals_found[-1][0]) if totals_found else None,
-            int(totals_found[-1][1].replace(",", "")) if totals_found else None)
+            int(totals_found[-1][1].replace(",", "")) if totals_found else None,
+            int(weights[-1].replace(",", "")) if weights else None)
+
+
+def without_shares(text):
+    """`text` without the lines that carry a share in percent (the table of tokens per kind)."""
+    return "\n".join(line for line in text.splitlines() if "%" not in line)
 
 
 def parse_session(comments):
@@ -126,7 +171,22 @@ def parse_session(comments):
     found = SESSION_TOTAL.findall("\n".join(session for _, session in parts)) if parts else []
     if not found:
         return None
-    return tuple(int(cell.strip().replace(",", "")) for cell in found[-1].split("|")[1:])
+    return tuple(int(cell.strip().replace(",", "")) for cell in found[-1].split("|")[1:5])
+
+
+def parse_template(comments):
+    """The release tag of the last "Template: …" line of the run's record (above "Session usage"), or None."""
+    parts = record_bodies(comments)
+    found = TEMPLATE_LINE.findall("\n".join(run for run, _ in parts)) if parts else []
+    return found[-1] if found else None
+
+
+def consumer_repos(path=CONSUMERS):
+    """`owner/name=sonar-key` (or `owner/name`) of every active consumer in consumers.json."""
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    return [entry["repository"] + (f"={entry['sonar']}" if entry.get("sonar") else "")
+            for entry in data.get("consumers", []) if entry.get("status") == "active"]
 
 
 def linked_issues(body):
@@ -208,7 +268,9 @@ def pull_request_row(repo, pr, sonar_key):
     return {
         "repo": repo, "pr": number, "title": pr["title"], "kind": classify(pr, record),
         "tier": record[0] if record else None, "launches": record[1] if record else None,
-        "tokens": record[2] if record else None, "session": session, "fix_pushes": fixes, "base_merges": merges,
+        "tokens": record[2] if record else None, "weighted": record[3] if record else None, "session": session,
+        "template": parse_template(comments),
+        "fix_pushes": fixes, "base_merges": merges,
         "ci_failures": failures, "sonar": sonar_issues(sonar_key, number) if sonar_key else None,
         "bot_comments": bots, "human_comments": humans,
         "hours_to_merge": hours(pr["created_at"], pr["merged_at"]), "merged_at": pr["merged_at"],
@@ -224,27 +286,48 @@ def share(rows, test):
     return f"{sum(1 for r in rows if test(r))}/{len(rows)}" if rows else "-"
 
 
-def totals(rows):
-    """Markdown lines with the totals of the squad pull requests per repository and week."""
-    lines = ["| Repository | Week | Squad PRs | No fix commit | No Sonar issue | CI failures per PR | Without run metrics | "
-             "Median tokens by tier |",
-             "| ---------- | ---- | --------- | ------------- | -------------- | ------------------ | ------------------- | "
-             "--------------------- |"]
+def medians(group, field):
+    """The median of `field` per tier of the rows that have it, in millions, e.g. "security 1.77 M, patch 0.21 M"."""
+    tiers = {}
+    for row in group:
+        if row.get(field):
+            tiers.setdefault(row["tier"] or "?", []).append(row[field])
+    return ", ".join(f"{t} {statistics.median(v) / 1e6:.2f} M" for t, v in sorted(tiers.items())) or "-"
+
+
+def by_repository_and_week(row):
+    return row["repo"], week(row["merged_at"])
+
+
+def by_template(row):
+    return (row.get("template") or "untagged",)
+
+
+def natural(text):
+    """A sort key that orders the numbers in `text` by value (v2026.11.10 after v2026.11.9)."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
+
+
+def totals(rows, key=by_repository_and_week, heads=("Repository", "Week")):
+    """Markdown lines with the totals of the squad pull requests per group: per repository and week by default, or
+    per the cells `key` returns for a row (`heads` names them)."""
+    names = " | ".join(heads)
+    rules = " | ".join("-" * len(head) for head in heads)
+    lines = [f"| {names} | Squad PRs | No fix commit | No Sonar issue | CI failures per PR | Without run metrics | "
+             "Median tokens by tier | Median weighted by tier |",
+             f"| {rules} | --------- | ------------- | -------------- | ------------------ | ------------------- | "
+             "--------------------- | ----------------------- |"]
     groups = {}
     for row in rows:
         if row["kind"] == "squad":
-            groups.setdefault((row["repo"], week(row["merged_at"])), []).append(row)
-    for (repo, when), group in sorted(groups.items()):
-        tiers = {}
-        for row in group:
-            if row["tokens"]:
-                tiers.setdefault(row["tier"] or "?", []).append(row["tokens"])
-        median = ", ".join(f"{t} {statistics.median(v) / 1e6:.2f} M" for t, v in sorted(tiers.items())) or "-"
+            groups.setdefault(key(row), []).append(row)
+    for cells, group in sorted(groups.items(), key=lambda item: natural(" ".join(item[0]))):
         known = [r for r in group if r["sonar"] is not None]
         failures = sum(r["ci_failures"] for r in group) / len(group)
-        lines.append(f"| {repo} | {when} | {len(group)} | {share(group, lambda r: r['fix_pushes'] == 0)} | "
+        lines.append(f"| {' | '.join(cells)} | {len(group)} | {share(group, lambda r: r['fix_pushes'] == 0)} | "
                      f"{share(known, lambda r: r['sonar'] == 0)} | {failures:.2f} | "
-                     f"{sum(1 for r in group if r['launches'] is None)} | {median} |")
+                     f"{sum(1 for r in group if r['launches'] is None)} | {medians(group, 'tokens')} | "
+                     f"{medians(group, 'weighted')} |")
     return lines
 
 
@@ -258,9 +341,9 @@ def without_metrics(rows):
 
 
 def table(rows):
-    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Session input | Session output | Session cache read | "
+    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Weighted | Session input | Session output | Session cache read | "
              "Session cache write | Fix commits | Base merges | CI failures | Sonar | Bot / human comments | Hours to merge |",
-             "| ---- | -- | ---- | ---- | -------- | ------ | ------------- | -------------- | ------------------ | "
+             "| ---- | -- | ---- | ---- | -------- | ------ | -------- | ------------- | -------------- | ------------------ | "
              "------------------- | ----------- | ----------- | ----------- | ----- | -------------------- | -------------- |"]
 
     def show(value):
@@ -271,7 +354,8 @@ def table(rows):
     for r in rows:
         session = " | ".join(show(value) for value in r.get("session") or (None,) * 4)
         lines.append(f"| {r['repo']} | #{r['pr']} | {r['kind']} | {show(r['tier'])} | {show(r['launches'])} | "
-                     f"{show(r['tokens'])} | {session} | {r['fix_pushes']} | {r['base_merges']} | {r['ci_failures']} | "
+                     f"{show(r['tokens'])} | {show(r.get('weighted'))} | {session} | {r['fix_pushes']} | "
+                     f"{r['base_merges']} | {r['ci_failures']} | "
                      f"{show(r['sonar'])} | {r['bot_comments']} / {r['human_comments']} | {show(r['hours_to_merge'])} |")
     return lines
 
@@ -287,39 +371,117 @@ def day(value):
     return datetime.date.fromisoformat(value).isoformat()
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="Quality report of squad pull requests.")
-    parser.add_argument("--repo", action="append", required=True, help="owner/name, or owner/name=sonar-project-key")
-    parser.add_argument("--since", required=True, type=day, help="first merge date, YYYY-MM-DD")
+def upstream_issues(repo):
+    """The open issues of a repository labelled squad-upstream, pull requests left out."""
+    return [issue for issue in gh_list(f"repos/{repo}/issues?state=open&labels={UPSTREAM}") if "pull_request" not in issue]
+
+
+def upstream_lines(found):
+    """Markdown lines listing the (repository, issue) pairs."""
+    lines = ["| Repository | Issue | Opened | Title |", "| ---------- | ----- | ------ | ----- |"]
+    for repo, issue in found:
+        title = (issue.get("title") or "").replace("|", "\\|")
+        lines.append(f"| {repo} | #{issue['number']} | {(issue.get('created_at') or '')[:10]} | {title} |")
+    return lines
+
+
+def move_issue(repo, issue, template):
+    """Move a squad-upstream issue to the template repository: a new issue labelled `squad` there with its title,
+    its body and a link back, then a comment on the original linking the new issue, and the original closed. The
+    new issue's URL."""
+    number = issue["number"]
+    author = (issue.get("user") or {}).get("login", "")
+    body = (f"Moved from {repo}#{number} ({issue.get('html_url', '')}), opened on {(issue.get('created_at') or '')[:10]} "
+            f"by `{author}` with the label `{UPSTREAM}`.\n\n{issue.get('body') or ''}")
+    created = gh_write("POST", f"repos/{template}/issues",
+                       {"title": issue.get("title") or f"{repo}#{number}", "body": body, "labels": ["squad"]})
+    url = created.get("html_url") or f"{template}#{created.get('number')}"
+    gh_write("POST", f"repos/{repo}/issues/{number}/comments",
+             {"body": f"Moved to {url}: a `{UPSTREAM}` lesson is fixed in the template repository and arrives here "
+                      "with the next refresh (`adopt-template`)."})
+    gh_write("PATCH", f"repos/{repo}/issues/{number}", {"state": "closed", "state_reason": "not_planned"})
+    return url
+
+
+def upstream_command(repos, template, move):
+    """List the open squad-upstream issues of the repositories; with `move`, move each to `template` as it goes."""
+    found = [(repo, issue) for repo in repos for issue in upstream_issues(repo)]
+    if not found:
+        print(f"No open {UPSTREAM} issue in {', '.join(repos)}.")
+        return
+    print("\n".join([f"# Open {UPSTREAM} issues", "", *upstream_lines(found)]))
+    if move:
+        print("\nMoved:")
+        for repo, issue in found:
+            print(f"- {repo}#{issue['number']} -> {move_issue(repo, issue, template)}")
+
+
+def report_rows(args):
+    """The rows of every pull request merged in the window, per repository."""
+    rows = []
+    for entry in args.repo:
+        repo, _, key = entry.partition("=")
+        for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
+            rows.append(pull_request_row(repo, pr, key or None))
+    return rows
+
+
+def write_report(args, rows):
+    """Print the report, or write it to `--out` (a file in the current directory); the exit code."""
+    report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
+                        *totals(rows), *without_metrics(rows), "", "## Totals per template version", "",
+                        *totals(rows, by_template, ("Template version",)), "", "## Pull requests", "", *table(rows), ""])
+    if not args.out:
+        print(report)
+        return 0
+    name = os.path.basename(args.out)
+    if not name or name != args.out:
+        print(f"--out must name a file in the current directory: {args.out}", file=sys.stderr)
+        return 1
+    with open(name, "w", encoding="utf-8") as handle:
+        handle.write(report)
+    return 0
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Quality report of squad pull requests, or the open squad-upstream "
+                                                 "issues of the repositories (--upstream).")
+    parser.add_argument("--repo", action="append", help="owner/name, or owner/name=sonar-project-key (default: every "
+                                                        "active consumer of consumers.json)")
+    parser.add_argument("--since", type=day, help="first merge date, YYYY-MM-DD (required for the report)")
     parser.add_argument("--until", type=day, help="last merge date, YYYY-MM-DD (default: today, UTC)")
     parser.add_argument("--out", help="write the report to this file instead of printing it")
+    parser.add_argument("--upstream", action="store_true", help=f"list the open {UPSTREAM} issues instead")
+    parser.add_argument("--move", action="store_true", help="with --upstream: move them to --template")
+    parser.add_argument("--template", default=TEMPLATE_REPOSITORY, help="the template repository (owner/name)")
     args = parser.parse_args(argv)
+    if args.move and not args.upstream:
+        parser.error("--move goes with --upstream")
+    if not args.upstream and not args.since:
+        parser.error("the report needs --since")
     args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
-    rows = []
+    args.repo = args.repo or consumer_repos()
+    for name in [entry.partition("=")[0] for entry in args.repo] + [args.template]:
+        if not REPOSITORY.fullmatch(name):
+            parser.error(f"not a repository (owner/name): {name}")
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
     try:
-        for entry in args.repo:
-            repo, _, key = entry.partition("=")
-            for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
-                rows.append(pull_request_row(repo, pr, key or None))
+        if args.upstream:
+            upstream_command([entry.partition("=")[0] for entry in args.repo], args.template, args.move)
+            return 0
+        rows = report_rows(args)
     except subprocess.CalledProcessError as error:
         detail = str(error.stderr or "").strip() or str(error)
-        print(f"GitHub could not be read: {detail}", file=sys.stderr)
+        print(f"GitHub could not be read or written: {detail}", file=sys.stderr)
         return 1
     except (OSError, ValueError) as error:
-        print(f"GitHub could not be read: {error}", file=sys.stderr)
+        print(f"GitHub could not be read or written: {error}", file=sys.stderr)
         return 1
-    report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
-                        *totals(rows), *without_metrics(rows), "", "## Pull requests", "", *table(rows), ""])
-    if args.out:
-        name = os.path.basename(args.out)
-        if not name or name != args.out:
-            print(f"--out must name a file in the current directory: {args.out}", file=sys.stderr)
-            return 1
-        with open(name, "w", encoding="utf-8") as handle:
-            handle.write(report)
-    else:
-        print(report)
-    return 0
+    return write_report(args, rows)
 
 
 if __name__ == "__main__":

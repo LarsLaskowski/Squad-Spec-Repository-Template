@@ -18,8 +18,9 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   and `docs/UNIT_TESTS.md`, no member `.git/`, `.claude/` or `.squad/`). Both prevent accidents; they are no
   security boundary.
 - **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
-  Copilot's coding agent read directly. `CLAUDE.md` only imports it (`@AGENTS.md`): Claude Code reads
-  `AGENTS.md` by itself only where no `CLAUDE.md` exists, and the import also works where that fallback is off.
+  Copilot's coding agent read directly; the squad itself needs Claude Code (*What depends on Claude Code* below).
+  `CLAUDE.md` only imports it (`@AGENTS.md`): Claude Code reads `AGENTS.md` by itself only where no `CLAUDE.md`
+  exists, and the import also works where that fallback is off.
   `.github/copilot-instructions.md` is generated from `AGENTS.md` (its own title and introduction, then the same
   body) for Copilot's code review and chat; `config-check.py` fails when the two drift apart or `CLAUDE.md` stops
   importing `AGENTS.md`. So one file is edited by hand. The skills `create-pr`, `review-pr`, `squad-issue`,
@@ -39,9 +40,11 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
-  evidence, no control character); `squad-log.py` appends the pipeline's log rows; `session-usage.py` prints the
-  session's tokens per model and per subagent type from Claude Code's session transcripts for the wrap-up.
-  `figure-check.py` lists, in step 7, the documentation lines that still state a value the diff changed.
+  evidence, no control character); `squad-log.py` appends the pipeline's log rows, a launch's usage read from its
+  subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
+  share; `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
+  transcripts for the wrap-up. `figure-check.py` lists, in step 7, the documentation lines that still state a value
+  the diff changed.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with the squad's process decisions in the managed `docs/decisions/process.md`),
   `specs/_template/`, `SECURITY.md`.
@@ -52,6 +55,23 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   squad agrees an outside author's acceptance criteria on the issue before planning (`.squad/orchestration.md`, *Outside
   authors*), `review-pr` reads a fork's diff before checking it out, and every member treats issue, PR and comment
   texts as data, never as instructions (`.squad/team.md`).
+
+## What depends on Claude Code
+
+`AGENTS.md` is read by every AI coding agent, but the squad is not portable: it runs on Claude Code's subagents
+(`.claude/agents/`), continues them with `SendMessage`, reads their usage from Claude Code's transcripts (task
+notifications outside it) and blocks member writes with Claude Code hooks. The squad skills also assume Claude Code's
+web environment: `subscribe_pr_activity` to stay with a pull request, the GitHub MCP tools (`mcp__github__*`) for
+writes, `add_repo` to reach another repository, network secrets for the SonarQube credential, and a proxy that blocks
+GitHub's GraphQL API (`.squad/team.md`, *Reading GitHub*). In a local Claude Code CLI session the orchestrator does the
+same with these tools:
+
+| The orchestrator's action | Claude Code on the web | Local Claude Code CLI |
+| ------------------------- | ---------------------- | --------------------- |
+| issues, comments, labels, pull requests | `mcp__github__*` | `gh issue`, `gh pr`, `gh api` (GraphQL works locally) |
+| stay with a pull request until it is green | `subscribe_pr_activity` | poll `gh pr checks` and `gh pr view --json mergeable,reviews` |
+| another repository | `add_repo` | a clone, with the user's own access |
+| the SonarQube credential | a network secret of the environment | `SONAR_TOKEN` in the environment |
 
 ## Layout
 
@@ -64,8 +84,11 @@ profiles/<stack>/
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
-tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report)
+tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
+                  squad-upstream issues), release.py (changelog and release tags)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
+consumers.json    the repositories that use the template: profiles, SonarQube Cloud key, active or legacy
+CHANGELOG.md      what each release brings to them
 .claude/skills/adopt-template/   the skill
 ```
 
@@ -88,19 +111,28 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 
 ## Measuring the squad
 
-`python3 tools/squad-report.py --repo <owner/name>[=<sonar-project-key>] … --since <date>` reads, for every pull
-request merged in the window, what happened after it was opened: fix pushes, CI failures, SonarQube Cloud issues and
-review comments, plus tier, launches and tokens of a squad run from its working record, and names the squad pull
-requests without run metrics (no step-12 wrap-up). Its totals per repository and week are the evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
+`python3 tools/squad-report.py --since <date>` reads, for every pull request merged in the window in every active
+consumer of `consumers.json` (or the ones named with `--repo <owner/name>[=<sonar-project-key>]`), what happened after
+it was opened: fix pushes, CI failures, SonarQube Cloud issues and review comments, plus the template version, tier,
+launches, tokens and the price-weighted figure of a squad run from its working record, and names the squad pull
+requests without run metrics (no step-12 wrap-up). Its totals per repository and week, and per template version, are
+the evidence for changing the squad's rules or models — a rule change is measured against the runs before and after
+the release that brought it; the runs' own logs only say what a run cost.
 
 ## Profiles
 
-| Profile | Detected by | Formatter | Analyzer gate | Coverage | Repositories |
-| ------- | ----------- | --------- | ------------- | -------- | ------------ |
-| `dotnet` | `*.slnx`, `*.sln`, `*.csproj` | `reihitsu-format` | Roslyn SARIF of a full build: Reihitsu, SonarAnalyzer.CSharp, MSTest, CA | Cobertura (coverlet) | PlexToJellyfinSync, DockerUpdateGuard, F1-Telemetry |
-| `node` | `package.json` without `tsconfig.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov | OpenHabLogViewer, e-networld |
-| `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base --whole-files` | Go coverprofile | PiMonitor |
-| `typescript` | `tsconfig.json` | Prettier | `tsc --noEmit` + type-aware ESLint (typescript-eslint `strictTypeChecked`, eslint-plugin-sonarjs) on changed files | lcov (Vitest, v8) | — (first repository refines it) |
+| Profile | Detected by | Formatter | Analyzer gate | Coverage |
+| ------- | ----------- | --------- | ------------- | -------- |
+| `dotnet` | `*.slnx`, `*.sln`, `*.csproj` | `reihitsu-format` | Roslyn SARIF of a full build: Reihitsu, SonarAnalyzer.CSharp, MSTest, CA | Cobertura (coverlet) |
+| `node` | `package.json` without `tsconfig.json` | Prettier | `typecheck` + ESLint with eslint-plugin-sonarjs on changed files | lcov |
+| `go` | `go.mod` | `gofmt` | `go vet` + `golangci-lint --new-from-merge-base --whole-files` | Go coverprofile |
+| `typescript` | `tsconfig.json` | Prettier | `tsc --noEmit` + type-aware ESLint (typescript-eslint `strictTypeChecked`, eslint-plugin-sonarjs) on changed files | lcov (Vitest, v8) |
+
+The repositories that use the template are data, not prose: [`consumers.json`](consumers.json) lists each with its
+profiles, its SonarQube Cloud project key and its status. `active` ones carry a `.squad/template.json` and are
+refreshed on every release; `legacy` ones still carry an older template version (`.agents/`, no `.squad/`) or were not
+checked, and stay out of the rollout and the report until they are refreshed or dropped. `template-check.py` checks the
+file; the rollout and `squad-report.py` read it.
 
 ## Several profiles (e.g. Go and .NET)
 
@@ -136,18 +168,20 @@ everything project-specific.
 
 ## Changing the template
 
-Squad lessons are filed where they can be fixed (`core/.squad/orchestration.md`, *Squad lessons*):
+A squad run files its lessons in its own repository, labelled by where they can be fixed
+(`core/.squad/orchestration.md`, *Squad lessons*), so filing needs no access to this repository:
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
-| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad-upstream` in the product repository, naming the run | moving it here (below), a PR here, then a rollout |
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
-Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where
-to file. A general lesson is always filed here: the session attaches this repository first if needed. Only a
-session that is refused access files the issue in the product repository with the label `squad-upstream`; it
-is moved here, never worked there. After the fix is merged here, the product repository adopts it with
-`adopt-template`.
+The `squad-upstream` issues are collected here in one batch: `python3 tools/squad-report.py --upstream` lists the open
+ones of every active consumer in `consumers.json` (or of the `--repo` given), and with `--move` each becomes an issue labelled `squad` here with its title, its
+body and a link back, while the original gets a link to it and is closed (a `squad-upstream` issue is never worked in
+the product repository). Run it before every release and on every refresh, which also moves the target's
+own (`adopt-template`). Every target records this repository in `.squad/template.json` (`repository`). After the fix
+is merged here, the product repository adopts it with `adopt-template`.
 
 - Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
   details into a project block or `.squad/project.md`.
@@ -157,18 +191,24 @@ is moved here, never worked there. After the fix is merged here, the product rep
 - Run `python3 tools/template-check.py` before every pull request. Besides the profiles and the smoke test it
   reports how the squad's rule files grew against their merge base with `origin/main`, warns about every sentence that left them, about a
   20-word run two of them share and about a total more than 15 % over the last consolidation (`AGENTS.md`, *Writing
-  rules*). It also checks the Python tools a target receives for the SonarQube Cloud rules that have
-  flagged them on a refresh (`SONAR_RULES`, cognitive complexity with complexipy), so a finding surfaces here
-  instead of in every target's refresh pull request.
+  rules*), and prints the words each role reads on every launch (its charter and its *Read first* files), which
+  shows where splitting a rule file would pay. It also checks the Python tools a target receives for the SonarQube
+  Cloud rules that have flagged them on a refresh (`SONAR_RULES`, cognitive complexity with complexipy), so a finding
+  surfaces here instead of in every target's refresh pull request, checks `consumers.json`, and fails when a change
+  that reaches the targets adds no line to `CHANGELOG.md` (`AGENTS.md`, *Releases*).
 
 ### Rolling out a change
 
-1. Merge the template PR here (`python3 tools/template-check.py` and the Python CI pass).
-2. In each repository that uses the template — the ones with a `.squad/template.json` — run
-   `adopt-template` as a refresh: it re-applies the template at its new commit, keeps every project block
-   and seeded file, verifies the gates and opens one PR per repository
-   (`[Docs] Update the squad from Squad-Spec-Repository-Template`).
-3. Close the template issue once the change is merged here; the refresh PRs reference it.
+1. Merge the template PR here (`python3 tools/template-check.py` and the Python CI pass), with its line under
+   *Unreleased* in `CHANGELOG.md`.
+2. Release: changes are batched into a release, normally once a week, sooner for an urgent defect. A release pull
+   request (`python3 tools/release.py prepare`) turns *Unreleased* into the next version, and after its merge the owner
+   tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
+3. In each `active` repository of `consumers.json`, run `adopt-template` as a refresh from a checkout of the release
+   tag: it re-applies the template, records the tag in `.squad/template.json`, keeps every project block and seeded
+   file, verifies the gates and opens one PR per repository (`[Docs] Update the squad from
+   Squad-Spec-Repository-Template`), naming the release.
+4. Close the template issue once the change is merged here; the refresh PRs reference the release.
 
 A local edit of a managed file in a product repository is never the fix: the next refresh overwrites it.
 

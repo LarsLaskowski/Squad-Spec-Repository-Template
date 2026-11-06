@@ -34,7 +34,7 @@ def commit(sha, date, parents=1):
 
 class TestSquadReport(unittest.TestCase):
     def test_record_gives_tier_launches_and_tokens(self):
-        self.assertEqual(report.parse_record([RECORD, METRICS]), ("security", 16, 1382358))
+        self.assertEqual(report.parse_record([RECORD, METRICS]), ("security", 16, 1382358, None))
         self.assertIsNone(report.parse_record([{"body": "looks good"}]))
 
     def test_kinds(self):
@@ -57,21 +57,21 @@ class TestSquadReport(unittest.TestCase):
         raised = {"body": "### Squad run metrics\n\nTier raised: tier **security**\n"
                           "| **Total** | | 9 | 600,000 | 1 | 2 |\n"}
         record = report.parse_record([prose, {"body": "Squad working record\n\nTier: **standard**"}, raised])
-        self.assertEqual(record, ("security", 9, 600000))
+        self.assertEqual(record, ("security", 9, 600000, None))
         tests = report.parse_record([{"body": "Squad working record\n\nTier: `tests`"}])
-        self.assertEqual(tests, ("tests", None, None))
+        self.assertEqual(tests, ("tests", None, None, None))
 
     def test_session_usage_below_the_run_metrics_is_not_the_runs_total(self):
         both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}\n{SESSION}"}
-        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358))
+        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358, None))
         self.assertEqual(report.parse_session([both]), (750, 256585, 36619921, 1165127))
         crlf = {"body": both["body"].replace("\n", "\r\n")}
         self.assertEqual((report.parse_record([crlf])[1:], report.parse_session([crlf])),
-                         ((16, 1382358), (750, 256585, 36619921, 1165127)))
+                         ((16, 1382358, None), (750, 256585, 36619921, 1165127)))
 
     def test_the_session_tables_never_count_as_run_metrics(self):
         no_heading = {"body": f"{RECORD['body']}\n\n{SESSION.replace('### Session usage', 'Usage of the session:')}"}
-        self.assertEqual(report.parse_record([no_heading]), ("security", None, None),
+        self.assertEqual(report.parse_record([no_heading]), ("security", None, None, None),
                          "a session total row has no empty Model/effort cell")
         self.assertIsNone(report.parse_session([no_heading]), "session figures are read under their heading only")
         apart = {"body": SESSION.replace("### Session usage", "**Session usage:**")}
@@ -81,14 +81,30 @@ class TestSquadReport(unittest.TestCase):
         absent = {"body": "### Session usage\n\nnot provided (no Claude Code session transcript found)\n"}
         self.assertIsNone(report.parse_session([RECORD, METRICS, absent]))
 
+    def test_weighted_total_comes_from_the_table_of_tokens_per_kind(self):
+        kinds = ("\n| Member | Model/effort | Input | Output | Cache read | Cache write | Weighted | Share |\n"
+                 "| --- | --- | --- | --- | --- | --- | --- | --- |\n"
+                 "| Lead | opus/medium | 31 | 9,870 | 612,400 | 48,210 | 280,527 | 41% |\n"
+                 "| Orchestrator | opus/xhigh | 6 | 2,053 | 1,016,629 | 3,620 | 401,000 | 59% |\n"
+                 "| **Total** | | 37 | 11,923 | 1,629,029 | 51,830 | 681,527 | 100% |\n")
+        session = SESSION.replace("| Cache write |\n| --- | ---: | ---: | ---: | ---: |", "| Cache write | Weighted |\n"
+                                  "| --- | ---: | ---: | ---: | ---: | ---: |").replace(
+            "| **Total** | 750 | 256,585 | 36,619,921 | 1,165,127 |", "| **Total** | 750 | 256,585 | 36,619,921 | 1,165,127 | "
+            "9,000,000 |")
+        both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}{kinds}\n{session}"}
+        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358, 681527),
+                         "the per-kind total is no launch total, and the session's figures stay apart")
+        self.assertEqual(report.parse_session([both]), (750, 256585, 36619921, 1165127))
+
     def test_the_table_shows_the_session_tokens_in_columns_of_their_own(self):
         row = {"repo": "o/r", "pr": 5, "kind": "squad", "tier": "security", "launches": 16, "tokens": 1382358,
                "session": (750, 256585, 36619921, 1165127), "fix_pushes": 0, "base_merges": 0, "ci_failures": 0,
                "sonar": None, "bot_comments": 0, "human_comments": 0, "hours_to_merge": 1.5}
-        lines = report.table([row, {**row, "pr": 6, "session": None}])
-        self.assertIn("| Tokens | Session input | Session output | Session cache read | Session cache write |", lines[0])
-        self.assertIn("| 16 | 1,382,358 | 750 | 256,585 | 36,619,921 | 1,165,127 | 0 |", lines[2])
-        self.assertIn("| 16 | 1,382,358 | - | - | - | - | 0 |", lines[3])
+        lines = report.table([row, {**row, "pr": 6, "session": None, "weighted": 9876543}])
+        self.assertIn("| Tokens | Weighted | Session input | Session output | Session cache read | Session cache write |",
+                      lines[0])
+        self.assertIn("| 16 | 1,382,358 | - | 750 | 256,585 | 36,619,921 | 1,165,127 | 0 |", lines[2])
+        self.assertIn("| 16 | 1,382,358 | 9,876,543 | - | - | - | - | 0 |", lines[3])
         self.assertTrue(all(line.count("|") == lines[0].count("|") for line in lines))
 
     def test_linked_issues_ignore_html_comments(self):
@@ -170,10 +186,100 @@ class TestSquadReport(unittest.TestCase):
                 {"repo": "Vandox", "pr": 4, "kind": "manual", "merged_at": "2026-10-18T10:00:00Z", "tier": None,
                  "launches": None, "tokens": None, "fix_pushes": 5, "sonar": None, "ci_failures": 4}]
         line = report.totals(rows)[2]
-        self.assertIn("| Vandox | 2026-W42 | 3 | 2/3 | 2/3 | 0.33 | 1 | security 1.50 M |", line)
+        self.assertIn("| Vandox | 2026-W42 | 3 | 2/3 | 2/3 | 0.33 | 1 | security 1.50 M | - |", line)
         self.assertIn("Vandox#3", report.without_metrics(rows)[-1], "a squad PR without run metrics is named")
         self.assertNotIn("Vandox#4", report.without_metrics(rows)[-1], "a manual PR never has run metrics")
         self.assertEqual(report.without_metrics(rows[:2]), [])
+
+
+class TestTemplateVersions(unittest.TestCase):
+    def test_the_template_line_of_the_summary_names_the_version(self):
+        line = {"body": "### Squad run metrics\n\nTemplate: LarsLaskowski/Squad-Spec-Repository-Template v2026.11.2 "
+                        "(commit 1a2b3c4d5e6f)\n\n| **Total** | | 3 | 90,000 | 9 | 99 |\n"}
+        self.assertEqual(report.parse_template([RECORD, line]), "v2026.11.2")
+        untagged = {"body": "### Squad run metrics\n\nTemplate: LarsLaskowski/Squad-Spec-Repository-Template untagged "
+                            "(commit 1a2b3c4d5e6f)\n"}
+        self.assertIsNone(report.parse_template([RECORD, untagged]))
+        self.assertIsNone(report.parse_template([{"body": line["body"]}]), "only a working record's lines count")
+
+    def test_totals_per_template_version_in_version_order(self):
+        base = {"repo": "o/r", "kind": "squad", "merged_at": "2026-11-17T10:00:00Z", "tier": "standard", "launches": 9,
+                "tokens": 1_000_000, "weighted": 3_000_000, "fix_pushes": 0, "sonar": 0, "ci_failures": 0}
+        rows = [{**base, "template": "v2026.11.10"}, {**base, "template": "v2026.11.9", "fix_pushes": 1},
+                {**base, "template": None}]
+        lines = report.totals(rows, report.by_template, ("Template version",))
+        self.assertTrue(lines[0].startswith("| Template version | Squad PRs |"))
+        self.assertEqual([line.split(" | ")[0] for line in lines[2:]], ["| untagged", "| v2026.11.9", "| v2026.11.10"])
+        self.assertIn("| v2026.11.9 | 1 | 0/1 | 1/1 | 0.00 | 0 | standard 1.00 M | standard 3.00 M |", lines[3])
+
+    def test_consumers_json_gives_the_active_repositories(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "consumers.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('{"consumers": [{"repository": "o/a", "sonar": "o_a", "status": "active"}, '
+                             '{"repository": "o/b", "sonar": null, "status": "active"}, '
+                             '{"repository": "o/c", "sonar": "o_c", "status": "legacy"}]}')
+            self.assertEqual(report.consumer_repos(path), ["o/a=o_a", "o/b"])
+        self.assertIn("LarsLaskowski/Vandox=networlddev_vandox", report.consumer_repos(), "the repository's own list")
+        with mock.patch.object(report, "consumer_repos", return_value=["o/a=o_a"]), \
+                mock.patch.object(report, "upstream_command", return_value=0) as command:
+            report.main(["--upstream"])
+        command.assert_called_once_with(["o/a"], report.TEMPLATE_REPOSITORY, False)
+
+
+class TestUpstream(unittest.TestCase):
+    ISSUE = {"number": 7, "title": "[Squad] Tester model (from o/r#3)", "body": "Proposal.", "user": {"login": "me"},
+             "html_url": "https://github.com/o/r/issues/7", "created_at": "2026-11-05T10:00:00Z"}
+
+    def test_upstream_lists_the_open_issues_without_pull_requests(self):
+        lists = {"repos/o/r/issues?state=open&labels=squad-upstream": [self.ISSUE, {"number": 8, "pull_request": {}}],
+                 "repos/o/s/issues?state=open&labels=squad-upstream": []}
+        out = io.StringIO()
+        with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), contextlib.redirect_stdout(out):
+            code = report.main(["--upstream", "--repo", "o/r=key", "--repo", "o/s"])
+        self.assertEqual(code, 0)
+        self.assertIn("| o/r | #7 | 2026-11-05 | [Squad] Tester model (from o/r#3) |", out.getvalue())
+        self.assertNotIn("#8", out.getvalue(), "a pull request is no lesson")
+
+    def test_move_files_the_issue_here_and_closes_the_original(self):
+        writes = []
+
+        def fake_write(method, path, fields):
+            writes.append((method, path, fields))
+            return {"number": 300, "html_url": "https://github.com/t/t/issues/300"} if path == "repos/t/t/issues" else {}
+        with mock.patch.object(report, "gh_list", return_value=[self.ISSUE]), \
+                mock.patch.object(report, "gh_write", fake_write), contextlib.redirect_stdout(io.StringIO()) as out:
+            code = report.main(["--upstream", "--move", "--template", "t/t", "--repo", "o/r"])
+        self.assertEqual(code, 0)
+        (create_method, create_path, created), (_, comment_path, comment), (close_method, close_path, closed) = writes
+        self.assertEqual((create_method, create_path, created["labels"]), ("POST", "repos/t/t/issues", ["squad"]))
+        self.assertIn("Moved from o/r#7 (https://github.com/o/r/issues/7)", created["body"])
+        self.assertTrue(created["body"].endswith("Proposal."))
+        self.assertEqual(comment_path, "repos/o/r/issues/7/comments")
+        self.assertIn("https://github.com/t/t/issues/300", comment["body"])
+        self.assertEqual((close_method, close_path, closed["state"]), ("PATCH", "repos/o/r/issues/7", "closed"))
+        self.assertIn("o/r#7 -> https://github.com/t/t/issues/300", out.getvalue())
+
+    def test_move_needs_upstream_and_the_report_needs_since(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            for args in (["--move", "--repo", "o/r", "--since", "2026-10-01"], ["--repo", "o/r"],
+                         ["--upstream", "--repo", "--help/x"], ["--upstream", "--repo", "o/r", "--template", "-x/y"]):
+                with self.assertRaises(SystemExit):
+                    report.main(args)
+
+    def test_writes_go_to_an_issues_path_after_the_options(self):
+        calls = []
+
+        def fake_run(command, **_):
+            calls.append(command)
+            return mock.Mock(stdout="{}")
+        with mock.patch.object(report.subprocess, "run", fake_run):
+            report.gh_write("POST", "repos/o/r/issues/7/comments", {"body": "x"})
+        self.assertEqual(calls[0][-2:], ["--", "repos/o/r/issues/7/comments"])
+        for method, path in (("DELETE", "repos/o/r/issues/7"), ("POST", "repos/o/r/pulls/7"), ("POST", "--help"),
+                             ("PATCH", "repos/-x/r/issues/7")):
+            with self.assertRaises(ValueError):
+                report.gh_write(method, path, {})
 
 
 class TestMainOutput(unittest.TestCase):

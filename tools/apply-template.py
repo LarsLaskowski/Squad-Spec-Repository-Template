@@ -28,7 +28,9 @@ with more than one language, see "Several profiles" below:
   `file-guard.py`) added when it lacks one, everything else in it stays;
 - **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
   every line of the target that still refers to one is listed for fixing by hand;
-- `.squad/template.json` records the template repository, its commit and the profile(s).
+- `.squad/template.json` records the template repository, its release tag (the `v*` tag the template's HEAD carries,
+  read from the local tags, or null with a note), its commit and the profile(s); a rollout applies a release, so the
+  template's checkout is its tag (`AGENTS.md`, *Releases*).
 
 Several profiles (`--profile go --profile dotnet`, the first one is the primary): the stack blocks of the
 instruction files get one labelled part per profile, `.squad/stack.md` one section per profile,
@@ -69,7 +71,7 @@ import shutil
 import subprocess
 import sys
 
-# Where squad lessons about template-managed files are filed; recorded in every target's .squad/template.json.
+# Where the targets' squad-upstream lessons are moved and fixed; recorded in every target's .squad/template.json.
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
@@ -559,6 +561,19 @@ def managed_files(profile_dirs, names):
     return core, managed
 
 
+RELEASE_TAG = re.compile(r"v\d{4}\.\d{2}\.\d+")
+
+
+def release_tag(root):
+    """The release tag (`vYYYY.MM.N`) the checkout's HEAD carries, or None; only local tags are read, so the
+    rollout's checkout of the tag decides, never a network call."""
+    tags = subprocess.run(["git", "-C", root, "tag", "--points-at", "HEAD", "--list", "v*"], capture_output=True,
+                          text=True, check=False).stdout.split()
+    found = sorted((tag for tag in tags if RELEASE_TAG.fullmatch(tag)),
+                   key=lambda tag: tuple(int(part) for part in tag[1:].split(".")))
+    return found[-1] if found else None
+
+
 def target_root(path):
     """The target's real path, which must be the root of a git repository; every path the tool touches stays below it."""
     root = os.path.realpath(path)
@@ -747,7 +762,8 @@ def main():
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()
-    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "commit": commit, "profile": names[0],
+    tag = release_tag(ROOT)
+    record = json.dumps({"repository": TEMPLATE_REPOSITORY, "tag": tag, "commit": commit, "profile": names[0],
                          "profiles": names}, indent=2) + "\n"
     emit(TEMPLATE_JSON, record)
 
@@ -755,6 +771,10 @@ def main():
     unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))
                      if f"{d}/{rel}" not in known)
     print_report(report, unknown, references, args.dry_run)
+    if tag is None:
+        print("\nNo release tag: the template's HEAD carries no 'v*' tag (or the tags are not fetched), so "
+              f"{TEMPLATE_JSON} records \"tag\": null. A rollout applies a release: 'git fetch origin --tags', check "
+              "out the release tag and apply again (AGENTS.md, Releases).")
     return 0
 
 

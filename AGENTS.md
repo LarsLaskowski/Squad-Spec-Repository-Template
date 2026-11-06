@@ -32,6 +32,21 @@ to the other repositories. It contains no product code. See [`README.md`](README
   rule (incidents, measured numbers) goes into `docs/squad-rationale.md`, which no target receives. How the rule
   files are kept from growing without losing a rule: *Writing rules*.
 
+## Releases
+
+The targets receive the template by release, so every squad run can be traced to the template version it ran under:
+
+- A pull request that changes what the targets receive (`core/`, `profiles/`, `multi/`, `seed/`, `decision-seeds/`,
+  `tools/apply-template.py`) adds one line under `## Unreleased` in `CHANGELOG.md`: `- [Area] what changes for the
+  targets (#issue)`. `template-check.py` fails without it.
+- Releases are batched, normally once a week, sooner for an urgent defect. A release pull request (`[Docs] Release
+  vYYYY.MM.N`) made with `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
+  squash merge, `python3 tools/release.py tag` checks the checkout of `main` and prints the commands for the annotated
+  tag on that merge commit; the tag is created and pushed only with the owner's explicit approval (*Golden rules*).
+- The rollout refreshes every `active` repository of `consumers.json` from a checkout of the release tag, so
+  `.squad/template.json` records it (`README.md`, *Rolling out a change*). A new consumer, or one that turns legacy
+  or is dropped, is a change of `consumers.json`.
+
 ## Writing rules
 
 Every member reads the rule files it is pointed to on every launch, so a rule text says what to do or not do, and when,

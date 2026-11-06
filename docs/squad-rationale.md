@@ -83,7 +83,8 @@ Sonnet: on Opus (until 2026-10-10) it raised 0.4 to 0.6 major objections per run
 Sonnet, with the same plans and the same instructions, 0.05 to 0.3 — the minor objections stayed, the ones
 that change a plan disappeared. One challenge costs about 55 k tokens on Sonnet, little against the 0.5 M to
 1.5 M of the run it protects. Every run records launches, tokens, tool uses and seconds per role in its
-working record (`squad-log.py --summary`), which is the evidence for the next change.
+working record (`squad-log.py --summary`), and since #234 the tokens per kind with their price-weighted figure and
+the orchestrator's share, which is the evidence for the next change.
 
 The Tester of a `security` run runs on Opus (orchestration.md, *Launch model*), the Dev stays on Sonnet. Evidence: the working records of 123 issues
 in Vandox, Seluna and PlexToJellyfinSync up to 2026-10-25 (107 runs with review rows, 74 with usage per launch:
@@ -104,6 +105,17 @@ the refreshed template), all 55 Tester launches of security runs were logged as 
 launch step named no model, and `--agent` reads the model from the agent file, so even an applied override
 would have been logged as Sonnet; the per-model summary rows that are to measure the override need the
 `--launch` the script now asks for.
+
+The model and effort of a role are decided on the **weighted** figure of the summary's table of tokens per kind
+(every token at its list price, in tokens of Sonnet input, the orchestrator's share in a row of its own) and on each
+role's share of it — not on the *Tokens* column. That column is each launch's context at its end, the figure a task
+notification reports: it leaves out the cache reads every turn repeats, the price difference between output and
+input and between the models, and the orchestrator, so in Vandox#337 it said 1.1 M while the session read 40.7 M
+cache tokens (#234). The shares per role above (Lead 27 %, Tester 25 %, …), the Devil's Advocate's 55 k per challenge
+and the 0.5 M to 1.5 M per run were measured on that column; they are measured again on the weighted figure before
+the next change of a role's model or effort, and `squad-report.py` reports the median weighted figure per tier
+next to the median tokens. Since `squad-log.py --agent-id` the model column records the model a launch ran on, read
+from its transcript, so the override above is measured by what ran, not by what was logged.
 
 ## Documentation claims are traced (squad-dev.md, Documentation)
 
@@ -673,3 +685,90 @@ After #255 (*Spec approval*) came in: a criterion of a spec the Product Manager 
 Product Manager's answer, since the Lead alone would otherwise undo that approval; the approval summary lists the
 non-functional requirements with their ids like the scenarios; and `apply-template.py` writes the size settings
 into the merged `squad_settings.py` of a repository with several profiles, which is built from a fixed list of keys.
+
+## Usage read from the subagent transcripts, weighted by price (squad-log.py, `--agent-id` and `--summary`; session-usage.py; squad-issue, step 1; orchestration.md, Launch model; routing.md, Pipeline step 12)
+
+Found in the review of the squad against its five consumers on 2026-11-05 (#234: about 80 working records since
+2026-10-20, `squad-report.py --since 2026-10-01` with 190 squad pull requests, template commit 7571677). Logging usage
+by hand from task notifications was the most error-prone bookkeeping of a run, and step 1 needed about 450 words to
+explain it (`--amend-last`, `--replace-last`, interim notifications, `--unreported`): LarsLaskowski/Censio#15 and #16
+have no run metrics and every launch row says "usage pending", and the report lists Censio#102 and #104 without run
+metrics; in LarsLaskowski/Seluna#69, #110 and #17 a task notification never arrived; in Seluna#108 the orchestrator
+edited member cells by hand until `--summary` accepted them; Censio#13 used figures typed from `/usage`.
+
+The run metrics also counted a small part of what a run used. The *Tokens* column of "Squad run metrics" against the
+cache-read tokens of "Session usage": LarsLaskowski/Vandox#337 1.1 M against 40.7 M, Seluna#141 0.82 M against 21.2 M,
+Seluna#140 1.07 M against 36.6 M. Neither table weighed the token kinds by their price, and the orchestrator's own
+share was in neither.
+
+Checked on 2026-11-06 in a Claude Code session: the task notification of a continued subagent said 55,114 tokens,
+2 tool uses and 3,602 ms; the latest round of its transcript `subagents/agent-<id>.jsonl` (the records after the
+continuation message) had a last response whose input, output, cache-read and cache-write tokens add up to exactly
+55,114, two `tool_use` blocks and 3.58 s from its first to its last record. So the transcript gives every figure the
+notification gives — with the same meaning, the tokens being the agent's context at the end, cumulative across
+continuations — plus the tokens per kind, the model (`message.model`) and the effort (`effort`) each response ran
+on. `--agent-id` therefore replaces the notification path wherever a transcript exists, and checks the model of
+*Launch model* against the model that ran instead of the one typed into `--launch`.
+
+The weighted figure uses the list prices of 2026-10 per million tokens: Opus 5.5 $4 input, $20 output, $0.20 cache
+read; Sonnet 5.5 $2, $10, $0.20; Haiku 5.5 $0.10, $0.50, $0.01; Fable 5.1 $10, $50, $0.25; a cache write costs 1.25
+times the input price for a five-minute lifetime (subagents) and twice for a one-hour lifetime (the main session),
+which the transcripts record per response. It is expressed in tokens of Sonnet input rather than in dollars, so the
+Product Manager's decision of 2026-11-03 to print no cost stands (*Session usage from the transcripts*), while the
+figure stays proportional to cost across roles, models and token kinds. The orchestrator's share is read from the
+session's own transcript from the log's first timed row on, so work of the session before the run is left out.
+
+## Lessons are filed in the run's own repository, collected here, and the lessons row is checked (orchestration.md, Squad lessons; squad-log.py `--summary`; squad-report.py `--upstream`; squad-issue, step 12; routing.md, Pipeline step 12)
+
+Found in the review of 2026-11-05 against the five consumers (#239, scope as in #234). The rule filed a general
+lesson in the template repository after attaching it and used `squad-upstream` locally only when attaching was
+refused; in practice lessons often did not arrive. Attaching was refused again and again:
+LarsLaskowski/DockerUpdateGuard#360, LarsLaskowski/Censio#3, #4, #11 and #13, and Seluna in every session, per its
+records. Lessons were not filed at all: LarsLaskowski/Vandox#289 ("needs push access to the template repository"),
+Vandox#337 ("outside this session's GitHub scope"), Vandox#305 ("proposed to the user"), Vandox#292 and #304 ("noted,
+not filed"); the `squad-upstream` fallback was used in none of them. "No lessons" was logged despite visible
+friction: LarsLaskowski/Seluna#121, #129 and #134 (missed CHANGELOG entries, Lead edits during the approval) and
+Vandox#301 (the same wrong Tester model as #314). And lessons went to the wrong place or label: Vandox#364 is still
+open and Vandox#367 was moved by hand, both about managed files but filed locally as `squad`;
+DockerUpdateGuard#374 and #375 concern template files but carry `squad`.
+
+Filing every lesson in the run's own repository needs no access the session may lack, so the label is the only
+choice left to the run. The template side collects them: `squad-report.py --upstream` already walks the consumers'
+issues with the owner's `gh`, and `--move` files each here with a link back and closes the original, which keeps the
+lesson's history findable from the product repository. The lessons row is checked by `squad-log.py --summary` (exit 5
+without it), and the candidates it lists come from the cases above: a Lead `decide` or a loop limit, an improvised
+step, a member error, a tool refusal and a warning of `squad-log.py` itself (the Tester model of Vandox#301).
+
+## Versioned releases, the consumer list, words per launch and what needs Claude Code (AGENTS.md of the template, Releases; consumers.json; apply-template.py; squad-log.py `--summary`; squad-report.py; template-check.py; README)
+
+Found in the review of 2026-11-05 against the five consumers (#249, scope as in #234). About 40 `squad` issues were
+filed in the template between 2026-10-17 and 2026-11-05, and the consumers took refresh pull requests at that pace:
+LarsLaskowski/Seluna 13 in 19 days, LarsLaskowski/PlexToJellyfinSync 9 since 2026-10-25 against one product pull
+request (PlexToJellyfinSync#260), LarsLaskowski/Censio 8 in 5 days (#62, #83, #89, #93, #94, #97, #98, #100). Runs
+therefore worked under changing rules, and `squad-report.py` could not tell which version a run used, because
+`.squad/template.json` recorded only a commit. Batched releases with a tag and a changelog section each give every
+run a version (`.squad/template.json` `tag`, the first line of `squad-log.py --summary`), and the report's totals per
+template version compare the runs before and after the release of a rule change. The tag is set on the release pull
+request's merge commit because pull requests are squash-merged, so no branch commit reaches `main`; `apply-template.py`
+reads only local tags, so a rollout from a checkout of the tag records it without a network call (a cloud checkout
+has no tags until they are fetched, *Fetch main and the tags at intake*).
+
+The README's *Profiles* table listed F1-Telemetry, OpenHabLogViewer, e-networld and PiMonitor. F1-Telemetry,
+OpenHabLogViewer and PiMonitor have no `.squad/` on `main` but an older template version with `.agents/`, so a rollout
+over the repositories with a `.squad/template.json` silently left them out; e-networld is private and was not checked;
+LarsLaskowski/Vandox (`go` and `dotnet`), Censio (`dotnet`) and Seluna (`typescript`) were missing, and the
+`typescript` row still said "first repository refines it". `consumers.json` keeps them as data with their profiles,
+SonarQube Cloud keys (read from the SonarQube Cloud organization `networlddev` on 2026-11-06; e-networld has no
+project there) and a status; the four older ones are `legacy` until the owner decides whether to refresh or drop them.
+
+`RULE_WORDS_BASELINE` measured the rule files as a whole, while the cost is what each role reads on every launch, its
+*Read first* list plus the project's own files; a fresh launch costs 40 k to 100 k tokens (*Model and effort per
+role*). On the template after #234, #239, #255 and #256 (2026-11-06), `template-check.py` reports from 1,611 template
+words per launch (Code Officer) to 12,319 (Lead, of them 5,646 for all of `routing.md`), and 11,626 for the
+orchestrator of `squad-issue`; the Devil's Advocate reads 2,324 words of `routing.md` for *Tiers* alone. That is where a split of `routing.md` (tiers
+for every role, pipeline and loop limits for the orchestrator and the Lead) would pay.
+
+The README called the template "one rule set for every AI coding agent", which holds for `AGENTS.md` only. The squad
+depends on Claude Code's subagents, `SendMessage`, transcripts and hooks, and its skills on Claude Code's web
+environment: `subscribe_pr_activity`, the `mcp__github__*` tools, `add_repo`, network secrets and the blocked GraphQL
+API that `team.md` works around.

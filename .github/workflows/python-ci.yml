@@ -9,6 +9,10 @@ on:
       - "core/**"
       - "profiles/**"
       - "seed/**"
+      - "multi/**"
+      - "decision-seeds/**"
+      - "CHANGELOG.md"
+      - "consumers.json"
   push:
     branches: [main]
   schedule:

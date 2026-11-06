@@ -56,26 +56,18 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 
    **Logging.** Only you write `log.md`, one row per step and per launch, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — never by hand.
-   - Write a launch's row as soon as its report is in, with `--agent squad-<role>` alone (usage pending; `--launch` for a launch *Launch model* overrides), a continued one too (with `--continued` or `--continued-from`, kept for its amend). When
-     its task notification arrives, add the usage with `--amend-last "<member>" --agent squad-<role> --tokens …
-     --tool-uses … --seconds …` (`--step "<step>"` for a row that is no longer the member's last).
-   - **Every number is copied from the usage block of a task notification you have in front of you** —
-     never an estimate, a figure from memory or the member's hand-back. A notification whose summary says the
-     agent is waiting on its own background work is interim: amend with the numbers of the final notification
-     of the same task id (`--replace-last`, with `--step` if the row is no longer the member's last, if the interim
-     ones are already in). A repeated hand-back message is ignored; only the latest notification of a task id
-     counts. A notification that never comes is marked `--unreported`; a wrong trailer is corrected with
-     `--replace-last`, never with a second row.
-   - A continued launch gets `--continued` (or `--continued-from "<step cell of the fresh launch>"` when that
-     agent is not the member's last fresh launch) on its pending row or on the amend that carries its numbers,
-     with the notification's numbers unchanged (only the tokens are cumulative). Name a fix, delta or revise round as such in its step
-     cell; a continuation at another step than its fresh launch draws a warning (a new mode is a fresh launch).
+   - Write a launch's row as soon as its report is in, with `--agent-id <id>` (the agent id the Agent tool
+     returned): the script reads model, effort, tokens per kind, tool uses and seconds from the agent's transcript
+     and warns when the model is not the one *Launch model* names. Never type a number yourself.
+   - A continued launch adds `--continued`, or `--continued-from "<step cell of the fresh launch>"` when that agent
+     is not the member's last fresh launch (only for continuing the same agent). Name a fix, delta or revise round
+     as such in its step cell; a continuation at another step than its fresh launch draws a warning (a new mode is
+     a fresh launch).
    - Rows of the Orchestrator, the Product Manager and the User take no metric option; their member cells are
      exactly `Orchestrator`, `Product Manager` and `User` (`squad-orchestrator` is written as `Orchestrator`).
-   - `--continued-from` is only for continuing the same agent; a fresh launch of the same role at another step
-     is logged without it.
-   - After step 10 every call — row, amend, summary — needs `--stdin` (step 10); without it, it fails.
-   - Everything else, and what each refusal means: `python3 .squad/tools/squad-log.py --help`.
+   - After step 10 every call — row, summary — needs `--stdin` (step 10); without it, it fails.
+   - Outside Claude Code (no transcript) a launch is logged from its task notification instead; that path, and
+     what each refusal means: `python3 .squad/tools/squad-log.py --help`.
 
    After every member's report, commit and push the files it left in the work folder.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
@@ -196,18 +188,18 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     weaken a test to get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself — an unclear or
     contradictory rule, a misbehaving tool, an agent that could not be launched, a step you had to improvise —
-    each with the role it concerns and a concrete proposal, file them as *Squad lessons* says (create the
-    labels if missing) and link them from the working-record comment; with nothing to learn, add a `no
-    lessons` row instead. Run `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's
-    log table); exit code 3 names launch rows still without usage — amend them from their
-    notifications or mark them `--unreported`, and run it again; exit code 4 names commits after the PR that
-    no step-11 review row follows — run their delta review (step 11), or log a verbatim fix as such, and run it
-    again. Append the tables exactly as printed (a run
-    without them is not wrapped up) to the comment under "Squad run metrics". Then run `python3
-    .squad/tools/session-usage.py` and append its output as printed under "Session usage" (`.squad/routing.md`,
-    step 12). Report the branch, the PR
-    URL, the tier, the `squad` issues (or "no lessons"), the metrics tables and any escalation or Lead
-    decision to the user.
+    each with the role it concerns and a concrete proposal, and check your log for the lesson candidates of *Squad
+    lessons* (`squad-log.py … --summary` lists those it finds while the lessons row is missing). File the lessons
+    in this repository as *Squad lessons* says, link them from the working-record comment and log the lessons row
+    at step 12: the URL of every lesson issue, or exactly `no lessons`. Run
+    `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's log table); exit
+    code 3 names launch rows still without usage (the notification path of `--help`), complete them; exit code 4
+    names commits after the PR that no step-11 review row follows — run their delta review (step 11), or log a
+    verbatim fix as such; exit code 5 means the lessons row is missing; then run it again. Append the tables
+    exactly as printed (a run without them is not wrapped up) to the comment under "Squad run metrics". Then run
+    `python3 .squad/tools/session-usage.py` and append its output as printed under "Session usage"
+    (`.squad/routing.md`, step 12). Report the branch, the PR URL, the tier, the lesson issues (or "no lessons"),
+    the metrics tables and any escalation or Lead decision to the user.
 
 ## Notes
 

@@ -1,0 +1,63 @@
+{
+  "template": "LarsLaskowski/Squad-Spec-Repository-Template",
+  "consumers": [
+    {
+      "repository": "LarsLaskowski/Vandox",
+      "profiles": ["go", "dotnet"],
+      "sonar": "networlddev_vandox",
+      "status": "active"
+    },
+    {
+      "repository": "LarsLaskowski/DockerUpdateGuard",
+      "profiles": ["dotnet"],
+      "sonar": "LarsLaskowski_DockerUpdateGuard",
+      "status": "active"
+    },
+    {
+      "repository": "LarsLaskowski/PlexToJellyfinSync",
+      "profiles": ["dotnet"],
+      "sonar": "networlddev_PlexToJellyfinSync",
+      "status": "active"
+    },
+    {
+      "repository": "LarsLaskowski/Seluna",
+      "profiles": ["typescript"],
+      "sonar": "networlddev_seluna",
+      "status": "active"
+    },
+    {
+      "repository": "LarsLaskowski/Censio",
+      "profiles": ["dotnet"],
+      "sonar": "networlddev_censio",
+      "status": "active"
+    },
+    {
+      "repository": "LarsLaskowski/F1-Telemetry",
+      "profiles": ["dotnet"],
+      "sonar": "networlddev_f1-telemetry",
+      "status": "legacy",
+      "note": "no .squad/ on main, an older template version with .agents/; refresh or drop is still to be decided"
+    },
+    {
+      "repository": "LarsLaskowski/OpenHabLogViewer",
+      "profiles": ["node"],
+      "sonar": "networlddev_OpenHabLogViewer",
+      "status": "legacy",
+      "note": "no .squad/ on main, an older template version with .agents/; refresh or drop is still to be decided"
+    },
+    {
+      "repository": "LarsLaskowski/e-networld",
+      "profiles": ["node"],
+      "sonar": null,
+      "status": "legacy",
+      "note": "private, not checked in the review of 2026-11-05; refresh or drop is still to be decided"
+    },
+    {
+      "repository": "LarsLaskowski/PiMonitor",
+      "profiles": ["go"],
+      "sonar": "LarsLaskowski_PiMonitor",
+      "status": "legacy",
+      "note": "no .squad/ on main, an older template version with .agents/; refresh or drop is still to be decided"
+    }
+  ]
+}

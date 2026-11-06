@@ -24,3 +24,6 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Tools] `squad-next.py` prints the orchestrator's next step with its exact launch, and `gate-stamp.py` runs the
   step-7 gates of the tier and logs them with the head SHA; step 9 (`--verify`) and `squad-log.py --summary` (exit 6)
   refuse a head without a passing stamp (#238)
+- [Core] The squad's rule files are consolidated without changing a rule: repetitions point to the one place a rule
+  lives, and procedure the tools enforce (`squad-next.py`, `gate-stamp.py`, `squad-log.py`, `plan-check.py`, the
+  Git and file guards) is a pointer to the tool (#234–#250)

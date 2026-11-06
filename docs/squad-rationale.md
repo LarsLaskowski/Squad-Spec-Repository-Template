@@ -548,3 +548,32 @@ orchestrator follows step by step: LarsLaskowski/Vandox#337 posted the working r
 early draft pull request before the review, and logged that as improvised. The Lead read every decision record
 (110 records of about 98,000 words in Vandox, #236), the Devil's Advocate only the index and the records of the
 topic; the Lead now reads them the same way, the first step of #236.
+
+## The approval decides only the listed points, non-blocking findings in step 8, Security's complete fix accepted, record wording verbatim (squad-lead.md, modes approve-pr and decide; routing.md, PR approval, Loop limits and Non-blocking findings; squad-issue, steps 8 and 9; squad-reviewer.md; squad-security.md; orchestration.md, Verbatim documentation fixes)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #244). In mode `approve-pr` the Lead checked
+every decision record against what was built and every change in behavior against its area document, and any edit
+it found necessary led to `NOT APPROVED` or to `APPROVED` on that condition, so the approval acted as a further review
+round after a clean one. LarsLaskowski/DockerUpdateGuard#355 was not approved because the Lead ordered a test; in
+LarsLaskowski/DockerUpdateGuard#364 a non-blocking Security note became a fix at the approval (four more launches);
+LarsLaskowski/Seluna#108, #109 and #134 got conditions and edits to records 0039, 0040 and 0043 with extra delta
+rounds; LarsLaskowski/Censio#14 was not approved and needed four delta rounds, the last one about the PR description.
+The Reviewer's *Documentation truth* already read the area documents and now checks the records as well, so the
+approval decides only the points the orchestrator lists. Something the Lead notices outside them becomes a proposed
+linked issue; wrong behavior and a broken guarantee still stop the approval, because a linked issue would merge them.
+Non-blocking findings are decided right after their round, before its fix round: a fix rides with the blocking ones
+and one delta round covers both, where a fix ordered at the approval needed a fix round, a delta round and a second
+approval of its own. Tiers `docs` and `patch` have no step 9, so step 8 also gives them a place to decide such
+findings.
+
+After the second `CHANGES_REQUIRED` of Security's plan review the Lead could accept and fix a defect only of three
+kinds, one of them a defect whose failure Security had measured and whose complete fix Security had supplied. In
+LarsLaskowski/Vandox#289 the Lead escalated to the Product Manager only to ask whether Security's fix could be applied
+unchanged. A complete fix from Security that changes no scope and no criterion is now enough; the measurement is
+still required where the defect is a claim about behavior, since an unmeasured fix would carry that claim on as fact
+(`team.md`, *Test doubles that model a real component*).
+
+Decision records are the Lead's, so a wording finding on a record that the Reviewer did not state verbatim cost a
+Lead launch: in LarsLaskowski/DockerUpdateGuard#372 three of the five Lead launches were for record wording. The
+Reviewer states every such finding verbatim, the orchestrator applies it (*Verbatim documentation fixes* already
+named records), and only a change to a record's decision goes to the Lead.

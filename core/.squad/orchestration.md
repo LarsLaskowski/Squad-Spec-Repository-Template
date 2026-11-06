@@ -177,9 +177,10 @@ paragraph, the other lines of that paragraph may be rewrapped: whitespace only, 
 which then shows the proposed change and nothing else, and the log row says `rewrapped`. No launch, no
 build, no confirming delta round: a blocking finding resolved this way makes its round clean, and the text is read
 again only by a delta round due for another change. An edit beyond the proposed text, or a fix the reviewer cannot
-state verbatim, is an ordinary fix for its owner with a delta round. One exception: a fix that changes a behavior
-statement an acceptance criterion or a guarantee in `.squad/project.md` relies on is not applied; the reviewer says
-so, and the Lead decides (mode `decide`).
+state verbatim, is an ordinary fix for its owner with a delta round. A decision record's wording is fixed this way
+too, without a Lead launch. One exception: a fix that changes a behavior statement an acceptance criterion or a
+guarantee in `.squad/project.md` relies on, or a record's decision (the option it takes or why), is not applied;
+the reviewer says so, and the Lead decides (mode `decide`).
 
 ## A denied measurement
 

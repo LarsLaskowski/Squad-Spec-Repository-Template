@@ -212,9 +212,11 @@ The orchestrator first runs this checklist in full:
 Then it sets each `Proposed` decision record of this change and its index row to `Accepted` and runs
 `decision-check.py` (bookkeeping, like `log.md`). The Lead is launched in mode `approve-pr` only when a
 decision is open: a plan deviation in a member's report, a Lead decision recorded during steps 3–8 (loop
-limit, dispute, accepted gap, finding accepted unfixed), non-blocking findings that touch code and are not yet
-decided, or a change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the
-Reviewer did not find consistent. Otherwise "approved by checklist" is logged → 10.
+limit, dispute, accepted gap, finding accepted unfixed), or a change to `docs/ARCHITECTURE.md` or
+`.squad/project.md` that the plan does not name or the Reviewer did not find consistent. The orchestrator lists
+these points one by one, and they are all the Lead decides there (`squad-lead.md`, mode `approve-pr`);
+non-blocking findings are decided in step 8 (*Non-blocking findings*). Otherwise "approved by checklist" is
+logged → 10.
 
 A fix the Lead orders goes back to step 6 or 8 and counts against the review loop; any edit beyond the
 record status — `docs/ARCHITECTURE.md` included — has an owner and gets a delta round. `NOT APPROVED` without
@@ -267,10 +269,11 @@ PR is opened, the branch stays without one, and the user is told so.
   challenge and the first `CHANGES_REQUIRED` together. After the 2nd `CHANGES_REQUIRED` the Lead
   decides: narrow the scope, split into separate issues, escalate to the Product Manager, or — when the
   remaining defect is a pure wording defect, a defect confined to the plan's resource section (limits,
-  bounds, sizes) whose fix changes no scope, or a defect whose failure Security has **measured** and whose
-  **complete fix** (the exact statements or edits) Security supplied, where the fix changes no scope and no
-  acceptance criterion — accept and fix it, followed by exactly one Security delta confirmation of the fix
-  (a further rejection then goes to the Product Manager).
+  bounds, sizes) whose fix changes no scope, or a defect whose **complete fix** (the exact statements or edits)
+  Security supplied, where the fix changes no scope and no acceptance criterion (for a defect in a claim about
+  how code, a library or a server behaves, only once Security has **measured** the failure) — accept and fix it
+  without an escalation, followed by exactly one Security delta confirmation of the fix (a further rejection
+  then goes to the Product Manager).
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review; at most **2 further fix-and-review
   rounds**, each reviewing only the delta; blocking findings still open then go to the Lead (accept with
   justification, split into a follow-up issue, abort, or escalate). A round counts per review round that
@@ -328,6 +331,8 @@ the Lead first (*Loop limits*, New scope on the open PR).
 Fixed in the same change or opened as a linked GitHub issue now — never deferred to "a later change".
 
 - A non-blocking finding with a verbatim documentation fix goes the way of *Verbatim documentation fixes*.
-- Every other non-blocking finding — one that touches code, or one the orchestrator would turn into a
-  follow-up issue — is decided by the Lead in step 9 (one launch for all of them); a finding fixed now gets
-  a delta round.
+- Every other non-blocking finding — the Reviewer's or Security's, one that touches code, or one the
+  orchestrator would turn into a follow-up issue — is decided by the Lead in step 8, in mode `decide` (one
+  launch for all of a round's findings), before that round's fix round: a fix it orders goes to its owner
+  together with the round's blocking findings, and one delta round covers both; a linked issue is opened by
+  the orchestrator. Step 9 does not take them up again.

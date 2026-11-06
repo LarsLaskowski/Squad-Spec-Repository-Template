@@ -145,16 +145,17 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    - blocking findings → their owner (`squad-dev` for code and documentation, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
      `patch`: you fix them and rerun the checks of step 2) → **a delta round, mandatory**, continuing the
      reviewer; at most 2 fix rounds, then `squad-lead` in mode `decide` (*Loop limits*);
-   - non-blocking findings: *Non-blocking findings*, collected for step 9.
+   - non-blocking findings: *Non-blocking findings* — those without a `verbatim` fix go to `squad-lead` in
+     mode `decide` now, before the round's fix round, and a fix it orders goes to its owner with the blocking ones.
 
    A reviewer or `squad-security` that stops on an API error (`529 Overloaded`; `429`: once the limit has reset) is relaunched
    unchanged, at most twice; after that report a blocker to the user. A safeguard stop (`invalid_request`, category
    `cyber`) is not relaunched: escalate to the Product Manager at once (*Loop limits*, Safeguard stop).
 9. **PR approval.** Run *PR approval* (`.squad/routing.md`): the checklist in full, then the record status
    and `decision-check.py`. Launch `squad-lead` in mode `approve-pr` as a fresh launch (never a continuation
-   of its plan agent) — with the base ref, the gate output, the review outcome and the open points (after the
-   PR also the finished check-run list) — only for the open decisions it lists; otherwise log "approved by
-   checklist".
+   of its plan agent) — with the base ref, the gate output, the review outcome and the open points of *PR
+   approval*, listed one by one (after the PR also the finished check-run list) — only when that section leaves
+   a decision open; otherwise log "approved by checklist".
 10. **Pull request.** With an *Early draft PR* (open since step 7) this step, too, waits for step 9: the record
     is posted and `specs/` removed only now, and the open PR is updated as below instead of opened. Post
     `plan.md` (none on tiers `docs` and `patch`) and `log.md` as one comment on the issue, headed "Squad

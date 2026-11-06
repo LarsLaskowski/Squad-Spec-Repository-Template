@@ -4,7 +4,7 @@
 - **Date:** YYYY-MM-DD
 - **Area:** —
 - **Source:** Squad refreshed from Squad-Spec-Repository-Template
-- **Supersedes:** NNNN, NNNN (every released process record of earlier template versions that was still in force)
+- **Supersedes:** NNNN, NNNN (the released process records of earlier template versions it retires: each one still in force, and each one whose `Superseded by` named a record deleted with them)
 
 ## Context
 

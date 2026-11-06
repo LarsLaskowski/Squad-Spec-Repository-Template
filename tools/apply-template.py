@@ -505,17 +505,25 @@ def record_field(text, name):
     return match.group(1).strip() if match else ""
 
 
+def title_key(title):
+    """A title as titles are compared: case, punctuation and the kind of apostrophe left aside."""
+    return " ".join(re.sub(r"\W+", " ", title).casefold().split())
+
+
 def record_title(text):
     match = RECORD_TITLE.search(text)
-    return match.group(1).strip().casefold() if match else ""
+    return title_key(match.group(1)) if match else ""
 
 
 def decision_records(target):
-    """{number: (rel, text)} of the target's numbered decision records."""
+    """{number: (rel, text)} of the target's numbered decision records; a byte that is no UTF-8 is replaced."""
     folder = target_path(target, DECISIONS_DIR)
-    names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
-    return {name[:4]: (f"{DECISIONS_DIR}/{name}", read(os.path.join(folder, name))) for name in names
-            if RECORD_FILE.match(name)}
+    records = {}
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if RECORD_FILE.match(name):
+            with open(os.path.join(folder, name), encoding="utf-8-sig", errors="replace") as handle:
+                records[name[:4]] = (f"{DECISIONS_DIR}/{name}", handle.read().replace("\r\n", "\n"))
+    return records
 
 
 def is_seeded_process_record(text, titles):
@@ -525,22 +533,35 @@ def is_seeded_process_record(text, titles):
         or record_title(text) in titles
 
 
-def process_records(target):
-    """[(rel, status)] of the target's records that still carry a process decision of an older template version:
-    seeded ones and every record that supersedes or amends one, not superseded themselves. The record that moved them
-    to process.md (decision-seeds/) is left out, so the list is empty once they are retired."""
-    titles = {title.strip().casefold() for title in re.findall(r"^## (.+)$", read(os.path.join(ROOT, "core", PROCESS_FILE)),
-                                                                re.M)}
-    moved = record_title(read(MOVED_SEED))
-    records = {number: entry for number, entry in decision_records(target).items() if record_title(entry[1]) != moved}
-    found = {number for number, (_, text) in records.items() if is_seeded_process_record(text, titles)}
+def is_move_record(text, moved):
+    """The record that moved the process decisions to process.md: the seed's title, or a link to the file."""
+    return record_title(text) == moved or "](process.md)" in text
+
+
+def successors(records, found):
+    """{number: the record it supersedes or amends} of every record that names one of `found`, until none is new."""
+    later = {}
     while True:
-        later = {number for number, (_, text) in records.items()
-                 if number not in found and set(re.findall(r"\b\d{4}\b", record_field(text, "Supersedes"))) & found}
-        if not later:
-            break
-        found |= later
-    return [(records[number][0], record_field(records[number][1], "Status")) for number in sorted(found)
+        new = {number: older for number, (_, text) in records.items() if number not in found and number not in later
+               for older in re.findall(r"\b\d{4}\b", record_field(text, "Supersedes")) if older in found or older in later}
+        if not new:
+            return later
+        later.update(new)
+
+
+def process_records(target):
+    """[(rel, status, note)] of the target's records that still carry a process decision of an older template version,
+    not superseded themselves: seeded ones (note "") and every record that supersedes or amends one (note "supersedes
+    or amends NNNN": possibly a rule of the project's own). The record that moved them to process.md is left out, so
+    the list is empty once they are retired."""
+    titles = {title_key(title) for title in re.findall(r"^## (.+)$", read(os.path.join(ROOT, "core", PROCESS_FILE)), re.M)}
+    moved = record_title(read(MOVED_SEED))
+    records = {number: entry for number, entry in decision_records(target).items() if not is_move_record(entry[1], moved)}
+    seeded = {number for number, (_, text) in records.items() if is_seeded_process_record(text, titles)}
+    later = successors(records, seeded)
+    notes = dict.fromkeys(seeded, "") | {number: f"supersedes or amends {older}" for number, older in later.items()}
+    return [(records[number][0], record_field(records[number][1], "Status"), note)
+            for number, note in sorted(notes.items())
             if not record_field(records[number][1], "Status").startswith("Superseded")]
 
 
@@ -774,8 +795,8 @@ def print_report(report, unknown, references, dry_run, process=()):
     if process:
         print(f"\nProcess records of an older template version, now in {PROCESS_FILE} - retire them "
               "(adopt-template step 8):")
-        for rel, status in process:
-            print(f"  {rel} ({status or 'no status'})")
+        for rel, status, note in process:
+            print(f"  {rel} ({'; '.join(part for part in (status or 'no status', note) if part)})")
     if dry_run:
         print("\nDry run: nothing was written.")
 

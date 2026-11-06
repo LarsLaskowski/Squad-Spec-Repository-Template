@@ -601,9 +601,13 @@ It sits next to the records rather than in `docs/CONTRIBUTING.md`, whose templat
 The records the seeds left behind are retired once: `apply-template.py` lists those still in force — a source naming
 the template, a title of a `process.md` section, or a record that supersedes or amends one, which catches Seluna's
 0044 — and leaves out the record that moved them, so the list is empty after the migration. An unreleased one is
-deleted; the released ones are superseded together by the one record left in `decision-seeds/`, which names the
-file. A released record whose `Superseded by` named a deleted unreleased record gets the new record as its successor
-(a released record's status may still change to another `Superseded by`), so no link points at nothing.
+deleted together with the unreleased records it supersedes: before a repository's first release `decision-check.py`
+cannot tell a chain like Seluna's from a released one, and deleting only its head left `Superseded by` pointing at
+nothing. The released ones are superseded together by the one record left in `decision-seeds/`, which names the file,
+and so is a released record whose `Superseded by` named a deleted one (a released record's status may still change to
+another `Superseded by`); a test applies this to the Seluna chain for every release point. A record that supersedes or
+amends a seeded one may hold a rule of the project's own, so the list marks it and step 8 keeps it with what it
+names.
 
 ## Documentation that still states a changed value (figure-check.py; routing.md, Pipeline step 7; squad-issue, step 7; squad-dev.md, Documentation; squad_settings.py seeds)
 

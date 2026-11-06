@@ -24,9 +24,8 @@ once in the [area document](../areas/README.md) of the record's area, and the re
   released record itself stays unedited.
 - Written by the squad Lead (see [`.claude/agents/squad-lead.md`](../../.claude/agents/squad-lead.md));
   anyone may add one for a change made outside the squad.
-- **The squad's own process decisions are not records here:** they stand in [`process.md`](process.md), which the
-  squad template overwrites on every refresh — no number, no index row, and a change to them is made in the
-  template repository.
+- The squad's own process decisions are no records: they stand in [`process.md`](process.md), whose introduction
+  says how they change.
 - Committed together with the change it explains.
 - **Released or not decides how a record changes.** A record is *released* once the commit that added it is
   contained in a release tag (`v*`; check with `git tag --contains <commit>`, the commit is

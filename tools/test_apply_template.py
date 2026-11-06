@@ -269,10 +269,10 @@ class TestProcessRecords(unittest.TestCase):
         self.record("README.md", "# Decision records\n")
         self.record("process.md", "# Process decisions\n")
         self.assertEqual(self.script.process_records(self.target), [
-            ("docs/decisions/0037-off-main.md", "Accepted"),
-            ("docs/decisions/0044-settings.md", "Accepted"),
-            ("docs/decisions/0045-squash.md", "Accepted")])
-        self.record("0050-moved.md", process_record("0050", "The squad's process decisions live in process.md",
+            ("docs/decisions/0037-off-main.md", "Accepted", ""),
+            ("docs/decisions/0044-settings.md", "Accepted", "supersedes or amends 0037"),
+            ("docs/decisions/0045-squash.md", "Accepted", "")])
+        self.record("0050-moved.md", process_record("0050", "The squad\u2019s process decisions live in process.md",
                                                     source="Squad refreshed from Squad-Spec-Repository-Template",
                                                     supersedes="0037, 0044, 0045"))
         for name in ("0037-off-main.md", "0044-settings.md", "0045-squash.md"):
@@ -285,9 +285,23 @@ class TestProcessRecords(unittest.TestCase):
     def test_the_report_names_them(self):
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
-            self.script.print_report([], [], [], False, [("docs/decisions/0037-off-main.md", "Accepted")])
+            self.script.print_report([], [], [], False, [("docs/decisions/0037-off-main.md", "Accepted", ""),
+                                                         ("docs/decisions/0044-x.md", "", "supersedes or amends 0037")])
         self.assertIn("Process records of an older template version, now in docs/decisions/process.md", printed.getvalue())
-        self.assertIn("  docs/decisions/0037-off-main.md (Accepted)", printed.getvalue())
+        self.assertIn("  docs/decisions/0037-off-main.md (Accepted)\n", printed.getvalue())
+        self.assertIn("  docs/decisions/0044-x.md (no status; supersedes or amends 0037)\n", printed.getvalue())
+
+    def test_a_record_that_is_no_utf_8_is_read(self):
+        os.makedirs(self.decisions, exist_ok=True)
+        with open(os.path.join(self.decisions, "0001-latin.md"), "wb") as handle:
+            handle.write(process_record("0001", "Squash-merge pull requests").encode("utf-8") + b"Gr\xf6\xdfe\n")
+        self.assertEqual(self.script.process_records(self.target), [("docs/decisions/0001-latin.md", "Accepted", "")])
+
+    def test_a_record_linking_process_md_is_the_move_record(self):
+        self.record("0003-squash.md", process_record("0003", "Squash-merge pull requests", "Superseded by 0009"))
+        self.record("0009-moved.md", process_record("0009", "Process decisions now in a file", supersedes="0003")
+                    + "See [process.md](process.md).\n")
+        self.assertEqual(self.script.process_records(self.target), [])
 
 
 class TestMergedSettings(unittest.TestCase):

@@ -132,16 +132,18 @@ Rules that hold throughout:
 8. **Decision records, settings, CI.**
    - The squad's process decisions are the managed `docs/decisions/process.md`, which the apply step writes and
      every refresh overwrites: no number, no index row, and no record in the target for a change to them. The
-     records that carried them before are retired once, here — the apply step lists them under *Process records*
-     (numbered from `decision-seeds/` by older template versions, records that supersede or amend one, still in
-     force), and on a first adoption a record of the target's own that only states what `process.md` now decides
-     (what a product PR may touch, where squad lessons go, how pull requests merge) is retired the same way; one
-     with rules of the project's own stays. An unreleased one (no release tag contains it) is deleted with its
-     index row, and every link to it points at `process.md`. When released ones are among them, one record from
-     `decision-seeds/process-decisions-moved.md` (next free number, date today) lists under *Supersedes* every
-     released one that is still in force or whose `Superseded by` named a deleted record, and each of those gets
-     the status `Superseded by NNNN`; a released record superseded by another released one stays as it is. The
-     apply step then lists none.
+     records that carried them before are retired once, here: the ones the apply step lists under *Process
+     records* (numbered from `decision-seeds/` by older template versions, and the records that supersede or
+     amend one, all still in force) and, on a first adoption, a record of the target's own that only states what
+     `process.md` now decides (what a product PR may touch, where squad lessons go, how pull requests merge). A
+     listed record marked "supersedes or amends" that states a rule of the project's own stays, and so does every
+     record its *Supersedes* names. Of the others, an unreleased one (no release tag contains it) is deleted with
+     its index row, together with every unreleased record it supersedes (a chain from before the first release),
+     and every link to them points at `process.md`. When a released one is among them, or a released
+     record's `Superseded by` names a deleted one, one record from `decision-seeds/process-decisions-moved.md`
+     (next free number, date today) lists all those under *Supersedes*, and each of them gets the status
+     `Superseded by NNNN`; a released record superseded by another released one stays as it is. Run
+     `decision-check.py`; afterwards the apply step lists only the records kept as the project's own.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`, the
      PreToolUse `Bash` hook running `.claude/hooks/git-guard.py` and the PreToolUse
      `Write|Edit|MultiEdit|NotebookEdit` hook running `.claude/hooks/file-guard.py` exist, as in the template's

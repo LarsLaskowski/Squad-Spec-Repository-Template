@@ -138,6 +138,73 @@ class TestProcessFile(unittest.TestCase):
         self.assertIn("Checked 1 decision records: PASS", result.stdout)
 
 
+def chain_record(number, title, status, supersedes="—"):
+    return (f"# {number}: {title}\n\n- **Status:** {status}\n- **Date:** 2026-01-01\n- **Area:** —\n"
+            f"- **Source:** Squad adopted from Squad-Spec-Repository-Template\n- **Supersedes:** {supersedes}\n\n"
+            "## Decision\n\nIt holds.\n")
+
+
+class TestProcessRecordMigration(unittest.TestCase):
+    """adopt-template step 8 on the chain 0002 → 0022 → 0037 plus 0044 amending 0037: for every release point, the
+    log passes decision-check.py after the migration."""
+
+    TITLE = "Squad working records stay off main"
+    CHAIN = [("0002", "Superseded by 0022", "—"), ("0022", "Superseded by 0037", "0002"), ("0037", "Accepted", "0022"),
+             ("0044", "Accepted", "0037 (amends it)")]
+
+    def git(self, *args):
+        subprocess.run(["git", "-C", self.repo, "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True,
+                       capture_output=True)
+
+    def commit_chain(self, decisions, released_upto):
+        """The chain committed record by record, tagged after the record at `released_upto` (-1: never)."""
+        self.git("init", "-q")
+        for i, (number, status, supersedes) in enumerate(self.CHAIN):
+            write(os.path.join(decisions, f"{number}-chain.md"), chain_record(number, self.TITLE, status, supersedes))
+            self.git("add", "-A")
+            self.git("commit", "-qm", number)
+            if i == released_upto:
+                self.git("tag", "v1.0.0")
+
+    def retire(self, decisions, released):
+        """Step 8: delete the unreleased records (with the ones they supersede), supersede the released ones still in
+        force or superseded by a deleted one with record 0050; returns the index rows."""
+        deleted = [n for n, _, _ in self.CHAIN if n not in released]
+        for number in deleted:
+            os.remove(os.path.join(decisions, f"{number}-chain.md"))
+        retired = [n for n, status, _ in self.CHAIN if n in released
+                   and (status == "Accepted" or status.removeprefix("Superseded by ") in deleted)]
+        for number, _, supersedes in self.CHAIN:
+            if number in retired:
+                write(os.path.join(decisions, f"{number}-chain.md"),
+                      chain_record(number, self.TITLE, "Superseded by 0050", supersedes))
+        rows = [(n, "Superseded by 0050" if n in retired else s) for n, s, _ in self.CHAIN if n not in deleted]
+        if retired:
+            write(os.path.join(decisions, "0050-moved.md"), chain_record(
+                "0050", "The squad's process decisions live in process.md", "Accepted", ", ".join(retired)))
+            rows.append(("0050", "Accepted"))
+        return rows
+
+    def migrate(self, released_upto):
+        """Records up to `released_upto` (an index into CHAIN) are released; then step 8 retires the chain."""
+        with tempfile.TemporaryDirectory() as self.repo:
+            decisions = os.path.join(self.repo, "docs", "decisions")
+            self.commit_chain(decisions, released_upto)
+            rows = self.retire(decisions, [number for number, _, _ in self.CHAIN[:released_upto + 1]])
+            write(os.path.join(decisions, "README.md"), INDEX.replace(
+                "| 0001 | Topic | Accepted | 2026-01-01 |\n",
+                "".join(f"| {n} | Topic | {s} | 2026-01-01 |\n" for n, s in rows)))
+            result = subprocess.run([sys.executable, SCRIPT], cwd=self.repo, capture_output=True, text=True,
+                                    encoding="utf-8")
+        return result.returncode, result.stdout
+
+    def test_every_release_point_leaves_a_consistent_log(self):
+        for released_upto in (-1, 1, 2, 3):
+            with self.subTest(released=[n for n, _, _ in self.CHAIN[:released_upto + 1]]):
+                code, output = self.migrate(released_upto)
+                self.assertEqual(code, 0, output)
+
+
 def record_text(number, options, words=0):
     """A record with `options` numbered options and `words` filler words in its context."""
     listed = "\n".join(f"{i}. **Option {i}** — pros / cons." for i in range(1, options + 1))

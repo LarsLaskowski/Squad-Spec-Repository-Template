@@ -44,7 +44,11 @@ areas, guarantees, integration surface, test doubles), `AGENTS.md` and
   "add after '…'"), and mark the finding
   `verbatim` (`.squad/orchestration.md`, *Verbatim documentation fixes*). When the
   fix changes a behavior statement an acceptance criterion or a guarantee in
-  `.squad/project.md` relies on, say so: the Lead decides.
+  `.squad/project.md` relies on, say so: the Lead decides. Every wording
+  finding on a decision record (a stale name, link, number or sentence) is
+  stated this way, because records are the Lead's and any other form costs a
+  Lead launch; only a finding that changes a record's decision — the option it
+  takes or why — goes to the Lead without a verbatim fix.
 
 ## Inputs
 
@@ -155,7 +159,9 @@ repository names this thing, and is that statement still true?**
   standing still describe what the code does? Check the claims, don't read
   past them. A change in behavior (format, limit, default, error, guarantee)
   needs the matching section of its area document in `docs/areas/` in the same
-  diff, and a decision record repeats no rules the area document states.
+  diff, and a decision record repeats no rules the area document states. Each
+  decision record of the change matches what was built; the PR approval (step 9)
+  does not check it again.
 - **Language**: all new code, comments, documentation and commit messages in
   English.
 - **Scope**: unrelated changes bundled in, accidental file inclusions, debug

@@ -15,7 +15,9 @@ the guidance in these comments does not count. -->
 ## Scenarios
 
 <!-- What a user (or the system) does and sees, one numbered scenario per path, the usual path first, in the
-words of the user interface, the API or the file the user reads: "S1: Given …, when …, then …". -->
+words of the user interface, the API or the file the user reads: "S1: Given …, when …, then …". A small feature
+(at most SMALL_FEATURE_CRITERIA criteria in `squad_settings.py`, no security area) may write "none" here and each
+criterion as its own scenario. -->
 
 - S1: …
 
@@ -65,4 +67,5 @@ section: each objection of the Devil's Advocate and the answer (accepted — wha
 
 <!-- Amendments: left out until a criterion changes after the Lead approved the spec. Then the Lead (mode
 `decide`) adds a "## Amendments" section at the end: a table `| Criterion | Change | Reason | Step | Decided by |`,
-one row per criterion it changes, adds or drops (`dropped: …`), decided by `Lead` or `Product Manager`. -->
+one row per criterion it changes, adds, drops (`dropped: …`) or waives (`waived: …`, a criterion no one can
+verify, only by the Product Manager), decided by `Lead` or `Product Manager`. -->

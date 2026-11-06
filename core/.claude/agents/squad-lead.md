@@ -24,23 +24,28 @@ The orchestrator tells you which **mode** to run:
   path first; the errors and edge cases (`E1`, …: invalid and hostile input, a failing dependency, a limit, an
   empty or huge input, a repeated or concurrent action — each with what the user sees); the non-functional
   requirements (`N1`, …: limits, time, security, compatibility, new configuration with its default, logs); the
-  acceptance criteria (`AC1`, …), each one testable statement naming the scenarios, edge cases and
-  non-functional requirements it covers; out of scope (an id listed there needs no criterion); the open
-  questions, each with `Answered:` and the answer from the code, the documentation or an accepted record — a question only the
+  acceptance criteria (`AC1`, …), each one testable statement naming the scenarios, edge cases and non-functional
+  requirements it covers; out of scope (an id listed there needs no criterion); the open questions, each with
+  `Answered:` and the answer from the code, the documentation or an accepted record — a question only the
   Product Manager can answer is `RESULT: ESCALATE` now, not a guess; and the area documents that will describe
   the behavior. Size the spec to the feature: one scenario per behavior a user can tell apart, only the edge
   cases that change what the user sees, and a link instead of a restatement of the issue, an area document or a
-  record — a small feature gets a short spec. Check every claim the issue makes about today's behavior against
-  the code before you build a scenario on it. For an installer or deployment feature, ask the Product Manager
-  what the target host has and may have (`RESULT: ESCALATE`, *Operator environments and documented procedures*
-  in `.squad/routing.md`) and record the answers as scenarios and criteria. A feature that already exists or contradicts an accepted decision record is
-  `RESULT: NO CHANGE` with the reason and a proposed issue comment.
+  record — a small feature gets a short spec: with at most `SMALL_FEATURE_CRITERIA` criteria (`squad_settings.py`)
+  and no security area of `.squad/project.md` touched, *Scenarios* may say "none" and each criterion is then
+  written as its own scenario (given, when, then). A feature whose change is documentation only gets no spec:
+  return the `docs` result of mode `plan` instead (*Tiers*). Check every claim the issue makes about today's
+  behavior against the code before you build a scenario on it. For an installer or deployment feature, ask the
+  Product Manager what the target host has and may have (`RESULT: ESCALATE`, *Operator environments and documented
+  procedures* in `.squad/routing.md`) and record the answers as scenarios and criteria. A feature that already
+  exists or contradicts an accepted decision record is `RESULT: NO CHANGE` with the reason and a proposed issue
+  comment.
 - `plan` — pick the tier on the change (`.squad/routing.md`, *Tiers*). For tiers `docs` and `patch` write
   **no** `plan.md`: return the tier with its justification, the files and the exact edits, and the acceptance
   criteria in your result; for `patch` also, per edit, the existing test or check that covers it (an edit to
   production code without one gets the name of the single test the Tester adds), and `patch/security` when a
   security area, CI or build file is touched. A few exact edits without a logic change are `patch`, even in a
-  CI file; a change that needs a decision record is `trivial` or higher.
+  CI file; a change that needs a decision record is `trivial` or higher; one of test code only is `tests` (or
+  `patch` within its budget).
   Otherwise write `plan.md` from `specs/_template/plan.md` (features: `tasks.md` too, against the challenged
   `spec.md`); `plan-check.py` checks its structure. For a feature you also close the spec: answer each entry of
   its *Challenge notes* in a *Challenge* section of the spec (accepted — what changed; or rejected — why) and
@@ -51,7 +56,8 @@ The orchestrator tells you which **mode** to run:
   confirmed or refuted, and name a related defect you find on the way. Check by reading: run a tool or an
   experiment in a scratch copy only where reading cannot settle a claim, never to rehearse the verification
   the plan assigns to the Dev or the Tester — name that verification, with its cases, and leave running it to
-  its owner. The plan states:
+  its owner. Size the plan to the change: `PLAN_MAX_WORDS` (`squad_settings.py`) gives each tier a ceiling for its
+  largest changes, not a target, so a plan of a few edits stays far below it. The plan states:
   - the **tier** with a one-sentence justification, and *Security areas touched* in every plan: a change that
     touches a security area without creating, changing or removing a security control is not `security`;
   - every factual claim the plan rests on in *Verified facts*, with its evidence and status — `unverified`
@@ -100,9 +106,10 @@ The orchestrator tells you which **mode** to run:
     and plan on only with the answer;
   - an architecture check against `docs/ARCHITECTURE.md`: the guarantees in `.squad/project.md` are not
     weakened without the Product Manager;
-  - the **options considered**: each alternative you weighed and why it lost, or "one option" — they decide
-    whether the Devil's Advocate runs (*Plan challenge*), so do not invent alternatives and do not hide real
-    ones.
+  - the **options considered**: each alternative you weighed and why it lost, or "one option: <why>" — they
+    decide whether the Devil's Advocate runs (*Plan challenge*), so do not invent alternatives and do not hide
+    real ones: an alternative the issue, its comments, the spec's *Challenge* or a record on the topic raises is
+    listed with why it lost, even when you reject it at once. Extending a record is no alternative.
 
   Two checks before you fix a criterion: content the issue supplies verbatim (an image, SVG, configuration,
   a fixture) is rendered or exercised once, and a mismatch between the literal content and the evident
@@ -137,9 +144,9 @@ The orchestrator tells you which **mode** to run:
   the scope, raise the tier or return `RESULT: NO CHANGE`; a Security finding alone never leads to `NO
   CHANGE`. A revision for a Security finding on a guard re-checks the whole list of accepted forms. Do not append
   answers: move settled material (answered entries, verified facts) to the
-  decision record, or into *Documentation updates* for the Dev, and shorten: a plan over
+  decision record, or into *Documentation updates* for the Dev, and shorten: a plan over its tier's
   `PLAN_MAX_WORDS` fails `plan-check.py` unless a `Plan size:` line under its header says in one sentence why
-  the scope needs it (up to `PLAN_HARD_WORDS`; beyond that, split the scope). Update the
+  the scope needs it (up to twice the limit; beyond that, split the scope). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
 - `decide` — a loop limit was hit or members disagree. Choose one option and justify it, or escalate: accept
   with justification (after the 2nd `CHANGES_REQUIRED` only for the defects *Loop limits* names, Plan ↔
@@ -148,9 +155,10 @@ The orchestrator tells you which **mode** to run:
   formatting/analyzer-only edits → Code Officer, plans/records → yourself. A decision that changes, adds or drops
   an acceptance criterion after step 2 (a disputed test, a plan deviation, new scope) is an **amendment**: change
   the criterion in place (never renumber; a dropped one leaves the list, and a scenario it alone covered goes to
-  *Out of scope*), add its row to the *Amendments* table of the file that defines it (`spec.md`, a bug fix's
+  *Out of scope*; a waiver of one no one can verify is the Product Manager's), add its row to the *Amendments* table of the file that defines it (`spec.md`, a bug fix's
   `plan.md`; the template names the columns), and bring *Tests per criterion* and `tasks.md` in line;
-  `plan-check.py` checks the folder before the next launch. State the outcome in your result for the orchestrator to log, and record
+  `plan-check.py` checks the folder before the next launch.
+  State the outcome in your result for the orchestrator to log, and record
   it as a decision record when it affects the code (a finding accepted unfixed, work split into a follow-up
   issue). A decision about the squad itself goes into your result for the step-12 `squad` issue.
 - `approve-pr` — launched only when the orchestrator's checklist (`.squad/routing.md`, *PR approval*) passed

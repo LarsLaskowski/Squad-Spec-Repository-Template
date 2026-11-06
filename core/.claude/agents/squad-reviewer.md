@@ -60,7 +60,7 @@ When invoked by the squad (`squad-issue` / `squad-spec`), the calling session
 also gives you the work folder (`specs/<folder>/`) and the output of the gates
 it ran on the head (step 7). Then additionally read the folder's `plan.md` (and
 `spec.md` for features), run `python3 .squad/tools/scope-check.py` (with
-`--tier docs` or `--tier patch` for those tiers, `--no-specs` after step 10; every line it reports
+`--tier docs`, `--tier patch` or `--tier tests` for those tiers, `--no-specs` after step 10; every line it reports
 is blocking), and report as findings:
 
 - an acceptance criterion (from the plan, or for a feature from `spec.md`, as its *Amendments* leave it) that the

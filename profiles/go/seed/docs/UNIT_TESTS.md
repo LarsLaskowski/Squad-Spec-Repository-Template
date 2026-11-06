@@ -24,8 +24,8 @@ neighboring test file before inventing a new pattern.
 
 A test written for an acceptance criterion of a squad plan or spec carries the criterion's id at the start of its
 subtest name, `t.Run("AC3 empty input returns error", …)`, or as the last part of the test function's name,
-`TestParse_EmptyInput_AC3`, so that `.squad/tools/plan-check.py --matrix` finds it by id after a rename or a split; a test that asserts
-several criteria carries each id.
+`TestParse_EmptyInput_AC3`, so that `.squad/tools/plan-check.py --matrix` finds it by id after a rename or a split;
+a test that asserts several criteria carries each id.
 
 ## Structure
 

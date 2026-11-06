@@ -71,6 +71,10 @@ See spec.md.
 | 1 | The job queue serializes jobs | src/Jobs/Queue.cs:40 takes a single worker | confirmed |
 | 2 | The CSV writer quotes commas | to verify: Dev runs the writer on "a,b" before step 6 | unverified |
 
+## Options considered
+
+one option: the CSV writer and the job queue exist already.
+
 ## Tests per criterion
 
 | AC | Test(s) | Test file |
@@ -192,6 +196,60 @@ class TestPlanCheck(unittest.TestCase):
             code = self.script.main([os.path.basename(folder), "--matrix"])
         return code, output.getvalue()
 
+    def test_spec_limit_scales_with_the_criteria(self):
+        folder = self.feature(plan=None, tasks=None)
+        write(os.path.join(folder, "spec.md"), SPEC + "\nfiller " * 600)
+        warnings = self.script.check_spec_only(folder)[1]
+        self.assertTrue(warnings and "over 700 for 2 criteria" in warnings[0], warnings)
+        many = SPEC.replace("- AC2:", "".join(f"- AC{n}: x (S1)\n" for n in range(3, 20)) + "- AC2:")
+        write(os.path.join(folder, "spec.md"), many + "\nfiller " * 2000)
+        self.assertEqual(self.script.check_spec_only(folder)[1], [], "19 criteria may take up to SPEC_MAX_WORDS")
+        write(os.path.join(folder, "spec.md"), many + "\nfiller " * 2500)
+        self.assertTrue(self.script.check_spec_only(folder)[1], "SPEC_MAX_WORDS caps the limit")
+
+    def test_small_feature_lets_its_criteria_be_its_scenarios(self):
+        small = SPEC.replace("- S1: Given a library, when the user exports it, then a CSV file with one row per item is "
+                             "written.\n- S2: Given an export in progress, when another starts, then the second waits.",
+                             "none").replace("(S1, N1)", "(N1)").replace("- S2: concurrent exports are serialized by "
+                                                                       "the existing job queue.", "none")
+        self.assertEqual(self.errors(self.feature(spec=small)), [])
+        many = small.replace("- AC2:", "- AC3: x (E1)\n- AC4: y (E2)\n- AC2:")
+        tasks = TASKS.replace("AC1, AC2", "AC1\u2013AC4")
+        plan = PLAN.replace("| AC2 |", "| AC3, AC4 | T3 | x |\n| AC2 |")
+        self.assertTrue(any("only a small feature may" in e for e in self.errors(self.feature(spec=many, plan=plan,
+                                                                                               tasks=tasks))))
+        secure = PLAN.replace("Security areas touched: none", "Security areas touched: CSV import")
+        self.assertTrue(any("touches a security area" in e for e in self.errors(self.feature(spec=small, plan=secure))))
+
+    def challenge(self, plan, on_base=lambda path: False):
+        return self.script.challenge_verdict(plan, on_base)
+
+    def test_plan_challenge_trigger(self):
+        self.assertEqual(self.challenge(PLAN), (False, "one option and no new decision record"))
+        weighed = PLAN.replace("one option: the CSV writer and the job queue exist already.",
+                               "- A streaming writer: lost, the files are small.")
+        self.assertEqual(self.challenge(weighed), (True, "*Options considered* names an alternative"))
+        records = PLAN + "\n## Decision records\n\n- `docs/decisions/0007-csv-export.md` (Proposed)\n"
+        self.assertEqual(self.challenge(records), (True, "new decision record docs/decisions/0007-csv-export.md"))
+        self.assertFalse(self.challenge(records, on_base=lambda path: True)[0], "an extended record alone is no trigger")
+        self.assertTrue(self.challenge(PLAN.replace("Tier: standard", "Tier: security"))[0])
+        self.assertFalse(self.challenge(weighed.replace("Tier: standard", "Tier: trivial"))[0])
+        no_code = weighed + "\n## Verification without tests\n\n- AC1: CI: the workflow run.\n"
+        self.assertEqual(self.challenge(no_code), (False, "no production code (*Verification without tests*)"))
+        empty = PLAN.replace("one option: the CSV writer and the job queue exist already.", "")
+        self.assertTrue(any("*Options considered* is missing" in e for e in self.errors(self.feature(plan=empty))))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.script.main([os.path.basename(self.feature(plan=weighed))])
+        self.assertIn("Plan challenge: due — *Options considered* names an alternative", output.getvalue())
+
+    def test_tier_tests_needs_its_test_rows(self):
+        plan = BUG_PLAN.replace("Tier: trivial", "Tier: tests")
+        write("specs/issue-34/plan.md", plan)
+        self.assertEqual(self.errors("specs/issue-34"), [])
+        write("specs/issue-34/plan.md", plan.replace("| NfoWriterEmptyTitleWritesNoTitle |", "| — |"))
+        self.assertTrue(any("row without a test name" in e for e in self.errors("specs/issue-34")))
+
     def test_matrix_finds_tests_by_criterion_id_or_by_name(self):
         folder = self.feature()
         write("tests/ExportTests.cs", '[TestCategory("AC1")]\npublic void ExportWritesRows() {}\n'
@@ -305,30 +363,50 @@ class TestPlanCheck(unittest.TestCase):
         self.assertTrue(warnings and "SPEC_MAX_WORDS" in warnings[0], warnings)
         self.assertFalse(any("words" in e for e in errors), "a long spec is no finding")
 
-    def test_plan_over_the_limit_is_a_finding(self):
-        errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 5000))
-        self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), errors)
+    def test_plan_over_the_limit_of_its_tier_is_a_finding(self):
+        errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))
+        self.assertTrue(any("PLAN_MAX_WORDS 2500 for tier standard" in e for e in errors), errors)
         self.assertEqual(warnings, [])
-        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 2000))
         self.assertFalse(any("words" in e for e in errors), "a plan within the limit passes")
+        errors, _ = self.script.check(self.feature(plan=PLAN.replace("Tier: standard", "Tier: security")
+                                                   + "\nfiller " * 3000))
+        self.assertFalse(any("words" in e for e in errors), "tier security allows 4000 words")
+        trivial = BUG_PLAN + "\nfiller " * 900
+        write("specs/issue-34/plan.md", trivial)
+        self.assertTrue(any("PLAN_MAX_WORDS 800 for tier trivial" in e for e in self.errors("specs/issue-34")))
+        self.script.PLAN_MAX_WORDS = 4000
+        self.assertEqual(self.errors("specs/issue-34"), [], "one number from an older settings file applies to all")
+        self.script.PLAN_MAX_WORDS = {"standard": 100}
+        self.assertEqual(self.script.plan_limit("trivial"), 800, "a tier the settings lack keeps its default")
+        self.assertEqual(self.script.plan_limit(None), 4000, "no tier: the highest limit")
+
+    def test_template_lines_and_comments_do_not_count_against_the_plan_limit(self):
+        shutil.copytree(TEMPLATES, os.path.join("specs", "_template"))
+        with open(os.path.join(TEMPLATES, "plan.md"), encoding="utf-8") as handle:
+            template = handle.read()
+        self.assertEqual(self.script.counted_words(template), 0, "the template's own lines are not the Lead's")
+        self.assertEqual(self.script.counted_words("<!-- " + "guidance " * 900 + "-->\nOwn words here.\n"), 3)
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\n" + template.split("\n## ", 1)[1] * 2))
+        self.assertFalse(any("words" in e for e in errors), "guidance kept from the template is not counted")
 
     def test_appended_notes_do_not_count_against_the_plan_limit(self):
         notes = "\n## Security notes\n\n" + "note " * 5000 + "\n\n## Challenge notes\n\n" + "note " * 5000 + "\n"
-        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000 + notes))
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 2000 + notes))
         self.assertFalse(any("words" in e for e in errors), "the appended notes are not counted")
         errors, _ = self.script.check(self.feature(plan=PLAN + notes + "\n## Later\n\n" + "filler " * 5000))
         self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "a section after the notes is counted")
 
     def test_justified_plan_size_is_a_warning_up_to_the_hard_limit(self):
         justified = PLAN.replace("\n## ", "\nPlan size: eleven task groups across agent and backend\n\n## ", 1)
-        errors, warnings = self.script.check(self.feature(plan=justified + "\nfiller " * 5000))
+        errors, warnings = self.script.check(self.feature(plan=justified + "\nfiller " * 4000))
         self.assertFalse(any("words" in e for e in errors), errors)
         self.assertTrue(warnings and "justified: eleven task groups" in warnings[0], warnings)
         placeholder = PLAN.replace("\n## ", "\nPlan size: <why>\n\n## ", 1)
-        errors, _ = self.script.check(self.feature(plan=placeholder + "\nfiller " * 5000))
+        errors, _ = self.script.check(self.feature(plan=placeholder + "\nfiller " * 4000))
         self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "a placeholder is no reason")
-        errors, _ = self.script.check(self.feature(plan=justified + "\nfiller " * 9000))
-        self.assertTrue(any("PLAN_HARD_WORDS" in e for e in errors), "beyond the hard limit only a split helps")
+        errors, _ = self.script.check(self.feature(plan=justified + "\nfiller " * 5000))
+        self.assertTrue(any("over twice PLAN_MAX_WORDS" in e for e in errors), "beyond twice the limit only a split helps")
 
     def test_skeleton_row_per_group_when_the_plan_lists_api(self):
         plan = (PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n"

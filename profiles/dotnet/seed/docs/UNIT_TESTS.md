@@ -28,9 +28,9 @@ neighboring test file before inventing a new pattern.
 ## Criterion ids
 
 A test written for an acceptance criterion of a squad plan or spec carries the criterion's id as a test category,
-`[TestCategory("AC3")]` on the test method, so that `.squad/tools/plan-check.py --matrix` finds it by id after a rename or a split; a test that asserts
-several criteria carries each id.
-The method name follows *Naming* unchanged.
+`[TestCategory("AC3")]` on the test method, so that `.squad/tools/plan-check.py --matrix` finds it by id after a
+rename or a split; a test that asserts several criteria carries each id. The method name follows *Naming*
+unchanged.
 
 ## Structure
 

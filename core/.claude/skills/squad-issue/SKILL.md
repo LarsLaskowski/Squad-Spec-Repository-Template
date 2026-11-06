@@ -91,7 +91,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 
    **Plan challenge.** Launch `squad-devils-advocate` in mode `plan` with the issue text and the work folder
    when *Plan challenge* calls for it, together with step 3 on the same plan commit when that runs; otherwise
-   log "challenge skipped: no options". Route its verdict as *Plan challenge* says: append minor objections
+   log "challenge skipped" with the reason `plan-check.py` prints. Route its verdict as *Plan challenge* says: append minor objections
    and Security's non-blocking findings verbatim; on a major objection, or a Security note that leaves the
    plan a choice, launch `squad-lead` in mode `revise` with all objections (and Security's `CHANGES_REQUIRED`
    findings, if any). After a raised tier, continue with that tier's steps; `NO CHANGE` and `ESCALATE` as
@@ -105,7 +105,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    section of `.squad/stack.md` names, quoted in the prompt: the planned signatures and the existing test call sites the plan assigns to the Dev. A plan that declares the change
    free of production and test code skips steps 4 and 5 (*Changes without production or test code*): log the
    skipped steps and run the plan's *Verification without tests* instead.
-5. **Tests first** (not for `trivial`). Launch `squad-tester` in mode `tests-first`, with the model *Launch model* names (tier `security`:
+5. **Tests first** (not for `trivial` or `tests`). Launch `squad-tester` in mode `tests-first`, with the model *Launch model* names (tier `security`:
    pass `model: opus` on this first launch already, and on every later Tester launch). Confirm yourself that the
    new tests compile and fail on the current code (unless the Tester justified why one cannot); note the
    tests it hands back as **deferred**. A fix without a reproducing test is acceptable only when the bug

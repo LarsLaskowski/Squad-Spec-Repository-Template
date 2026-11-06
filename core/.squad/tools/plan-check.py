@@ -14,7 +14,9 @@ Checks, in the work folder `specs/<folder>/`:
   accepted and means nothing), and a line that names a criterion in
   another form is reported; *Non-functional requirements* says "none" or numbers them `- N<n>: …`; every
   scenario, edge case `E<n>` and non-functional requirement is named by a criterion or listed under *Out of
-  scope*; every open question is answered (`Answered:`) or the section says "none"; `plan.md` defines no
+  scope*; a small feature (at most `SMALL_FEATURE_CRITERIA` criteria, default 3, and a plan without security
+  areas) may write *Scenarios* as "none", its criteria being its scenarios; every open question is answered
+  (`Answered:`) or the section says "none"; `plan.md` defines no
   criterion of its own; every criterion of the spec has a row in the plan's *Tests per criterion* and appears in
   the *Criteria* column of `tasks.md` (every table of it), and neither names a criterion the spec lacks; every
   task row names its *Group* (the unit steps 4–6 run per, with one agent per member and mode), and a group's rows are
@@ -31,16 +33,25 @@ Checks, in the work folder `specs/<folder>/`:
   Product Manager. A dropped criterion needs no test or task, and naming it there is no finding; a waived one
   needs no test.
 - **Both:** the *Tier* line names exactly one tier, and the *Security areas touched* line says "none" or lists
-  them (it decides the Security plan review); *Verified facts* has at least
+  them (it decides the Security plan review); on tiers `standard` and `security` *Options considered* is filled
+  (the alternatives, or `one option: <why>`); *Verified facts* has at least
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
   that settles it, starting with `to verify:`); no template placeholder is left; no Markdown file of the work
   folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A
-  plan longer than `PLAN_MAX_WORDS` (`squad_settings.py`, default 4000; the orchestrator-appended *Challenge
-  notes* and *Security notes* sections do not count) is a finding: a long plan costs every
+  plan longer than its tier's `PLAN_MAX_WORDS` (`squad_settings.py`, default `tests` and `trivial` 800,
+  `standard` 2500, `security` 4000; HTML comments, lines kept verbatim from `specs/_template/plan.md` and the
+  orchestrator-appended *Challenge notes* and *Security notes* sections do not count) is a finding: a long plan
+  costs every
   member that reads it, so the Lead moves settled material (answered challenge entries, facts verified in earlier
   rounds) into the decision record, or into *Documentation updates* for the Dev. A plan whose scope really needs
-  more says why in a `Plan size:` line under the header; then up to `PLAN_HARD_WORDS` (default twice the limit) is a warning that
-  quotes the reason, and beyond that the scope is split.
+  more says why in a `Plan size:` line under the header; then up to twice the limit is a warning that quotes the
+  reason, and beyond that the scope is split.
+
+After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
+`Plan challenge: due — …` or `Plan challenge: not due — …`: due on tier `security`, and on tier `standard` when
+the plan has production code (no *Verification without tests*) and *Options considered* names an alternative
+(anything but `one option: …`) or *Decision records* names a record that BASE_REF (`squad_settings.py`) lacks — an
+extended record alone does not count.
 
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`, `N1-N2`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.
@@ -57,8 +68,9 @@ passed on; no such file makes it `MISSING` and the exit code 1. Every other kind
 (`squad-issue`, step 10).
 
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge. A spec longer
-than `SPEC_MAX_WORDS` (`squad_settings.py`, default 2500; the template's guidance comments do not count) is reported
-as a warning: every later launch reads it, so the Lead sizes it to the feature.
+than `SPEC_BASE_WORDS` plus `SPEC_WORDS_PER_CRITERION` per acceptance criterion, at most `SPEC_MAX_WORDS`
+(`squad_settings.py`, default 300, 200 and 2500; the template's guidance comments do not count) is reported as a
+warning: every later launch reads it, so the Lead sizes it to the feature.
 
 Usage, from the repository root:
     python3 .squad/tools/plan-check.py <work folder name, e.g. feature-12-export or issue-34> [--spec | --matrix]
@@ -72,16 +84,25 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import squad_settings as settings  # noqa: E402  (per-repository settings next to this script)
-from analyzer_common import control_characters  # noqa: E402  (shared helpers next to this script)
+from analyzer_common import BASE_REF, control_characters  # noqa: E402  (shared helpers next to this script)
 
-PLAN_MAX_WORDS = getattr(settings, "PLAN_MAX_WORDS", 4000)
-PLAN_HARD_WORDS = getattr(settings, "PLAN_HARD_WORDS", 2 * PLAN_MAX_WORDS)
+TIERS = ("tests", "trivial", "standard", "security")
+PLAN_LIMITS = {"tests": 800, "trivial": 800, "standard": 2500, "security": 4000}
+# Per tier; one number (an older settings file) applies to every tier.
+PLAN_MAX_WORDS = getattr(settings, "PLAN_MAX_WORDS", PLAN_LIMITS)
 NOTES_HEADING = re.compile(r"^(#{2,6})[ \t]+(?:Challenge|Security) notes\b", re.I)
 PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
 SPEC_MAX_WORDS = getattr(settings, "SPEC_MAX_WORDS", 2500)
-TIERS = ("trivial", "standard", "security")
+SPEC_BASE_WORDS = getattr(settings, "SPEC_BASE_WORDS", 300)
+SPEC_WORDS_PER_CRITERION = getattr(settings, "SPEC_WORDS_PER_CRITERION", 200)
+SMALL_FEATURE_CRITERIA = getattr(settings, "SMALL_FEATURE_CRITERIA", 3)
+CHALLENGED_TIERS = ("standard", "security")
+ONE_OPTION = re.compile(r"^\W*one option\b", re.I)
+RECORD = re.compile(r"docs/decisions/\d{4}-[\w.-]+\.md")
+TIER_LINE = re.compile(r"^Tier:\s*`?(\w+)`?([^\n]*)", re.M)
 STATUSES = ("confirmed", "refuted", "unverified")
 CRITERIA_SECTION = "Acceptance criteria"
+WITHOUT_TESTS = "Verification without tests"
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
                  CRITERIA_SECTION, "Out of scope", "Open questions", "Area documents"]
 CRITERION = re.compile(r"^\s*- (?:\[[ xX]\] )?(AC\d+):", re.M)
@@ -92,7 +113,7 @@ RANGE = re.compile(r"\b(AC|S|E|N)(\d+)(?:\s*(?:[-\u2013\u2014]|\.\.)\s*\1(\d+)|[
 ID = re.compile(r"\b(AC|S|E|N)(\d+)\b")
 ELLIPSIS = r"(?:\.\.\.|\u2026)"
 PLACEHOLDERS = [re.compile(p) for p in (r"<title>", r"Issue #<number>", r"<one-sentence justification>",
-                                         r"NNNN-title", rf"\bAC\d+: {ELLIPSIS}\s*$",
+                                         r"NNNN-title", r"one option: <why", rf"\bAC\d+: {ELLIPSIS}\s*$",
                                          rf"^\s*- [SEN]\d+: {ELLIPSIS}\s*$", rf"^\|.*\|\s*{ELLIPSIS}\s*\|")]
 EMPTY_CELLS = {"", "-", "\u2013", "\u2014", "...", "\u2026", "none", "n/a", "tbd", "todo"}
 COMMENT = re.compile(r"(```.*?```|`[^`\n]*`)|<!--.*?-->", re.S)  # a code span or fenced block is kept whole
@@ -100,6 +121,7 @@ EMPHASIS = "`*_"
 SPEC = "spec.md"
 PLAN = "plan.md"
 SPECS_PREFIX = "specs/"
+TEMPLATE_PLAN = os.path.join("specs", "_template", PLAN)
 LEAD_FILES = (SPECS_PREFIX, "docs/decisions/")
 NONE = re.compile(r"^\s*(?:[-*]\s+)?none\.?\s*$", re.I)
 SKELETON_ROW = re.compile(r"^skeleton\b", re.I)
@@ -276,13 +298,26 @@ def check_spec(spec, errors):
     cases = [case for name in ("Scenarios", "Errors and edge cases") for case in CASE.findall(parts.get(name, ""))]
     cases += CASE.findall(requirements)
     if not any(case.startswith("S") for case in cases):
-        errors.append("spec.md: no scenario written `- S1: …` under *Scenarios*")
+        check_small_spec(parts.get("Scenarios", ""), len(criteria), errors)
     covered = ids(block) | ids(parts.get("Out of scope", ""))
     for case in cases:
         if case not in covered:
             errors.append(f"spec.md: {case} is named by no acceptance criterion and not listed under *Out of scope*")
     check_open_questions(parts.get("Open questions", ""), errors)
     return set(criteria), check_amendments(SPEC, parts, set(criteria), errors)
+
+
+def check_small_spec(scenarios, count, errors):
+    """A spec without scenarios: only a small feature's, which says "none" and lets its criteria be its scenarios."""
+    if not NONE.match(scenarios):
+        errors.append("spec.md: no scenario written `- S1: …` under *Scenarios*")
+    elif count > SMALL_FEATURE_CRITERIA:
+        errors.append(f"spec.md: *Scenarios* says \"none\", which only a small feature may (at most "
+                      f"{SMALL_FEATURE_CRITERIA} criteria, SMALL_FEATURE_CRITERIA): write the scenarios")
+
+
+def small_spec(spec):
+    return bool(NONE.match(sections(spec).get("Scenarios", "")))
 
 
 def check_amendment_row(name, cells, criteria, settled, errors):
@@ -353,7 +388,7 @@ def check_tests(plan_parts, criteria, tier, errors, settled=None):
     if tier == "trivial":
         return
     settled = settled or {}
-    without_tests = ids(plan_parts.get("Verification without tests", ""), "AC")
+    without_tests = ids(plan_parts.get(WITHOUT_TESTS, ""), "AC")
     for criterion in sorted(criteria - named - without_tests - set(settled)):
         errors.append(f"plan.md: {criterion} has no row in *Tests per criterion* (nor in *Verification without tests*)")
     for criterion in sorted(named - criteria - set(settled)):
@@ -493,17 +528,26 @@ def check_tasks(tasks, criteria, errors, signatures=(), dropped=frozenset()):
         errors.append(f"tasks.md: names {criterion}, which spec.md does not define")
 
 
+def plan_tier(plan):
+    """The tier the *Tier* line names, or None."""
+    tier = TIER_LINE.search(plan)
+    return tier.group(1) if tier else None
+
+
+def areas_value(plan):
+    areas = re.search(r"^Security areas touched:(.*)", plan, re.M)
+    return cell(areas.group(1)) if areas else None
+
+
 def check_security_areas(plan, errors):
     """The line that decides the Security plan review: "none", or the areas — never empty or left as the template."""
-    areas = re.search(r"^Security areas touched:(.*)", plan, re.M)
-    value = cell(areas.group(1)) if areas else ""
-    tier = re.search(r"^Tier:\s*`?(\w+)", plan, re.M)
+    value = areas_value(plan) or ""
     if NONE.match(value):
-        if tier and tier.group(1) == "security":
+        if plan_tier(plan) == "security":
             errors.append("plan.md: tier `security` changes a security control, so *Security areas touched* "
                           "cannot be \"none\": name the area (add it to .squad/project.md if the list lacks it)")
         return
-    if (not areas or empty(value) or re.match(r"(?:none|no|nothing)\b", value, re.I) or "<areas>" in value):
+    if (empty(value) or re.match(r"(?:none|no|nothing)\b", value, re.I) or "<areas>" in value):
         errors.append("plan.md: write the line `Security areas touched: none` (exactly) or `Security areas "
                       "touched: <the areas>` (it decides the Security plan review)")
 
@@ -512,11 +556,14 @@ def check_plan(plan, spec, errors):
     """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder and the ones
     its *Amendments* drop or waive."""
     parts = sections(plan)
-    tier = re.search(r"^Tier:\s*`?(\w+)`?([^\n]*)", plan, re.M)
+    tier = TIER_LINE.search(plan)
     name = tier.group(1) if tier else None
     if name not in TIERS or tier.group(2).lstrip().startswith("|"):
         errors.append(f"plan.md: the *Tier* line must name exactly one of {', '.join(TIERS)}")
     check_security_areas(plan, errors)
+    if name in CHALLENGED_TIERS and not parts.get("Options considered"):
+        errors.append("plan.md: *Options considered* is missing or empty: each alternative weighed and why it lost, "
+                      "or `one option: <why>` (it decides the plan challenge)")
     own = set(CRITERION.findall(parts.get(CRITERIA_SECTION, "")))
     if spec is None:
         criteria = own
@@ -527,6 +574,9 @@ def check_plan(plan, spec, errors):
         criteria, settled = check_spec(spec, errors)
         for criterion in sorted(own):
             errors.append(f"plan.md: defines {criterion}; a feature's criteria live in spec.md only")
+        if small_spec(spec) and not NONE.match(areas_value(plan) or "none"):
+            errors.append("spec.md: *Scenarios* says \"none\", which a feature that touches a security area may "
+                          "not: write the scenarios")
     check_tests(parts, criteria, name, errors, settled)
     check_facts(parts, errors)
     return criteria, settled
@@ -538,12 +588,15 @@ def check_spec_only(folder):
     spec = read(os.path.join(folder, SPEC), errors)
     if spec is None:
         return ["spec.md is missing"], []
-    check_spec(spec, errors)
+    criteria, _ = check_spec(spec, errors)
     check_placeholders(SPEC, spec, errors)
     check_control_characters(folder, errors)
     words = len(strip_comments(spec).split())
-    if words > SPEC_MAX_WORDS:
-        return errors, [f"spec.md has {words} words (SPEC_MAX_WORDS {SPEC_MAX_WORDS}), and every later launch reads it: "
+    limit = min(SPEC_MAX_WORDS, SPEC_BASE_WORDS + SPEC_WORDS_PER_CRITERION * len(criteria))
+    if words > limit:
+        return errors, [f"spec.md has {words} words, over {limit} for {len(criteria)} criteria (SPEC_BASE_WORDS "
+                        f"{SPEC_BASE_WORDS} + SPEC_WORDS_PER_CRITERION {SPEC_WORDS_PER_CRITERION} per criterion, at "
+                        f"most SPEC_MAX_WORDS {SPEC_MAX_WORDS}), and every later launch reads it: "
                         "keep one scenario per behavior a user can tell apart and only the edge cases that change "
                         "what the user sees, and link the issue, an area document or a record instead of restating "
                         "it"]
@@ -585,36 +638,53 @@ def check(folder):
     return errors, warnings
 
 
+def template_lines():
+    """The non-empty lines of the repository's plan template, stripped."""
+    text = read(TEMPLATE_PLAN, []) if os.path.isfile(TEMPLATE_PLAN) else None
+    return {line.strip() for line in (text or "").splitlines() if line.strip()}
+
+
 def counted_words(plan):
-    """The words of the plan without the *Challenge notes* and *Security notes* sections the orchestrator appends
-    verbatim after the Lead has sized the plan: the Lead cannot shorten them."""
-    words, skip_level = 0, None
-    for line in plan.splitlines():
+    """The Lead's own words in the plan: not its HTML comments, not a line kept verbatim from the template (a
+    heading, a table header, guidance), and not the *Challenge notes* and *Security notes* sections the orchestrator
+    appends verbatim after the Lead has sized the plan: the Lead cannot shorten them."""
+    words, skip_level, template = 0, None, template_lines()
+    for line in strip_comments(plan).splitlines():
         heading = re.match(r"^(#{1,6})[ \t]", line)
         if heading and skip_level is not None and len(heading.group(1)) <= skip_level:
             skip_level = None
         notes = NOTES_HEADING.match(line)
         if notes and skip_level is None:
             skip_level = len(notes.group(1))
-        if skip_level is None:
+        if skip_level is None and line.strip() not in template:
             words += len(line.split())
     return words
 
 
+def plan_limit(tier):
+    """The word limit of a plan of the tier: PLAN_MAX_WORDS per tier (a tier it lacks takes the default), or one
+    number for every tier; the highest when the *Tier* line names no tier (its own finding)."""
+    limits = dict(PLAN_LIMITS)
+    limits.update(PLAN_MAX_WORDS if isinstance(PLAN_MAX_WORDS, dict) else dict.fromkeys(TIERS, PLAN_MAX_WORDS))
+    return limits.get(tier, max(limits.values()))
+
+
 def check_plan_size(plan, errors, warnings):
-    """A plan within PLAN_MAX_WORDS, or up to PLAN_HARD_WORDS with a `Plan size:` line that says why."""
-    words = counted_words(plan)
-    if words <= PLAN_MAX_WORDS:
+    """A plan within its tier's PLAN_MAX_WORDS, or up to twice that with a `Plan size:` line that says why."""
+    words, tier = counted_words(plan), plan_tier(plan)
+    limit = plan_limit(tier)
+    if words <= limit:
         return
     match = PLAN_SIZE.search(plan)
     reason = match.group(1).strip() if match and not empty(cell(match.group(1))) else None
-    if words > PLAN_HARD_WORDS:
-        errors.append(f"plan.md has {words} words, over PLAN_HARD_WORDS {PLAN_HARD_WORDS}: split the scope into "
-                      "separate issues the plan can describe within the limit")
+    shown = f"PLAN_MAX_WORDS {limit} for tier {tier}"
+    if words > 2 * limit:
+        errors.append(f"plan.md has {words} words, over twice {shown}: split the scope into separate issues the plan "
+                      "can describe within the limit")
     elif reason and "<" not in reason:
-        warnings.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}), justified: {reason}")
+        warnings.append(f"plan.md has {words} words ({shown}), justified: {reason}")
     else:
-        errors.append(f"plan.md has {words} words (PLAN_MAX_WORDS {PLAN_MAX_WORDS}), and every member reads it: "
+        errors.append(f"plan.md has {words} words ({shown}), and every member reads it: size it to the change, "
                       "move settled material (answered challenge entries, facts verified in earlier rounds) into the "
                       "decision record or into Documentation updates for the Dev and cut what the code, the spec or a "
                       "record already says; "
@@ -668,7 +738,7 @@ def planned_verifications(parts):
         for row in rows:
             verification = row_verification(cell_at(row, test), file_list(cell_at(row, files)))
             planned.update(dict.fromkeys(ids(row[0], "AC"), verification))
-    for line in parts.get("Verification without tests", "").splitlines():
+    for line in parts.get(WITHOUT_TESTS, "").splitlines():
         verification = without_tests_verification(LEADING_IDS.sub("", line).strip())
         for criterion in ids(line, "AC"):
             planned.setdefault(criterion, verification)
@@ -744,6 +814,30 @@ def matrix(folder):
     return lines, missing
 
 
+def record_on_base(path):
+    """Whether BASE_REF has the decision record: an extended record, not a new one."""
+    return bool(git_output("cat-file", "-t", f"{BASE_REF}:{path}").strip())
+
+
+def challenge_verdict(plan, on_base=record_on_base):
+    """(due, reason): the trigger of *Plan challenge* in `.squad/routing.md`, read from the plan."""
+    tier = plan_tier(plan)
+    if tier not in CHALLENGED_TIERS:
+        return False, f"tier {tier} is never challenged"
+    if tier == "security":
+        return True, "tier security"
+    parts = sections(plan)
+    if parts.get(WITHOUT_TESTS):
+        return False, "no production code (*Verification without tests*)"
+    options = parts.get("Options considered", "")
+    if options and not ONE_OPTION.match(options):
+        return True, "*Options considered* names an alternative"
+    new = [path for path in dict.fromkeys(RECORD.findall(parts.get("Decision records", ""))) if not on_base(path)]
+    if new:
+        return True, f"new decision record {', '.join(new)}"
+    return False, "one option and no new decision record"
+
+
 def print_matrix(folder):
     lines, missing = matrix(folder)
     print("\n".join(lines))
@@ -770,6 +864,10 @@ def main(argv=None):
         print(f"WARNING: {line}")
     for line in errors:
         print(line)
+    plan = None if spec_only else read(os.path.join(folder, PLAN), [])
+    if plan:
+        due, reason = challenge_verdict(plan)
+        print(f"Plan challenge: {'due' if due else 'not due'} — {reason}")
     print("PASS" if not errors else f"FAIL: {len(errors)} finding(s) — back to the Lead (mode `revise`)")
     return 0 if not errors else 1
 

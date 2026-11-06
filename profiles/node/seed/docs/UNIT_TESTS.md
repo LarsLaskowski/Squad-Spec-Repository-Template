@@ -29,8 +29,8 @@ neighboring test file before inventing a new pattern.
 
 A test written for an acceptance criterion of a squad plan or spec carries the criterion's id at the start of its
 name, `"AC3 parseLine returns null for an empty line"`, or of the `describe` block that groups the criterion's
-tests (`describe("AC3 …")`), so that `.squad/tools/plan-check.py --matrix` finds it by id after a rename or a split; a test that asserts
-several criteria carries each id.
+tests (`describe("AC3 …")`), so that `.squad/tools/plan-check.py --matrix` finds it by id after a rename or a
+split; a test that asserts several criteria carries each id.
 
 ## Structure
 

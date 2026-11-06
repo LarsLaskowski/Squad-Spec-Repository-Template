@@ -29,7 +29,10 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
    otherwise report it to the user) or `RESULT: ESCALATE` (relay the question verbatim, then continue the Lead
    with the answer). Run `python3 .squad/tools/plan-check.py <folder> --spec` after every Lead write; findings
    as *Loop limits* (Plan check) says. Its size warning goes back to the Lead once (mode `revise`): it shortens
-   the spec, or keeps it and gives the reason in its result, which you log.
+   the spec, or keeps it and gives the reason in its result, which you log. A small feature's spec (mode `spec`
+   in `squad-lead.md`) runs the same steps. A feature whose change is documentation only gets `RESULT: DONE` with
+   tier `docs` and no `spec.md`: run the `docs` route of `squad-issue` step 2 instead of the rest of steps 2–3
+   (the working record is `log.md` alone).
 
    **Spec challenge.** Launch `squad-devils-advocate` in mode `spec` with the issue text and the work folder,
    for every feature. Minor objections only: append them verbatim to `spec.md` as a *Challenge notes*
@@ -39,10 +42,10 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
    author: its spec is agreed on the issue now (*Outside authors*).
 2b. **Plan.** Continue the Lead's last launch in mode `plan` with the work folder (*Continuing a member*): it
    closes the spec (answers its *Challenge notes*, sets its status) and writes `plan.md` and `tasks.md`. A
-   feature is never `docs` or `patch`. Run `python3 .squad/tools/plan-check.py <folder>` after every Lead
+   feature is never `patch` (`docs`: step 2a). Run `python3 .squad/tools/plan-check.py <folder>` after every Lead
    write, before anyone else reads the plan; findings as *Loop limits* says. Then the **plan challenge** with
-   `squad-devils-advocate` in mode `plan` when *Plan challenge* calls for it (for a feature: only when the
-   plan weighs options), routed as `squad-issue` step 2 says.
+   `squad-devils-advocate` in mode `plan` when *Plan challenge* calls for it (the verdict `plan-check.py`
+   prints), routed as `squad-issue` step 2 says.
 3. **Plan security review** whenever *Security areas touched* is not "none": `squad-security` in mode `plan`
    reviews `spec.md` and `plan.md` together, in parallel with the plan challenge, and the loop of
    `squad-issue` step 3 applies. Run `plan-check.py` again after every Lead revision.
@@ -69,6 +72,6 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
   requirements and criteria as amended, and that the area documents now say what the spec's *Area documents*
   section promised.
 - **Step 10:** the working record (the verification matrix of the spec's criteria, `spec.md`, `plan.md`,
-  `tasks.md`, `log.md`) is posted to the feature request issue if one exists (`Closes #<n>` in the PR), otherwise as the first comment on the PR right after
-  opening it; every log row and amend after it goes through `squad-log.py … --stdin` on that comment's log
-  table.
+  `tasks.md`, `log.md`; on the `docs` route `log.md` alone) is posted to the feature request issue if one exists
+  (`Closes #<n>` in the PR), otherwise as the first comment on the PR right after opening it; every log row and
+  amend after it goes through `squad-log.py … --stdin` on that comment's log table.

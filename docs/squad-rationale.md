@@ -595,3 +595,81 @@ themselves, although the issue proposed that as an option: every spec scenario i
 interface the user reads (`squad-lead.md`, mode `spec`), so the rule would cover nearly every feature and make
 `"pm"` the default in all but name; a repository that wants it sets `"pm"`. `squad_settings.py` is seeded and never
 overwritten, so `adopt-template` adds the setting on a refresh with the default `"lead"`.
+
+## Numbered non-functional requirements; amendments after approval (spec.md and plan.md templates; plan-check.py; squad-lead.md, mode decide; squad-reviewer.md; squad-spec, Amendments; routing.md, Loop limits)
+
+Found in the review of 2026-11-05 against the five consumers (#241, scope in #234). `plan-check.py` traced every
+scenario and edge case to a criterion or to *Out of scope*, but the non-functional requirements were plain bullets,
+so a limit, a timeout, a compatibility promise or a new setting with its default could stand in the spec without a
+criterion or a test and no check reported it. They are numbered `N1`, `N2`, … now and traced the same way; a bullet
+or a paragraph without an id is reported, so the trace cannot be bypassed by leaving the number off.
+
+No rule said whether or how `spec.md` changes once the Lead has closed it in step 2b, although a Dev ↔ Tester
+dispute or a plan deviation in steps 4–8 can show that a criterion is wrong; the record could then describe criteria
+the code no longer follows. The Lead, which decides those cases in mode `decide`, now records each change in an
+*Amendments* table, `plan-check.py` checks the table (columns, a known or dropped criterion, decided by the Lead or
+the Product Manager) and accepts a dropped criterion still named in the plan or the tasks, and the Reviewer reads
+the criteria as amended. A bug fix's criteria live in `plan.md` and can turn out wrong in the same way, so the same
+table applies there. *New scope on the open PR* records its new criteria as amendments too.
+
+## The verification matrix, criterion ids in tests, no status fields without an owner (plan-check.py --matrix; spec.md, plan.md and tasks.md templates; squad-issue, steps 6 and 10; squad-spec, step 10; profile UNIT_TESTS.md and testing blocks; adopt-template, step 1)
+
+Found in the review of 2026-11-05 against the five consumers (#242, scope in #234). The checkboxes of `- [ ] AC<n>:`
+in `spec.md` and `plan.md`, the *Status* line of the plan template (`Draft | Revised (n) | Approved by Security`)
+and that of the tasks template (`Draft | Approved`) had no rule saying who sets them or when; only the `tasks.md`
+check marks belonged to the orchestrator. The posted record therefore could not show which criteria were verified,
+and the working records of LarsLaskowski/Seluna#108 (facts 12 and 14), #109 (AC13, waived), #110 and #140 (facts 3,
+8, 13 and 14) left criteria with a live or manual check open or waived without a result. The fields are dropped
+rather than given an owner: the log already holds every revision and Security's verdict, and the matrix now holds
+each criterion's verification, so a second place would need its own rule and bookkeeping for no reader. A checkbox
+left in a record is still accepted and means nothing. Without the box a criterion line no longer stands out, so
+`plan-check.py` reads a plan's own criteria from its *Acceptance criteria* section only.
+
+The orchestrator found a criterion's tests by grepping the test names of the plan before step 7; in
+LarsLaskowski/Seluna#108 the Tester renamed or split nine tests to make them match. Each profile now says how a test
+carries its criterion id (a `TestCategory` attribute in MSTest, a subtest name or name suffix in Go, the start of the
+test or `describe` name in Node and TypeScript), and `plan-check.py --matrix` finds tests by that id, falling back to
+the plan's names, in the test paths the coverage gate and the file guard already use. Its result `pass` rests on the
+gates of step 7, which step 9 requires on the same head; the tool cannot read a test result in a stack-neutral way.
+A criterion verified in CI, by hand or only after the merge names that kind in the plan, and the orchestrator fills
+in its result in the working record; one that can only be verified after the merge gets a linked verification issue
+under Next Steps instead of an open box, and a waiver is an amendment the Product Manager decides.
+
+## Word limits per tier, a short spec for small features, a docs route for features, the tests tier and a narrower plan challenge (plan-check.py; scope-check.py --tier tests; squad_settings.py seeds; routing.md, Tiers and Plan challenge; squad-lead.md, modes spec, plan and revise; squad-spec, steps 2a and 2b; spec.md and plan.md templates)
+
+Found in the review of 2026-11-05 against the five consumers (#243, scope in #234). The size of a plan did not
+follow the size of the change: LarsLaskowski/Censio#79 had a plan of 1,980 words for a diff of +14/−2 lines,
+LarsLaskowski/PlexToJellyfinSync#236 1,492 words for +36/−3, LarsLaskowski/DockerUpdateGuard#372 2,930 words for
++79/−11 and LarsLaskowski/Vandox#329 1,597 words for a change of tests only. The limits worked as targets: Vandox
+plans landed at 3,781–3,985 words against `PLAN_MAX_WORDS` 4,000, specs at about 2,500 against `SPEC_MAX_WORDS`
+2,500, and LarsLaskowski/Censio#13, trimmed to 3,921 words, went over once the Security notes were appended
+(LarsLaskowski/Censio#96; the appended notes no longer count since then). The plan limit is now set per tier
+(`tests` and `trivial` 800, `standard` 2,500, `security` 4,000, a `Plan size:` line allowing twice that) and the
+spec limit grows with the criteria (300 words plus 200 per criterion, at most 2,500), both in `squad_settings.py`;
+the Lead is told that a limit is a ceiling for the largest change of a tier.
+
+A feature was never `docs` or `patch`: LarsLaskowski/Censio#16 changed documentation only (+138/−94) and still ran
+spec, spec challenge and plan, about 4,350 words, and LarsLaskowski/Seluna#122 changed one regex in 11 launches and
+about 3,600 words of spec and plan. A feature whose change is documentation only now takes the `docs` route from
+step 2a. A regex is logic, so a change like Seluna#122 stays a full feature; it gets the small spec instead: at most
+three criteria and no security area, criteria that are their own scenarios, and the smaller spec limit. The spec
+challenge stays for every feature, small ones included: it raised a major objection in 5 of 5 Vandox features.
+
+No tier fit a change of test code only, so Vandox#329 ran as `trivial`, which the tier table defines as
+documentation, comments, wording or defaults. The new tier `tests` takes the gates of the existing *test code only*
+row of *Gates of a patch*; the Tester writes the plan's tests in mode `coverage`, whose rule for plan-named tests
+the orchestrator found missing already covers them, and `scope-check.py --tier tests` checks the diff against the
+test paths the coverage gate and the file guard use.
+
+The plan challenge ran on almost every plan because it was due when a plan "adds or extends a decision record", and
+the extend rule (#236) makes nearly every plan extend one: Vandox challenged 11 of its 13 latest plans, and 6 of
+those challenges raised no major objection. Extending a record alone no longer counts; a named alternative or a new
+record does. The trigger also rested on the challenged party's own *Options considered*: `plan-check.py` now
+requires the section on the challenged tiers, reads a new record from the branch's base rather than from the
+plan's wording, and prints the verdict, and the Lead lists every alternative the issue, its comments, the spec's
+challenge or a record raises.
+
+After #255 (*Spec approval*) came in: a criterion of a spec the Product Manager approved is amended only on the
+Product Manager's answer, since the Lead alone would otherwise undo that approval; the approval summary lists the
+non-functional requirements with their ids like the scenarios; and `apply-template.py` writes the size settings
+into the merged `squad_settings.py` of a repository with several profiles, which is built from a fixed list of keys.

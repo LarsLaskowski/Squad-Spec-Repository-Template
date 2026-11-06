@@ -42,7 +42,7 @@ import urllib.parse
 import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
-TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
+TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|tests|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
 # total rows (`session-usage.py`) carry a number in that cell, so they never match.
 RUN_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|[ \t]*+(\d++)[^|\n]*+\|[ \t]*+([\d,]++)[ \t]*+\|", re.M)

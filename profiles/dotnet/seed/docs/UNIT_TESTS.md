@@ -25,6 +25,13 @@ neighboring test file before inventing a new pattern.
 - Method: `{TypeUnderTest}{Scenario}{ExpectedResult}` in PascalCase **without underscores**, e.g.
   `ParserEmptyInputReturnsNull`.
 
+## Criterion ids
+
+A test written for an acceptance criterion of a squad plan or spec carries the criterion's id as a test category,
+`[TestCategory("AC3")]` on the test method, so that `.squad/tools/plan-check.py --matrix` finds it by id after a
+rename or a split; a test that asserts several criteria carries each id. The method name follows *Naming*
+unchanged.
+
 ## Structure
 
 - Arrange / Act / Assert, separated by blank lines; **one act per test**.
@@ -69,7 +76,7 @@ recorded decision — they are not silently accepted.
 - [ ] The *Analyzer gate* reports no diagnostic in a changed test file (MSTest analyzer rules are
       info-level and only visible there or in SonarQube Cloud).
 - [ ] At least 80 % line coverage on new/changed production code and overall (*Coverage gate*).
-- [ ] File, class and method named as above.
+- [ ] File, class and method named as above; a test for a squad acceptance criterion carries its id.
 - [ ] Arrange / Act / Assert, one act, an explanatory message on every assertion, the specific `Assert`
       member, `TestContext.CancellationToken` passed on.
 - [ ] No mocking library — real objects or a hand-written fake/stub.

@@ -10,6 +10,16 @@ PATCH_MAX_LINES = 30
 # Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "lead" or "pm".
 SPEC_APPROVAL = "lead"
 
+# Size of the squad's working records (.squad/tools/plan-check.py): words of plan.md per tier (a `Plan size:` line
+# under its header allows up to twice as many), and of spec.md SPEC_BASE_WORDS plus SPEC_WORDS_PER_CRITERION per
+# acceptance criterion, at most SPEC_MAX_WORDS. A feature of at most SMALL_FEATURE_CRITERIA criteria and no security
+# area may let its criteria be its scenarios. Each is a ceiling for the largest change of its kind, not a target.
+PLAN_MAX_WORDS = {"tests": 800, "trivial": 800, "standard": 2500, "security": 4000}
+SPEC_BASE_WORDS = 300
+SPEC_WORDS_PER_CRITERION = 200
+SPEC_MAX_WORDS = 2500
+SMALL_FEATURE_CRITERIA = 3
+
 # Analyzer gate (.squad/tools/analyzer-check.py): npm scripts that must pass for the whole repository,
 # and the extensions ESLint checks in changed files.
 CHECK_SCRIPTS = ["typecheck"]

@@ -216,6 +216,18 @@ def union_values(lists):
     return list(dict.fromkeys(value for values in lists for value in values))
 
 
+SIZE_SETTINGS = ("PLAN_MAX_WORDS", "SPEC_BASE_WORDS", "SPEC_WORDS_PER_CRITERION", "SPEC_MAX_WORDS",
+                 "SMALL_FEATURE_CRITERIA")
+SIZE_COMMENT = ("# Size of the squad's working records (.squad/tools/plan-check.py): words of plan.md per tier (a `Plan size:` "
+                "line",
+                "# under its header allows up to twice as many), and of spec.md SPEC_BASE_WORDS plus "
+                "SPEC_WORDS_PER_CRITERION per",
+                "# acceptance criterion, at most SPEC_MAX_WORDS. A feature of at most SMALL_FEATURE_CRITERIA criteria "
+                "and no security",
+                "# area may let its criteria be its scenarios. Each is a ceiling for the largest change of its kind, "
+                "not a target.")
+
+
 def merge_settings(profile_dirs):
     """squad_settings.py of a repository with several profiles: the union of the paths and one coverage report
     per profile; the primary profile's other settings (e.g. SOLUTION) come first."""
@@ -231,6 +243,8 @@ def merge_settings(profile_dirs):
              "# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "
              '"lead" or "pm".',
              f"SPEC_APPROVAL = {getattr(modules[0], 'SPEC_APPROVAL', 'lead')!r}", ""]
+    lines += list(SIZE_COMMENT) + [f"{key} = {getattr(modules[0], key)!r}" for key in SIZE_SETTINGS
+                                   if hasattr(modules[0], key)] + [""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]

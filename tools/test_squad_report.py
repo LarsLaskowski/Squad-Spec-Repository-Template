@@ -245,7 +245,7 @@ class TestUpstream(unittest.TestCase):
         def fake_write(method, path, fields):
             writes.append((method, path, fields))
             return {"number": 300, "html_url": "https://github.com/t/t/issues/300"} if path == "repos/t/t/issues" else {}
-        with mock.patch.object(report, "gh_list", lambda path, stop=None: [self.ISSUE]), \
+        with mock.patch.object(report, "gh_list", return_value=[self.ISSUE]), \
                 mock.patch.object(report, "gh_write", fake_write), contextlib.redirect_stdout(io.StringIO()) as out:
             code = report.main(["--upstream", "--move", "--template", "t/t", "--repo", "o/r"])
         self.assertEqual(code, 0)
@@ -260,9 +260,24 @@ class TestUpstream(unittest.TestCase):
 
     def test_move_needs_upstream_and_the_report_needs_since(self):
         with contextlib.redirect_stderr(io.StringIO()):
-            for args in (["--move", "--repo", "o/r", "--since", "2026-10-01"], ["--repo", "o/r"]):
+            for args in (["--move", "--repo", "o/r", "--since", "2026-10-01"], ["--repo", "o/r"],
+                         ["--upstream", "--repo", "--help/x"], ["--upstream", "--repo", "o/r", "--template", "-x/y"]):
                 with self.assertRaises(SystemExit):
                     report.main(args)
+
+    def test_writes_go_to_an_issues_path_after_the_options(self):
+        calls = []
+
+        def fake_run(command, **_):
+            calls.append(command)
+            return mock.Mock(stdout="{}")
+        with mock.patch.object(report.subprocess, "run", fake_run):
+            report.gh_write("POST", "repos/o/r/issues/7/comments", {"body": "x"})
+        self.assertEqual(calls[0][-2:], ["--", "repos/o/r/issues/7/comments"])
+        for method, path in (("DELETE", "repos/o/r/issues/7"), ("POST", "repos/o/r/pulls/7"), ("POST", "--help"),
+                             ("PATCH", "repos/-x/r/issues/7")):
+            with self.assertRaises(ValueError):
+                report.gh_write(method, path, {})
 
 
 class TestMainOutput(unittest.TestCase):

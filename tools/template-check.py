@@ -36,7 +36,8 @@ Checks, without arguments:
   stays at or below SonarQube Cloud's cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy
   where it is installed (CI installs it), and trips none of the other SonarQube Cloud rules that have flagged one
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
-  group, several spaces in a regex);
+  group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
+  arguments instead of `return_value`);
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) exists. Against the
   merge base with `origin/main` it reports, as information, how many words (counted like `wc -w` in a UTF-8
@@ -121,7 +122,7 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S5850", "python:S6326"]
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S6326", "python:S9081"]
 COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 LITERAL_EXCLUSIONS = [re.compile(p) for p in (r"[_\-a-zA-Z0-9]+", r"[0-9{} .\-_%:dfrsymhYMHS<>]+", r"#[0-9a-fA-F]{6}")]
 REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall", "finditer", "sub", "subn"}
@@ -1026,7 +1027,8 @@ def check_repeated_rules(warnings, base=CORE, files=None, minimum=REPEAT_MIN_WOR
 
 
 # The words each role reads on every launch (#249): its charter and the files of its *Read first* list.
-READ_FIRST = re.compile(r"^Read first:(.*?)(?=\n[ \t]*\n|\Z)", re.S | re.M)
+PARAGRAPH_BREAK = re.compile(r"\n[ \t]*+\n")
+READ_FIRST = "Read first:"
 READ_ITEM = re.compile(r"(?:the\s+((?:\*[^*]+\*[\s,]*(?:and\s+|or\s+)?)+)sections?\s+of\s+)?`([^`\s]+\.md)`"
                        r"(?:\s*\(([^()]*)\))?")
 ITALIC = re.compile(r"\*([^*]+)\*")
@@ -1068,11 +1070,11 @@ def read_first_sources(rel):
 
 def read_first(charter_text):
     """[(file, section names)] of a charter's *Read first* paragraph."""
-    found = READ_FIRST.search(charter_text)
+    found = [part for part in PARAGRAPH_BREAK.split(charter_text) if part.lstrip().startswith(READ_FIRST)]
     if not found:
         return []
     items = []
-    for before, rel, after in READ_ITEM.findall(found.group(1)):
+    for before, rel, after in READ_ITEM.findall(found[0].lstrip()[len(READ_FIRST):]):
         names = ITALIC.findall(before or "") + ITALIC.findall(after or "")
         items.append((rel, [" ".join(name.split()) for name in names]))
     return items
@@ -1238,6 +1240,49 @@ def nested_conditionals(tree):
     return found
 
 
+def own_returns(function):
+    """The return statements of a function, those of nested functions and classes left out."""
+    found, pending = [], list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.Return):
+            found.append(node)
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            pending.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def invariant_returns(tree):
+    """python:S3516: a function with several returns that all return the same literal value."""
+    found = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        values = [ret.value for ret in own_returns(node)]
+        if len(values) < 2 or not all(isinstance(value, ast.Constant) for value in values):
+            continue
+        literals = {repr(value.value) for value in values}
+        if len(literals) == 1 and values[0].value is not None:
+            found.append((node.lineno, "python:S3516", "the function always returns the same value"))
+    return found
+
+
+def mock_lambdas(tree):
+    """python:S9081: a lambda that ignores its arguments, given as the replacement of `patch` or `patch.object`."""
+    found = []
+    for node in ast.walk(tree):
+        name = node.func.attr if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) else None
+        position = {"object": 2, "patch": 1}.get(name)
+        if position is None or len(node.args) <= position or not isinstance(node.args[position], ast.Lambda):
+            continue
+        replacement = node.args[position]
+        parameters = {arg.arg for arg in ast.walk(replacement.args) if isinstance(arg, ast.arg)}
+        used = {child.id for child in ast.walk(replacement.body) if isinstance(child, ast.Name)}
+        if not parameters & used:
+            found.append((replacement.lineno, "python:S9081", "a lambda that ignores its arguments; use return_value"))
+    return found
+
+
 def is_string(node):
     return isinstance(node, ast.JoinedStr) or (isinstance(node, ast.Constant) and isinstance(node.value, (str, bytes)))
 
@@ -1369,7 +1414,8 @@ def multiple_spaces(tree):
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
-    findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree)
+    findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
+        + mock_lambdas(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

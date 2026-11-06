@@ -59,6 +59,8 @@ import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
+REPOSITORY = re.compile(r"\w[\w.-]*+/[\w.-]++")
+ISSUES_PATH = re.compile(r"repos/\w[\w.-]*+/[\w.-]++/issues(?:/\d++(?:/comments)?+)?+")
 CONSUMERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "consumers.json")
 # The first line of `squad-log.py --summary`: the template version the run worked under.
 TEMPLATE_LINE = re.compile(r"^Template: [\w./-]++ (v\d{4}\.\d{2}\.\d++)\b", re.M)
@@ -66,12 +68,11 @@ UPSTREAM = "squad-upstream"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
 # total rows (`session-usage.py`) carry a number in that cell, so they never match; the total row of the table of
-# tokens per kind ends in a share of 100 % and is left out.
-RUN_TOTAL = re.compile(r"^(?![^\n]*%)\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|[ \t]*+(\d++)[^|\n]*+\|[ \t]*+([\d,]++)[ \t]*+\|",
-                       re.M)
-# The total row of the table of tokens per kind: input, output, cache read, cache write, weighted, a share of 100 %.
-WEIGHTED_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|(?:[ \t]*+[\d,]++[ \t]*+\|){4}[ \t]*+([\d,]++)[ \t]*+\|"
-                            r"[ \t]*+100[ \t]*+%[ \t]*+\|[ \t]*+$", re.M)
+# tokens per kind ends in a share of 100 % and is left out before matching (`without_shares`).
+RUN_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|[ \t]*+(\d++)[^|\n]*+\|[ \t]*+([\d,]++)[ \t]*+\|", re.M)
+# The total row of the table of tokens per kind: six cells (Total, Model/effort, input, output, cache read, cache
+# write), then the weighted figure and a share of 100 %.
+WEIGHTED_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*(?:[^|\n]*+\|){6}[ \t]*+([\d,]++)[ \t]*+\|[ \t]*+100%", re.M)
 # The per-model total row of `session-usage.py`: input, output, cache-read and cache-write tokens, and the weighted
 # figure since the template added it.
 SESSION_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+((?:\|[ \t]*+[\d,]++[ \t]*+){4,5})\|[ \t]*+$", re.M)
@@ -87,13 +88,16 @@ PER_PAGE = 100
 
 def gh(path):
     """GET a GitHub API path through `gh api`."""
-    result = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
+    result = subprocess.run(["gh", "api", "--", path], capture_output=True, text=True, check=True)
     return json.loads(result.stdout or "null") or None
 
 
 def gh_write(method, path, fields):
-    """Send `fields` as JSON to a GitHub API path through `gh api` (POST, PATCH); the answer as JSON."""
-    result = subprocess.run(["gh", "api", "-X", method, path, "--input", "-"], input=json.dumps(fields),
+    """Send `fields` as JSON to a GitHub issues path through `gh api` (POST, PATCH); the answer as JSON. Only an
+    issues path of a validated repository is accepted, and it follows `--`, so it is never read as an option."""
+    if method not in ("POST", "PATCH") or not ISSUES_PATH.fullmatch(path):
+        raise ValueError(f"refused GitHub write: {method} {path}")
+    result = subprocess.run(["gh", "api", "--method", method, "--input", "-", "--", path], input=json.dumps(fields),
                             capture_output=True, text=True, check=True)
     return json.loads(result.stdout or "null") or {}
 
@@ -147,11 +151,16 @@ def parse_record(comments):
     if parts is None:
         return None
     runs = "\n".join(run for run, _ in parts)
-    tiers, totals_found, weights = TIER.findall(runs), RUN_TOTAL.findall(runs), WEIGHTED_TOTAL.findall(runs)
+    tiers, totals_found, weights = TIER.findall(runs), RUN_TOTAL.findall(without_shares(runs)), WEIGHTED_TOTAL.findall(runs)
     return (tiers[-1].lower() if tiers else None,
             int(totals_found[-1][0]) if totals_found else None,
             int(totals_found[-1][1].replace(",", "")) if totals_found else None,
             int(weights[-1].replace(",", "")) if weights else None)
+
+
+def without_shares(text):
+    """`text` without the lines that carry a share in percent (the table of tokens per kind)."""
+    return "\n".join(line for line in text.splitlines() if "%" not in line)
 
 
 def parse_session(comments):
@@ -399,13 +408,12 @@ def upstream_command(repos, template, move):
     found = [(repo, issue) for repo in repos for issue in upstream_issues(repo)]
     if not found:
         print(f"No open {UPSTREAM} issue in {', '.join(repos)}.")
-        return 0
+        return
     print("\n".join([f"# Open {UPSTREAM} issues", "", *upstream_lines(found)]))
     if move:
         print("\nMoved:")
         for repo, issue in found:
             print(f"- {repo}#{issue['number']} -> {move_issue(repo, issue, template)}")
-    return 0
 
 
 def report_rows(args):
@@ -453,6 +461,9 @@ def parse_args(argv):
         parser.error("the report needs --since")
     args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
     args.repo = args.repo or consumer_repos()
+    for name in [entry.partition("=")[0] for entry in args.repo] + [args.template]:
+        if not REPOSITORY.fullmatch(name):
+            parser.error(f"not a repository (owner/name): {name}")
     return args
 
 
@@ -460,7 +471,8 @@ def main(argv=None):
     args = parse_args(argv)
     try:
         if args.upstream:
-            return upstream_command([entry.partition("=")[0] for entry in args.repo], args.template, args.move)
+            upstream_command([entry.partition("=")[0] for entry in args.repo], args.template, args.move)
+            return 0
         rows = report_rows(args)
     except subprocess.CalledProcessError as error:
         detail = str(error.stderr or "").strip() or str(error)

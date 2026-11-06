@@ -203,6 +203,24 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"^ {2}([a-z]+):", r"a b", r"[ ]{2}", r"[  ]x"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
+    def test_a_function_that_always_returns_the_same_value_is_reported(self):
+        self.assertEqual(self.rules("def f(a):\n    if a:\n        return 0\n    return 0\n"), ["python:S3516"])
+
+    def test_varying_returns_nested_functions_and_none_pass(self):
+        sources = ("def f(a):\n    if a:\n        return 0\n    return 1\n",
+                   "def f(a):\n    if a:\n        return 0\n    return a\n",
+                   "def f(a):\n    if a:\n        return None\n    return None\n",
+                   "def f(a):\n    if a:\n        return 'x'\n    return None\n",
+                   "def f():\n    def g():\n        return 0\n    return 0\n")
+        for source in sources:
+            self.assertEqual(self.rules(source), [], source)
+
+    def test_a_mock_lambda_that_ignores_its_arguments_is_reported(self):
+        source = ("import unittest.mock as mock\nmock.patch.object(m, 'f', lambda path, stop=None: [1])\n"
+                  "mock.patch('m.f', lambda: 1)\nmock.patch.object(m, 'g', lambda path: d[path])\n"
+                  "mock.patch.object(m, 'h', return_value=[1])\n")
+        self.assertEqual(self.rules(source, "test_tool.py"), ["python:S9081", "python:S9081"])
+
     def test_the_checked_files_hold_the_distributed_tools_and_the_templates_own(self):
         names = {os.path.relpath(path, self.script.ROOT) for path in self.script.checked_python_files()}
         self.assertIn(os.path.join("tools", "template-check.py"), names)

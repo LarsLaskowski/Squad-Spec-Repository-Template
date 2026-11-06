@@ -18,17 +18,10 @@ change it if unreleased, supersede it if released), and the work folder you are 
 
 The orchestrator tells you which **mode** to run:
 
-- `spec` — features only, before any plan: write `spec.md` in the work folder from `specs/_template/spec.md`
-  and nothing else. It says what the feature does for its users, never how it is built: the problem; the
-  scenarios (`S1`, `S2`, …: given, when, then, in the words of the interface the user reads) with the usual
-  path first; the errors and edge cases (`E1`, …: invalid and hostile input, a failing dependency, a limit, an
-  empty or huge input, a repeated or concurrent action — each with what the user sees); the non-functional
-  requirements (`N1`, …: limits, time, security, compatibility, new configuration with its default, logs); the
-  acceptance criteria (`AC1`, …), each one testable statement naming the scenarios, edge cases and non-functional
-  requirements it covers; out of scope (an id listed there needs no criterion); the open questions, each with
-  `Answered:` and the answer from the code, the documentation or an accepted record — a question only the
-  Product Manager can answer is `RESULT: ESCALATE` now, not a guess; and the area documents that will describe
-  the behavior. Size the spec to the feature: one scenario per behavior a user can tell apart, only the edge
+- `spec` — features only, before any plan: write `spec.md` in the work folder from `specs/_template/spec.md`,
+  each section as its comment says, and nothing else. It says what the feature does for its users, never how it is
+  built; an open question only the Product Manager can answer is `RESULT: ESCALATE` now, not a guess. Size the spec
+  to the feature: one scenario per behavior a user can tell apart, only the edge
   cases that change what the user sees, and a link instead of a restatement of the issue, an area document or a
   record — a small feature gets a short spec: with at most `SMALL_FEATURE_CRITERIA` criteria (`squad_settings.py`)
   and no security area of `.squad/project.md` touched, *Scenarios* may say "none" and each criterion is then
@@ -61,8 +54,7 @@ The orchestrator tells you which **mode** to run:
   largest changes, not a target, so a plan of a few edits stays far below it. The plan states:
   - the **tier** with a one-sentence justification, and *Security areas touched* in every plan: a change that
     touches a security area without creating, changing or removing a security control is not `security`;
-  - every factual claim the plan rests on in *Verified facts*, with its evidence and status — `unverified`
-    with `to verify:`, the measurement, its owner and the step where no one checked it yet;
+  - every factual claim the plan rests on in *Verified facts*, with its evidence and status (the template);
   - for a bug fix, acceptance criteria the Tester can turn into unit tests (a feature's are the spec's: never
     copy them), and for every criterion its tests in *Tests per criterion* — the Tester writes exactly those
     first — or, for one no unit test can verify, its kind and check (`CI:`, `manual:`, `after merge:`; the
@@ -117,11 +109,8 @@ The orchestrator tells you which **mode** to run:
   intent becomes an escalation question now; a claim about the contents of an artifact (an image, a build
   output, a file system) is checked against the artifact or marked *unverified* — a build output against the
   build the artifact really gets (*Image build check*), never a build from the full working tree. A criterion
-  about an escape names the guard that fails when the test input lost its backslash (`.squad/team.md`,
-  *Escapes in files*). A control character a case is about (a bidi override, a zero-width character, a line
-  separator) is written in `plan.md`, `spec.md` and `tasks.md` as a text escape, never as the character
-  itself; before you hand back, check the bytes on disk as *Escapes in files* describes, so the first
-  `plan-check.py` run passes.
+  about an escape names the guard that fails when the test input lost its backslash, and a control character a case
+  is about is written as a text escape (`.squad/team.md`, *Escapes in files*).
 
   For every decision that meets the threshold in `docs/decisions/README.md`, create a `Proposed` record
   from `docs/decisions/_template.md`, add its row to the index in `docs/decisions/README.md` with status
@@ -146,9 +135,8 @@ The orchestrator tells you which **mode** to run:
   the scope, raise the tier or return `RESULT: NO CHANGE`; a Security finding alone never leads to `NO
   CHANGE`. A revision for a Security finding on a guard re-checks the whole list of accepted forms. Do not append
   answers: move settled material (answered entries, verified facts) to the
-  decision record, or into *Documentation updates* for the Dev, and shorten: a plan over its tier's
-  `PLAN_MAX_WORDS` fails `plan-check.py` unless a `Plan size:` line under its header says in one sentence why
-  the scope needs it (up to twice the limit; beyond that, split the scope). Update the
+  decision record, or into *Documentation updates* for the Dev, and shorten (a plan over its tier's
+  `PLAN_MAX_WORDS` needs a `Plan size:` line, `plan-check.py`). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
 - `decide` — a loop limit was hit, members disagree, or a review round left non-blocking findings (step 8,
   *Non-blocking findings*: for each, a fix now or a linked issue with title and body). Choose one option and

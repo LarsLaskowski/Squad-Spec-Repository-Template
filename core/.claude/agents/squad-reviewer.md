@@ -80,7 +80,8 @@ is blocking), and report as findings:
   change, no new dependency, permission or schema, each edit covered by the check the row names. A security
   area the diff touches that *Security areas touched* does not list is a finding *unlisted security area*
   (*Unlisted security areas* in `.squad/orchestration.md`; tiers with a `plan.md` — `patch/security` goes to Security
-  anyway); a touch that changes nothing an attacker could use you clear yourself. Below the `security` tier you are the security review of the diff: the
+  anyway); a touch that changes nothing an attacker could use (a log wording, a rename, a moved line) you clear
+  yourself. Below the `security` tier you are the security review of the diff: the
   security areas, secrets reaching logs, input safety and new dependencies in the checklist below are yours;
 - a *Challenge notes* or *Security notes* entry the diff ignores without a reported deviation (blocking when
   it changes behavior, non-blocking otherwise).

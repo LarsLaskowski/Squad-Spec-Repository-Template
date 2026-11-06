@@ -6,9 +6,8 @@ description: Use when the user wants to develop a new feature in this repository
 # Squad Spec
 
 Build a feature with the squad defined in `.squad/`, **spec first**: what the feature does for its users is
-written, challenged and settled in `spec.md` before anyone plans how to build it. The spec is the only
-source of the acceptance criteria; `plan.md` and `tasks.md` refer to them by id, and
-`python3 .squad/tools/plan-check.py <folder>` checks that nothing is lost on the way. You are the
+written, challenged and settled in `spec.md` before anyone plans how to build it; `plan.md` and `tasks.md` refer to
+its acceptance criteria by id. You are the
 **orchestrator**, with the same role and rules as in the `squad-issue` skill (its introduction) — read it
 first. Steps 1–3 below replace its steps 1–3 (step 2 in two parts, 2a *Spec* and 2b *Plan*: use those step
 cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed after them.
@@ -59,22 +58,14 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
 
 - **Steps 4–6** run per task group — the *Group* column of `tasks.md`, in table order; tick tasks off as they
   are done. The Tester's tests first are the tests *Tests per criterion* names for the group's
-  criteria. `squad-next.py` reads the group from the step cell (`4 Skeleton (G2)`) and prints each group's launches
-  with their model (*Launch model*) and the agent of the same mode they continue (*Continuing a member*). The
+  criteria. `squad-next.py` prints each group's launches; the step cell names the group (`4 Skeleton (G2)`). The
   documentation rows are the Dev's, done once the last group's *Coverage gate* passes (`squad-issue`
   step 6; *Documentation* in `squad-dev.md`).
 - **Code-free changes:** as *Changes without production or test code*; *Verification without tests* then
   covers each criterion of the spec.
-- **Decision records:** features usually involve real design choices, so expect a record in
-  `docs/decisions/`, one per decision (an existing unreleased record is extended only for the same decision). The behavior
-  belongs in the area documents the spec names, user-facing configuration in `README.md`, a changed flow or
-  guarantee in `docs/ARCHITECTURE.md` — not in `spec.md`, which leaves with the working record.
 - **Amendments** (steps 3–11): a Lead decision that changes, adds or drops a criterion amends the spec (mode
   `decide` in `squad-lead.md`); run `plan-check.py <folder>` on it before any member reads it, and hand later
   launches the amended spec.
-- **Step 8:** the Reviewer checks the diff against the spec's scenarios, edge cases, non-functional
-  requirements and criteria as amended, and that the area documents now say what the spec's *Area documents*
-  section promised.
 - **Step 10:** the working record (the verification matrix of the spec's criteria, `spec.md`, `plan.md`,
   `tasks.md`, `log.md`; on the `docs` route `log.md` alone) is posted to the feature request issue if one exists
   (`Closes #<n>` in the PR), otherwise as the first comment on the PR right after opening it; every log row and

@@ -1,8 +1,8 @@
 # Orchestration
 
 The orchestrator's procedures: the session that runs a squad skill follows them, and the members need not read this
-file. `routing.md` holds the pipeline, the tiers and the limits every member works by; a section named here that this
-file lacks is there.
+file. `routing.md` holds the pipeline, the tiers and the limits every member works by; a rule here that names a
+section of it means that file.
 
 ## Outside authors
 
@@ -98,10 +98,11 @@ A fix, delta or `revise` round of the same member within the same run continues 
 (`SendMessage` to its agent id, or the Agent tool's resume) with the findings and the new head SHA, instead of a fresh
 launch; so do the Lead's mode `plan` after mode `spec` and a feature's next task group (the member's last agent of the
 same mode, with the group's task rows). The first launch of any other mode is fresh, and so is a launch after a session
-restart (the agent id is gone) or after one that ended on an API error. An agent past the continuation cap, or one that
-ran on another model than *Launch model* names, gets a fresh launch with a short hand-over — the plan or task group,
-what the earlier rounds settled, the open findings and the head SHA. `squad-next.py` names for every launch the agent
-it continues, or why it is fresh, and how to log it; what a continued member may do is in `team.md` (*Shared rules*).
+restart (the agent id is gone) or after one that ended on an API error. An agent continued five times or past 300,000
+reported tokens, or one that ran on another model than *Launch model* names, gets a fresh launch with a short
+hand-over — the plan or task group, what the earlier rounds settled, the open findings and the head SHA.
+`squad-next.py` names for every launch the agent it continues, or why it is fresh, and how to log it; what a continued
+member may do is in `team.md` (*Shared rules*).
 
 ## Commits
 
@@ -188,8 +189,8 @@ experiment only in a scratch `git worktree`, never in the working tree (`team.md
 A review finding — blocking or non-blocking — whose fix the reviewer states verbatim (file, the sentence as it
 stands, the sentence as it should read, marked `verbatim` in the report) and that touches only documentation, a
 decision record, an area document, `README.md` or a configuration example (never production or test code) is
-applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, stamped with
-`gate-stamp.py --verbatim`, and logged with finding, file and commit (after the PR: a
+applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, passed through
+*Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit (after the PR: a
 step-11 row of the Orchestrator naming it `verbatim`). When the new sentence no longer fits a hard-wrapped
 paragraph, the other lines of that paragraph may be rewrapped: whitespace only, confirmed with `git diff --word-diff`,
 which then shows the proposed change and nothing else, and the log row says `rewrapped`. No launch, no

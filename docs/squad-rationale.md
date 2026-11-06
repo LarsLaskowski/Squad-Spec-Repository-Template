@@ -911,3 +911,18 @@ a `patch`, the model of the first Tester launch, the examples and the logging op
 fresh launches spelled out in `squad-issue` steps 6 and 9, and the plan-check runs of both skills. The rule that a
 deterministic lesson goes into a tool, with the rule text becoming a pointer, is in the template's `AGENTS.md`
 (*Writing rules*), so the next lesson of this kind does not add a sentence.
+
+## The consolidation after #234–#250 (AGENTS.md of the template, Writing rules; template-check.py, `RULE_WORDS_BASELINE`)
+
+The lessons of #234–#250 took the rule files from 25,820 words (the consolidation of #186) to 30,048, 16.4 % over the
+baseline. Most of the growth was procedure that `squad-next.py`, `gate-stamp.py`, `squad-log.py --agent-id`,
+`plan-check.py` and the file guard now carry, still spelled out in the rule text, and rules restated in the
+orchestrator's skills next to the `routing.md` or `orchestration.md` section that holds them. The consolidation removed
+no rule: the tool prose became a pointer to the tool (which gates step 7 runs, the figures `--agent-id` reads, the exit
+codes of `--summary`, the review set of a tier, the model of a Tester launch, the matrix run before step 7), the
+skills point to the section instead of repeating it, the spec sections of the Lead's mode `spec` are the comments of
+`specs/_template/spec.md`, and the hook details of `team.md` are the hooks' own docstrings. The continuation cap keeps
+its numbers in *Continuing a member*, because `create-pr` continues its reviewer without `squad-next.py`. The review of
+every removed sentence found three places where the shortening had lost something (the cap's numbers, the files
+`routing.md`'s section names belong to, the tiers `figure-check.py` runs in), restored before the merge. The rule
+files then held 28,656 words, the new `RULE_WORDS_BASELINE`.

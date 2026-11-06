@@ -13,9 +13,10 @@ import unittest
 sys.dont_write_bytecode = True
 TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", ".squad", "tools")
 CORE = os.path.join(TOOLS, "..", "..")
-SETTINGS_TEXT = ('BASE_REF = "main"\nPATCH_MAX_LINES = 30\nCOVERAGE_PATHSPECS = ["src/*.py"]\nCOVERAGE_EXCLUDES = []\n'
-                 'COVERAGE_TEST_PATHSPECS = ["tests/*.py"]\nFIGURE_TRIVIAL = ["1"]\nFIGURE_EXCLUDES = []\n'
-                 'SPEC_APPROVAL = "lead"\n')
+SETTINGS = {"BASE_REF": "main", "PATCH_MAX_LINES": 30, "COVERAGE_PATHSPECS": ["src/*.py"], "COVERAGE_EXCLUDES": [],
+            "COVERAGE_TEST_PATHSPECS": ["tests/*.py"], "FIGURE_TRIVIAL": ["1"], "FIGURE_EXCLUDES": [],
+            "SPEC_APPROVAL": "lead"}
+SETTINGS_TEXT = "".join(f"{key} = {value!r}\n" for key, value in SETTINGS.items())
 STACK = """# Stack
 
 ## Commands
@@ -111,9 +112,7 @@ def plan_text(tier="standard", areas="none", signatures="- `def check(value) -> 
 
 
 def settings_stub():
-    namespace = {}
-    exec(SETTINGS_TEXT, namespace)  # noqa: S102  (the test's own constant)
-    return types.SimpleNamespace(**{k: v for k, v in namespace.items() if k.isupper()})
+    return types.SimpleNamespace(**SETTINGS)
 
 
 def load(name):

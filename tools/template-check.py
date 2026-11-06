@@ -16,7 +16,8 @@ Checks, without arguments:
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
   filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
   files the template no longer manages (`RETIRED` in `apply-template.py`) are gone and a line that still refers
-  to one is reported; a `.claude/settings.json` that declares only the Git guard (the template before the file guard)
+  to one is reported, `docs/decisions/process.md` is written and a numbered process record of an older template
+  version is listed for retiring; a `.claude/settings.json` that declares only the Git guard (the template before the file guard)
   gets the file guard added; a `CLAUDE.md` that still holds the rules (the layout before `AGENTS.md` held them) has its
   project blocks carried into `AGENTS.md` and is replaced by the core one; `.github/copilot-instructions.md`
   carries the body of `AGENTS.md`, and `config-check.py` fails once the two differ or `CLAUDE.md` stops importing
@@ -361,6 +362,7 @@ def smoke_profiles(names, errors):
             errors.append(f"profile {label}: config-check after apply: {line}")
         fill_placeholders(target)
         plant_retired(target)
+        plant_process_record(target)
         plant_legacy_rules(target)
         plant_git_guard_only(target)
         # a refresh names no profile: the recorded ones are kept
@@ -404,6 +406,11 @@ def check_refresh(label, target, refresh, errors):
     if HISTORICAL_REFERENCE in refresh.stdout:
         errors.append(f"profile {label}: refresh lists the decision record {HISTORICAL_REFERENCE}")
     os.remove(os.path.join(target, HISTORICAL_REFERENCE))
+    if not os.path.isfile(os.path.join(target, PROCESS_FILE)):
+        errors.append(f"profile {label}: refresh did not write {PROCESS_FILE}")
+    if f"  {PROCESS_RECORD} (Accepted)" not in refresh.stdout:
+        errors.append(f"profile {label}: refresh does not list the process record {PROCESS_RECORD} to retire")
+    os.remove(os.path.join(target, PROCESS_RECORD))
     refreshed = run_config_check(target)
     if refreshed.returncode != 0:
         for line in refreshed.stdout.splitlines()[:10]:
@@ -538,6 +545,18 @@ RETIRED_SAMPLE = [os.path.join(SQUAD_DIR, "decisions.md"), os.path.join(SQUAD_DI
 STALE_REFERENCE = "docs/build-notes.md"
 # A decision record naming a retired file; records state history, so the refresh must not list it.
 HISTORICAL_REFERENCE = "docs/decisions/0099-old-instructions.md"
+
+
+# The squad's process decisions (managed), and a record an older template version numbered in for one of them.
+PROCESS_FILE = "docs/decisions/process.md"
+PROCESS_RECORD = "docs/decisions/0098-squash-merge-pull-requests.md"
+
+
+def plant_process_record(target):
+    os.makedirs(os.path.dirname(os.path.join(target, PROCESS_RECORD)), exist_ok=True)
+    with open(os.path.join(target, PROCESS_RECORD), "w", encoding="utf-8") as handle:
+        handle.write("# 0098: Squash-merge pull requests\n\n- **Status:** Accepted\n"
+                     "- **Source:** Squad adopted from Squad-Spec-Repository-Template\n")
 
 
 def plant_retired(target):

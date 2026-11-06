@@ -29,7 +29,8 @@ its `adopt-template` skill (`.squad/template.json` records the repository, its c
   `.squad/orchestration.md`,
   `.squad/tools/` except `squad_settings.py`, `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's
   skills, `.github/ISSUE_TEMPLATE/feature_request.md`, the `_template.md` files of `docs/decisions/` and
-  `docs/areas/`, `specs/README.md` and `specs/_template/`.
+  `docs/areas/`, `docs/decisions/process.md` (the squad's process decisions), `specs/README.md` and
+  `specs/_template/`.
 - **Marked** — rebuilt on every refresh, keeping the repository's content inside `<!-- project:… -->` blocks:
   `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
   `.github/pull_request_template.md`, `docs/decisions/README.md` and `docs/areas/README.md`.

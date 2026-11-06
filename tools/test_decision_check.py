@@ -119,6 +119,25 @@ class TestReleaseTagsOfTheRemote(unittest.TestCase):
         self.assertIn("released without a '- **Area:**' line", output)
 
 
+class TestProcessFile(unittest.TestCase):
+    """docs/decisions/process.md, the squad's process decisions, is no record: never indexed, never checked."""
+
+    def test_the_process_file_is_ignored(self):
+        with tempfile.TemporaryDirectory() as repo:
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            decisions = os.path.join(repo, "docs", "decisions")
+            write(os.path.join(decisions, "README.md"), INDEX)
+            shutil.copyfile(os.path.join(ROOT, "core", "docs", "decisions", "process.md"),
+                            os.path.join(decisions, "process.md"))
+            with open(os.path.join(decisions, "process.md"), "a", encoding="utf-8") as handle:
+                handle.write("\n- **Status:** Superseded by 0009\n\nSee [0009](0009-gone.md).\n" + "word " * 3000)
+            write(os.path.join(decisions, "0001-topic.md"), RECORD.replace("Do it.", "Do it ([process](process.md))."))
+            result = subprocess.run([sys.executable, SCRIPT], cwd=repo, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertNotIn("process.md", result.stdout)
+        self.assertIn("Checked 1 decision records: PASS", result.stdout)
+
+
 def record_text(number, options, words=0):
     """A record with `options` numbered options and `words` filler words in its context."""
     listed = "\n".join(f"{i}. **Option {i}** — pros / cons." for i in range(1, options + 1))

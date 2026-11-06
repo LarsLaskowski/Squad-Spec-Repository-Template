@@ -21,6 +21,9 @@ Checks, run from anywhere inside the repository (it takes no arguments):
   record is never deleted and never changed except for its status becoming `Superseded by NNNN`; an
   unreleased record is never `Superseded` (it is edited in place or deleted instead).
 
+`docs/decisions/process.md` holds the squad's process decisions; the template overwrites it on every refresh, so it
+is no record and is not checked: it needs no number, status or index row, and a link to it is no link to a record.
+
 Size warnings, which do not fail the check and name the split each file needs: an unreleased record (or one whose
 release cannot be told) past `RECORD_MAX_WORDS` words or `RECORD_MAX_OPTIONS` options under *Options considered*
 holds more than one decision; an area document in `docs/areas/` past `AREA_MAX_WORDS` words covers more than one area.
@@ -100,7 +103,7 @@ def load_records(root, errors):
         name = os.path.basename(path)
         match = RECORD_NAME.match(name)
         if not match:
-            continue
+            continue  # README.md, _template.md and process.md (the squad's process decisions) are no records
         number, text = match.group(1), read_text(path)
         rel = f"{DECISIONS_DIR}/{name}".replace(os.sep, "/")
         status = STATUS_LINE.search(text)

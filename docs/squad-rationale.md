@@ -582,3 +582,25 @@ behavior into the area documents. `decision-consolidate` grouped records "on one
 groups by decision and splits what the warning names. Seeded files are not refreshed, so `adopt-template` step 1
 carries the new structure and settings over, and the shortening itself is a squad-maintenance pull request in the
 target.
+
+## The squad's process decisions in one managed file (docs/decisions/process.md; decision-seeds/; decision-check.py; apply-template.py; adopt-template, step 8; orchestration.md, Template-managed files; CONTRIBUTING.md)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #247). `adopt-template` step 8 numbered the
+three records of `decision-seeds/` into each product's `docs/decisions/`, and every refresh that changed one of
+their rules edited the seeded record in place (unreleased) or added a record that superseded or amended it
+(released). LarsLaskowski/Seluna carries the chain 0002 "Squad working records stay off main, and product PRs never
+change the squad" (2026-10-14, adopted, superseded by 0022), 0022 with the same title (2026-10-17, superseded by
+0037), 0037 (2026-10-25, accepted) and 0044 "Product PRs may change the squad settings file" (2026-11-01, refreshed,
+amends 0037). They are decisions of the template, not of the product, yet they take numbers in its log, and every
+reader of the index walks past them.
+
+The process decisions are now `docs/decisions/process.md`, a managed file under `core/` that every refresh
+overwrites: no number, no status, no index row, so a template change never adds a record to a product's log again.
+It sits next to the records rather than in `docs/CONTRIBUTING.md`, whose template text every contributor reads, and
+`decision-check.py` already reads only `NNNN-*.md` files, so it ignores the file; the docstring and a test now say so.
+The records the seeds left behind are retired once: `apply-template.py` lists those still in force — a source naming
+the template, a title of a `process.md` section, or a record that supersedes or amends one, which catches Seluna's
+0044 — and leaves out the record that moved them, so the list is empty after the migration. An unreleased one is
+deleted; the released ones are superseded together by the one record left in `decision-seeds/`, which names the
+file. A released record whose `Superseded by` named a deleted unreleased record gets the new record as its successor
+(a released record's status may still change to another `Superseded by`), so no link points at nothing.

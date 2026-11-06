@@ -28,6 +28,9 @@ with more than one language, see "Several profiles" below:
   `file-guard.py`) added when it lacks one, everything else in it stays;
 - **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
   every line of the target that still refers to one is listed for fixing by hand;
+- the squad's process decisions are the managed `docs/decisions/process.md`; the numbered records an older template
+  version added for them (and the records superseding or amending those) that are still in force are listed, for
+  `adopt-template` step 8 to retire;
 - `.squad/template.json` records the template repository, its commit and the profile(s).
 
 Several profiles (`--profile go --profile dotnet`, the first one is the primary): the stack blocks of the
@@ -57,7 +60,7 @@ Usage, from the template repository's root:
 
 Prints one line per file (created / updated / renormalized / unchanged / kept / skipped / backed-up / conflict /
 removed), the files in template-owned folders of the target that the template does not know (old skills or
-agents to review) and the lines that still refer to a retired file.
+agents to review), the lines that still refer to a retired file and the numbered process records to retire.
 """
 import argparse
 import glob
@@ -98,7 +101,7 @@ IMPORT_LINE = re.compile(r"^@[^\s@]\S*[ \t]*\n", re.M)
 OWNED_DIRS = [".claude/agents", ".claude/skills", ".agents/skills", ".github/skills", ".squad/agents", ".squad/tools"]
 # Written by older template versions and removed on a refresh: the Codex and Copilot mirrors of the template's skills
 # (the squad runs on Claude Code subagents only), the squad's decisions.md and history.md files, which nothing read or
-# wrote (process decisions are the records in docs/decisions/), and the charters, which now live in the subagent
+# wrote (process decisions are in docs/decisions/process.md), and the charters, which now live in the subagent
 # files under .claude/agents/.
 RETIRED = [".squad/decisions.md"] + [
     f"{mirror}/{skill}/SKILL.md" for mirror in (".agents/skills", ".github/skills")
@@ -126,6 +129,14 @@ FILE_GUARD_HOOK = {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
                    "hooks": [{"type": "command", "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/file-guard.py"'}]}
 SQUAD_HOOKS = {"git-guard.py": GIT_GUARD_HOOK, "file-guard.py": FILE_GUARD_HOOK}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
+# The squad's process decisions: one managed file. Older template versions numbered them into the target's log from
+# decision-seeds/; the record that supersedes those once is the one seed left there.
+DECISIONS_DIR = "docs/decisions"
+PROCESS_FILE = f"{DECISIONS_DIR}/process.md"
+MOVED_SEED = os.path.join(ROOT, "decision-seeds", "process-decisions-moved.md")
+RECORD_FILE = re.compile(r"^\d{4}-.+\.md$")
+RECORD_FIELD = r"^- \*\*{}:\*\*(.*)$"
+RECORD_TITLE = re.compile(r"^# (?:\d{4}|NNNN): (.+)$", re.M)
 
 
 def recorded_profiles(target):
@@ -477,6 +488,51 @@ def retired_references(target):
     return hits
 
 
+def record_field(text, name):
+    """The value of a record's `- **Name:**` line, or ""."""
+    match = re.search(RECORD_FIELD.format(name), text, re.M)
+    return match.group(1).strip() if match else ""
+
+
+def record_title(text):
+    match = RECORD_TITLE.search(text)
+    return match.group(1).strip().casefold() if match else ""
+
+
+def decision_records(target):
+    """{number: (rel, text)} of the target's numbered decision records."""
+    folder = target_path(target, DECISIONS_DIR)
+    names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+    return {name[:4]: (f"{DECISIONS_DIR}/{name}", read(os.path.join(folder, name))) for name in names
+            if RECORD_FILE.match(name)}
+
+
+def is_seeded_process_record(text, titles):
+    """A record an older template version numbered in: its source names the template, or it bears the title of one
+    of the process decisions."""
+    return TEMPLATE_REPOSITORY.split("/")[-1].casefold() in record_field(text, "Source").casefold() \
+        or record_title(text) in titles
+
+
+def process_records(target):
+    """[(rel, status)] of the target's records that still carry a process decision of an older template version:
+    seeded ones and every record that supersedes or amends one, not superseded themselves. The record that moved them
+    to process.md (decision-seeds/) is left out, so the list is empty once they are retired."""
+    titles = {title.strip().casefold() for title in re.findall(r"^## (.+)$", read(os.path.join(ROOT, "core", PROCESS_FILE)),
+                                                                re.M)}
+    moved = record_title(read(MOVED_SEED))
+    records = {number: entry for number, entry in decision_records(target).items() if record_title(entry[1]) != moved}
+    found = {number for number, (_, text) in records.items() if is_seeded_process_record(text, titles)}
+    while True:
+        later = {number for number, (_, text) in records.items()
+                 if number not in found and set(re.findall(r"\b\d{4}\b", record_field(text, "Supersedes"))) & found}
+        if not later:
+            break
+        found |= later
+    return [(records[number][0], record_field(records[number][1], "Status")) for number in sorted(found)
+            if not record_field(records[number][1], "Status").startswith("Superseded")]
+
+
 def instruction_body(text):
     """The part of an instruction file both AGENTS.md and its Copilot mirror share: from the first `## ` heading on,
     without Claude Code import lines."""
@@ -691,7 +747,7 @@ def write_seeds(target, seeds, names, crlf, emit, report):
             emit(rel, seed_text(rel, src, crlf))
 
 
-def print_report(report, unknown, references, dry_run):
+def print_report(report, unknown, references, dry_run, process=()):
     for status, rel in report:
         if status != "unchanged":
             print(f"{status:10} {rel}")
@@ -704,6 +760,11 @@ def print_report(report, unknown, references, dry_run):
         print("\nReferences to removed files - fix by hand (link the replacement or drop the line):")
         for path, number, text in references:
             print(f"  {path}:{number}: {text[:120]}")
+    if process:
+        print(f"\nProcess records of an older template version, now in {PROCESS_FILE} - retire them "
+              "(adopt-template step 8):")
+        for rel, status in process:
+            print(f"  {rel} ({status or 'no status'})")
     if dry_run:
         print("\nDry run: nothing was written.")
 
@@ -745,6 +806,7 @@ def main():
 
     retire(target, args.dry_run, report)
     references = retired_references(target)
+    process = process_records(target)
 
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
                             check=False).stdout.strip()
@@ -755,7 +817,7 @@ def main():
     known = set(managed) | set(seeds) | {TEMPLATE_JSON}
     unknown = sorted(f"{d}/{rel}" for d in OWNED_DIRS for rel in files_under(os.path.join(target, d))
                      if f"{d}/{rel}" not in known)
-    print_report(report, unknown, references, args.dry_run)
+    print_report(report, unknown, references, args.dry_run, process)
     return 0
 
 

@@ -58,8 +58,8 @@ Rules that hold throughout:
    `python3 tools/apply-template.py --target <path> [--profile <profile> …] --dry-run`, read the list, then run
    it without `--dry-run`. Keep the output: it names the backed-up files, the skipped seeds (name them in
    the PR description — e.g. a `.gitattributes` an existing repository should get in a change of its own)
-   and the files in template-owned folders the template does not know, and the retired files it removed (the
-   skill copies an older template version wrote). The rules live in `AGENTS.md`; `CLAUDE.md` is managed and only
+   and the files in template-owned folders the template does not know, the retired files it removed (the
+   skill copies an older template version wrote) and the *Process records* step 8 retires. The rules live in `AGENTS.md`; `CLAUDE.md` is managed and only
    imports it. A `CLAUDE.md` that still holds the rules (it has project blocks: an older template version) has
    its project blocks carried into `AGENTS.md`; a hand-written `CLAUDE.md` or `AGENTS.md` without project markers
    is backed up like a marked file (step 4). With several profiles it also lists `conflict` seeds (a file two profiles both seed that the merge cannot combine, e.g. `sonar-project.properties`): merge those by hand.
@@ -128,13 +128,18 @@ Rules that hold throughout:
    (`.github/agents/`) and path instructions (`.github/instructions/`) stay; align their rules with `stack.md`
    where they contradict it.
 8. **Decision records, settings, CI.**
-   - Add the records from the template's `decision-seeds/` with the next free numbers (date today,
-     *Source* "Squad adopted from Squad-Spec-Repository-Template"), unless the target already has a
-     record that says the same; add them to the index. An existing record on the same subject whose rules
-     the template now changes (e.g. what a product PR may touch, where squad lessons go) is replaced:
-     if it is unreleased (no release tag contains it), edit it in place or delete it in favor of the seed;
-     if it is released, the seed gets the next number with *Supersedes* set, and the old record's status
-     becomes `Superseded by NNNN`.
+   - The squad's process decisions are the managed `docs/decisions/process.md`, which the apply step writes and
+     every refresh overwrites: no number, no index row, and no record in the target for a change to them. The
+     records that carried them before are retired once, here — the apply step lists them under *Process records*
+     (numbered from `decision-seeds/` by older template versions, records that supersede or amend one, still in
+     force), and on a first adoption a record of the target's own that only states what `process.md` now decides
+     (what a product PR may touch, where squad lessons go, how pull requests merge) is retired the same way; one
+     with rules of the project's own stays. An unreleased one (no release tag contains it) is deleted with its
+     index row, and every link to it points at `process.md`. When released ones are among them, one record from
+     `decision-seeds/process-decisions-moved.md` (next free number, date today) lists under *Supersedes* every
+     released one that is still in force or whose `Superseded by` named a deleted record, and each of those gets
+     the status `Superseded by NNNN`; a released record superseded by another released one stays as it is. The
+     apply step then lists none.
    - `.claude/settings.json`: make sure the SessionStart hook entry for `.claude/hooks/session-start.sh`, the
      PreToolUse `Bash` hook running `.claude/hooks/git-guard.py` and the PreToolUse
      `Write|Edit|MultiEdit|NotebookEdit` hook running `.claude/hooks/file-guard.py` exist, as in the template's
@@ -152,7 +157,7 @@ Rules that hold throughout:
      for workflow runs of outside contributors (repository settings, *Actions*); neither can be set from a PR.
    - `.squad/decisions.md`, `.squad/agents/*/history.md` and `.squad/agents/*/charter.md` from older template
      versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
-     the other two, process decisions are the records in `docs/decisions/`). An entry in `decisions.md` that is
+     the other two, process decisions are in `docs/decisions/process.md`). An entry in `decisions.md` that is
      still worth keeping becomes a decision record.
 9. **Verify** in the target, once the apply step lists no reference to a removed file (step 3):
    `python3 .squad/tools/config-check.py` passes (no placeholder left, `AGENTS.md` and

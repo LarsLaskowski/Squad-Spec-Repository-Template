@@ -42,7 +42,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   evidence, no control character); `squad-log.py` appends the pipeline's log rows; `session-usage.py` prints the
   session's tokens per model and per subagent type from Claude Code's session transcripts for the wrap-up.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
-  decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
+  decision records (`docs/decisions/`, with the squad's process decisions in the managed `docs/decisions/process.md`),
   `specs/_template/`, `SECURITY.md`.
 - **GitHub scaffolding** — PR template, issue templates, CI workflow, CodeQL, Dependabot (per profile), and the
   *Fork scope* workflow: a pull request from a fork that changes the squad, the agent instructions or the template
@@ -62,7 +62,7 @@ profiles/<stack>/
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
-decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
+decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 .claude/skills/adopt-template/   the skill
@@ -72,7 +72,7 @@ Four kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/decisions/process.md`, `docs/areas/_template.md` | overwritten |
 | marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
 | generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard and file-guard hooks added when it lacks one |

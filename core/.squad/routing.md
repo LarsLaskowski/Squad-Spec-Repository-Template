@@ -71,8 +71,8 @@ records it in `plan.md` (with the area that made it) and launches the Lead only 
 Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or build
 configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever it is not
 "none", Security reviews the plan (step 3), whatever the tier. Security's diff review (step 8) is for tier
-`security` (and `patch/security`, its row) alone; below it the Reviewer is the diff's security review, and an area
-it finds touched but not listed goes to *Unlisted security areas*.
+`security` and for `patch/security` (the `patch` row) alone; below it the Reviewer is the diff's security
+review, and an area it finds touched but not listed goes to *Unlisted security areas*.
 
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
@@ -191,7 +191,7 @@ head; step 10 then only posts the working record, removes `specs/` and marks not
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the plan's doc updates, area documents included, written by the Dev against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test*, *Coverage gate* and `scope-check.py`, then commits; the *Sonar gate* runs in step 11 on the draft PR. It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
+| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate* and `scope-check.py`, then commits; the *Sonar gate* runs in step 11 on the draft PR. It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
 | 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below; with an *Early draft PR* also green CI, the dry-run result and the Reviewer's round on the same head |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
@@ -314,6 +314,14 @@ decision (behavior change visible to users, breaking a guarantee in `docs/ARCHIT
 record), or a loop limit where none of its options is clearly right. The escalation is one concise question with
 the options and the Lead's recommendation. Follow-up issues the Lead decides on are created by the orchestrator and
 listed in the PR under Next Steps.
+
+Besides the Lead's escalation, the orchestrator involves the Product Manager only where one of these rules says so:
+the kind of an issue labelled both bug and feature (*Bug or feature*); the public issue comment of *Outcome "no
+change"* and of *Outside authors*; a download a member was denied (*A denied measurement* in `orchestration.md`); a
+Security rejection of a fix the Lead accepted, and a safeguard stop (*Loop limits*); the dry run and the
+confirmation of statements no run has shown (*Operator environments and documented procedures*); a manual test
+before step 9 (*Criteria verified only in CI*). A request the Product Manager makes on the open pull request goes to
+the Lead first (*Loop limits*, New scope on the open PR).
 
 ## Non-blocking findings
 

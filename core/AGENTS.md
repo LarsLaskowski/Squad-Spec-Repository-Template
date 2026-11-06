@@ -24,10 +24,11 @@ uses it. See [`ARCHITECTURE.md`](/docs/ARCHITECTURE.md) for how it fits together
 
 - **Never commit or push to `main`** — no one, not even with approval. Every change goes through a
   separate branch and a pull request.
-- **Commits and pushes to a feature branch are always allowed** without asking: commit finished work and
-  push it to the current feature branch (creating that branch off `main` if needed), so nothing is lost
-  when a session ends. Force-pushing or otherwise rewriting published history, deleting branches, and
-  creating tags (a `v*` tag may trigger a release) still need explicit user approval.
+- **Commits and pushes to a feature branch are always allowed** without asking (squad members never commit
+  or push: `.squad/team.md`, *Git and GitHub*): commit finished work and push it to the current feature
+  branch (creating that branch off `main` if needed), so nothing is lost when a session ends. Force-pushing
+  or otherwise rewriting published history, deleting branches, and creating tags (a `v*` tag may trigger a
+  release) still need explicit user approval.
 - **Pull requests are only opened by the squad or by the user.** The `squad-issue` and `squad-spec`
   skills open a PR once it is approved (`.squad/routing.md`, *PR approval*); outside the squad, a PR is
   opened only when the user explicitly asks for one (e.g. by running the `create-pr` skill). Never open a PR
@@ -124,7 +125,8 @@ commits, pushes and posts. The pipeline, its limits and escalations are in [`.sq
 the project's guarantees, security areas and integration surface in [`.squad/project.md`](/.squad/project.md).
 Working records stay under `specs/` on the work branch. A product PR never changes the squad or these
 instructions (`.squad/stack.md`, `.squad/project.md`, `.squad/tools/squad_settings.py` and the project blocks of this file excepted); squad lessons become `squad` issues where they can be fixed (`.squad/orchestration.md`, *Squad
-lessons*). The user acts as Product Manager and is asked only when the Lead escalates.
+lessons*). The user acts as Product Manager and is asked only when the Lead escalates or in the other cases
+`.squad/routing.md` lists (*Escalation to the Product Manager*).
 
 The reasoning behind code decisions — why something was built the way it was — is recorded by the Lead
 as one decision record per decision in [`docs/decisions/`](/docs/decisions/README.md) (unreleased records are

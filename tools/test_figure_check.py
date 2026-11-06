@@ -215,6 +215,40 @@ class TestRun(unittest.TestCase):
         self.assertIn(" and 1 more - ", line)
         self.assertTrue(line.endswith(': "512 ' + "word " * 19 + '…"'), line)
 
+    def test_dates_svg_and_other_uses_in_the_file(self):
+        write(os.path.join(self.repo, "src", "dates.py"), "SINCE = 2025\nTIMEOUT = 30\nRETRY = 30\n")
+        write(os.path.join(self.repo, "docs", "areas", "history.md"),
+              "| 0001 | Topic | Accepted | 2025-01-01 |\nSupported since 2025.\nTimeout 30 s.\n")
+        write(os.path.join(self.repo, "docs", "diagram.svg"), '<svg width="2025"/>\n')
+        self.git("add", "-A")
+        self.git("commit", "-qm", "dates")
+        self.git("branch", "-f", "main")
+        write(os.path.join(self.repo, "src", "dates.py"), "SINCE = 2026\nTIMEOUT = 30\nRETRY = 45\n")
+        _, output = self.run_check()
+        self.assertEqual(self.hits(output), ["docs/areas/history.md:2 2025", "docs/areas/history.md:3 30"])
+        self.assertIn("src/dates.py:3 (now 45; still used elsewhere in that file)", output)
+
+    def test_a_released_record_with_a_name_git_would_quote(self):
+        name = "0003-gr\u00f6\u00dfe limit.md"
+        write(os.path.join(self.repo, "docs", "decisions", name), "Chose 512.\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "record")
+        self.git("tag", "v1.1.0")
+        self.git("branch", "-f", "main")
+        write(os.path.join(self.repo, "src", "config.py"), 'MAX_MB = 1024\nENV = "APP_PORT"\n')
+        _, output = self.run_check()
+        self.assertNotIn("0003-gr", output, "released in v1.1.0")
+        self.assertNotIn("0002-unreleased.md", output, "released in v1.1.0 as well")
+        self.assertIn("WARNING: docs/areas/cache.md:1: states 512", output)
+
+    def test_a_console_without_unicode_gets_no_traceback(self):
+        write(os.path.join(self.repo, "README.md"), "Limit \u2265 512 MB \u2192 enough.\n")
+        write(os.path.join(self.repo, "src", "config.py"), 'MAX_MB = 1024\nENV = "APP_PORT"\n')
+        result = subprocess.run([sys.executable, os.path.join(self.repo, ".squad", "tools", "figure-check.py")],
+                                cwd=self.repo, capture_output=True, env=dict(os.environ, PYTHONIOENCODING="cp1252"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"WARNING: README.md:1: states 512", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

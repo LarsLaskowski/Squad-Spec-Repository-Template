@@ -629,5 +629,7 @@ managed `process.md` and `_template.md` files, which a product change cannot fix
 single digits, 10 and 100 rather than the issue's 0, 1, 2 and 100: prose numbers its steps, list items and counts with
 single digits, and every such line would otherwise be a hit. The Dev runs the tool before handing back the
 documentation, when the hits are cheapest; step 7 runs it again after the merge of `main` and the Code Officer's
-edits, sends a hit the Dev did not confirm back to the Dev and the rest to the Reviewer. It runs in every tier whose
-diff changes production code or configuration, a `patch` included, because it is no gate and costs no build.
+edits, sends a hit the Dev did not confirm back to the Dev and the rest to the Reviewer. It runs in the tiers with a
+Dev and a full code check (`trivial`, `standard`, `security`); a `patch` changes a literal or a configuration value
+more often than any other tier, but its step 7 runs only *Gates of a patch* and it has no Dev to route a hit to, so
+adding the tool there is a change of that table and of who fixes a hit in a `patch`.

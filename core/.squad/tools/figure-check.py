@@ -10,11 +10,13 @@ BASE_REF (`.squad/tools/squad_settings.py`, default origin/main; working tree in
    `COVERAGE_EXCLUDES`) and `FIGURE_EXCLUDES` (lock files and SVG by default): the numbers (`512`, `0.75`, `1_000`,
    the `30` of `30s`, `8.0.1`) and the quoted constants (a token of three characters or more with a digit, one of
    `_ . / : @ -`, an inner capital or all capitals, such as `"APP_PORT"` or `"/api/v1"`) that its removed lines
-   hold and its added lines no longer do. A value moved within a file is therefore no old value.
+   hold and its added lines no longer do. A value moved within a file is therefore no old value; one the file still
+   holds on an unchanged line is reported with that note, since the documentation may state that other use. Dates
+   (`2026-01-01`) are no numbers here.
 2. Each old value is searched as a whole token (a number also with thousands separators, `1,000`, and with a unit
-   after it, `512MB`) in the documentation: `README.md` and `SECURITY.md`, the files under `docs/` (not the
-   template-managed `docs/decisions/process.md` and `_template.md` files, not a decision record a release tag
-   contains, not a changelog, and only the project blocks of the marked `docs/CONTRIBUTING.md`,
+   after it, `512MB`) in the documentation: `README.md` and `SECURITY.md`, the text documents under `docs/`
+   (`DOCUMENT_TYPES`; not the template-managed `docs/decisions/process.md` and `_template.md` files, not a decision
+   record a fetched release tag contains, not a changelog, and only the project blocks of the marked `docs/CONTRIBUTING.md`,
    `docs/ARCHITECTURE.md`, `docs/decisions/README.md` and `docs/areas/README.md`), `.squad/project.md` and the
    project blocks of `AGENTS.md`.
 3. Every hit is printed with file, line and text, the value, where the diff changed it and, when one line pair of
@@ -49,6 +51,8 @@ TEST_PATHSPECS = list(getattr(settings, "COVERAGE_TEST_PATHSPECS", getattr(setti
 # What is documentation, not a source: never read for old values.
 NOT_SOURCES = ["*.md", "docs/", "specs/", ".squad/", ".claude/"]
 DOCUMENTS = ["README.md", "SECURITY.md", "AGENTS.md", ".squad/project.md", "docs"]
+# Text documents under docs/; images, SVG and generated HTML are no prose.
+DOCUMENT_TYPES = (".md", ".markdown", ".txt", ".rst", ".adoc")
 # Marked files: only their project blocks belong to the repository; the rest is template text.
 MARKED = {"AGENTS.md", "docs/CONTRIBUTING.md", "docs/ARCHITECTURE.md", "docs/decisions/README.md", "docs/areas/README.md"}
 # Template-managed documents, overwritten by every refresh.
@@ -62,6 +66,7 @@ CODE_NUMBER = re.compile(r"(?<![\w.])\d+(?:_\d+)*(?:\.\d+)*")
 QUOTED = re.compile(r"([\"'`])([^\"'`\s]{3,80})\1")
 CONSTANT_CHARACTER = re.compile(r"[\d_./:@-]")
 INNER_CAPITAL = re.compile(r"[a-z][A-Z]")
+DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 DOCUMENT_NUMBER = re.compile(r"(?<![\w.,])(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)*)")
 STRING_EDGE = r"(?<![\w./-]){}(?![\w/-]|\.\w)"
 SNIPPET = 100
@@ -77,10 +82,12 @@ class Hunk:
 
 @dataclass
 class Change:
-    """Where the diff dropped an old value: file, line, and the new value when one line pair shows it."""
+    """Where the diff dropped an old value: file, line, the new value when one line pair shows it, and whether the
+    file still holds the value on another line."""
     path: str
     line: int
     new: str | None = None
+    still: bool = False
 
 
 def git(*args):
@@ -141,7 +148,7 @@ def values(lines):
     """The numbers and quoted constants in the lines, trivial values left out."""
     found = set()
     for line in lines:
-        found.update(number.replace("_", "") for number in CODE_NUMBER.findall(line))
+        found.update(number.replace("_", "") for number in CODE_NUMBER.findall(DATE.sub(" ", line)))
         found.update(token for _, token in QUOTED.findall(line) if is_constant(token))
     return found - TRIVIAL
 
@@ -173,35 +180,48 @@ def old_values(hunks):
     for hunk in hunks:
         by_file.setdefault(hunk.path, []).append(hunk)
     changes = {}
-    for file_hunks in by_file.values():
+    for path, file_hunks in by_file.items():
         kept = values(line for hunk in file_hunks for line in hunk.added)
+        current = current_values(path)
         for hunk in file_hunks:
             for value in sorted(values(hunk.removed) - kept):
-                changes.setdefault(value, []).append(locate(hunk, value))
+                change = locate(hunk, value)
+                change.still = value in current
+                changes.setdefault(value, []).append(change)
     return changes
+
+
+def current_values(path):
+    """The values a source file holds now (none for a deleted file)."""
+    if not os.path.isfile(path):
+        return set()
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        return values(handle.read().splitlines())
 
 
 def released_records():
     """The decision records a release tag contains (by file name): append-only, so they keep what was true then."""
     names = set()
     for tag in git("tag", "--list", "v*").split():
-        listing = subprocess.run(["git", "ls-tree", "--name-only", f"{tag}:docs/decisions"], capture_output=True,
-                                 text=True, encoding="utf-8", check=False).stdout
-        names.update(listing.split())
+        listing = subprocess.run(["git", "ls-tree", "-z", "--name-only", f"{tag}:docs/decisions"], capture_output=True,
+                                 text=True, encoding="utf-8", errors="replace", check=False).stdout
+        names.update(name for name in listing.split("\0") if name)
     return names
 
 
 def is_document(path, released):
     """Whether a file under the searched paths is the repository's own documentation."""
     record = DECISION_RECORD.match(path)
+    if path.startswith("docs/") and not path.lower().endswith(DOCUMENT_TYPES):
+        return False
     return path not in MANAGED and not CHANGELOG.search(path) and not (record and record.group(1) in released)
 
 
 def documents():
     """The documentation files to search, tracked or new."""
     released = released_records()
-    listed = git("ls-files", "--cached", "--others", "--exclude-standard", "--", *DOCUMENTS).splitlines()
-    return [path for path in sorted(set(listed)) if os.path.isfile(path) and is_document(path, released)]
+    listed = git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *DOCUMENTS).split("\0")
+    return [path for path in sorted(set(listed)) if path and os.path.isfile(path) and is_document(path, released)]
 
 
 def owned_lines(path, text):
@@ -227,7 +247,7 @@ def read_document(path):
 
 def matches(line, numbers, strings):
     """The old values a documentation line states: numbers (with or without thousands separators) and constants."""
-    found = [token.replace(",", "") for token in DOCUMENT_NUMBER.findall(line)]
+    found = [token.replace(",", "") for token in DOCUMENT_NUMBER.findall(DATE.sub(" ", line))]
     hits = [value for value in dict.fromkeys(found) if value in numbers]
     return hits + [value for value, pattern in strings if value in line and pattern.search(line)]
 
@@ -245,8 +265,15 @@ def find_hits(changes):
     return hits
 
 
+def place(change):
+    """Where a value changed, with the new value and whether the file still holds the old one elsewhere."""
+    notes = [f"now {change.new}"] if change.new else []
+    notes += ["still used elsewhere in that file"] if change.still else []
+    return f"{change.path}:{change.line}" + (f" ({'; '.join(notes)})" if notes else "")
+
+
 def describe(path, number, line, value, changes):
-    places = ", ".join(f"{c.path}:{c.line}" + (f" (now {c.new})" if c.new else "") for c in changes[value][:3])
+    places = ", ".join(place(change) for change in changes[value][:3])
     more = f" and {len(changes[value]) - 3} more" if len(changes[value]) > 3 else ""
     text = " ".join(line.split())
     shown = text if len(text) <= SNIPPET else text[:SNIPPET].rsplit(" ", 1)[0] + " …"
@@ -256,6 +283,7 @@ def describe(path, number, line, value, changes):
 
 def main():
     argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
+    sys.stdout.reconfigure(errors="replace")  # documentation text on a console that cannot show every character
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     hunks = parse_diff(source_diff(merge_base()))
     changes = old_values(hunks)

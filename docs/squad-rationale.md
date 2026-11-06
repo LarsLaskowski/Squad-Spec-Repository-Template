@@ -926,3 +926,22 @@ its numbers in *Continuing a member*, because `create-pr` continues its reviewer
 every removed sentence found three places where the shortening had lost something (the cap's numbers, the files
 `routing.md`'s section names belong to, the tiers `figure-check.py` runs in), restored before the merge. The rule
 files then held 28,656 words, the new `RULE_WORDS_BASELINE`.
+
+## The template's SonarQube Cloud analysis covers the hidden tool directories (sonar-project.properties; template-check.py, `SONAR_RULES` and the Sonar sources)
+
+Found in the refresh of LarsLaskowski/Censio#110 to `v2026.11.06` (#261): the quality gate failed with a reliability
+rating C on five findings in template-managed tools (`gate-stamp.py`, `figure-check.py`, `decision-check.py`,
+`squad-log.py`), which the target cannot fix. The template's own SonarQube Cloud analysis had passed, because
+`sonar.sources=tools,core,profiles,multi,seed` never reached them: the scanner skips the hidden `.squad/` and `.claude/`
+below a source directory, so it analysed the four files in `tools/` (2,211 lines) and none of the 23 a target receives.
+A local scan of those 23 files found exactly the five findings and nothing else. `sonar-project.properties` now lists
+each hidden tool directory as a source, and `template-check.py` fails when a distributed Python file lies outside
+them, so CI's analysis sees what the targets' analysis will.
+
+Three of the rules have a local check in `SONAR_RULES` (S5850 in a lookahead, which the check missed because it read
+the `?=` of a group as the start of its first alternative; S6019; S7632, which Sonar raised only for the one `noqa`
+explanation holding a colon, not for the others in parentheses). Each check flags the original findings and nothing
+else in the template. S8786 (super-linear backtracking) has no local check: no simple heuristic matches Sonar's
+analysis, and the corrected Sonar sources catch it in CI. `CODE_NUMBER` uses possessive quantifiers, which need
+Python 3.11; every consumer runs 3.12. The S3776 finding was 16 where complexipy 8.3 measures 15: complexipy leaves
+out the `or` in `a or (b if c else None)`, so `check_complexity` can pass a function SonarQube Cloud rejects by one.

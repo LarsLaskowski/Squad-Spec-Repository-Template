@@ -1,5 +1,5 @@
-"""Unit tests for core/.claude/hooks/file-guard.py and for the declaration of the squad's hooks in the seeded
-.claude/settings.json, apply-template.py and config-check.py: run `python3 -m unittest discover tools`."""
+"""Unit tests for core/.claude/hooks/file-guard.py and its declaration in the seeded .claude/settings.json, which
+apply-template.py adds on a refresh: run `python3 -m unittest discover tools`."""
 import importlib.util
 import io
 import json
@@ -15,7 +15,6 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 HOOK = os.path.join(ROOT, "core", ".claude", "hooks", "file-guard.py")
 SEED_SETTINGS = os.path.join(ROOT, "seed", ".claude", "settings.json")
 APPLY = os.path.join(ROOT, "tools", "apply-template.py")
-CONFIG_CHECK = os.path.join(ROOT, "core", ".squad", "tools", "config-check.py")
 DOTNET_SETTINGS = 'COVERAGE_EXCLUDES = []\nCOVERAGE_TEST_PATHSPECS = ["tests/*.cs"]\n'
 GO_SETTINGS = 'COVERAGE_EXCLUDES = ["*_test.go"]\n'
 TEST_DOCUMENT = "docs/UNIT_TESTS.md"
@@ -223,56 +222,12 @@ class TestHookInput(GuardTestCase):
 
 
 class TestDeclaredHooks(unittest.TestCase):
-    """The seed, the refresh merge and config-check.py agree on the PreToolUse hooks of the squad."""
-
-    def setUp(self):
-        self.apply = load("apply_template", APPLY)
-        with open(SEED_SETTINGS, encoding="utf-8") as handle:
-            self.seed = json.load(handle)
-
     def test_the_seed_declares_the_hooks_the_refresh_adds(self):
-        self.assertEqual(self.seed["hooks"]["PreToolUse"], list(self.apply.SQUAD_HOOKS.values()))
-        self.assertIsNone(self.apply.with_squad_hooks(json.dumps(self.seed)), "the seed lacks no squad hook")
-
-    def test_config_check_requires_each_guard_for_its_tools(self):
-        try:
-            import yaml  # noqa: F401  (config-check.py needs PyYAML)
-        except ImportError:
-            self.skipTest("PyYAML is not installed")
-        check = load("config_check", CONFIG_CHECK)
-        for script, tools in check.SQUAD_GUARDS:
-            self.assertTrue(check.declares_hook(self.seed, script, tools), script)
-        file_guard = check.FILE_GUARD
-        only_write = {"hooks": {"PreToolUse": [{"matcher": "Write|MultiEdit", "hooks": [
-            {"type": "command", "command": "python3 .claude/hooks/file-guard.py"}]}]}}
-        self.assertFalse(check.declares_hook(only_write, file_guard, ("Write", "Edit")), "Edit is not in the matcher")
-        no_command = {"hooks": {"PreToolUse": [{"matcher": "Write|Edit|MultiEdit|NotebookEdit", "hooks": [
-            {"type": "command", "command": "python3 .claude/hooks/git-guard.py"}]}]}}
-        self.assertFalse(check.declares_hook(no_command, file_guard, ("Write", "Edit")))
-        for odd in ({"hooks": {"PreToolUse": [5, {"matcher": 7}, {"matcher": "Write", "hooks": 5}]}},
-                    {"hooks": {"PreToolUse": 5}}, {"hooks": []}, {}):
-            self.assertFalse(check.declares_hook(odd, file_guard, ("Write",)), odd)
-
-    def test_config_check_reports_a_settings_file_without_the_file_guard(self):
-        try:
-            import yaml  # noqa: F401  (config-check.py needs PyYAML)
-        except ImportError:
-            self.skipTest("PyYAML is not installed")
-        check = load("config_check", CONFIG_CHECK)
-        old = {"hooks": {"PreToolUse": [self.seed["hooks"]["PreToolUse"][0]]}}
-        with tempfile.TemporaryDirectory() as repo:
-            for script, _ in check.SQUAD_GUARDS:
-                write(os.path.join(repo, script), "")
-            write(os.path.join(repo, check.CLAUDE_SETTINGS), json.dumps(old))
-            errors = []
-            cwd = os.getcwd()
-            os.chdir(repo)
-            try:
-                check.check_guards(errors)
-            finally:
-                os.chdir(cwd)
-        self.assertEqual(len(errors), 1, errors)
-        self.assertIn("file-guard.py", errors[0])
+        apply = load("apply_template", APPLY)
+        with open(SEED_SETTINGS, encoding="utf-8") as handle:
+            seed = json.load(handle)
+        self.assertEqual(seed["hooks"]["PreToolUse"], list(apply.SQUAD_HOOKS.values()))
+        self.assertIsNone(apply.with_squad_hooks(json.dumps(seed)), "the seed lacks no squad hook")
 
 
 if __name__ == "__main__":

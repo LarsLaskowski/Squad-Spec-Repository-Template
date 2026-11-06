@@ -32,11 +32,12 @@ Rules that hold throughout:
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
-   becomes "in the squad: by the member that changed the files, `.squad/team.md`"; a setting the seed gained, such
-   as the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*` and `SMALL_FEATURE_CRITERIA`, is added with the seed's
-   value and comment). The same holds for
-   `docs/UNIT_TESTS.md`: a section the seed gained (e.g. *Criterion ids*) is added to the target's test document,
-   adapted to its test framework. The same diff covers
+   becomes "in the squad: by the member that changed the files, `.squad/team.md`"). A setting the target's
+   `squad_settings.py` lacks is added with the seed's comment and default: `SPEC_APPROVAL = "lead"` (who approves a
+   feature's spec) unless the user asks for `"pm"`, and the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*` and
+   `SMALL_FEATURE_CRITERIA`; a value the target already sets stays. The same holds for `docs/UNIT_TESTS.md`: a
+   section the seed gained (e.g. *Criterion ids*) is added to the target's test document, adapted to its test
+   framework. The same diff covers
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
    other change to the seed's hooks is carried over by hand.

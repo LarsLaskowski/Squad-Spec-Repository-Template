@@ -227,7 +227,10 @@ def merge_settings(profile_dirs):
              "# Base branch the gates diff against (merge base with HEAD); fetch it before running the gates.",
              f"BASE_REF = {getattr(modules[0], 'BASE_REF', 'origin/main')!r}", "",
              "# Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.",
-             f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", ""]
+             f"PATCH_MAX_LINES = {getattr(modules[0], 'PATCH_MAX_LINES', 30)!r}", "",
+             "# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "
+             '"lead" or "pm".',
+             f"SPEC_APPROVAL = {getattr(modules[0], 'SPEC_APPROVAL', 'lead')!r}", ""]
     for name, module in zip(names, modules, strict=True):
         if hasattr(module, "SOLUTION"):
             lines += [f"# Solution or project file the {name} analyzer gate builds.", f"SOLUTION = {module.SOLUTION!r}", ""]

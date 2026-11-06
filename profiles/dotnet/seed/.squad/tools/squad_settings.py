@@ -7,6 +7,9 @@ BASE_REF = "origin/main"
 # Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.
 PATCH_MAX_LINES = 30
 
+# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "lead" or "pm".
+SPEC_APPROVAL = "lead"
+
 # Size of the squad's working records (.squad/tools/plan-check.py): words of plan.md per tier (a `Plan size:` line
 # under its header allows up to twice as many), and of spec.md SPEC_BASE_WORDS plus SPEC_WORDS_PER_CRITERION per
 # acceptance criterion, at most SPEC_MAX_WORDS. A feature of at most SMALL_FEATURE_CRITERIA criteria and no security

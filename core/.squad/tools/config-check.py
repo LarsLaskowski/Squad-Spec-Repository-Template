@@ -31,6 +31,11 @@ it. This script checks, without arguments:
 - no bullet of a seeded file is still a seed's placeholder text with the braces removed (`- its interface` in
   `.squad/project.md`, from the seed's `- {{TODO: its interface}}`; `SEEDED_BULLETS`).
 
+A warning, which does not fail the check, names `.squad/project.md` when it is longer than `PROJECT_MAX_WORDS` words
+(`squad_settings.py`, default 1500): five members read it on every launch, so its entries point to the area
+documents and decision records instead of restating them. The warnings of `decision-check.py` (sizes of records and
+area documents, release tags it cannot see) are shown as well.
+
 The front matter is parsed with PyYAML where it is installed. Without it, a built-in parser reads the YAML that
 agents and skills use (`key: value` lines, quoted values, block scalars, lists) and still rejects what makes
 Claude Code drop a file: a `: ` or a final `:` in an unquoted value, an unterminated quote, text after a closing
@@ -42,6 +47,7 @@ Usage, from anywhere inside the repository:
 Exit code 0 when everything is valid, 1 otherwise.
 """
 import glob
+import importlib.util
 import json
 import os
 import re
@@ -63,8 +69,10 @@ SKILLS_DIR = os.path.join(CLAUDE_DIR, "skills")
 INSTRUCTION_FILES = ["AGENTS.md", os.path.join(GITHUB_DIR, "copilot-instructions.md")]
 CLAUDE_FILE = "CLAUDE.md"
 RULES_IMPORT = re.compile(r"^@AGENTS\.md[ \t]*$", re.M)
-REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), os.path.join(SQUAD_DIR, "project.md"),
-                  os.path.join(SQUAD_DIR, "tools", "squad_settings.py")]
+PROJECT_FILE = os.path.join(SQUAD_DIR, "project.md")
+SETTINGS_FILE = os.path.join(SQUAD_DIR, "tools", "squad_settings.py")
+REQUIRED_FILES = [os.path.join(SQUAD_DIR, "stack.md"), PROJECT_FILE, SETTINGS_FILE]
+PROJECT_MAX_WORDS = 1500
 # No quantifier overlaps another one, so matching stays linear (no backtracking).
 PLACEHOLDER = re.compile(r"\{\{TODO:([^{}]*)\}\}")
 IMPORT_LINE = re.compile(r"^@[^\s@]\S*[ \t]*\n", re.M)
@@ -83,7 +91,7 @@ SEEDED_BULLETS = {
         "Parsing of external input (XML/JSON/YAML, uploads, CLI arguments)",
         "Outbound calls (HTTP clients, TLS, timeouts)",
         "Logging of external data",
-        "guarantee — [decision NNNN](../docs/decisions/NNNN-title.md)",
+        "guarantee — [decision NNNN](../docs/decisions/NNNN-title.md), [area](../docs/areas/area.md)",
         "the options type / config schema",
         "registration / binding",
         "default config file",
@@ -341,16 +349,39 @@ def check_profiles(record, errors):
         if not os.path.isfile(rel):
             errors.append(f"{rel} is missing (written by adopt-template for the profiles {', '.join(profiles)})")
     try:
-        sys.path.insert(0, os.path.join(SQUAD_DIR, "tools"))
-        sys.dont_write_bytecode = True
-        import squad_settings
-        reports = getattr(squad_settings, "COVERAGE_REPORTS", None)
+        reports = getattr(load_settings(), "COVERAGE_REPORTS", None)
     except Exception as error:  # noqa: BLE001  (any failure to load the settings is the finding)
         errors.append(f"{SQUAD_DIR}/tools/squad_settings.py: {error}")
         return
     if not isinstance(reports, (list, tuple)) or len(reports) < len(profiles):
         errors.append(f"{SQUAD_DIR}/tools/squad_settings.py: COVERAGE_REPORTS needs a (format, glob) entry for "
                       f"each of the {len(profiles)} profiles")
+
+
+def load_settings():
+    """The repository's `.squad/tools/squad_settings.py` as a module, loaded from its path each time; raises what
+    loading it raises."""
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("squad_settings", SETTINGS_FILE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_project_size(warnings):
+    """`.squad/project.md` past PROJECT_MAX_WORDS: a warning that says how to shorten it."""
+    if not os.path.isfile(PROJECT_FILE):
+        return
+    try:
+        limit = getattr(load_settings(), "PROJECT_MAX_WORDS", PROJECT_MAX_WORDS)
+    except Exception:  # noqa: BLE001  (a missing or broken settings file leaves the default; it is reported apart)
+        limit = PROJECT_MAX_WORDS
+    words = len(read_text(PROJECT_FILE).split())
+    if words > limit:
+        warnings.append(f"{PROJECT_FILE}: {words} words (PROJECT_MAX_WORDS {limit}), and five members read it on every "
+                        "launch - make every entry a pointer: one line per security area, guarantee and test double "
+                        "that names the files and links its area document or decision record; move behavior, values "
+                        "and limits into the area document and the reasons into the record (its introduction)")
 
 
 def check_project_files(errors):
@@ -392,7 +423,10 @@ def check_seeded_bullets(path, seeded, errors):
 ERROR_PREFIX = "ERROR: "
 
 
-def check_decisions(errors):
+WARNING_PREFIX = "WARNING: "
+
+
+def check_decisions(errors, warnings):
     script = os.path.join(SQUAD_DIR, "tools", "decision-check.py")
     if not os.path.isfile(script):
         errors.append(f"{script} is missing (written by adopt-template)")
@@ -400,9 +434,7 @@ def check_decisions(errors):
     result = subprocess.run([sys.executable, script], capture_output=True, text=True, encoding="utf-8")
     findings = [line[len(ERROR_PREFIX):] for line in result.stdout.splitlines() if line.startswith(ERROR_PREFIX)]
     errors.extend(findings)
-    for line in result.stdout.splitlines():
-        if line.startswith("WARNING: "):
-            print(line)
+    warnings.extend(line[len(WARNING_PREFIX):] for line in result.stdout.splitlines() if line.startswith(WARNING_PREFIX))
     if result.returncode != 0 and not findings:
         errors.append(f"{script} failed: {result.stderr.strip() or 'no output'}")
 
@@ -410,7 +442,7 @@ def check_decisions(errors):
 def main():
     # Resolve paths from the repository root, whatever the current directory is.
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-    errors = []
+    errors, warnings = [], []
     agents = sorted(glob.glob(os.path.join(AGENTS_DIR, "*.md")))
     for path in agents:
         check(path, os.path.splitext(os.path.basename(path))[0], errors, agent=True)
@@ -420,10 +452,13 @@ def main():
     check_instructions(errors)
     check_template_record(errors)
     check_project_files(errors)
-    check_decisions(errors)
+    check_project_size(warnings)
+    check_decisions(errors, warnings)
 
     if not agents or not skills:
         errors.append("no agents or skills found - has the squad been adopted in this repository?")
+    for warning in warnings:
+        print(f"{WARNING_PREFIX}{warning}")
     for error in errors:
         print(error)
     parser = "" if yaml else " (front matter read without PyYAML)"

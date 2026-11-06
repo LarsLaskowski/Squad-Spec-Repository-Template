@@ -1,5 +1,6 @@
 """Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
-the members' guards declared in .claude/settings.json): run `python3 -m unittest discover tools`."""
+the members' guards declared in .claude/settings.json, the size of .squad/project.md): run
+`python3 -m unittest discover tools`."""
 import glob
 import importlib.util
 import json
@@ -241,6 +242,56 @@ class TestSquadGuards(unittest.TestCase):
                 os.chdir(cwd)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("file-guard.py", errors[0])
+
+
+class TestProjectSize(unittest.TestCase):
+    """.squad/project.md past PROJECT_MAX_WORDS is a warning, with the limit from squad_settings.py."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.cwd = os.getcwd()
+        os.chdir(self.dir.name)
+        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1498)
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        self.dir.cleanup()
+
+    def warnings(self):
+        found = []
+        self.script.check_project_size(found)
+        return found
+
+    def test_the_default_limit_without_settings(self):
+        self.assertEqual(self.warnings(), [], "1500 words: at the limit, not past it")
+        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1600)
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("project.md: 1602 words (PROJECT_MAX_WORDS 1500)", warnings[0])
+        self.assertIn("make every entry a pointer", warnings[0])
+
+    def test_the_limit_from_the_settings(self):
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 1000\n")
+        self.assertIn("(PROJECT_MAX_WORDS 1000)", self.warnings()[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 3000\n")
+        self.assertEqual(self.warnings(), [], "the file is loaded anew on every call")
+
+    def test_a_broken_settings_file_leaves_the_default(self):
+        write(self.script.PROJECT_FILE, "word " * 1501)
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = (\n")
+        self.assertIn("(PROJECT_MAX_WORDS 1500)", self.warnings()[0])
+
+    def test_no_project_file_no_warning(self):
+        os.remove(self.script.PROJECT_FILE)
+        self.assertEqual(self.warnings(), [])
+
+    def test_decision_check_warnings_are_collected(self):
+        script = os.path.join(".squad", "tools", "decision-check.py")
+        write(script, "print('WARNING: docs/areas/a.md: 6000 words')\nprint('Checked 0 decision records: PASS')\n")
+        errors, warnings = [], []
+        self.script.check_decisions(errors, warnings)
+        self.assertEqual((errors, warnings), ([], ["docs/areas/a.md: 6000 words"]))
 
 
 if __name__ == "__main__":

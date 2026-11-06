@@ -230,5 +230,22 @@ class TestSquadHookSettings(unittest.TestCase):
             self.assertEqual((emitted, report[-1]), ({}, ("kept", ".claude/settings.json")))
 
 
+class TestMergedSettings(unittest.TestCase):
+    """squad_settings.py of a repository with several profiles carries the size limits like a single profile's seed."""
+
+    def test_the_size_limits_are_those_of_every_seed(self):
+        script = load_script()
+        root = os.path.dirname(os.path.dirname(SCRIPT))
+        seed = script.load_settings(os.path.join(root, "profiles", "go", "seed", ".squad", "tools", "squad_settings.py"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "squad_settings.py")
+            write(path, script.merge_settings([os.path.join(root, "profiles", name) for name in ("go", "dotnet")]))
+            merged = script.load_settings(path)
+        for name, (default, _) in script.SIZE_SETTINGS.items():
+            with self.subTest(name=name):
+                self.assertEqual(getattr(merged, name), getattr(seed, name))
+                self.assertEqual(getattr(merged, name), default)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -548,3 +548,37 @@ orchestrator follows step by step: LarsLaskowski/Vandox#337 posted the working r
 early draft pull request before the review, and logged that as improvised. The Lead read every decision record
 (110 records of about 98,000 words in Vandox, #236), the Devil's Advocate only the index and the records of the
 topic; the Lead now reads them the same way, the first step of #236.
+
+## Project knowledge as pointers, size warnings, one record per decision (seed project.md; config-check.py; decision-check.py; squad_settings.py seeds; docs/decisions/README.md, Rules and Size; docs/areas/README.md, Size; squad-lead.md, mode plan; squad-security.md; squad-spec and decision-consolidate; adopt-template, steps 1 and 6)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #236). `.squad/project.md`, which five members
+read on every launch, had 15,541 words in LarsLaskowski/Vandox (*Security areas* alone 11,861), 3,725 in
+LarsLaskowski/Seluna and 1,911 in LarsLaskowski/Censio (*Test doubles* 1,097). The largest area documents were
+Vandox `agent.md` with 42,996 words, Seluna `setup-wizard.md` with 13,304 (a copy of the UI strings of
+`src/setup/texts.ts`), Censio `pipe.md` with 5,125 and LarsLaskowski/DockerUpdateGuard `registries.md` with 4,722.
+Vandox had 110 records of about 98,000 words; 0088 weighs 38 options with about 19 marked chosen, 0131 34. Seluna 0043
+grew to 2,968 words over four issues and DockerUpdateGuard 0014 was extended by three runs (#348, #355, #364).
+
+The cost is stale copies: one fact with several homes goes stale in all but one. Stale documentation was about 22
+of 23 blocking review findings in Seluna's 12 latest runs, 10 of 17 in Vandox's 13 latest and 9 of 9 in the sampled
+DockerUpdateGuard runs; LarsLaskowski/Vandox#305 repeated one memory figure in `project.md`, `web-ui.md`,
+`README.md` and record 0116 (four blocking findings), LarsLaskowski/Seluna#110 a budget figure in record 0041 and the
+area document. The causes in the template: the seed's *Security areas* asked to "name the concrete types, files or
+endpoints" without bounding an entry, so entries took over limits, drain sequences and token regexes from the area
+documents; "extend an existing unreleased record on the same topic" stood in three places, and with releases rare
+(Vandox one tag, Censio its first on 2026-11-05) the records stayed unreleased and grew into topic bundles; and no
+tool checked the area size rule, "one decision per file" or "the record does not restate behavior". The Lead read
+every record until #246 narrowed its *Read first* to the index and the records of the change's topic.
+
+The seed now says that every entry points (files, types or endpoints, and a link) and that values live in the area
+document; its placeholder bullets stay as they were, so `config-check.py` still recognizes them, and the guarantee
+bullet gains its area link. Security reads the linked area documents of the areas a change touches, since the rules
+no longer stand in `project.md`. The limits are warnings, not errors: a repository past them cannot shrink inside a
+product pull request, and a failing `config-check.py` would block every run of Vandox until a large rewrite. The
+defaults follow the issue (1,500 words for `project.md` and a record, 8 options, 5,000 words for an area document),
+are set in `squad_settings.py` and checked only on unreleased records, because a released one is never split. No
+tool can tell whether a record restates behavior; its size is the proxy, and `decision-consolidate` lifts the
+behavior into the area documents. `decision-consolidate` grouped records "on one topic", the same bundling, and now
+groups by decision and splits what the warning names. Seeded files are not refreshed, so `adopt-template` step 1
+carries the new structure and settings over, and the shortening itself is a squad-maintenance pull request in the
+target.

@@ -28,9 +28,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   versions wrote, and lists every line of the repository that still refers to a removed file.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
-  weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
+  weight, one record per decision, and state only the *why*: what holds today is written once in an area document
   (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
-  freeze; the `decision-consolidate` skill folds unreleased chains into one record.
+  freeze and warns about a record or area document past its size limit; the `decision-consolidate` skill folds
+  unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
   file), *Sonar gate* (`sonar-check.py pr`: the CI code analysis of the draft pull request's head, read in step 11 with a
   SonarQube credential — a network secret of the cloud environment, or `SONAR_TOKEN` — where the project is private) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in

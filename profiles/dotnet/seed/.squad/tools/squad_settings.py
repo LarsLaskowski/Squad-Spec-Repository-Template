@@ -20,3 +20,9 @@ COVERAGE_REPORT_GLOB = "TestResults/**/coverage.cobertura.xml"
 COVERAGE_PATHSPECS = ["src/*.cs", "src/*.razor"]
 COVERAGE_EXCLUDES = []
 COVERAGE_TEST_PATHSPECS = ["tests/*.cs"]  # a diff touching these is gated on overall coverage too
+
+# Size warnings (config-check.py, decision-check.py): a file past its limit is reported with the split it needs.
+PROJECT_MAX_WORDS = 1500  # .squad/project.md, read by five members on every launch
+AREA_MAX_WORDS = 5000  # each area document in docs/areas/
+RECORD_MAX_WORDS = 1500  # each unreleased decision record
+RECORD_MAX_OPTIONS = 8  # the options under *Options considered* of an unreleased decision record

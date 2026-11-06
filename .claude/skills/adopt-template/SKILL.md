@@ -32,7 +32,13 @@ Rules that hold throughout:
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
-   becomes "in the squad: by the member that changed the files, `.squad/team.md`"). The same diff covers
+   becomes "in the squad: by the member that changed the files, `.squad/team.md`"). This includes the structure of
+   `project.md` — a pointer file: its introduction and the section texts that say what an entry holds — and every new
+   setting of `squad_settings.py` (the size limits `PROJECT_MAX_WORDS`, `AREA_MAX_WORDS`, `RECORD_MAX_WORDS` and
+   `RECORD_MAX_OPTIONS`), each carried over as the seed has it. Shortening the target's existing `project.md`
+   entries to pointers, and splitting the records and area documents the size warnings of `config-check.py` name,
+   is not part of the refresh: it is a squad-maintenance pull request in that repository, so list the warnings in
+   the PR description and file them there as a `squad` issue. The same diff covers
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
    other change to the seed's hooks is carried over by hand.
@@ -107,7 +113,9 @@ Rules that hold throughout:
    existing one gets the *Code coverage* and checklist sections of the seed merged in.
 6. **Fill `.squad/project.md`** from `ARCHITECTURE.md`, `SECURITY.md`, the README configuration table, the
    decision records and old review skills or agents: concrete security areas, guarantees with their
-   decision records, the integration surface (what must change together), and the test doubles. On a
+   decision records, the integration surface (what must change together), and the test doubles — as pointers, the
+   way its introduction says: values, limits and sequences stay in the document they came from (an area document,
+   `ARCHITECTURE.md`, `README.md`), which the entry links. On a
    first adoption, also read `git diff HEAD` of the **managed** files the apply step overwrote — a
    repository that already had a squad keeps its project knowledge there (e.g. the integration-surface
    sweep in an old `squad-reviewer.md`, project names in old charters or the PR template) — and carry that

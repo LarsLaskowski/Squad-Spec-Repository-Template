@@ -16,7 +16,8 @@ rules), launched by `create-pr` or `review-pr` with no plan: review the diff aga
 the issue or PR description instead.
 
 Read first: `.squad/team.md` (*Shared rules*), `SECURITY.md`, `docs/ARCHITECTURE.md`, and `.squad/project.md`
-(*Security areas*, *Guarantees*).
+(*Security areas*, *Guarantees*), then the area documents its entries link for the areas the change touches: the
+entries only point, the rules stand there.
 
 Focus areas: the *Security areas* in `.squad/project.md` (this project's attack surface — secrets,
 authentication, file writes, parsing of external input, outbound calls, logging of external data, …),

@@ -244,7 +244,25 @@ def merge_settings(profile_dirs):
               f"COVERAGE_PATHSPECS = {union_values([getattr(m, 'COVERAGE_PATHSPECS', ()) for m in modules])!r}",
               f"COVERAGE_EXCLUDES = {union_values([getattr(m, 'COVERAGE_EXCLUDES', ()) for m in modules])!r}",
               f"COVERAGE_TEST_PATHSPECS = {tests!r}  # a diff touching these is gated on overall coverage too", ""]
+    lines += size_settings(modules[0])
     return "\n".join(lines)
+
+
+# The size warnings of config-check.py and decision-check.py: {setting: (default, comment)}, as in the profile seeds.
+SIZE_SETTINGS = {
+    "PROJECT_MAX_WORDS": (1500, ".squad/project.md, read by five members on every launch"),
+    "AREA_MAX_WORDS": (5000, "each area document in docs/areas/"),
+    "RECORD_MAX_WORDS": (1500, "each unreleased decision record"),
+    "RECORD_MAX_OPTIONS": (8, "the options under *Options considered* of an unreleased decision record"),
+}
+
+
+def size_settings(module):
+    """The size-warning lines of a merged squad_settings.py, with the primary profile's values."""
+    lines = ["# Size warnings (config-check.py, decision-check.py): a file past its limit is reported with the split "
+             "it needs."]
+    lines += [f"{name} = {getattr(module, name, default)!r}  # {comment}" for name, (default, comment) in SIZE_SETTINGS.items()]
+    return [*lines, ""]
 
 
 def split_chunks(text, pattern):

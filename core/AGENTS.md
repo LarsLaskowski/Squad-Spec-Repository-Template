@@ -111,9 +111,9 @@ Project-specific workflow skills live under `.claude/skills/` and run in Claude 
   edge cases, the acceptance criteria) and the Devil's Advocate challenges it before `plan.md` and `tasks.md`
   are written against it, in a working folder under `specs/`; also for an issue the user calls a feature or that is
   labelled `feature`/`enhancement` (`.squad/routing.md`, *Bug or feature*).
-- `decision-consolidate` — merge unreleased decision records (Superseded chains, records on one topic) into
-  one record each, delete the obsolete ones, lift behavior that sits in records into the area documents and fix
-  links and index; released records stay untouched.
+- `decision-consolidate` — merge unreleased decision records (Superseded chains, records of one decision) into
+  one record each, split a record that holds several decisions, delete the obsolete ones, lift behavior that sits
+  in records into the area documents and fix links and index; released records stay untouched.
 - `review-pr` — review an open pull request against this project's stack, analyzer, security and
   unit-test conventions, and post the findings with an explicit verdict.
 

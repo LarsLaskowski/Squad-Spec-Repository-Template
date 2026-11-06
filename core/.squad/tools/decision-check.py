@@ -21,6 +21,14 @@ Checks, run from anywhere inside the repository (it takes no arguments):
   record is never deleted and never changed except for its status becoming `Superseded by NNNN`; an
   unreleased record is never `Superseded` (it is edited in place or deleted instead).
 
+`docs/decisions/process.md` holds the squad's process decisions; the template overwrites it on every refresh, so it
+is no record and is not checked: it needs no number, status or index row, and a link to it is no link to a record.
+
+Size warnings, which do not fail the check and name the split each file needs: an unreleased record (or one whose
+release cannot be told) past `RECORD_MAX_WORDS` words or `RECORD_MAX_OPTIONS` options under *Options considered*
+holds more than one decision; an area document in `docs/areas/` past `AREA_MAX_WORDS` words covers more than one area.
+The limits come from `.squad/tools/squad_settings.py` (defaults 1500, 8 and 5000).
+
 Without release tags nothing is released and the freeze checks pass. Without local ones but with a remote
 configured, the remotes are asked (`git ls-remote --tags <remote> 'v*'`): when none has a release tag either,
 nothing is released; when one has, or cannot be asked, the freeze checks are skipped with a warning, because the
@@ -38,6 +46,16 @@ import re
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True  # importing the settings must leave no __pycache__ in the repository
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import squad_settings as settings  # per-repository settings next to this script
+except Exception:  # noqa: BLE001  (missing outside a target, or broken: the defaults apply, config-check.py reports it)
+    settings = None
+
+AREA_MAX_WORDS = getattr(settings, "AREA_MAX_WORDS", 5000)
+RECORD_MAX_WORDS = getattr(settings, "RECORD_MAX_WORDS", 1500)
+RECORD_MAX_OPTIONS = getattr(settings, "RECORD_MAX_OPTIONS", 8)
 DECISIONS_DIR = os.path.join("docs", "decisions")
 AREAS_DIR = os.path.join("docs", "areas")
 NO_AREA = "\u2014"
@@ -59,6 +77,9 @@ RELEASE_TAGS = "v*"
 FETCH_TAGS = "run 'git fetch origin main --tags'"
 REMOTE_TIMEOUT = 30
 INDEX_FILE = "README.md"
+TEMPLATE_FILE = "_template.md"
+OPTIONS_SECTION = re.compile(r"^## Options considered[ \t]*\n((?:(?!^## ).)*)", re.MULTILINE | re.DOTALL)
+OPTION_ITEM = re.compile(r"^(?:\d+[.)]|[-*+])[ \t]", re.MULTILINE)
 
 
 def plain(text):
@@ -82,7 +103,7 @@ def load_records(root, errors):
         name = os.path.basename(path)
         match = RECORD_NAME.match(name)
         if not match:
-            continue
+            continue  # README.md, _template.md and process.md (the squad's process decisions) are no records
         number, text = match.group(1), read_text(path)
         rel = f"{DECISIONS_DIR}/{name}".replace(os.sep, "/")
         status = STATUS_LINE.search(text)
@@ -362,6 +383,42 @@ def check_freeze(root, records, errors, warnings):
     return set(released)
 
 
+def option_count(text):
+    """The options a record weighs: the top-level list items of its `## Options considered` section."""
+    section = OPTIONS_SECTION.search(text)
+    return len(OPTION_ITEM.findall(section.group(1))) if section else 0
+
+
+def check_record_sizes(records, released, warnings):
+    """An unreleased record past RECORD_MAX_WORDS or RECORD_MAX_OPTIONS holds several decisions: a warning that
+    names the split. `released` is the set of released numbers, or None when it cannot be told."""
+    for number, record in records.items():
+        if released is not None and number in released:
+            continue  # append-only: a released record is never split
+        words, options = len(record["text"].split()), option_count(record["text"])
+        if words <= RECORD_MAX_WORDS and options <= RECORD_MAX_OPTIONS:
+            continue
+        unless = "" if released is not None else ", unless it is released (a released record stays as it is)"
+        warnings.append(f"{record['rel']}: {words} words and {options} options (RECORD_MAX_WORDS {RECORD_MAX_WORDS}, "
+                        f"RECORD_MAX_OPTIONS {RECORD_MAX_OPTIONS}) - split it into one record per decision{unless}: "
+                        "each keeps its own context, options and consequences, the new ones take the next free "
+                        "numbers with their index rows, links to it point at the record of their decision, and the "
+                        "behavior it states moves to its area document (docs/decisions/README.md, Rules)")
+
+
+def check_area_sizes(root, warnings):
+    """An area document past AREA_MAX_WORDS covers more than one area: a warning that names the split."""
+    for path in sorted(glob.glob(os.path.join(root, AREAS_DIR, "*.md"))):
+        name = os.path.basename(path)
+        words = len(read_text(path).split())
+        if name in (INDEX_FILE, TEMPLATE_FILE) or words <= AREA_MAX_WORDS:
+            continue
+        warnings.append(f"{AREAS_DIR}/{name}".replace(os.sep, "/") + f": {words} words (AREA_MAX_WORDS "
+                        f"{AREA_MAX_WORDS}) - split it: keep this area for its core behavior, move each other part "
+                        "to a narrower area with its own document and index row, link the new documents from its "
+                        "*Not here* section, and state each behavior once (docs/areas/README.md, Size)")
+
+
 def main():
     root = (git(".", "rev-parse", "--show-toplevel") or ".").strip()
     errors, warnings = [], []
@@ -371,6 +428,8 @@ def main():
     check_index(root, records, errors)
     released = check_freeze(root, records, errors, warnings)
     check_areas(root, records, released, errors)
+    check_record_sizes(records, released, warnings)
+    check_area_sizes(root, warnings)
     for warning in warnings:
         print(f"WARNING: {warning}")
     for error in errors:

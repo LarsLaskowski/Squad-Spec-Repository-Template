@@ -772,3 +772,88 @@ The README called the template "one rule set for every AI coding agent", which h
 depends on Claude Code's subagents, `SendMessage`, transcripts and hooks, and its skills on Claude Code's web
 environment: `subscribe_pr_activity`, the `mcp__github__*` tools, `add_repo`, network secrets and the blocked GraphQL
 API that `team.md` works around.
+
+## Project knowledge as pointers, size warnings, one record per decision (seed project.md; config-check.py; decision-check.py; squad_settings.py seeds; docs/decisions/README.md, Rules and Size; docs/areas/README.md, Size; squad-lead.md, mode plan; squad-security.md; squad-spec and decision-consolidate; adopt-template, steps 1 and 6)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #236). `.squad/project.md`, which five members
+read on every launch, had 15,541 words in LarsLaskowski/Vandox (*Security areas* alone 11,861), 3,725 in
+LarsLaskowski/Seluna and 1,911 in LarsLaskowski/Censio (*Test doubles* 1,097). The largest area documents were
+Vandox `agent.md` with 42,996 words, Seluna `setup-wizard.md` with 13,304 (a copy of the UI strings of
+`src/setup/texts.ts`), Censio `pipe.md` with 5,125 and LarsLaskowski/DockerUpdateGuard `registries.md` with 4,722.
+Vandox had 110 records of about 98,000 words; 0088 weighs 38 options with about 19 marked chosen, 0131 34. Seluna 0043
+grew to 2,968 words over four issues and DockerUpdateGuard 0014 was extended by three runs (#348, #355, #364).
+
+The cost is stale copies: one fact with several homes goes stale in all but one. Stale documentation was about 22
+of 23 blocking review findings in Seluna's 12 latest runs, 10 of 17 in Vandox's 13 latest and 9 of 9 in the sampled
+DockerUpdateGuard runs; LarsLaskowski/Vandox#305 repeated one memory figure in `project.md`, `web-ui.md`,
+`README.md` and record 0116 (four blocking findings), LarsLaskowski/Seluna#110 a budget figure in record 0041 and the
+area document. The causes in the template: the seed's *Security areas* asked to "name the concrete types, files or
+endpoints" without bounding an entry, so entries took over limits, drain sequences and token regexes from the area
+documents; "extend an existing unreleased record on the same topic" stood in three places, and with releases rare
+(Vandox one tag, Censio its first on 2026-11-05) the records stayed unreleased and grew into topic bundles; and no
+tool checked the area size rule, "one decision per file" or "the record does not restate behavior". The Lead read
+every record until #246 narrowed its *Read first* to the index and the records of the change's topic.
+
+The seed now says that every entry points (files, types or endpoints, and a link) and that values live in the area
+document; its placeholder bullets stay as they were, so `config-check.py` still recognizes them, and the guarantee
+bullet gains its area link (its earlier form, braces removed, is still reported in repositories adopted before). Security reads the linked area documents of the areas a change touches, since the rules
+no longer stand in `project.md`. The limits are warnings, not errors: a repository past them cannot shrink inside a
+product pull request, and a failing `config-check.py` would block every run of Vandox until a large rewrite. The
+defaults follow the issue (1,500 words for `project.md` and a record, 8 options, 5,000 words for an area document),
+are set in `squad_settings.py` and checked only on unreleased records, because a released one is never split. No
+tool can tell whether a record restates behavior; its size is the proxy, and `decision-consolidate` lifts the
+behavior into the area documents. `decision-consolidate` grouped records "on one topic", the same bundling, and now
+groups by decision and splits what the warning names. Seeded files are not refreshed, so `adopt-template` step 1
+carries the new structure and settings over, and the shortening itself is a squad-maintenance pull request in the
+target.
+
+## The squad's process decisions in one managed file (docs/decisions/process.md; decision-seeds/; decision-check.py; apply-template.py; adopt-template, step 8; orchestration.md, Template-managed files; CONTRIBUTING.md)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #247). `adopt-template` step 8 numbered the
+three records of `decision-seeds/` into each product's `docs/decisions/`, and every refresh that changed one of
+their rules edited the seeded record in place (unreleased) or added a record that superseded or amended it
+(released). LarsLaskowski/Seluna carries the chain 0002 "Squad working records stay off main, and product PRs never
+change the squad" (2026-10-14, adopted, superseded by 0022), 0022 with the same title (2026-10-17, superseded by
+0037), 0037 (2026-10-25, accepted) and 0044 "Product PRs may change the squad settings file" (2026-11-01, refreshed,
+amends 0037). They are decisions of the template, not of the product, yet they take numbers in its log, and every
+reader of the index walks past them.
+
+The process decisions are now `docs/decisions/process.md`, a managed file under `core/` that every refresh
+overwrites: no number, no status, no index row, so a template change never adds a record to a product's log again.
+It sits next to the records rather than in `docs/CONTRIBUTING.md`, whose template text every contributor reads, and
+`decision-check.py` already reads only `NNNN-*.md` files, so it ignores the file; the docstring and a test now say so.
+The records the seeds left behind are retired once: `apply-template.py` lists those still in force — a source naming
+the template, a title of a `process.md` section, or a record that supersedes or amends one, which catches Seluna's
+0044 — and leaves out the record that moved them, so the list is empty after the migration. An unreleased one is
+deleted together with the unreleased records it supersedes: before a repository's first release `decision-check.py`
+cannot tell a chain like Seluna's from a released one, and deleting only its head left `Superseded by` pointing at
+nothing. The released ones are superseded together by the one record left in `decision-seeds/`, which names the file,
+and so is a released record whose `Superseded by` named a deleted one (a released record's status may still change to
+another `Superseded by`); a test applies this to the Seluna chain for every release point. A record that supersedes or
+amends a seeded one may hold a rule of the project's own, so the list marks it and step 8 keeps it with what it
+names.
+
+## Documentation that still states a changed value (figure-check.py; routing.md, Pipeline step 7; squad-issue, step 7; squad-dev.md, Documentation; squad_settings.py seeds)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #237; evidence in #236). The most frequent
+blocking review finding was a sentence in another file that still stated a number, limit or default the change had
+made untrue. Neither sweep caught it: the Lead's plan sweep looks for enumerations and "only these …" statements,
+and the Dev's documentation rule traces the sentences the Dev writes, so a sentence in an untouched file kept the old
+value until the Reviewer found it, at the cost of a fix round and a delta round. LarsLaskowski/Vandox#305 repeated
+one memory figure in four files, LarsLaskowski/Seluna#110 fixed a budget figure to a new wrong value, and
+LarsLaskowski/Seluna#140 left the old value in the option text of record 0043.
+
+`figure-check.py` is a tool of its own rather than a part of `scope-check.py`, whose findings are blocking and which
+runs on fork pull requests through the API: a hit here is only a candidate (an equal number can state another
+quantity), so it warns and never fails. It reads the old values per file — what the removed lines hold and the added
+lines of the same file do not — so a value moved within a file is no hit, and renames are compared with their old
+version. Released decision records state what held when they were released and cannot be edited, so they are not
+searched; neither are changelogs, which name old values on purpose, nor the template text of marked files and the
+managed `process.md` and `_template.md` files, which a product change cannot fix. The trivial values default to the
+single digits, 10 and 100 rather than the issue's 0, 1, 2 and 100: prose numbers its steps, list items and counts with
+single digits, and every such line would otherwise be a hit. The Dev runs the tool before handing back the
+documentation, when the hits are cheapest; step 7 runs it again after the merge of `main` and the Code Officer's
+edits, sends a hit the Dev did not confirm back to the Dev and the rest to the Reviewer. It runs in the tiers with a
+Dev and a full code check (`trivial`, `standard`, `security`); a `patch` changes a literal or a configuration value
+more often than any other tier, but its step 7 runs only *Gates of a patch* and it has no Dev to route a hit to, so
+adding the tool there is a change of that table and of who fixes a hit in a `patch`.

@@ -67,7 +67,7 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
 - **Code-free changes:** as *Changes without production or test code*; *Verification without tests* then
   covers each criterion of the spec.
 - **Decision records:** features usually involve real design choices, so expect a record in
-  `docs/decisions/` (extend an existing unreleased record on the topic rather than adding one). The behavior
+  `docs/decisions/`, one per decision (an existing unreleased record is extended only for the same decision). The behavior
   belongs in the area documents the spec names, user-facing configuration in `README.md`, a changed flow or
   guarantee in `docs/ARCHITECTURE.md` — not in `spec.md`, which leaves with the working record.
 - **Amendments** (steps 3–11): a Lead decision that changes, adds or drops a criterion amends the spec (mode

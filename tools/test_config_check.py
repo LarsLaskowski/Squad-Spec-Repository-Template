@@ -1,5 +1,6 @@
 """Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
-the members' guards declared in .claude/settings.json): run `python3 -m unittest discover tools`."""
+the members' guards declared in .claude/settings.json, the size of .squad/project.md): run
+`python3 -m unittest discover tools`."""
 import glob
 import importlib.util
 import json
@@ -167,6 +168,54 @@ class TestSeededBullets(unittest.TestCase):
         self.assertEqual([error.split(": ", 1)[0].rsplit(":", 1)[1] for error in errors], ["3", "4", "5", "6"])
         self.assertIn("'its interface' is the seed's placeholder text without its braces", errors[0])
 
+    def test_an_earlier_seed_bullet_is_still_reported(self):
+        with tempfile.TemporaryDirectory() as repo:
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                write(self.script.PROJECT_FILE, "## Guarantees\n\n"
+                                                "- guarantee — [decision NNNN](../docs/decisions/NNNN-title.md)\n"
+                                                "- guarantee — [decision NNNN](../docs/decisions/NNNN-title.md), "
+                                                "[area](../docs/areas/area.md)\n")
+                errors = []
+                self.script.check_project_files(errors)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(sorted(e.split(": '")[0] for e in errors if "placeholder text" in e),
+                         [os.path.join(".squad", "project.md") + ":3", os.path.join(".squad", "project.md") + ":4"])
+
+
+class TestSettingsFile(unittest.TestCase):
+    """A squad_settings.py that does not load is an error of config-check.py; decision-check.py keeps its defaults."""
+
+    def test_a_broken_settings_file_is_reported_once(self):
+        script = load_script()
+        with tempfile.TemporaryDirectory() as repo:
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                errors = []
+                script.check_settings_file(errors)
+                self.assertEqual(errors, [], "no file: reported as a missing required file instead")
+                write(script.SETTINGS_FILE, "COVERAGE_THRESHOLD = (\n")
+                script.check_settings_file(errors)
+                script.check_profiles({"profiles": ["go", "dotnet"], "profile": "go"}, errors)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(len([e for e in errors if "squad_settings.py: does not load (SyntaxError" in e]), 1, errors)
+
+    def test_decision_check_runs_with_a_broken_settings_file(self):
+        with tempfile.TemporaryDirectory() as repo:
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            tools = os.path.join(repo, ".squad", "tools")
+            write(os.path.join(tools, "squad_settings.py"), "AREA_MAX_WORDS = (\n")
+            with open(os.path.join(ROOT, "core", ".squad", "tools", "decision-check.py"), encoding="utf-8") as handle:
+                write(os.path.join(tools, "decision-check.py"), handle.read())
+            result = subprocess.run([sys.executable, os.path.join(tools, "decision-check.py")], cwd=repo,
+                                    capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Checked 0 decision records: PASS", result.stdout)
+
 
 @unittest.skipUnless(yaml, "PyYAML is needed to compare the two parsers")
 class TestTargetWithoutYaml(unittest.TestCase):
@@ -241,6 +290,56 @@ class TestSquadGuards(unittest.TestCase):
                 os.chdir(cwd)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("file-guard.py", errors[0])
+
+
+class TestProjectSize(unittest.TestCase):
+    """.squad/project.md past PROJECT_MAX_WORDS is a warning, with the limit from squad_settings.py."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.cwd = os.getcwd()
+        os.chdir(self.dir.name)
+        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1498)
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        self.dir.cleanup()
+
+    def warnings(self):
+        found = []
+        self.script.check_project_size(found)
+        return found
+
+    def test_the_default_limit_without_settings(self):
+        self.assertEqual(self.warnings(), [], "1500 words: at the limit, not past it")
+        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1600)
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("project.md: 1602 words (PROJECT_MAX_WORDS 1500)", warnings[0])
+        self.assertIn("make every entry a pointer", warnings[0])
+
+    def test_the_limit_from_the_settings(self):
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 1000\n")
+        self.assertIn("(PROJECT_MAX_WORDS 1000)", self.warnings()[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 3000\n")
+        self.assertEqual(self.warnings(), [], "the file is loaded anew on every call")
+
+    def test_a_broken_settings_file_leaves_the_default(self):
+        write(self.script.PROJECT_FILE, "word " * 1501)
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = (\n")
+        self.assertIn("(PROJECT_MAX_WORDS 1500)", self.warnings()[0])
+
+    def test_no_project_file_no_warning(self):
+        os.remove(self.script.PROJECT_FILE)
+        self.assertEqual(self.warnings(), [])
+
+    def test_decision_check_warnings_are_collected(self):
+        script = os.path.join(".squad", "tools", "decision-check.py")
+        write(script, "print('WARNING: docs/areas/a.md: 6000 words')\nprint('Checked 0 decision records: PASS')\n")
+        errors, warnings = [], []
+        self.script.check_decisions(errors, warnings)
+        self.assertEqual((errors, warnings), ([], ["docs/areas/a.md: 6000 words"]))
 
 
 if __name__ == "__main__":

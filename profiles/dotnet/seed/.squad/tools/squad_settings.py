@@ -33,3 +33,14 @@ COVERAGE_REPORT_GLOB = "TestResults/**/coverage.cobertura.xml"
 COVERAGE_PATHSPECS = ["src/*.cs", "src/*.razor"]
 COVERAGE_EXCLUDES = []
 COVERAGE_TEST_PATHSPECS = ["tests/*.cs"]  # a diff touching these is gated on overall coverage too
+
+# Size warnings (config-check.py, decision-check.py): a file past its limit is reported with the split it needs.
+PROJECT_MAX_WORDS = 1500  # .squad/project.md, read by five members on every launch
+AREA_MAX_WORDS = 5000  # each area document in docs/areas/
+RECORD_MAX_WORDS = 1500  # each unreleased decision record
+RECORD_MAX_OPTIONS = 8  # the options under *Options considered* of an unreleased decision record
+
+# Stale-figure check (.squad/tools/figure-check.py): values it does not search in the documentation (prose uses them
+# for list items, steps and counts), and source files whose values it does not read (lock files, generated files).
+FIGURE_TRIVIAL = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "100"]
+FIGURE_EXCLUDES = ["packages.lock.json", "*.svg"]

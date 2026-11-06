@@ -125,8 +125,9 @@ The orchestrator tells you which **mode** to run:
 
   For every decision that meets the threshold in `docs/decisions/README.md`, create a `Proposed` record
   from `docs/decisions/_template.md`, add its row to the index in `docs/decisions/README.md` with status
-  `Proposed` right away, and list it in the plan; extend an existing unreleased record on the same topic
-  instead of adding one. Confirm that a record is unreleased with `git ls-remote --tags origin` before
+  `Proposed` right away, and list it in the plan; extend an existing unreleased record only when it records the
+  same decision, never because it shares the topic, and split a record the extension would take past the size
+  limits instead (`docs/decisions/README.md`, *Size*). Confirm that a record is unreleased with `git ls-remote --tags origin` before
   you edit it in place. A record you delete takes its index row with it. Keep the record to the why: the
   behavior it leads to is written once in the area document, which the record links and names in its
   `Area:` field. If a guarantee or flow changes, the plan names the `docs/ARCHITECTURE.md` update with its

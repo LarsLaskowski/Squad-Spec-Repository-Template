@@ -120,10 +120,11 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
    for a change without code and for `patch` their sections) with the commands from `.squad/stack.md`,
    once they pass, commit (the *Sonar gate* runs on the draft PR in step 11). The *Coverage gate* reads the
-   report of this step's *Test with coverage*, never the one of step 6. When *Format check* fails, run *Format*,
-   `git restore -- <file>` every file it changed outside the change, and check again. Launch
-   `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that
-   need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
+   report of this step's *Test with coverage*, never the one of step 6. Run `python3 .squad/tools/figure-check.py` when
+   the *Pipeline* row calls for it and route its hits as it says (to `squad-dev` in mode `fix`, with each hit). When
+   *Format check* fails, run *Format*, `git restore -- <file>` every file it changed outside the change, and check
+   again. Launch `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that need
+   reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
    owner, a file it formatted outside the change you restore. Run the gates again until they pass. When the
    plan asks for an *Early draft PR*, open it once they pass, as that section says (`create-pr` step 8 without
    its review loop; `specs/` stays and the working record waits for step 10), subscribe to its activity, wait

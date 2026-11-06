@@ -203,6 +203,18 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"^ {2}([a-z]+):", r"a b", r"[ ]{2}", r"[  ]x"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
+    def test_an_assertion_with_a_more_specific_one_is_reported(self):
+        for call in ("self.assertTrue(a == b)", "self.assertFalse(a in b)", "self.assertTrue(a < b)",
+                     "self.assertTrue(isinstance(a, int))", "self.assertEqual(a, None)", "self.assertIsNot(None, a)",
+                     "self.assertEqual(a, round(b, 2))", 'self.assertEqual(a.new, None, "message")'):
+            self.assertEqual(self.rules(f"{call}\n", "test_tool.py"), ["python:S5906"], call)
+
+    def test_specific_assertions_pass(self):
+        for call in ("self.assertTrue(a)", "self.assertFalse(a < b)", "self.assertTrue(a == b == c)",
+                     "self.assertEqual(a, b)", "self.assertIsNone(a)", "self.assertIn(a, b)", "self.assertEqual(a, 0)",
+                     "self.assertTrue(f(a == b))", "assertTrue(a == b)"):
+            self.assertEqual(self.rules(f"{call}\n", "test_tool.py"), [], call)
+
     def test_a_function_that_always_returns_the_same_value_is_reported(self):
         self.assertEqual(self.rules("def f(a):\n    if a:\n        return 0\n    return 0\n"), ["python:S3516"])
 

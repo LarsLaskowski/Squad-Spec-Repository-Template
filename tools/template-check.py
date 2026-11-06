@@ -11,12 +11,14 @@ Checks, without arguments:
   `scope-check.py` rejects (a zero width joiner in an emoji, for example);
 - every profile has the same required files, its `instructions.md` provides every stack block the core
   instruction files use, its `stack.md` defines every command name the core refers to, and its
-  `squad_settings.py` defines the coverage settings;
+  `squad_settings.py` defines the coverage settings, the size limits of `config-check.py` and `decision-check.py`
+  and the settings of `figure-check.py`;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
   filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
   files the template no longer manages (`RETIRED` in `apply-template.py`) are gone and a line that still refers
-  to one is reported; a `.claude/settings.json` that declares only the Git guard (the template before the file guard)
+  to one is reported, `docs/decisions/process.md` is written and a numbered process record of an older template
+  version is listed for retiring; a `.claude/settings.json` that declares only the Git guard (the template before the file guard)
   gets the file guard added; a `CLAUDE.md` that still holds the rules (the layout before `AGENTS.md` held them) has its
   project blocks carried into `AGENTS.md` and is replaced by the core one; `.github/copilot-instructions.md`
   carries the body of `AGENTS.md`, and `config-check.py` fails once the two differ or `CLAUDE.md` stops importing
@@ -37,7 +39,7 @@ Checks, without arguments:
   where it is installed (CI installs it), and trips none of the other SonarQube Cloud rules that have flagged one
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
-  arguments instead of `return_value`);
+  arguments instead of `return_value`, a unittest assertion a more specific one replaces);
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) exists. Against the
   merge base with `origin/main` it reports, as information, how many words (counted like `wc -w` in a UTF-8
@@ -117,12 +119,20 @@ STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate"
                   "## Coverage exclusions", "## Writing code", "## Writing tests", "## Skeleton", "## Dependencies",
                   "## Concurrency", "## Known pitfalls"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
-SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES"]
+SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES",
+            "PROJECT_MAX_WORDS", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS", "FIGURE_TRIVIAL",
+            "FIGURE_EXCLUDES"]
 DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S6326", "python:S9081"]
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6326",
+               "python:S9081"]
+# python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
+# None or round(), have a more specific unittest assertion.
+TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
+                 "assertFalse": (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)}
+VALUE_ASSERTS = ("assertEqual", "assertNotEqual", "assertIs", "assertIsNot", "assertAlmostEqual", "assertNotAlmostEqual")
 COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 LITERAL_EXCLUSIONS = [re.compile(p) for p in (r"[_\-a-zA-Z0-9]+", r"[0-9{} .\-_%:dfrsymhYMHS<>]+", r"#[0-9a-fA-F]{6}")]
 REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall", "finditer", "sub", "subn"}
@@ -371,6 +381,7 @@ def smoke_profiles(names, errors):
             errors.append(f"profile {label}: config-check after apply: {line}")
         fill_placeholders(target)
         plant_retired(target)
+        plant_process_record(target)
         plant_legacy_rules(target)
         plant_git_guard_only(target)
         # a refresh names no profile: the recorded ones are kept
@@ -414,6 +425,11 @@ def check_refresh(label, target, refresh, errors):
     if HISTORICAL_REFERENCE in refresh.stdout:
         errors.append(f"profile {label}: refresh lists the decision record {HISTORICAL_REFERENCE}")
     os.remove(os.path.join(target, HISTORICAL_REFERENCE))
+    if not os.path.isfile(os.path.join(target, PROCESS_FILE)):
+        errors.append(f"profile {label}: refresh did not write {PROCESS_FILE}")
+    if f"  {PROCESS_RECORD} (Accepted)" not in refresh.stdout:
+        errors.append(f"profile {label}: refresh does not list the process record {PROCESS_RECORD} to retire")
+    os.remove(os.path.join(target, PROCESS_RECORD))
     refreshed = run_config_check(target)
     if refreshed.returncode != 0:
         for line in refreshed.stdout.splitlines()[:10]:
@@ -548,6 +564,18 @@ RETIRED_SAMPLE = [os.path.join(SQUAD_DIR, "decisions.md"), os.path.join(SQUAD_DI
 STALE_REFERENCE = "docs/build-notes.md"
 # A decision record naming a retired file; records state history, so the refresh must not list it.
 HISTORICAL_REFERENCE = "docs/decisions/0099-old-instructions.md"
+
+
+# The squad's process decisions (managed), and a record an older template version numbered in for one of them.
+PROCESS_FILE = "docs/decisions/process.md"
+PROCESS_RECORD = "docs/decisions/0098-squash-merge-pull-requests.md"
+
+
+def plant_process_record(target):
+    os.makedirs(os.path.dirname(os.path.join(target, PROCESS_RECORD)), exist_ok=True)
+    with open(os.path.join(target, PROCESS_RECORD), "w", encoding="utf-8") as handle:
+        handle.write("# 0098: Squash-merge pull requests\n\n- **Status:** Accepted\n"
+                     "- **Source:** Squad adopted from Squad-Spec-Repository-Template\n")
 
 
 def plant_retired(target):
@@ -1411,11 +1439,33 @@ def multiple_spaces(tree):
             for line, pattern in regex_calls(tree) if MULTIPLE_SPACES.search(CHAR_CLASS.sub("", pattern))]
 
 
+def is_call_of(node, name):
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name
+
+
+def needs_specific_assertion(name, args):
+    """Whether a unittest assertion with these arguments has a more specific one (python:S5906)."""
+    first = args[0]
+    if name in TRUTH_ASSERTS:
+        compared = isinstance(first, ast.Compare) and len(first.ops) == 1 and isinstance(first.ops[0], TRUTH_ASSERTS[name])
+        return compared or is_call_of(first, "isinstance")
+    none = any(isinstance(arg, ast.Constant) and arg.value is None for arg in args[:2])
+    return name in VALUE_ASSERTS and (none or (len(args) > 1 and is_call_of(args[1], "round")))
+
+
+def specific_assertions(tree):
+    """python:S5906: `assertTrue(x == y)`, `assertEqual(x, None)` and the like; the dedicated assertion says more."""
+    return [(node.lineno, "python:S5906", f"{node.func.attr} here has a more specific unittest assertion")
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
+            and needs_specific_assertion(node.func.attr, node.args)]
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
-        + mock_lambdas(tree)
+        + mock_lambdas(tree) + specific_assertions(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

@@ -1,7 +1,9 @@
 """Unit tests for tools/apply-template.py (line endings, Copilot mirror, rules moved out of CLAUDE.md, references to
-retired files):
+retired files, process records to retire, merged settings):
 run `python3 -m unittest discover tools`."""
+import contextlib
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -242,6 +244,97 @@ class TestSquadHookSettings(unittest.TestCase):
             self.script.merge_squad_hooks(target, emitted.__setitem__, report)
             self.assertEqual((emitted, report[-1]), ({}, ("kept", ".claude/settings.json")))
 
+
+def process_record(number, title, status="Accepted", source="Issue #1", supersedes="—"):
+    return (f"# {number}: {title}\n\n- **Status:** {status}\n- **Date:** 2026-01-01\n- **Area:** —\n"
+            f"- **Source:** {source}\n- **Supersedes:** {supersedes}\n\n## Decision\n\nIt holds.\n")
+
+
+class TestProcessRecords(unittest.TestCase):
+    """The numbered process records of an older template version, still in force, are listed for step 8."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.target = self.dir.name
+        self.decisions = os.path.join(self.target, "docs", "decisions")
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def record(self, name, text):
+        write(os.path.join(self.decisions, name), text)
+
+    def test_no_decisions_folder_lists_nothing(self):
+        self.assertEqual(self.script.process_records(self.target), [])
+
+    def test_seeded_records_and_their_successors_still_in_force(self):
+        adopted = "Squad adopted from Squad-Spec-Repository-Template"
+        title = "Squad working records stay off main, and product PRs never change the squad"
+        self.record("0002-off-main.md", process_record("0002", title, "Superseded by 0022", adopted))
+        self.record("0022-off-main.md", process_record("0022", title, "Superseded by [0037](0037-off-main.md)", adopted,
+                                                       "0002"))
+        self.record("0037-off-main.md", process_record("0037", title, source=adopted, supersedes="0022"))
+        self.record("0044-settings.md", process_record("0044", "Product PRs may change the squad settings file",
+                                                       supersedes="[0037](0037-off-main.md) (amends it)"))
+        self.record("0045-squash.md", process_record("0045", "squash-merge pull requests"))
+        self.record("0046-product.md", process_record("0046", "Cache entries expire", supersedes="0001"))
+        self.record("README.md", "# Decision records\n")
+        self.record("process.md", "# Process decisions\n")
+        self.assertEqual(self.script.process_records(self.target), [
+            ("docs/decisions/0037-off-main.md", "Accepted", ""),
+            ("docs/decisions/0044-settings.md", "Accepted", "supersedes or amends 0037"),
+            ("docs/decisions/0045-squash.md", "Accepted", "")])
+        self.record("0050-moved.md", process_record("0050", "The squad\u2019s process decisions live in process.md",
+                                                    source="Squad refreshed from Squad-Spec-Repository-Template",
+                                                    supersedes="0037, 0044, 0045"))
+        for name in ("0037-off-main.md", "0044-settings.md", "0045-squash.md"):
+            path = os.path.join(self.decisions, name)
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            write(path, text.replace("- **Status:** Accepted", "- **Status:** Superseded by 0050"))
+        self.assertEqual(self.script.process_records(self.target), [], "retired once by the record that moved them")
+
+    def test_the_report_names_them(self):
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            self.script.print_report([], [], [], False, [("docs/decisions/0037-off-main.md", "Accepted", ""),
+                                                         ("docs/decisions/0044-x.md", "", "supersedes or amends 0037")])
+        self.assertIn("Process records of an older template version, now in docs/decisions/process.md", printed.getvalue())
+        self.assertIn("  docs/decisions/0037-off-main.md (Accepted)\n", printed.getvalue())
+        self.assertIn("  docs/decisions/0044-x.md (no status; supersedes or amends 0037)\n", printed.getvalue())
+
+    def test_a_record_that_is_no_utf_8_is_read(self):
+        os.makedirs(self.decisions, exist_ok=True)
+        with open(os.path.join(self.decisions, "0001-latin.md"), "wb") as handle:
+            handle.write(process_record("0001", "Squash-merge pull requests").encode("utf-8") + b"Gr\xf6\xdfe\n")
+        self.assertEqual(self.script.process_records(self.target), [("docs/decisions/0001-latin.md", "Accepted", "")])
+
+    def test_a_record_linking_process_md_is_the_move_record(self):
+        self.record("0003-squash.md", process_record("0003", "Squash-merge pull requests", "Superseded by 0009"))
+        self.record("0009-moved.md", process_record("0009", "Process decisions now in a file", supersedes="0003")
+                    + "See [process.md](process.md).\n")
+        self.assertEqual(self.script.process_records(self.target), [])
+
+
+class TestMergedWarningSettings(unittest.TestCase):
+    """squad_settings.py of a repository with several profiles carries the size limits and the stale-figure settings
+    like a single profile's seed."""
+
+    def test_the_size_limits_are_those_of_every_seed(self):
+        script = load_script()
+        root = os.path.dirname(os.path.dirname(SCRIPT))
+        seed = script.load_settings(os.path.join(root, "profiles", "go", "seed", ".squad", "tools", "squad_settings.py"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "squad_settings.py")
+            write(path, script.merge_settings([os.path.join(root, "profiles", name) for name in ("go", "dotnet")]))
+            merged = script.load_settings(path)
+        for name, (default, _) in script.WARNING_SETTINGS.items():
+            with self.subTest(name=name):
+                self.assertEqual(getattr(merged, name), getattr(seed, name))
+                self.assertEqual(getattr(merged, name), default)
+        self.assertEqual(merged.FIGURE_TRIVIAL, seed.FIGURE_TRIVIAL)
+        self.assertEqual(merged.FIGURE_EXCLUDES, ["go.sum", "*.svg", "packages.lock.json"], "every profile's, once")
 
 
 class TestReleaseTag(unittest.TestCase):

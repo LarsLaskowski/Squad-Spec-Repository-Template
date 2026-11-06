@@ -29,9 +29,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   versions wrote, and lists every line of the repository that still refers to a removed file.
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
-  weight and grouped by topic, and state only the *why*: what holds today is written once in an area document
+  weight, one record per decision, and state only the *why*: what holds today is written once in an area document
   (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
-  freeze; the `decision-consolidate` skill folds unreleased chains into one record.
+  freeze and warns about a record or area document past its size limit; the `decision-consolidate` skill folds
+  unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed
   file), *Sonar gate* (`sonar-check.py pr`: the CI code analysis of the draft pull request's head, read in step 11 with a
   SonarQube credential — a network secret of the cloud environment, or `SONAR_TOKEN` — where the project is private) and *Coverage gate* (≥ 80 % on new/changed lines and overall by default, thresholds in
@@ -42,9 +43,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   evidence, no control character); `squad-log.py` appends the pipeline's log rows, a launch's usage read from its
   subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
   share; `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
-  transcripts for the wrap-up.
+  transcripts for the wrap-up. `figure-check.py` lists, in step 7, the documentation lines that still state a value
+  the diff changed.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
-  decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
+  decision records (`docs/decisions/`, with the squad's process decisions in the managed `docs/decisions/process.md`),
   `specs/_template/`, `SECURITY.md`.
 - **GitHub scaffolding** — PR template, issue templates, CI workflow, CodeQL, Dependabot (per profile), and the
   *Fork scope* workflow: a pull request from a fork that changes the squad, the agent instructions or the template
@@ -81,7 +83,7 @@ profiles/<stack>/
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
-decision-seeds/   process decision records, numbered into docs/decisions/ on first adoption
+decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
                   squad-upstream issues), release.py (changelog and release tags)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
@@ -94,7 +96,7 @@ Four kinds of files in a target repository:
 
 | Kind | Examples | On a refresh |
 | ---- | -------- | ------------ |
-| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
+| managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/decisions/process.md`, `docs/areas/_template.md` | overwritten |
 | marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
 | generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
 | seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard and file-guard hooks added when it lacks one |

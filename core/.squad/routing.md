@@ -4,14 +4,12 @@ The pipeline is the same for bug fixes and features; only the input differs (a b
 issue for `squad-issue`, a feature — described by the user or in a GitHub issue — plus `spec.md` for
 `squad-spec`; see *Bug or feature*). The orchestrator — the session that runs the skill — launches the
 members, passes documents between them (subagents cannot talk to each other directly), performs every Git and
-GitHub action (including follow-up issues the Lead decides on) and records every step and launch in the work
-folder's `log.md` with `python3 .squad/tools/squad-log.py` (`squad-issue`, step 1); after step 10 in the "Squad
-working record" comment that replaces it. Step numbers below are the ones the skills use.
+GitHub action and records every step and launch in `log.md` (`squad-issue`, step 1). Step numbers below are the
+ones the skills use.
 
-The orchestrator's own procedures — *Outside authors*, *Template-managed files*, *Squad lessons*, *Continuing a
-member*, *Commits*, *The stop hook*, *Draft until green*, *Merge conflicts*, *Concurrency*, *Verbatim documentation
-fixes* and *Unlisted security areas* — are in [`orchestration.md`](orchestration.md), which the members need not
-read; a rule here that names one of them means that file.
+The orchestrator's own procedures are in [`orchestration.md`](orchestration.md), which the members need not read;
+*Outside authors*, *Squad lessons*, *Draft until green*, *Merge conflicts*, *Verbatim documentation fixes* and
+*Unlisted security areas*, named here, are its sections.
 
 ## Bug or feature
 
@@ -49,8 +47,8 @@ An issue or feature PR changes the product and its documentation only. It never 
 agent instructions: `.squad/` (`team.md`, `routing.md`, tools), `.claude/`, `CLAUDE.md`, and `AGENTS.md` and
 `.github/copilot-instructions.md` outside their project blocks.
 Squad lessons are filed in step 12 (*Squad lessons*), never fixed in the product PR.
-`python3 .squad/tools/scope-check.py` reports any such file; the orchestrator runs it in step 7 and the
-Reviewer in step 8, and a finding is blocking.
+`python3 .squad/tools/scope-check.py` reports any such file in step 7's stamp and the Reviewer's step 8; a finding
+is blocking.
 
 One exception: `.squad/stack.md`, `.squad/project.md` and the project blocks of `AGENTS.md` describe the
 product, not the squad. `.squad/tools/squad_settings.py` is the repository's own settings file and a product PR may
@@ -93,8 +91,7 @@ is only for lessons the squad itself raised.
 
 A `patch`'s step 7 runs the checks its files need and nothing else; the complete analysis, and for a `patch`
 without production code the full suite and the overall coverage figure, are CI's job on the draft pull request
-(*Draft until green*). `gate-stamp.py` picks the rows that match the diff, both when it spans two kinds, runs
-every gate they name with the check the Lead's result names, and ends with `scope-check.py --tier patch`.
+(*Draft until green*). `gate-stamp.py` runs every row that matches the diff, with the check the Lead's result names.
 
 | The diff touches | Gates |
 | ---------------- | ----- |
@@ -171,15 +168,15 @@ suppression): its rules still apply, and those no local gate reports arrive in s
 
 ### Early draft PR
 
-CI runs on pull requests only, so a change whose **CI-only criteria** (*Criteria verified only in CI*) or **dry
-run** (*Operator environments and documented procedures*) needs a CI result before the review, or whose manual
-test runs on the CI-built artifact (*Criteria verified only in CI*), and a PR opened in
-step 10 comes too late for it. For such a change the plan says so, and the orchestrator opens the PR as a draft
-right after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment yet), then waits for CI
-and reads `sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar gate* alone is no
-reason for an early PR: every push to an open PR runs all of CI again, and step 11 reads the analysis anyway. The dry run runs on that head, before the documentation is
-reviewed. Step 9 additionally requires the green CI run, the dry-run result and the Reviewer's round on the same
-head; step 10 then only posts the working record, removes `specs/` and marks nothing ready (*Draft until green*).
+CI runs on pull requests only, so a PR opened in step 10 comes too late for a change whose **CI-only criteria** or
+manual test on the CI-built artifact (*Criteria verified only in CI*) or **dry run** (*Operator environments and
+documented procedures*) needs a CI result before the review. For such a change the plan says so, and the orchestrator
+opens the PR as a draft right after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment
+yet), then waits for CI and reads `sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar
+gate* alone is no reason for an early PR: every push to an open PR runs all of CI again, and step 11 reads the analysis
+anyway. The dry run runs on that head, before the documentation is reviewed. Step 9 additionally requires the green CI
+run, the dry-run result and the Reviewer's round on the same head; step 10 then only posts the working record, removes
+`specs/` and marks nothing ready (*Draft until green*).
 
 ## Pipeline
 
@@ -191,12 +188,12 @@ head; step 10 then only posts the working record, removes `specs/` and marks not
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the plan's doc updates, area documents included, written by the Dev against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator commits and runs `gate-stamp.py`, which runs the tier's gates by their `stack.md` names — *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate* and `scope-check.py` (`patch`: *Gates of a patch*), and `figure-check.py`, which is no gate, in tiers `trivial`, `standard` and `security` — and logs them as a stamp with the head SHA: a gate result counts only as that stamp, never as a member's report. The *Sonar gate* runs in step 11 on the draft PR. A `figure-check.py` hit (documentation that still states a value the diff changed) that the Dev's last report does not confirm goes back to the Dev, the others reach the Reviewer with the gate output. The orchestrator clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the stamp runs again. Exit: a passing stamp on the head |
+| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator commits and runs `gate-stamp.py`, which runs the tier's gates (*Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate*, `scope-check.py`; `patch`: *Gates of a patch*) and, in tiers `trivial`, `standard` and `security`, `figure-check.py`, which is no gate, and logs them as a stamp with the head SHA: a gate result counts only as that stamp, never as a member's report. The *Sonar gate* runs in step 11 on the draft PR. A `figure-check.py` hit (documentation that still states a value the diff changed) that the Dev's last report does not confirm goes back to the Dev, the others reach the Reviewer with the gate output. The orchestrator clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the stamp runs again. Exit: a passing stamp on the head |
 | 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the gate output of the stamp of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
-| 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below; with an *Early draft PR* also green CI, the dry-run result and the Reviewer's round on the same head |
-| 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
+| 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below, and what *Early draft PR* adds |
+| 10 | Pull request | Orchestrator | Working record posted as comment, `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
 | 11 | After the PR | Dev, Code Officer, Reviewer | *Draft until green* holds and the PR is marked ready for review; review comments worked |
-| 12 | Wrap-up | Orchestrator | Squad lessons checked against the candidates and filed in this repository as one issue per label (*Squad lessons*); the lessons row logged with the URL of every lesson issue, or exactly "no lessons"; the run metrics of `squad-log.py --summary` (exit 0: launches per role, then tokens per kind with their price-weighted figure and the orchestrator's own share) appended to the working record exactly as printed and reported to the user, followed by the output of `session-usage.py` exactly as printed (below the tables, headed "Session usage"): the tokens per model and per subagent type from Claude Code's session transcripts, or "not provided" where no Claude Code transcript exists. Never a screenshot or a figure typed from `/usage` |
+| 12 | Wrap-up | Orchestrator | Squad lessons checked against the candidates and filed, and the lessons row logged (*Squad lessons*); the run metrics of `squad-log.py --summary` (exit 0), then the output of `session-usage.py` headed "Session usage", appended to the working record exactly as printed and reported to the user — never a screenshot or a figure typed from `/usage` |
 
 ### PR approval
 
@@ -229,16 +226,14 @@ The Devil's Advocate challenges every plan of tier `security` (also one without 
 secrets, a workflow) and a plan of tier `standard` only when it changes production code **and** either names an
 alternative under *Options considered* or adds a new decision record — extending an existing record alone does
 not count; never a plan of tier `docs`, `patch`, `tests` or `trivial`. The same holds for a feature, whose spec it
-has already challenged. `plan-check.py` prints the verdict with its reason after every run (`Plan challenge: due —
-…` or `not due — …`), and `squad-next.py` launches the challenge or logs the skip with that reason by the verdict of
-the run that passed. It runs at most once, has no veto, and a rejected objection is not raised
+has already challenged. `plan-check.py` prints the verdict with its reason (`Plan challenge: due — …` or `not due —
+…`), and `squad-next.py` acts on it. It runs at most once, has no veto, and a rejected objection is not raised
 again. Each objection is ranked `major` (the plan would build the wrong thing or miss the defect) or
 `minor`, so the orchestrator routes without judgment:
 
 - **Only minor objections** (when step 3 runs: and Security approved): no Lead launch; the orchestrator
-  appends them verbatim to `plan.md` as *Challenge notes* (bookkeeping, like `log.md`). `plan-check.py` does not count
-  *Challenge notes* and *Security notes* against `PLAN_MAX_WORDS`. Dev and Tester follow
-  them or report a deviation; the Reviewer checks them in round 1.
+  appends them verbatim to `plan.md` as *Challenge notes* (bookkeeping, like `log.md`). Dev and Tester follow them
+  or report a deviation; the Reviewer checks them in round 1.
 - **Non-blocking findings of Security's `APPROVED` plan review** go verbatim into a *Security notes* section
   the same way — except a note that leaves the plan a choice ("document it, or reject"): the Lead decides it
   in mode `revise` before the skeleton, in one launch with any major objection.

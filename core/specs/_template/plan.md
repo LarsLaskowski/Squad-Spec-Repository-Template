@@ -30,20 +30,15 @@ A bug fix's criterion changed after step 2 gets an *Amendments* section at the e
 - AC1: ... (in a plan without production or test code, *Verification without tests* below says how it is
   verified instead)
 
-Content the issue supplies verbatim (an image, SVG, configuration, a fixture) was rendered or exercised once
-before "identical to the issue" became a criterion. A criterion that fixes an error text names the exact text
-the tests compare. A criterion about a container image names the *Image build check* as its verification;
-one tested by hand before step 9 names its build: a local build of the branch head (the command from the
-project's documentation) or the CI artifact of an *Early draft PR* (*Criteria verified only in CI* in
-`.squad/routing.md`).
+A criterion that fixes an error text names the exact text the tests compare; one about a container image, or
+tested by hand before step 9, names its verification as *Criteria verified only in CI* (`.squad/routing.md`) says.
 
 ## Tests per criterion
 
 One row per acceptance criterion (of this plan, or of `spec.md` for a feature): the tests the Tester writes
 first, named strictly by *Layout* in `.squad/stack.md`; each test carries its criterion id (*Criterion ids* in
 `docs/UNIT_TESTS.md`). A criterion no unit test can verify names its kind and check instead: `CI: <the check>`,
-`manual: <who, on which build>` or `after merge: <what, by whom>` (a linked verification issue, step 10). A plan
-without production or test code lists its criteria under *Verification without tests* instead.
+`manual: <who, on which build>` or `after merge: <what, by whom>` (a linked verification issue, step 10).
 `.squad/tools/plan-check.py` reports a criterion without a row; `--matrix` shows each one's result.
 
 | AC | Test(s) | Test file |
@@ -104,9 +99,8 @@ in behavior updates its area document in this pull request.
 ## Documentation updates
 
 `README.md` (configuration table, env vars), `docs/*.md` including the area documents and
-`docs/ARCHITECTURE.md`, and what the PR template's checklist asks for (a changelog entry, say) — or "none": each file and what changes in it. The Dev writes them once the code is green,
-against that code (test documentation: the Tester); PR approval (step 9) only touches status, index rows and
-bookkeeping.
+`docs/ARCHITECTURE.md`, and what the PR template's checklist asks for (a changelog entry, say) — or "none": each file
+and what changes in it, for the Dev (test documentation: the Tester).
 
 ## Architecture check
 

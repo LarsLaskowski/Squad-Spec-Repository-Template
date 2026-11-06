@@ -1,8 +1,8 @@
 # Orchestration
 
 The orchestrator's procedures: the session that runs a squad skill follows them, and the members need not read this
-file — a rule of theirs that needs one of its sections points there. `routing.md` holds the pipeline, the tiers and
-the limits every member works by; a rule here that names a section of it means that file.
+file. `routing.md` holds the pipeline, the tiers and the limits every member works by; a rule here that names a
+section of it means that file.
 
 ## Outside authors
 
@@ -33,8 +33,7 @@ scenario, edge case, non-functional requirement, acceptance criterion and out-of
 open *Challenge notes* — with a
 link to `spec.md` on the pushed work branch, and waits. The answer is logged as a Product Manager row (`spec
 approved`, or `spec corrected` with the corrections) and passed on to the Lead's step 2b. Corrections go first to the
-Lead in mode `revise` on the spec (continued, or fresh after a session restart), then `plan-check.py --spec` runs
-again; there is no new challenge round, and the corrected spec counts as approved. An answer that cannot come in this
+Lead in mode `revise` on the spec, then `plan-check.py --spec` runs again; there is no new challenge round, and the corrected spec counts as approved. An answer that cannot come in this
 session makes the run wait as for an outside author: log `spec waits for approval`, push the work branch and stop;
 `squad-spec` on the same issue or branch resumes it. With an outside author as well, the draft comment of *Outside
 authors* goes with the summary: an approval without corrections confirms both, and after a correction the comment is
@@ -55,8 +54,7 @@ profile):
 - **Marked** — rebuilt on every refresh, keeping the repository's content inside `<!-- project:… -->` blocks:
   `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
   `.github/pull_request_template.md`, `docs/decisions/README.md` and `docs/areas/README.md`.
-  `.github/copilot-instructions.md` is generated from `AGENTS.md` (from the first `##` heading on, kept
-  identical by `config-check.py`), so a change to that body, a project block too, is made in both files.
+  `.github/copilot-instructions.md` is generated from `AGENTS.md`, which says how a change reaches both.
 - **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`, `.squad/project.md`,
   `.squad/tools/squad_settings.py`, `.claude/settings.json` (a refresh adds the members' hooks `git-guard.py` and
   `file-guard.py` when one is missing), `SECURITY.md`, `docs/UNIT_TESTS.md` and the profile's CI, CodeQL, Dependabot
@@ -69,7 +67,7 @@ labelled by where it can actually be fixed:
 
 | The lesson concerns | Label | Fixed by |
 | ------------------- | ----- | -------- |
-| a **managed** file, or the template part of a **marked** file | `squad-upstream`, titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | the template repository (`repository` in `.squad/template.json`), which moves these issues there in one batch, fixes them in a template PR and rolls the fix out with `adopt-template` — never worked here, and never a local edit, which the next refresh overwrites |
+| a **managed** file, or the template part of a **marked** file | `squad-upstream`, titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | the template repository (`repository` in `.squad/template.json`) — never worked here, and never a local edit, which the next refresh overwrites |
 | **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, a `<!-- project:… -->` block, another seeded file | `squad` | a squad-maintenance PR here, checked with `.squad/tools/config-check.py` |
 
 No lesson: a SonarQube rule the local analyzers do not report (the Code Officer notes it in `stack.md` in the
@@ -92,30 +90,25 @@ lessons`; `squad-log.py --summary` exits 5 without it and lists the candidates t
 
 Every member is launched with the model and effort of its agent file, except: every `squad-tester` launch of a run
 whose `plan.md` names tier `security` gets `model: opus` (effort unchanged), passed explicitly from the first launch
-on. `squad-next.py` prints the model of every launch; `squad-log.py --agent-id` logs the model and effort a launch
-really ran on and warns when they differ from the agent file or this override. Outside Claude Code, log such a launch
-with `--launch opus/<effort>` instead of `--agent squad-tester` (the script refuses `--agent` alone there).
+on. `squad-next.py` prints the model of every launch, and `squad-log.py` warns when a launch ran on another one.
 
 ## Continuing a member
 
-A fix round or a delta round of the same member within the same run continues that member's last launch
-(`SendMessage` to its agent id, or the Agent tool's resume) with the findings and the new head SHA, instead
-of a fresh launch. The same holds for the Lead within step 2: its `revise` rounds after `plan-check.py` or a
-challenge, and for a feature mode `plan` after mode `spec`. The next task group of a feature continues the
-member's last agent of the same mode with the group's task rows and the head SHA. A fresh launch stays the rule
-for the first launch of any other mode, after a session restart (the agent id is gone) and when the previous
-launch ended on an API error. Once an agent has been continued five times or its reported tokens pass 300,000, and
-when it ran on another model than *Launch model* names, its next round is a fresh launch with a short hand-over —
-the plan or task group, what the earlier rounds settled, the open findings and the head SHA. `squad-next.py` names
-for every launch the agent it continues, or why it is fresh, and the `squad-log.py` options that log it; what a
-continued member may do is in `team.md` (*Shared rules*).
+A fix, delta or `revise` round of the same member within the same run continues that member's last launch
+(`SendMessage` to its agent id, or the Agent tool's resume) with the findings and the new head SHA, instead of a fresh
+launch; so do the Lead's mode `plan` after mode `spec` and a feature's next task group (the member's last agent of the
+same mode, with the group's task rows). The first launch of any other mode is fresh, and so is a launch after a session
+restart (the agent id is gone) or after one that ended on an API error. An agent continued five times or past 300,000
+reported tokens, or one that ran on another model than *Launch model* names, gets a fresh launch with a short
+hand-over — the plan or task group, what the earlier rounds settled, the open findings and the head SHA.
+`squad-next.py` names for every launch the agent it continues, or why it is fresh, and how to log it; what a continued
+member may do is in `team.md` (*Shared rules*).
 
 ## Commits
 
 Commits and pushes to the work branch happen right after intake (`specs/<folder>/log.md`, so a stop hook
-or a crashed session finds no untracked files) and after every further completed step; with *Squash and
-merge* only the PR title and description reach `main`, so intermediate commits may describe the step.
-They never contain secrets. Before every commit `git symbolic-ref -q HEAD` must name the work branch; a
+or a crashed session finds no untracked files) and after every further completed step. They never contain
+secrets. Before every commit `git symbolic-ref -q HEAD` must name the work branch; a
 detached HEAD is switched back to it first (`git switch <branch>`, then `git merge --ff-only <sha>` for
 commits made on the detached HEAD) and logged with the launch that left it. Push without `-q` and check after
 every push that `git rev-parse origin/<branch>` equals `git rev-parse HEAD`: a push that did not move the branch
@@ -177,9 +170,8 @@ squad skills). A record number `main` took meanwhile is renumbered on the work b
 row and every link to it — and `decision-check.py` must pass on the merged head. *Draft until green* then
 starts again on the new head.
 
-Before the first review round (step 7) and again before PR approval (step 9) the orchestrator runs `git fetch
-origin main` and merges `main` when the work branch lacks its latest commit (`git merge-base --is-ancestor
-origin/main HEAD` fails), so the reviewers see the merged code and the change's security statements are checked
+`main` is merged before the first review round (step 7) and again before PR approval (step 9) when the work branch
+lacks its latest commit, so the reviewers see the merged code and the change's security statements are checked
 against today's `main`. A merge that took both sides unchanged needs the gates of step 7 again, not a new review
 round; a resolution that rewrote code, or a statement of the change the merged `main` made untrue, goes through
 steps 7–8.
@@ -190,8 +182,7 @@ Only one member that builds or runs tests may work at a time: concurrent builds 
 output and caches (see *Concurrency* in `.squad/stack.md` for what this stack shares). In steps 2–3,
 `squad-devils-advocate` and `squad-security` (mode `plan`) may run together, and in step 8 `squad-reviewer`
 and `squad-security`, because they are read-only and the reviewer builds in a scratch copy. Members
-experiment only in a scratch `git worktree`, never in the working tree (`team.md`, *Shared rules*); the
-`PreToolUse` hook `.claude/hooks/git-guard.py` denies the members every other Git and GitHub write.
+experiment only in a scratch `git worktree`, never in the working tree (`team.md`, *Shared rules*).
 
 ## Verbatim documentation fixes
 
@@ -228,5 +219,4 @@ A Reviewer finding *unlisted security area* — the diff touches a security area
 touched* does not name — is no fix round. The orchestrator adds the area to the line (a `specs/` edit) and
 launches `squad-security` in mode `diff` on the same code SHA, scoped to that area's files; its blocking
 findings are worked like the Reviewer's, Security confirms their fixes in the delta round, and that round
-counts with the Reviewer's toward *Loop limits*. A touch that changes nothing an attacker could use (a log
-wording, a rename, a moved line) the Reviewer clears itself.
+counts with the Reviewer's toward *Loop limits*.

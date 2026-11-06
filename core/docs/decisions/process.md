@@ -20,9 +20,9 @@ fixed inside a product pull request mix two unrelated changes and are easy to lo
    pull request) before the pull request opens, then removed; `main` keeps only `specs/README.md` and the templates.
 
 **Decision.** Option 2. In addition, an issue or feature pull request never changes the squad or the agent
-instructions (`.squad/routing.md`, *Scope of a product PR*), and a lesson about the squad becomes a GitHub issue
-labelled `squad` where it can be fixed: the template repository for a template-managed file, this repository, in a
-squad-maintenance pull request of its own, for project knowledge (`.squad/orchestration.md`, *Squad lessons*).
+instructions (`.squad/routing.md`, *Scope of a product PR*), and a lesson about the squad becomes an issue in this
+repository, labelled by where it is fixed: in the template repository for a template-managed file, in a
+squad-maintenance pull request here for project knowledge (`.squad/orchestration.md`, *Squad lessons*).
 
 **Consequences.**
 

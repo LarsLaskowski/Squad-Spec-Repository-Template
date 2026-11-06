@@ -56,6 +56,11 @@ to it), the history of how it came about, incident reports and measured numbers 
 `docs/squad-rationale.md`), and sentences that change nothing a member does. What only the orchestrator does goes
 into `core/.squad/orchestration.md`, which the members need not read.
 
+A lesson about a deterministic step — one a script can decide from the log, the work folder, the diff or `stack.md`
+(a model, a continuation, a gate run, a skipped step, a review set) — is fixed in a tool where a tool can check it
+(`squad-next.py`, `gate-stamp.py`, `squad-log.py`, `plan-check.py`, …), and the rule text it replaces becomes a
+pointer to that tool. Prose is for what needs judgment.
+
 There is no word budget: a rule is never cut to make room for another. `template-check.py` reports instead:
 
 - how many words each changed rule file gained or lost against its merge base with `origin/main`, and the total against

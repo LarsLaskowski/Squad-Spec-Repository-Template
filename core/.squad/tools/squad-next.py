@@ -116,6 +116,8 @@ CONTINUATION_CAP = 5
 CONTINUATION_TOKENS = 300_000
 SPEC_APPROVAL = getattr(settings, "SPEC_APPROVAL", "lead")
 LOG_TOOL = "python3 .squad/tools/squad-log.py"
+STDIN = " --stdin < log.md > log-updated.md"
+ISSUE_HANDOVER = "the issue text and the work folder"
 STAMP_TOOL = "python3 .squad/tools/gate-stamp.py"
 SUMMARY = "squad-log.py --summary"
 # What the result cell starts with: the member's verdict line, which this script reads back.
@@ -291,7 +293,7 @@ def pick_chain(run, agent, mode, rule):
 
 
 def log_command(run, step, who, continuation=""):
-    stdin = " --stdin < log.md > log-updated.md" if run.after_pr else ""
+    stdin = STDIN if run.after_pr else ""
     hint = RESULT_HINTS.get(who, "<the result>")
     return f"  Log: {LOG_TOOL} {run.name} \"{step}\" \"{CELLS[who]}\" \"{hint}\" --agent-id <id>{continuation}{stdin}"
 
@@ -317,7 +319,7 @@ def launch(run, agent, mode, step, handover, rule=None, purpose=""):
 
 
 def orchestrator_log(run, step, result):
-    stdin = " --stdin < log.md > log-updated.md" if run.after_pr else ""
+    stdin = STDIN if run.after_pr else ""
     return f"  Log: {LOG_TOOL} {run.name} \"{step}\" Orchestrator \"{result}\"{stdin}"
 
 
@@ -444,7 +446,7 @@ def spec_check(run, challenge):
 def spec_challenge(run, challenge):
     if not challenge:
         return heading("step 2a — Spec challenge") + launch(run, ADVOCATE, "spec", "2a Spec challenge",
-                                                             "the issue text and the work folder")
+                                                             ISSUE_HANDOVER)
     verdict = objections(challenge[-1])
     if verdict is None:
         return heading("step 2a — route the spec challenge") + no_verdict(challenge[-1]) + [
@@ -486,7 +488,7 @@ def plan_written(run):
                                                      "approve the spec first, whatever SPEC_APPROVAL says"]
             return heading("step 2b — Plan") + note + launch(
                 run, LEAD, "plan", "2b Plan", "the work folder (and the Product Manager's answer, if any)", rule=LAST)
-        return heading("step 2 — Plan") + launch(run, LEAD, "plan", "2 Plan", "the issue text and the work folder")
+        return heading("step 2 — Plan") + launch(run, LEAD, "plan", "2 Plan", ISSUE_HANDOVER)
     if run.plan is None:
         return heading(f"step {run.plan_step} — plan.md is missing") + launch(
             run, LEAD, "revise", f"{run.plan_step} Plan revise", "plan.md is missing: write it (or return the docs/patch "
@@ -529,7 +531,7 @@ def challenge_and_security(run):
             orchestrator_log(run, f"{run.plan_step} Challenge skipped", f"challenge skipped — {reason}")]
     if due and not challenge:
         lines += heading(f"step {run.plan_step} — Plan challenge ({reason})") + launch(
-            run, ADVOCATE, "plan", f"{run.plan_step} Plan challenge", "the issue text and the work folder")
+            run, ADVOCATE, "plan", f"{run.plan_step} Plan challenge", ISSUE_HANDOVER)
     if security_due and not reviews:
         lines += heading(f"step 3 — Plan security review (Security areas touched: {areas})") + launch(
             run, SECURITY, "plan", "3 Plan security", "the work folder (a feature: spec.md and plan.md together)")
@@ -753,7 +755,7 @@ def code_check(run):
     lines = heading(f"step {step.split()[0]} — Code check: {problem}") + (
         [f"  Commit first, these files outside specs/ are uncommitted: {', '.join(dirty[:10])}"] if dirty else []) + [
         DO + "git fetch origin main and merge main when it moved (*Merge conflicts*); commit; then run",
-        f"    {STAMP_TOOL} {run.name}" + (" --stdin < log.md > log-updated.md" if run.after_pr else "")]
+        f"    {STAMP_TOOL} {run.name}" + (STDIN if run.after_pr else "")]
     if last is not None and last.group("verdict") == "PASS" and verbatim_fix(run, last):
         lines.append("  A verbatim documentation fix since the stamp: add --verbatim (Format check, decision-check.py "
                      "and scope-check.py only; no delta round)")
@@ -839,9 +841,36 @@ def review_rows(run, agent, after):
             if agent != SECURITY or mode_of(SECURITY, row.number, row.step) == "diff"]
 
 
+def merged_base_only(run, old, new):
+    """True when every commit from `old` to `new` that changes code is a merge that took both sides unchanged (no
+    combined diff): the merge of the base branch that needs the gates again but no new review round (*Merge
+    conflicts*)."""
+    git = stamp_tool().git
+    code, own = git(run.root, "rev-list", "--first-parent", "--no-merges", f"{old}..{new}", *stamp_tool().OUTSIDE_SPECS)
+    _, merges = git(run.root, "rev-list", "--first-parent", "--merges", f"{old}..{new}")
+    if code != 0 or own.strip() or not merges.split():
+        return False
+    return all(not git(run.root, "diff-tree", "--cc", "--no-commit-id", "-p", merge)[1].strip()
+               for merge in merges.split())
+
+
+def reviewed_stamp_row(run):
+    """The row of the full stamp the current review round belongs to: the last one, or the reviewed one before it
+    when only a merge of the base branch came between them."""
+    rows = full_stamp_rows(run)
+    if not rows:
+        return -1
+    reviewed = [index for index in rows if any(review_rows(run, agent, index) for agent, _ in review_set(run))]
+    if not reviewed or reviewed[-1] == rows[-1]:
+        return rows[-1]
+    sha = {row.index: stamp_tool().STAMP.match(row.result.strip()).group("sha") for row in run.rows
+           if row.index in (reviewed[-1], rows[-1])}
+    return reviewed[-1] if merged_base_only(run, sha[reviewed[-1]], sha[rows[-1]]) else rows[-1]
+
+
 def review(run):
     """Step 8 (after the PR: the delta rounds of step 11): the review set on the stamped head."""
-    stamp_index = last_full_stamp_row(run)
+    stamp_index = reviewed_stamp_row(run)
     reviewers = review_set(run)
     missing = [(agent, mode) for agent, mode in reviewers if not review_rows(run, agent, stamp_index)]
     if missing:

@@ -93,9 +93,8 @@ is only for lessons the squad itself raised.
 
 A `patch`'s step 7 runs the checks its files need and nothing else; the complete analysis, and for a `patch`
 without production code the full suite and the overall coverage figure, are CI's job on the draft pull request
-(*Draft until green*). The orchestrator picks the rows that match the diff and runs every gate they name,
-without judgment; when the diff spans two kinds, both rows apply. Every `patch` ends with
-`scope-check.py --tier patch`.
+(*Draft until green*). `gate-stamp.py` picks the rows that match the diff, both when it spans two kinds, runs
+every gate they name with the check the Lead's result names, and ends with `scope-check.py --tier patch`.
 
 | The diff touches | Gates |
 | ---------------- | ----- |
@@ -106,7 +105,7 @@ without judgment; when the diff spans two kinds, both rows apply. Every `patch` 
 | production code | *Format check*, *Analyzer gate*, *Test with coverage* and the *Coverage gate* — not *Test (project)*: it writes no coverage report, and the gate reads the reports of the full run, the overall figure included |
 
 A gate the row names that the stack does not have (`stack.md` lists no *Test (project)*) is replaced by the
-next broader one (*Test*); the orchestrator logs which rows applied.
+next broader one (*Test*).
 
 ### Changes without production or test code
 
@@ -192,8 +191,8 @@ head; step 10 then only posts the working record, removes `specs/` and marks not
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the plan's doc updates, area documents included, written by the Dev against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator runs *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate* and `scope-check.py`, then commits; the *Sonar gate* runs in step 11 on the draft PR. In tiers `trivial`, `standard` and `security`, when the diff changes a file that is neither documentation nor a test, it also runs `figure-check.py`, which is no gate: a hit (documentation that still states a value the diff changed) that the Dev's last report does not confirm goes back to the Dev, the others reach the Reviewer with the gate output. It clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the gates run again. Exit: every gate passes on the head |
-| 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the orchestrator's gate output of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
+| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator commits and runs `gate-stamp.py`, which runs the tier's gates by their `stack.md` names — *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate* and `scope-check.py` (`patch`: *Gates of a patch*), and `figure-check.py`, which is no gate, in tiers `trivial`, `standard` and `security` — and logs them as a stamp with the head SHA: a gate result counts only as that stamp, never as a member's report. The *Sonar gate* runs in step 11 on the draft PR. A `figure-check.py` hit (documentation that still states a value the diff changed) that the Dev's last report does not confirm goes back to the Dev, the others reach the Reviewer with the gate output. The orchestrator clears a *Format check* failure itself (*Format*, then `git restore` of every file outside the change); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the stamp runs again. Exit: a passing stamp on the head |
+| 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and the gate output of the stamp of step 7 (they do not re-run the gates); later commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below; with an *Early draft PR* also green CI, the dry-run result and the Reviewer's round on the same head |
 | 10 | Pull request | Orchestrator | Working record posted as comment (a long `plan.md` may be given as a permalink to the last commit that contains it plus a summary), `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
 | 11 | After the PR | Dev, Code Officer, Reviewer | *Draft until green* holds and the PR is marked ready for review; review comments worked |
@@ -206,8 +205,8 @@ The orchestrator first runs this checklist in full:
 - the latest review round is clean and covers every change to production code, tests and `docs/` since it
   ran — only `specs/` bookkeeping and that round's verbatim documentation fixes may follow it; a due delta
   round runs first;
-- the gates of step 7 pass on the head, and `main` has not moved since the merge of step 7 or is merged
-  again first (*Merge conflicts*);
+- `gate-stamp.py --verify` passes after `git fetch origin main`: a passing stamp on the head's code, which
+  contains `main` — otherwise `main` is merged first (*Merge conflicts*) and the stamp runs again;
 - the area documents and documentation updates the plan names are in the diff.
 
 Then it sets each `Proposed` decision record of this change and its index row to `Accepted` and runs
@@ -231,8 +230,8 @@ secrets, a workflow) and a plan of tier `standard` only when it changes producti
 alternative under *Options considered* or adds a new decision record — extending an existing record alone does
 not count; never a plan of tier `docs`, `patch`, `tests` or `trivial`. The same holds for a feature, whose spec it
 has already challenged. `plan-check.py` prints the verdict with its reason after every run (`Plan challenge: due —
-…` or `not due — …`); the orchestrator follows the verdict of the run that passed, without judgment, and logs a
-skip as "challenge skipped" with that reason. It runs at most once, has no veto, and a rejected objection is not raised
+…` or `not due — …`), and `squad-next.py` launches the challenge or logs the skip with that reason by the verdict of
+the run that passed. It runs at most once, has no veto, and a rejected objection is not raised
 again. Each objection is ranked `major` (the plan would build the wrong thing or miss the defect) or
 `minor`, so the orchestrator routes without judgment:
 

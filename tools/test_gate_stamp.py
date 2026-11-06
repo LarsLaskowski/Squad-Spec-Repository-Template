@@ -130,9 +130,12 @@ def load(name):
 
 def row(step, member, result, tokens=None, launch="opus/medium", continued=None, time="13:00"):
     """A log row; with `tokens`, a launch trailer (`continued`: True, or the step cell it continues)."""
-    trailer = ""
+    trailer, mark = "", ""
+    if continued is True:
+        mark = " · continued"
+    elif continued:
+        mark = f" · continued from {continued}"
     if tokens is not None:
-        mark = "" if not continued else (" · continued" if continued is True else f" · continued from {continued}")
         trailer = f" ({launch} · {tokens:,} tokens · 3 tool uses · 60 s{mark})"
     return f"| 2026-01-02 {time} | {step} | {member} | {result}{trailer} |\n"
 

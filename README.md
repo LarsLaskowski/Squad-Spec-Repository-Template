@@ -44,7 +44,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
   share; `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
   transcripts for the wrap-up. `figure-check.py` lists, in step 7, the documentation lines that still state a value
-  the diff changed.
+  the diff changed. `gate-stamp.py` runs the step-7 gates of the tier by their `stack.md` names and logs the result
+  with the head SHA, which step 9 and `squad-log.py --summary` require; `squad-next.py` prints the orchestrator's
+  next step after every log row, with the exact launch (agent, mode, model, fresh or continued, hand-over) and the
+  gates and review set the tier calls for.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with the squad's process decisions in the managed `docs/decisions/process.md`),
   `specs/_template/`, `SECURITY.md`.

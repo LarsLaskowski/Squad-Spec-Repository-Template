@@ -27,8 +27,10 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
   names, the base ref, the code SHA and the gate output for the head. Not the log, not the issue thread (the
   Lead and the Devil's Advocate read the issue themselves), not earlier reports in full — one line on what the
   previous member handed back is enough.
-- **Continue members** for their next round as *Continuing a member* says; keep the agent id of each member's
-  last launch.
+- **Next step:** after every row of `log.md`, run `python3 .squad/tools/squad-next.py <folder>` (after step 10
+  with `--stdin` and the comment's log table): it prints the next step with its exact launch — agent, mode, model,
+  fresh or continued (*Continuing a member*), hand-over and log command — or your own row, and the gates and review
+  set the tier calls for. Follow it; keep the agent id of each member's last launch for the agent it names.
 - **Scope:** a product PR touches neither the squad nor the instruction files outside their project blocks
   (*Scope of a product PR*);
   `scope-check.py` enforces it, and squad lessons are filed in step 12.
@@ -59,10 +61,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    - Write a launch's row as soon as its report is in, with `--agent-id <id>` (the agent id the Agent tool
      returned): the script reads model, effort, tokens per kind, tool uses and seconds from the agent's transcript
      and warns when the model is not the one *Launch model* names. Never type a number yourself.
-   - A continued launch adds `--continued`, or `--continued-from "<step cell of the fresh launch>"` when that agent
-     is not the member's last fresh launch (only for continuing the same agent). Name a fix, delta or revise round
-     as such in its step cell; a continuation at another step than its fresh launch draws a warning (a new mode is
-     a fresh launch).
+   - Log with the step cell and the continuation option (`--continued`, `--continued-from`) `squad-next.py`
+     prints, and start the result with the member's `VERDICT:` or `RESULT:` line: the script reads them back.
    - Rows of the Orchestrator, the Product Manager and the User take no metric option; their member cells are
      exactly `Orchestrator`, `Product Manager` and `User` (`squad-orchestrator` is written as `Orchestrator`).
    - After step 10 every call — row, summary — needs `--stdin` (step 10); without it, it fails.
@@ -71,75 +71,70 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 
    After every member's report, commit and push the files it left in the work folder.
 2. **Plan.** Launch `squad-lead` in mode `plan` with the issue text and the work folder. It returns one of:
-   - `RESULT: DONE` for tier **`docs`** or **`patch`**: record the result as the first plan row of `log.md`
-     and run that tier's row of *Tiers* — apply the edits yourself; for `patch` launch `squad-tester` in mode
-     `coverage` once when the Lead named a test to add, run the rows of *Gates of a patch* the diff needs and
-     log which applied; `scope-check.py --tier docs` or `--tier patch` — then one review round (step 8) and
-     step 10.
-   - `RESULT: DONE` with `plan.md`: run `python3 .squad/tools/plan-check.py issue-<number>` before anyone else
-     reads it and after every Lead write; findings go back as *Loop limits* (Plan check) says. Then the steps
-     the tier requires.
+   - `RESULT: DONE` for tier **`docs`** or **`patch`**: record the result, with its tier, as the first plan row of
+     `log.md` and run that tier's row of *Tiers* — apply the edits yourself; for `patch` launch `squad-tester` in
+     mode `coverage` once when the Lead named a test to add; commit and stamp them (step 7) — then one review
+     round (step 8) and step 10.
+   - `RESULT: DONE` with `plan.md`: `squad-next.py` runs `plan-check.py` before anyone else reads it and after
+     every Lead write, and sends findings back as *Loop limits* (Plan check) says. Then the steps the tier
+     requires.
    - `RESULT: NO CHANGE` — as *Outcome "no change"*, and stop.
    - `RESULT: ESCALATE` — ask the user, then relaunch the Lead with the answer.
 
-   **Plan challenge.** Launch `squad-devils-advocate` in mode `plan` with the issue text and the work folder
-   when *Plan challenge* calls for it, together with step 3 on the same plan commit when that runs; otherwise
-   log "challenge skipped" with the reason `plan-check.py` prints. Route its verdict as *Plan challenge* says: append minor objections
-   and Security's non-blocking findings verbatim; on a major objection, or a Security note that leaves the
-   plan a choice, launch `squad-lead` in mode `revise` with all objections (and Security's `CHANGES_REQUIRED`
-   findings, if any). After a raised tier, continue with that tier's steps; `NO CHANGE` and `ESCALATE` as
-   above. Log the verdict (also a clean `NO OBJECTIONS`) and the Lead's answer.
-3. **Plan security review** whenever *Security areas touched* is not "none" (*Tiers*). Launch
-   `squad-security` in mode `plan`, in parallel with the plan challenge. On `CHANGES_REQUIRED`, one
-   `squad-lead` revision (with the challenge's objections), then `squad-security` once more on the revision; a
-   revision made only for a major objection is confirmed the same way. After the 2nd rejection, `squad-lead`
-   in mode `decide` (*Loop limits*, Plan ↔ Security).
+   **Plan challenge.** `squad-devils-advocate` in mode `plan` with the issue text and the work folder when *Plan
+   challenge* calls for it, together with step 3 on the same plan commit when that runs, or the skip row. Route
+   the verdicts as *Plan challenge* says: append minor objections and Security's non-blocking findings verbatim;
+   a major objection, a `CHANGES_REQUIRED` or a Security note that leaves the plan a choice goes to `squad-lead`
+   in mode `revise` with all objections. After a raised tier, continue with that tier's steps.
+3. **Plan security review** whenever *Security areas touched* is not "none" (*Tiers*): `squad-security` in mode
+   `plan`, in parallel with the plan challenge, and its loop as *Loop limits* (Plan ↔ Security) says; a revision
+   made only for a major objection is confirmed by Security too.
 4. **Skeleton** (only if the plan adds or changes API). Launch `squad-dev` in mode `skeleton` with the body the *Skeleton*
    section of `.squad/stack.md` names, quoted in the prompt: the planned signatures and the existing test call sites the plan assigns to the Dev. A plan that declares the change
    free of production and test code skips steps 4 and 5 (*Changes without production or test code*): log the
    skipped steps and run the plan's *Verification without tests* instead.
-5. **Tests first** (not for `trivial` or `tests`). Launch `squad-tester` in mode `tests-first`, with the model *Launch model* names (tier `security`:
-   pass `model: opus` on this first launch already, and on every later Tester launch). Confirm yourself that the
+5. **Tests first** (not for `trivial` or `tests`). Launch `squad-tester` in mode `tests-first`, with the model
+   `squad-next.py` prints (*Launch model*). Confirm yourself that the
    new tests compile and fail on the current code (unless the Tester justified why one cannot); note the
    tests it hands back as **deferred**. A fix without a reproducing test is acceptable only when the bug
    genuinely needs a live external system — then the PR says so.
 6. **Implement and cover.** For a change without production or test code this is the Dev's edits alone: no
    `squad-tester`, no *Test with coverage*, no *Coverage gate*. Otherwise launch `squad-dev` in mode `implement`
-   — a fresh launch, never a continuation of its `skeleton` agent — with the plan and the test names. If the
+   with the plan and the test names. If the
    Dev disputes a test, launch `squad-lead` in mode `decide`; the Tester changes a test only if the Lead says
-   so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`
-   (model as in step 5; a fresh launch, never a continuation of its `tests-first` agent), with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
+   so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`,
+   with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
    plan has no test yet, a deferred test or test documentation is open (also when the gate passes) or a reviewer
    asks for a test;
    otherwise log why the pass is skipped. Repeat until the gate passes. Then, when the plan lists documentation
    updates not written yet, continue the Dev's `implement` agent for them (*Documentation* in `squad-dev.md`;
-   test documentation: the Tester in mode `coverage`), logged as a step-6 continuation, and run *Test* again. Before step 7, run `python3
-   .squad/tools/plan-check.py <folder> --matrix`: a criterion it reports `MISSING` (no test file carries its id or
-   a test name the plan gives) goes to `squad-tester` in mode `coverage`. Lines
+   test documentation: the Tester in mode `coverage`), logged as a step-6 continuation, and run *Test* again. Before
+   step 7, `squad-next.py` runs `plan-check.py --matrix`: a criterion it reports `MISSING` (no test file carries its
+   id or a test name the plan gives) goes to `squad-tester` in mode `coverage`. Lines
    reported as not unit-testable go to `squad-lead` in mode `decide`.
-7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
-   for a change without code and for `patch` their sections) with the commands from `.squad/stack.md`,
-   once they pass, commit (the *Sonar gate* runs on the draft PR in step 11). The *Coverage gate* reads the
-   report of this step's *Test with coverage*, never the one of step 6. Run `python3 .squad/tools/figure-check.py` when
-   the *Pipeline* row calls for it and route its hits as it says (to `squad-dev` in mode `fix`, with each hit). When
-   *Format check* fails, run *Format*, `git restore -- <file>` every file it changed outside the change, and check
-   again. Launch `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that need
-   reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
-   owner, a file it formatted outside the change you restore. Run the gates again until they pass. When the
-   plan asks for an *Early draft PR*, open it once they pass, as that section says (`create-pr` step 8 without
+7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Commit, then
+   run `python3 .squad/tools/gate-stamp.py <folder>` (`patch`: with `--check "<command>"` for the check the Lead's
+   result names; `--project NAME=VALUE` for the test project of *Test (project)*): it runs the gates of step 7 for
+   the tier and logs the stamp. Route a `figure-check.py` hit as the *Pipeline* row says (to `squad-dev` in mode
+   `fix`, with each hit). When *Format check* fails, run *Format*, `git restore -- <file>` every file it changed
+   outside the change, and stamp again. Launch `squad-code-officer` with the base ref only for analyzer diagnostics
+   or style findings that need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a
+   scope finding to its owner, a file it formatted outside the change you restore. Commit and stamp again until it
+   passes; a verbatim documentation fix is stamped with `--verbatim` (*Verbatim documentation fixes*). When the
+   plan asks for an *Early draft PR*, open it once the stamp passes, as that section says (`create-pr` step 8 without
    its review loop; `specs/` stays and the working record waits for step 10), subscribe to its activity, wait
    for CI and run `python3 .squad/tools/sonar-check.py pr <number>` before step 8; its findings are worked as
    in step 11.
-8. **Review.** Launch `squad-reviewer` (round 1, full) and — on tier `security` — `squad-security` in mode
-   `diff`, in parallel (on `patch/security` only `squad-security`, *Tiers*), with the base ref, the exact code
-   SHA, the work folder (tiers `docs` and `patch`: the first `log.md` row) and the gate output of step 7; tell
+8. **Review.** Launch the review set of the tier (*Tiers*) in parallel — `squad-reviewer`, on tier `security` with
+   `squad-security` in mode `diff`, on `patch/security` `squad-security` alone — with the base ref, the stamp's code
+   SHA, the work folder (tiers `docs` and `patch`: the first `log.md` row) and the stamp's gate output; tell
    them that later commits may only touch `specs/`, and avoid commits while the round runs (*The stop hook*). A
    report for another code head is a stale round. Then:
    - a tier raise: *Tiers*; an *unlisted security area*: *Unlisted security areas*; a fix marked `verbatim`:
      *Verbatim documentation fixes*;
    - blocking findings → their owner (`squad-dev` for code and documentation, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
-     `patch`: you fix them and rerun the checks of step 2) → **a delta round, mandatory**, continuing the
-     reviewer; at most 2 fix rounds, then `squad-lead` in mode `decide` (*Loop limits*);
+     `patch`: you fix them and stamp again) → **a delta round, mandatory**; at most 2 fix rounds, then
+     `squad-lead` in mode `decide` (*Loop limits*);
    - non-blocking findings: *Non-blocking findings* — those without a `verbatim` fix go to `squad-lead` in
      mode `decide` now, before the round's fix round, and a fix it orders goes to its owner with the blocking ones.
 
@@ -147,8 +142,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    unchanged, at most twice; after that report a blocker to the user. A safeguard stop (`invalid_request`, category
    `cyber`) is not relaunched: escalate to the Product Manager at once (*Loop limits*, Safeguard stop).
 9. **PR approval.** Run *PR approval* (`.squad/routing.md`): the checklist in full, then the record status
-   and `decision-check.py`. Launch `squad-lead` in mode `approve-pr` as a fresh launch (never a continuation
-   of its plan agent) — with the base ref, the gate output, the review outcome and the open points of *PR
+   and `decision-check.py`. Launch `squad-lead` in mode `approve-pr` — with the base ref, the gate output, the
+   review outcome and the open points of *PR
    approval*, listed one by one (after the PR also the finished check-run list) — only when that section leaves
    a decision open; otherwise log "approved by checklist".
 10. **Pull request.** With an *Early draft PR* (open since step 7) this step, too, waits for step 9: the record
@@ -179,8 +174,9 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     - failing build or tests → `squad-dev` (test defects → `squad-tester`);
     - review comments (human, automated, `review-pr`) → `squad-dev`, worked in this PR, blocking or not.
 
-    Each fix goes through steps 7–8 again (delta review; `scope-check.py --no-specs` from now on), logged at
-    step 11 like every launch, continuing the member and the last round's reviewer, at most 2 fix rounds per failure before the Lead decides, and
+    Each fix goes through steps 7–8 again (the stamp with `--stdin`, a delta review), logged at step 11 like every
+    launch (`squad-next.py --launch squad-<role> <mode>` prints the exact launch), at most 2 fix rounds per failure
+    before the Lead decides, and
     gets the re-approval of step 9. A red CI on a criterion the plan verifies only in CI is a normal outcome
     here (*Criteria verified only in CI*). The work folder is gone: give the Reviewer, Security and the Lead
     the plan (tiers `docs` and `patch`: the first log row; for a feature also `spec.md`, `tasks.md`) from the
@@ -196,7 +192,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's log table); exit
     code 3 names launch rows still without usage (the notification path of `--help`), complete them; exit code 4
     names commits after the PR that no step-11 review row follows — run their delta review (step 11), or log a
-    verbatim fix as such; exit code 5 means the lessons row is missing; then run it again. Append the tables
+    verbatim fix as such; exit code 5 means the lessons row is missing; exit code 6 that the code head has no
+    passing gate stamp (step 7); then run it again. Append the tables
     exactly as printed (a run without them is not wrapped up) to the comment under "Squad run metrics". Then run
     `python3 .squad/tools/session-usage.py` and append its output as printed under "Session usage"
     (`.squad/routing.md`, step 12). Report the branch, the PR URL, the tier, the lesson issues (or "no lessons"),

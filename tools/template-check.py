@@ -10,7 +10,8 @@ Checks, without arguments:
 - no Markdown file under `core/`, `profiles/`, `seed/`, `multi/` or `decision-seeds/` contains a character
   `scope-check.py` rejects (a zero width joiner in an emoji, for example);
 - every profile has the same required files, its `instructions.md` provides every stack block the core
-  instruction files use, its `stack.md` defines every command name the core refers to, and its
+  instruction files use, its `stack.md` defines every command name the core refers to (and `gate-stamp.py` reads a
+  command for every gate it runs from it, also from the merged `stack.md` of several profiles), and its
   `squad_settings.py` defines the coverage settings, the size limits of `config-check.py` and `decision-check.py`
   and the settings of `figure-check.py`;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
@@ -113,11 +114,13 @@ PROFILE_FILES = [
     "seed/.github/workflows/codeql.yml",
     "seed/.github/dependabot.yml",
 ]
-COMMANDS = ["*Restore*", "*Format*", "*Format check*", "*Build*", "*Test*", "*Single test*",
+COMMANDS = ["*Restore*", "*Format*", "*Format check*", "*Build*", "*Test*", "*Single test*", "*Test (project)*",
             "*Test with coverage*", "*Coverage gate*", "*Analyzer gate*", "*Sonar gate*", "*Image build check*"]
 STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate", "## Image build check",
                   "## Coverage exclusions", "## Writing code", "## Writing tests", "## Skeleton", "## Dependencies",
                   "## Concurrency", "## Known pitfalls"]
+# The commands core/.squad/tools/gate-stamp.py runs by their name in stack.md.
+GATE_COMMANDS = ["Format check", "Analyzer gate", "Test", "Test (project)", "Test with coverage", "Coverage gate"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES",
             "PROJECT_MAX_WORDS", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS", "FIGURE_TRIVIAL",
@@ -330,6 +333,30 @@ def check_profile_stack(profile, name, errors):
         for needle in COMMANDS + STACK_SECTIONS:
             if needle not in text:
                 errors.append(f"profile {name}: stack.md lacks '{needle}'")
+        check_gate_commands(name, text, errors)
+
+
+_GATE_STAMP = []
+
+
+def gate_stamp():
+    """core/.squad/tools/gate-stamp.py as a module (loaded once)."""
+    if not _GATE_STAMP:
+        spec = importlib.util.spec_from_file_location("gate_stamp", os.path.join(CORE, SQUAD_DIR, "tools",
+                                                                                 "gate-stamp.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _GATE_STAMP.append(module)
+    return _GATE_STAMP[0]
+
+
+def check_gate_commands(label, text, errors):
+    """gate-stamp.py finds a command for every gate it runs in the stack.md text."""
+    commands = gate_stamp().stack_commands(text)
+    for name in GATE_COMMANDS:
+        if not commands.get(name):
+            errors.append(f"profile {label}: gate-stamp.py finds no command for *{name}* in stack.md (the first code "
+                          "span of its row in a Commands table)")
 
 
 def check_profile_settings(profile, name, errors):
@@ -500,6 +527,7 @@ def check_multi(names, target, errors):
     for rel in MULTI_FILES:
         if not os.path.isfile(os.path.join(target, rel)):
             errors.append(f"profile {label}: {rel} (dispatcher) missing")
+    check_gate_commands(label, read(os.path.join(target, SQUAD_DIR, "stack.md")), errors)
     for path in glob.glob(os.path.join(target, GITHUB_DIR, "**", "*.yml"), recursive=True):
         check_merged_yaml(label, names, target, path, errors)
     os.remove(os.path.join(target, SQUAD_DIR, "tools", f"analyzer-check-{names[-1]}.py"))

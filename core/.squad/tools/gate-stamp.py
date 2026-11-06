@@ -88,6 +88,7 @@ TEST_PATHSPECS = getattr(settings, "COVERAGE_TEST_PATHSPECS", getattr(settings, 
 PRODUCTION_PATHSPECS = getattr(settings, "COVERAGE_PATHSPECS", [])
 SPECS = "specs"
 OUTSIDE_SPECS = ["--", ".", ":(exclude)specs"]
+QUOTE_PATHS = "core.quotePath=false"
 STACK = os.path.join(".squad", "stack.md")
 ORCHESTRATOR = "Orchestrator"
 STAMP_STEP = "7 Gate stamp"
@@ -213,7 +214,7 @@ def changed(root, base, pathspecs=None):
     if pathspecs is not None and not pathspecs:
         return set()
     selection = OUTSIDE_SPECS if pathspecs is None else ["--", *pathspecs]
-    _, out = git(root, "-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", base, "HEAD", *selection)
+    _, out = git(root, "-c", QUOTE_PATHS, "diff", "--name-only", "--no-renames", base, "HEAD", *selection)
     return {line for line in out.splitlines() if line and not line.startswith(SPECS + "/")}
 
 
@@ -406,7 +407,7 @@ def stamp_text(verdict, sha, tier, results, hits, verbatim=False):
 
 def uncommitted(root):
     """The files outside `specs/` that are changed, staged or untracked (not ignored)."""
-    _, out = git(root, "-c", "core.quotePath=false", "status", "--porcelain", "--untracked-files=all", *OUTSIDE_SPECS)
+    _, out = git(root, "-c", QUOTE_PATHS, "status", "--porcelain", "--untracked-files=all", *OUTSIDE_SPECS)
     return [line[3:] for line in out.splitlines() if line.strip()]
 
 
@@ -480,7 +481,7 @@ def same_code(root, sha):
 def documentation_only(root, old, new):
     """True when every file that differs between `old` and `new` outside `specs/` is Markdown or under `docs/`: what a
     verbatim documentation fix may touch."""
-    code, out = git(root, "-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", old, new, *OUTSIDE_SPECS)
+    code, out = git(root, "-c", QUOTE_PATHS, "diff", "--name-only", "--no-renames", old, new, *OUTSIDE_SPECS)
     return code == 0 and all(path.endswith(".md") or path.startswith("docs/") for path in out.splitlines() if path)
 
 

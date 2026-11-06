@@ -38,7 +38,7 @@ Checks, without arguments:
   stays at or below SonarQube Cloud's cognitive-complexity limit of 15 (`python:S3776`), measured with complexipy
   where it is installed (CI installs it), and trips none of the other SonarQube Cloud rules that have flagged one
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
-  group, several spaces in a regex);
+  group, a unittest assertion a more specific one replaces, several spaces in a regex);
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) exists. Against the
   merge base with `origin/main` it reports, as information, how many words (counted like `wc -w` in a UTF-8
@@ -115,7 +115,12 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S5850", "python:S6326"]
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S5850", "python:S5906", "python:S6326"]
+# python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
+# None or round(), have a more specific unittest assertion.
+TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
+                 "assertFalse": (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)}
+VALUE_ASSERTS = ("assertEqual", "assertNotEqual", "assertIs", "assertIsNot", "assertAlmostEqual", "assertNotAlmostEqual")
 COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 LITERAL_EXCLUSIONS = [re.compile(p) for p in (r"[_\-a-zA-Z0-9]+", r"[0-9{} .\-_%:dfrsymhYMHS<>]+", r"#[0-9a-fA-F]{6}")]
 REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall", "finditer", "sub", "subn"}
@@ -1194,10 +1199,32 @@ def multiple_spaces(tree):
             for line, pattern in regex_calls(tree) if MULTIPLE_SPACES.search(CHAR_CLASS.sub("", pattern))]
 
 
+def is_call_of(node, name):
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name
+
+
+def needs_specific_assertion(name, args):
+    """Whether a unittest assertion with these arguments has a more specific one (python:S5906)."""
+    first = args[0]
+    if name in TRUTH_ASSERTS:
+        compared = isinstance(first, ast.Compare) and len(first.ops) == 1 and isinstance(first.ops[0], TRUTH_ASSERTS[name])
+        return compared or is_call_of(first, "isinstance")
+    none = any(isinstance(arg, ast.Constant) and arg.value is None for arg in args[:2])
+    return name in VALUE_ASSERTS and (none or (len(args) > 1 and is_call_of(args[1], "round")))
+
+
+def specific_assertions(tree):
+    """python:S5906: `assertTrue(x == y)`, `assertEqual(x, None)` and the like; the dedicated assertion says more."""
+    return [(node.lineno, "python:S5906", f"{node.func.attr} here has a more specific unittest assertion")
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
+            and needs_specific_assertion(node.func.attr, node.args)]
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
-    findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree)
+    findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + specific_assertions(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

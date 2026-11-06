@@ -93,7 +93,7 @@ class TestParsing(unittest.TestCase):
         hunk = self.script.Hunk("a.py", 5, ['TIMEOUT = "30s"', "A = 12; B = 13"], ['TIMEOUT = "45s"', "A = 14; B = 15"])
         self.assertEqual(self.script.locate(hunk, "30").new, "45")
         self.assertEqual(self.script.locate(hunk, "30s").new, "45s")
-        self.assertEqual(self.script.locate(hunk, "12").new, None, "two numbers changed in that line pair")
+        self.assertIsNone(self.script.locate(hunk, "12").new, "two numbers changed in that line pair")
         self.assertEqual(self.script.locate(hunk, "12").line, 6)
 
     def test_exclusions_keep_their_magic(self):

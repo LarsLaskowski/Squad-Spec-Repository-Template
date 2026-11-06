@@ -24,8 +24,8 @@ with more than one language, see "Several profiles" below:
   without Claude Code's `@path` import lines (the file GitHub Copilot's code review and chat read). A target file
   without project markers (written by hand) is backed up first, like a marked file;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
-  them yet; an existing `.claude/settings.json` only gets the squad's git-guard hook (`GIT_GUARD_HOOK`) added
-  when it lacks it, everything else in it stays;
+  them yet; an existing `.claude/settings.json` only gets the squad's hooks (`SQUAD_HOOKS`: `git-guard.py` and
+  `file-guard.py`) added when it lacks one, everything else in it stays;
 - **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
   every line of the target that still refers to one is listed for fixing by hand;
 - `.squad/template.json` records the template repository, its commit and the profile(s).
@@ -116,11 +116,15 @@ RETIRED_REFERENCES = sorted(set(RETIRED) | {os.path.dirname(rel) for rel in RETI
 GITATTRIBUTES = ".gitattributes"
 TEMPLATE_JSON = ".squad/template.json"
 RENAMES = {"gitattributes": GITATTRIBUTES}
-# The members' Git guard runs from the project settings, the only hooks Claude Code runs for project agents in a folder
-# without workspace trust (a cloud or `-p` session); a refresh adds it to a settings file the target already has.
+# The members' Git and file guards run from the project settings, the only hooks Claude Code runs for project agents in
+# a folder without workspace trust (a cloud or `-p` session); a refresh adds a missing one to a settings file the target
+# already has. {script: the PreToolUse entry that runs it}, as in seed/.claude/settings.json.
 CLAUDE_SETTINGS = ".claude/settings.json"
 GIT_GUARD_HOOK = {"matcher": "Bash", "hooks": [{"type": "command",
                                                 "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"'}]}
+FILE_GUARD_HOOK = {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
+                   "hooks": [{"type": "command", "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/file-guard.py"'}]}
+SQUAD_HOOKS = {"git-guard.py": GIT_GUARD_HOOK, "file-guard.py": FILE_GUARD_HOOK}
 BLOCK = re.compile(r"<!-- (project|stack):begin ([\w-]+) -->\n(.*?)<!-- \1:end \2 -->", re.S)
 
 
@@ -618,30 +622,38 @@ def seed_skip_reason(target, rel, names, existing):
     return None
 
 
-def with_git_guard(text):
-    """The settings text with GIT_GUARD_HOOK among its PreToolUse hooks; None when it has it already.
-    ValueError when the text is no JSON object (the hook is then added by hand)."""
+def hook_commands(pre_tool_use):
+    """The commands of every hook in a hooks.PreToolUse list, skipping entries of another shape."""
+    return [str(hook.get("command", "")) for group in pre_tool_use if isinstance(group, dict)
+            for hook in (group.get("hooks") if isinstance(group.get("hooks"), list) else [])
+            if isinstance(hook, dict)]
+
+
+def with_squad_hooks(text):
+    """The settings text with every SQUAD_HOOKS entry among its PreToolUse hooks; None when it has them all already.
+    ValueError when the text is no JSON object (the hooks are then added by hand)."""
     data = json.loads(text)
     hooks = data.setdefault("hooks", {}) if isinstance(data, dict) else None
     pre_tool_use = hooks.setdefault("PreToolUse", []) if isinstance(hooks, dict) else None
     if not isinstance(pre_tool_use, list):
         raise ValueError("no JSON object with a hooks.PreToolUse list")
-    if any("git-guard.py" in str(hook.get("command", "")) for group in pre_tool_use if isinstance(group, dict)
-           for hook in (group.get("hooks") if isinstance(group.get("hooks"), list) else [])
-           if isinstance(hook, dict)):
+    commands = hook_commands(pre_tool_use)
+    missing = [hook for script, hook in SQUAD_HOOKS.items() if not any(script in command for command in commands)]
+    if not missing:
         return None
-    pre_tool_use.append(GIT_GUARD_HOOK)
+    pre_tool_use.extend(missing)
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
-def merge_git_guard(target, emit, report):
-    """Add the git-guard hook to the target's existing .claude/settings.json."""
+def merge_squad_hooks(target, emit, report):
+    """Add the squad's missing hooks to the target's existing .claude/settings.json."""
     path = target_path(target, CLAUDE_SETTINGS)
     try:
-        text = with_git_guard(read(path))
+        text = with_squad_hooks(read(path))
     except ValueError as error:
-        report.append(("conflict", f"{CLAUDE_SETTINGS} ({error}: add the PreToolUse hook for Bash running "
-                                   ".claude/hooks/git-guard.py by hand)"))
+        report.append(("conflict", f"{CLAUDE_SETTINGS} ({error}: add the PreToolUse hooks for Bash running "
+                                   ".claude/hooks/git-guard.py and for Write|Edit|MultiEdit|NotebookEdit running "
+                                   ".claude/hooks/file-guard.py by hand)"))
         return
     if text is None:
         report.append(("kept", CLAUDE_SETTINGS))
@@ -654,7 +666,7 @@ def write_seeds(target, seeds, names, crlf, emit, report):
     for rel, src in sorted(seeds.items()):
         skipped = seed_skip_reason(target, rel, names, existing)
         if rel == CLAUDE_SETTINGS and skipped and skipped[0] == "kept":
-            merge_git_guard(target, emit, report)
+            merge_squad_hooks(target, emit, report)
         elif skipped:
             report.append(skipped)
         else:

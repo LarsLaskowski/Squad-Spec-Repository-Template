@@ -16,7 +16,8 @@ Checks, without arguments:
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
   filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
   files the template no longer manages (`RETIRED` in `apply-template.py`) are gone and a line that still refers
-  to one is reported; a `CLAUDE.md` that still holds the rules (the layout before `AGENTS.md` held them) has its
+  to one is reported; a `.claude/settings.json` that declares only the Git guard (the template before the file guard)
+  gets the file guard added; a `CLAUDE.md` that still holds the rules (the layout before `AGENTS.md` held them) has its
   project blocks carried into `AGENTS.md` and is replaced by the core one; `.github/copilot-instructions.md`
   carries the body of `AGENTS.md`, and `config-check.py` fails once the two differ or `CLAUDE.md` stops importing
   `AGENTS.md`;
@@ -179,7 +180,7 @@ def check_agents_and_skills(base, errors):
         check_front_matter(path, os.path.splitext(os.path.basename(path))[0], errors)
 
 
-CORE_HOOKS = [os.path.join(CLAUDE_DIR, "hooks", "git-guard.py"), os.path.join(CLAUDE_DIR, "hooks", "install-linters.sh")]
+CORE_HOOKS = [os.path.join(CLAUDE_DIR, "hooks", name) for name in ("git-guard.py", "file-guard.py", "install-linters.sh")]
 
 
 def check_relative_links(errors):
@@ -360,6 +361,7 @@ def smoke_profiles(names, errors):
         fill_placeholders(target)
         plant_retired(target)
         plant_legacy_rules(target)
+        plant_git_guard_only(target)
         # a refresh names no profile: the recorded ones are kept
         refresh = apply(target)
         if refresh.returncode != 0:
@@ -372,11 +374,29 @@ def smoke_profiles(names, errors):
             check_multi(names, target, errors)
 
 
+CLAUDE_SETTINGS = os.path.join(CLAUDE_DIR, "settings.json")
+FILE_GUARD = "file-guard.py"
+
+
+def plant_git_guard_only(target):
+    """Turn the target's settings into those of the template before the file guard: the Git guard's hook only."""
+    path = os.path.join(target, CLAUDE_SETTINGS)
+    with open(path, encoding="utf-8") as handle:
+        settings = json.load(handle)
+    settings["hooks"]["PreToolUse"] = [group for group in settings["hooks"]["PreToolUse"]
+                                       if FILE_GUARD not in json.dumps(group)]
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(settings, handle, indent=2)
+
+
 def check_refresh(label, target, refresh, errors):
-    """The refresh removed the retired files, reported the reference to one of them, and config-check passes."""
+    """The refresh removed the retired files, reported the reference to one of them, added the file guard to the
+    settings, and config-check passes."""
     for rel in RETIRED_SAMPLE:
         if os.path.exists(os.path.join(target, rel)):
             errors.append(f"profile {label}: refresh kept the retired file {rel}")
+    if FILE_GUARD not in read(os.path.join(target, CLAUDE_SETTINGS)):
+        errors.append(f"profile {label}: refresh did not add the {FILE_GUARD} hook to an existing {CLAUDE_SETTINGS}")
     if f"{STALE_REFERENCE}:1: " not in refresh.stdout or "References to removed files" not in refresh.stdout:
         errors.append(f"profile {label}: refresh does not report the reference to a retired file in "
                       f"{STALE_REFERENCE}")

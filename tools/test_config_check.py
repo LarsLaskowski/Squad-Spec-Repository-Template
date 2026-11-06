@@ -1,7 +1,8 @@
-"""Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces):
-run `python3 -m unittest discover tools`."""
+"""Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
+the members' guards declared in .claude/settings.json): run `python3 -m unittest discover tools`."""
 import glob
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -202,6 +203,44 @@ class TestTargetWithoutYaml(unittest.TestCase):
         self.assertTrue(any("squad-dev.md: " in line for line in with_yaml[1]))
         self.assertTrue(any("'its interface' is the seed's placeholder text" in line for line in with_yaml[1]))
         self.assertFalse([line for line in with_yaml[1] if "placeholder" not in line and "squad-dev.md" not in line])
+
+
+class TestSquadGuards(unittest.TestCase):
+    """.claude/settings.json runs each of the members' guards for the tools it checks."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.seed = json.loads(read(os.path.join(ROOT, "seed", ".claude", "settings.json")))
+
+    def test_each_guard_is_required_for_its_tools(self):
+        for script, tools in self.script.SQUAD_GUARDS:
+            self.assertTrue(self.script.declares_hook(self.seed, script, tools), script)
+        file_guard = self.script.FILE_GUARD
+        only_write = {"hooks": {"PreToolUse": [{"matcher": "Write|MultiEdit", "hooks": [
+            {"type": "command", "command": "python3 .claude/hooks/file-guard.py"}]}]}}
+        self.assertFalse(self.script.declares_hook(only_write, file_guard, ("Write", "Edit")), "Edit is not in the matcher")
+        no_command = {"hooks": {"PreToolUse": [{"matcher": "Write|Edit|MultiEdit|NotebookEdit", "hooks": [
+            {"type": "command", "command": "python3 .claude/hooks/git-guard.py"}]}]}}
+        self.assertFalse(self.script.declares_hook(no_command, file_guard, ("Write", "Edit")))
+        for odd in ({"hooks": {"PreToolUse": [5, {"matcher": 7}, {"matcher": "Write", "hooks": 5}]}},
+                    {"hooks": {"PreToolUse": 5}}, {"hooks": []}, {}):
+            self.assertFalse(self.script.declares_hook(odd, file_guard, ("Write",)), odd)
+
+    def test_settings_without_the_file_guard_are_reported(self):
+        old = {"hooks": {"PreToolUse": [self.seed["hooks"]["PreToolUse"][0]]}}
+        with tempfile.TemporaryDirectory() as repo:
+            for script, _ in self.script.SQUAD_GUARDS:
+                write(os.path.join(repo, script), "")
+            write(os.path.join(repo, self.script.CLAUDE_SETTINGS), json.dumps(old))
+            errors = []
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                self.script.check_guards(errors)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("file-guard.py", errors[0])
 
 
 if __name__ == "__main__":

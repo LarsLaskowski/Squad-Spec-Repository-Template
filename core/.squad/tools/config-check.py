@@ -9,10 +9,11 @@ it. This script checks, without arguments:
 - every `.claude/agents/*.md` and every `SKILL.md` under `.claude/skills/` has front matter that parses as
   YAML, with a non-empty `name` and `description`;
 - an agent's `name` equals its file name, a skill's `name` equals its folder name;
-- `.claude/settings.json` declares the `PreToolUse` hook `.claude/hooks/git-guard.py` for `Bash`, and that hook
-  exists: it keeps Git and GitHub write operations out of the squad members' hands (declared in the project
-  settings, because Claude Code skips a project agent's front-matter hooks without workspace trust, as in a cloud
-  session); every squad agent (`squad-*.md`) names its `model` as an alias (`haiku`, `sonnet`, `opus`) and an
+- `.claude/settings.json` declares the `PreToolUse` hooks `.claude/hooks/git-guard.py` for `Bash` and
+  `.claude/hooks/file-guard.py` for `Write`, `Edit`, `MultiEdit` and `NotebookEdit`, and both hooks exist: they keep
+  Git and GitHub write operations and the files a member does not own out of the squad members' hands (declared in
+  the project settings, because Claude Code skips a project agent's front-matter hooks without workspace trust, as in
+  a cloud session); every squad agent (`squad-*.md`) names its `model` as an alias (`haiku`, `sonnet`, `opus`) and an
   explicit `effort`;
 - `AGENTS.md` (the rules every agent reads) and its GitHub Copilot mirror `.github/copilot-instructions.md` exist
   and are identical from their first `## ` heading on (only the title and introduction differ; Claude Code `@path`
@@ -52,6 +53,9 @@ GITHUB_DIR = ".github"
 SQUAD_DIR = ".squad"
 AGENTS_DIR = os.path.join(CLAUDE_DIR, "agents")
 GIT_GUARD = os.path.join(CLAUDE_DIR, "hooks", "git-guard.py")
+FILE_GUARD = os.path.join(CLAUDE_DIR, "hooks", "file-guard.py")
+# The members' guards and the tools the project settings must run each one for.
+SQUAD_GUARDS = [(GIT_GUARD, ("Bash",)), (FILE_GUARD, ("Write", "Edit", "MultiEdit", "NotebookEdit"))]
 CLAUDE_SETTINGS = os.path.join(CLAUDE_DIR, "settings.json")
 MODELS = ("haiku", "sonnet", "opus")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
@@ -234,31 +238,39 @@ def check_squad_agent(path, data, errors):
         errors.append(f"{path}: 'effort' must be set to one of {', '.join(EFFORTS)}")
 
 
-def declares_git_guard(data):
-    """True when the settings' hooks.PreToolUse has a Bash matcher with a command that runs git-guard.py."""
-    groups = (data.get("hooks") or {}).get("PreToolUse") if isinstance(data.get("hooks"), dict) else None
-    for group in groups or []:
-        if not isinstance(group, dict) or "Bash" not in str(group.get("matcher", "")):
-            continue
-        for hook in group.get("hooks") or []:
-            if isinstance(hook, dict) and os.path.basename(GIT_GUARD) in str(hook.get("command", "")):
-                return True
-    return False
+def runs_script(group, script, tools):
+    """Whether a hooks.PreToolUse group's matcher names every one of the tools and one of its hooks runs the script."""
+    if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+        return False
+    matcher = str(group.get("matcher", ""))
+    return all(re.search(rf"\b{tool}\b", matcher) for tool in tools) and any(
+        isinstance(hook, dict) and os.path.basename(script) in str(hook.get("command", "")) for hook in group["hooks"])
 
 
-def check_git_guard(errors):
-    """The members' Git guard exists and the project settings run it before every Bash call."""
-    if not os.path.isfile(GIT_GUARD):
-        errors.append(f"{GIT_GUARD} is missing (written by adopt-template)")
+def declares_hook(data, script, tools):
+    """True when the settings' hooks.PreToolUse has a group whose matcher names every one of the tools and whose
+    command runs the script."""
+    hooks = data.get("hooks")
+    groups = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    return isinstance(groups, list) and any(runs_script(group, script, tools) for group in groups)
+
+
+def check_guards(errors):
+    """The members' guards exist and the project settings run each one before the tool calls it checks."""
+    for script, _ in SQUAD_GUARDS:
+        if not os.path.isfile(script):
+            errors.append(f"{script} is missing (written by adopt-template)")
     try:
         with open(CLAUDE_SETTINGS, encoding="utf-8-sig") as handle:
             settings = json.load(handle)
     except (OSError, ValueError) as error:
-        errors.append(f"{CLAUDE_SETTINGS} cannot be read ({error}); a refresh with adopt-template adds the git-guard hook")
+        errors.append(f"{CLAUDE_SETTINGS} cannot be read ({error}); a refresh with adopt-template adds the squad's hooks")
         return
-    if not isinstance(settings, dict) or not declares_git_guard(settings):
-        errors.append(f"{CLAUDE_SETTINGS}: no PreToolUse hook for Bash running {GIT_GUARD} (squad members never run "
-                      "Git writes; a refresh with adopt-template adds it)")
+    for script, tools in SQUAD_GUARDS:
+        if not isinstance(settings, dict) or not declares_hook(settings, script, tools):
+            errors.append(f"{CLAUDE_SETTINGS}: no PreToolUse hook for {'|'.join(tools)} running {script} (it keeps the "
+                          "squad members to the Git and file rules of .squad/team.md; a refresh with adopt-template "
+                          "adds it)")
 
 
 def check_skills(errors):
@@ -403,7 +415,7 @@ def main():
     for path in agents:
         check(path, os.path.splitext(os.path.basename(path))[0], errors, agent=True)
     if agents:
-        check_git_guard(errors)
+        check_guards(errors)
     skills = check_skills(errors)
     check_instructions(errors)
     check_template_record(errors)

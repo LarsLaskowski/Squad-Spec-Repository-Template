@@ -470,3 +470,23 @@ Seluna#148 as 9 / 817,445, Seluna#150 as 11 / 529,734 and Censio#99 as 25 / 1,40
 `standard` 0.82 M and Censio `security` 1.77 M. The session figures count the whole session, the orchestrator and
 the cache reads included (#234), so they get four columns of their own (input, output, cache read, cache write)
 instead of standing in for the run metrics.
+
+## config-check.py without PyYAML, decision-check.py before the first release, seed text without braces (config-check.py; decision-check.py)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #250). `create-pr` step 4, `squad-reviewer.md`
+(*Inputs*) and `adopt-template` step 9 run `config-check.py`, which stopped with "PyYAML is required" on a plain
+Python 3.12 in every consumer; only its docstring named the dependency, no `stack.md` seed, SessionStart hook or
+README. Installing PyYAML from the hooks would add a network step to every session start and still fail where pip
+cannot reach its index, so the script reads the front matter itself when PyYAML is missing: the agents and skills
+use `key: value` lines, quoted values, block scalars and lists, and the built-in parser still refuses what made
+Claude Code drop a file, above all an unquoted value with `: `. PyYAML stays the parser where it is installed;
+a test applies the template and compares the findings of both. `decision-check.py` warned "no local 'v*' tags
+although a remote is configured" in every repository before its first release and then treated each record as
+possibly released, which LarsLaskowski/Censio met until its first tag on 2026-11-05 (LarsLaskowski/Censio#58);
+it now asks the remotes with `git ls-remote --tags` and warns only when one has a release tag or cannot be asked.
+Censio's `.squad/project.md` kept the seed's integration-surface bullets with their braces removed ("its
+interface", "registration and lifetime", "the test double in the test project", "the component list in
+`docs/ARCHITECTURE.md`"), which `config-check.py` found only by the braces; it now also reports a bullet of a
+seeded file that reads like a seed bullet's placeholder. Censio's *Guarantees* section said "None recorded yet"
+although accepted records such as 0019 state deliberate behavior; no text comparison can tell that, so it stays
+with `adopt-template` step 6, which fills the guarantees from the decision records.

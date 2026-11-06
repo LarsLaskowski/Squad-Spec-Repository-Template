@@ -857,3 +857,57 @@ edits, sends a hit the Dev did not confirm back to the Dev and the rest to the R
 Dev and a full code check (`trivial`, `standard`, `security`); a `patch` changes a literal or a configuration value
 more often than any other tier, but its step 7 runs only *Gates of a patch* and it has no Dev to route a hit to, so
 adding the tool there is a change of that table and of who fixes a hit in a `patch`.
+
+## Deterministic rules in a tool: the next step and the gate stamp (squad-next.py; gate-stamp.py; squad-log.py `--summary`; routing.md, Gates of a patch, Pipeline steps 7–9, Plan challenge and PR approval; orchestration.md, Launch model and Continuing a member; squad-issue and squad-spec; AGENTS.md of the template, Writing rules)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #238). The orchestrator carried about 12,000 words
+of procedure through runs of several hours (`squad-issue` 2,889, `orchestration.md` 2,502, `routing.md` 5,226,
+`team.md` 1,309), and the rules it lost were the mechanical ones, each lesson so far answered by another sentence:
+
+- the Tester without `model: opus` in a `security` run: LarsLaskowski/Vandox#301, LarsLaskowski/Vandox#314 and
+  LarsLaskowski/Seluna#140, before them LarsLaskowski/Censio#11;
+- the continuation cap: LarsLaskowski/Seluna#108 continued the Tester ten times (about 368k tokens) and the Dev eight
+  times;
+- gates taken from a member's report instead of the orchestrator's run: LarsLaskowski/Vandox#305 ("Dev reported
+  Coverage gate PASS"), LarsLaskowski/Vandox#304 ("per Tester"), LarsLaskowski/Vandox#329 ("analyzer clean
+  (Tester)");
+- the grep for plan-named tests before step 7 skipped: LarsLaskowski/Vandox#337 (two deferred tests never written,
+  found by the Reviewer) and LarsLaskowski/PlexToJellyfinSync#233 (the coverage launch skipped, three tests missing);
+- rows or steps missing: steps 10 and 11 in LarsLaskowski/Vandox#305, #300, #291 and #329, step 12 in
+  LarsLaskowski/Censio#15 and #16;
+- the wrong review set: LarsLaskowski/Vandox#307 ran a Security diff review on a `standard` tier.
+
+`squad-next.py` is run after every row and prints the next step instead of asking the orchestrator to remember it.
+It reads the state from the log, so the step cells it prints are the ones it reads back (`6 Implement (G2)`,
+`8 Review delta`), and verdicts come from the `VERDICT:`/`RESULT:` line the members already end or start their
+reports with; a row without one is named and both ways are printed, rather than guessed. It decides fresh or
+continued from the launch trailers `squad-log.py` writes (continuations, tokens, the model a launch ran on), so the
+cap and the model rule of *Continuing a member* are applied before the launch; `squad-log.py` still warns after it.
+It runs `plan-check.py` and `--matrix` itself, which is what was skipped in Vandox#337 and PlexToJellyfinSync#233.
+Judgment stays with the orchestrator: whether the Tester's coverage pass is due, whether a decision is open at step
+9, who owns a finding; for those the script prints the conditions and both launches. A launch the log cannot foresee
+— a CI failure or a review comment in step 11 — is asked for with `--launch squad-<role> <mode>`.
+
+The gate stamp is a tool of its own rather than a mode of `squad-log.py`, which only writes and sums rows; it writes
+its row through `squad-log.py`'s writer and shares its `--stdin` path after step 10. It names a commit, not a working
+tree: it refuses to run while a file outside `specs/` is changed or untracked, and a stamp counts for every later head
+whose code (everything outside `specs/`) is the same, so the bookkeeping commits of the log do not stale it. That
+moves "run the gates, then commit" to "commit, then run the gates"; a commit is local, and the push still follows the
+passing stamp. The gates are the ones of step 7 by tier, read by name from `stack.md` (the first code span of the
+row, every profile's row in a repository with several profiles), and for a `patch` the rows of *Gates of a patch* by
+the kind of each changed file, which the orchestrator used to pick "without judgment" by hand. *Test (project)*
+needs the project of the changed code, which no script can name: `--project NAME=VALUE` fills its placeholder, and
+without it *Test* runs, the next broader gate the rule already names. A verbatim documentation fix needs only *Format
+check*, `scope-check.py` and `decision-check.py` and no delta round, so `--verbatim` stamps exactly that, and only on
+top of a passing full stamp with a documentation-only difference; otherwise every verbatim fix would have run the full
+suite again. A merge of `main` that took both sides unchanged needs the gates again but no review round (*Merge
+conflicts*): `squad-next.py` keeps the earlier round when the commits since its stamp are such merges alone (no combined
+diff). `--verify` is the first item of the step-9 checklist; `squad-log.py --summary` exits 6 without a passing stamp
+on the code head, but only when the branch changes code outside `specs/` (a run that ends in *Outcome "no change"* has
+nothing to stamp) and without the check of `main`, which may move on before the wrap-up.
+
+The rule files lost the procedure the tools now carry: which gates step 7 runs and in what order, who picks the rows of
+a `patch`, the model of the first Tester launch, the examples and the logging options of *Continuing a member*, the
+fresh launches spelled out in `squad-issue` steps 6 and 9, and the plan-check runs of both skills. The rule that a
+deterministic lesson goes into a tool, with the rule text becoming a pointer, is in the template's `AGENTS.md`
+(*Writing rules*), so the next lesson of this kind does not add a sentence.

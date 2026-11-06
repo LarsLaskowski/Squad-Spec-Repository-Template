@@ -21,3 +21,6 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   refresh retires the process records older versions added once (`adopt-template` step 8) (#247)
 - [Tools] `figure-check.py` lists the documentation lines that still state a value the diff changed; the Dev runs it
   with the documentation and step 7 runs it again (`FIGURE_TRIVIAL`, `FIGURE_EXCLUDES` in `squad_settings.py`) (#237)
+- [Tools] `squad-next.py` prints the orchestrator's next step with its exact launch, and `gate-stamp.py` runs the
+  step-7 gates of the tier and logs them with the head SHA; step 9 (`--verify`) and `squad-log.py --summary` (exit 6)
+  refuse a head without a passing stamp (#238)

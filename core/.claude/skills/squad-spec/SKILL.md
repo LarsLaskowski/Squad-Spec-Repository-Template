@@ -28,9 +28,9 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
    folder. It writes `spec.md` from `specs/_template/spec.md` and returns `RESULT: DONE`, `RESULT: NO CHANGE`
    (the feature exists already or contradicts an accepted decision: with an issue, as *Outcome "no change"*;
    otherwise report it to the user) or `RESULT: ESCALATE` (relay the question verbatim, then continue the Lead
-   with the answer). Run `python3 .squad/tools/plan-check.py <folder> --spec` after every Lead write; findings
-   as *Loop limits* (Plan check) says. Its size warning goes back to the Lead once (mode `revise`): it shortens
-   the spec, or keeps it and gives the reason in its result, which you log. A small feature's spec (mode `spec`
+   with the answer). `squad-next.py` runs `plan-check.py --spec` after every Lead write and sends findings back as
+   *Loop limits* (Plan check) says, and its size warning once: the Lead shortens the spec, or keeps it and gives the
+   reason in its result, which you log. A small feature's spec (mode `spec`
    in `squad-lead.md`) runs the same steps. A feature whose change is documentation only gets `RESULT: DONE` with
    tier `docs` and no `spec.md`: run the `docs` route of `squad-issue` step 2 instead of the rest of steps 2–3
    (the working record is `log.md` alone).
@@ -47,22 +47,21 @@ cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed af
    only after the answer.
 2b. **Plan.** Continue the Lead's last launch in mode `plan` with the work folder (*Continuing a member*): it
    closes the spec (answers its *Challenge notes*, sets its status) and writes `plan.md` and `tasks.md`. A
-   feature is never `patch` (`docs`: step 2a). Run `python3 .squad/tools/plan-check.py <folder>` after every Lead
-   write, before anyone else reads the plan; findings as *Loop limits* says. Then the **plan challenge** with
+   feature is never `patch` (`docs`: step 2a). `squad-next.py` runs `plan-check.py` after every Lead write, before
+   anyone else reads the plan; findings as *Loop limits* says. Then the **plan challenge** with
    `squad-devils-advocate` in mode `plan` when *Plan challenge* calls for it (the verdict `plan-check.py`
    prints), routed as `squad-issue` step 2 says.
 3. **Plan security review** whenever *Security areas touched* is not "none": `squad-security` in mode `plan`
    reviews `spec.md` and `plan.md` together, in parallel with the plan challenge, and the loop of
-   `squad-issue` step 3 applies. Run `plan-check.py` again after every Lead revision.
+   `squad-issue` step 3 applies.
 
 ## Steps 4–12: as in `squad-issue`, with these changes
 
 - **Steps 4–6** run per task group — the *Group* column of `tasks.md`, in table order; tick tasks off as they
   are done. The Tester's tests first are the tests *Tests per criterion* names for the group's
-  criteria; in a tier-`security` run every Tester launch, the first one included, passes `model: opus`
-  (*Launch model*). The next task group continues each member's last agent of the same mode, as do the fix and delta
-  rounds (*Continuing a member*); log such a launch with `--continued-from "<step cell of that agent's fresh
-  launch>"`. The documentation rows are the Dev's, done once the last group's *Coverage gate* passes (`squad-issue`
+  criteria. `squad-next.py` reads the group from the step cell (`4 Skeleton (G2)`) and prints each group's launches
+  with their model (*Launch model*) and the agent of the same mode they continue (*Continuing a member*). The
+  documentation rows are the Dev's, done once the last group's *Coverage gate* passes (`squad-issue`
   step 6; *Documentation* in `squad-dev.md`).
 - **Code-free changes:** as *Changes without production or test code*; *Verification without tests* then
   covers each criterion of the spec.

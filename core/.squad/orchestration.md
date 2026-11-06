@@ -91,11 +91,10 @@ lessons`; `squad-log.py --summary` exits 5 without it and lists the candidates t
 ## Launch model
 
 Every member is launched with the model and effort of its agent file, except: every `squad-tester` launch of a run
-whose `plan.md` names tier `security` gets `model: opus` (effort unchanged); a continued agent keeps the model it
-was launched with, so the first Tester launch of such a run already passes `model: opus` explicitly.
-`squad-log.py --agent-id` logs the model and effort a launch really ran on and warns when they differ from the
-agent file or this override. Outside Claude Code, log such a launch with
-`--launch opus/<effort>` instead of `--agent squad-tester` (the script refuses `--agent` alone there).
+whose `plan.md` names tier `security` gets `model: opus` (effort unchanged), passed explicitly from the first launch
+on. `squad-next.py` prints the model of every launch; `squad-log.py --agent-id` logs the model and effort a launch
+really ran on and warns when they differ from the agent file or this override. Outside Claude Code, log such a launch
+with `--launch opus/<effort>` instead of `--agent squad-tester` (the script refuses `--agent` alone there).
 
 ## Continuing a member
 
@@ -103,16 +102,13 @@ A fix round or a delta round of the same member within the same run continues th
 (`SendMessage` to its agent id, or the Agent tool's resume) with the findings and the new head SHA, instead
 of a fresh launch. The same holds for the Lead within step 2: its `revise` rounds after `plan-check.py` or a
 challenge, and for a feature mode `plan` after mode `spec`. The next task group of a feature continues the
-member's last agent of the same mode (the Dev's `skeleton` agent for the next skeleton, its `implement` agent for
-the next implementation, the Tester's `tests-first` and `coverage` agents likewise) with the group's task rows and
-the head SHA. A fresh launch stays the rule for the first launch of any other mode, after a
-session restart (the agent id is gone) and when the previous launch ended on an API error. Once an agent has been continued five times or its
-reported tokens pass 300,000, the next round is a fresh launch with a short hand-over — the plan or task
-group, what the earlier rounds settled, the open findings and the head SHA. An agent that ran on another model
-than *Launch model* names is never continued: its next round is a fresh launch with the right model and the
-same hand-over, logged without `--continued` or `--continued-from`. A continuation is logged as a
-launch with `--continued` or `--continued-from` (`squad-issue`, step 1); what a continued member may do is in
-`team.md` (*Shared rules*).
+member's last agent of the same mode with the group's task rows and the head SHA. A fresh launch stays the rule
+for the first launch of any other mode, after a session restart (the agent id is gone) and when the previous
+launch ended on an API error. Once an agent has been continued five times or its reported tokens pass 300,000, and
+when it ran on another model than *Launch model* names, its next round is a fresh launch with a short hand-over —
+the plan or task group, what the earlier rounds settled, the open findings and the head SHA. `squad-next.py` names
+for every launch the agent it continues, or why it is fresh, and the `squad-log.py` options that log it; what a
+continued member may do is in `team.md` (*Shared rules*).
 
 ## Commits
 

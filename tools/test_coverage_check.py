@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 
@@ -89,6 +90,67 @@ class TestExcludeMatchingNoFile(unittest.TestCase):
             with open(name, "w") as handle:
                 handle.write("export {};\n")
         self.assertEqual(self.script.production_files("--others", "--exclude-standard"), {"src/new.ts"})
+
+
+class TestStaleReport(unittest.TestCase):
+    """A report older than the last change of a tracked production or test file (a merge, a formatter, an edit after
+    the test run) counts lines that have moved: the gate refuses it and asks for *Test with coverage* again."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.previous = os.getcwd()
+        self.dir = tempfile.TemporaryDirectory()
+        os.chdir(self.dir.name)
+        git("init", "-q", "-b", "main")
+        for name in ("a.go", "a_test.go", "coverage.out"):
+            with open(name, "w") as handle:
+                handle.write("package a\n")
+        git("add", "a.go", "a_test.go")
+        git("commit", "-q", "-m", "base")
+        self.start = time.time() - 1000
+        for name, age in (("a.go", 0), ("a_test.go", 0), ("coverage.out", 10)):
+            self.touch(name, age)
+
+    def tearDown(self):
+        os.chdir(self.previous)
+        self.dir.cleanup()
+
+    def touch(self, name, seconds):
+        os.utime(name, (self.start + seconds, self.start + seconds))
+
+    def assert_refused(self, newest):
+        with self.assertRaises(SystemExit) as raised:
+            self.script.refuse_stale_reports()
+        self.assertIn(f"last change of {newest}", str(raised.exception.code))
+        self.assertIn("Run *Test with coverage*", str(raised.exception.code))
+
+    def test_report_written_after_the_last_change_is_accepted(self):
+        self.assertIsNone(self.script.refuse_stale_reports())
+
+    def test_production_file_changed_after_the_report_is_refused(self):
+        self.touch("a.go", 20)
+        self.assert_refused("a.go")
+
+    def test_test_file_changed_after_the_report_is_refused(self):
+        self.touch("a_test.go", 20)
+        self.assert_refused("a_test.go")
+
+    def test_untracked_and_unmeasured_files_do_not_count(self):
+        for name in ("b.go", "README.md"):
+            with open(name, "w") as handle:
+                handle.write("package a\n")
+        git("add", "README.md")
+        self.touch("b.go", 20)
+        self.touch("README.md", 20)
+        self.assertIsNone(self.script.refuse_stale_reports())
+
+    def test_oldest_of_several_reports_decides(self):
+        with open("lcov.info", "w") as handle:
+            handle.write("SF:a.go\nDA:1,1\nend_of_record\n")
+        self.touch("lcov.info", 2)
+        self.touch("a.go", 5)  # older than coverage.out, newer than lcov.info
+        self.script.settings.COVERAGE_REPORTS = [("go", "coverage.out"), ("lcov", "lcov.info")]
+        self.assert_refused("a.go")
 
 
 class TestSeveralReports(unittest.TestCase):

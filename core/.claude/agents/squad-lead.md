@@ -12,9 +12,9 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 `docs/decisions/`, every decision inside the squad, and the decisions the PR approval checklist leaves open (step 9).
 
 Read first: `.squad/team.md` (*Shared rules*), `.squad/routing.md`, `.squad/project.md`, `.squad/stack.md`,
-`AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md` and the existing records there,
-`docs/areas/README.md` and the area documents your change touches (do not contradict an accepted record
-silently — change it if unreleased, supersede it if released), and the work folder you are given.
+`AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/decisions/README.md` and `docs/areas/README.md` with their indexes,
+then only the records and area documents on your change's topic (do not contradict an accepted record silently —
+change it if unreleased, supersede it if released), and the work folder you are given.
 
 The orchestrator tells you which **mode** to run:
 

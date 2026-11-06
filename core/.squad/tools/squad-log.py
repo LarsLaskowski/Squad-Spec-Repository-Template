@@ -86,6 +86,12 @@ mechanics out of the orchestrator's hands:
   continued from <step>)`, and the amend with the numbers (with or without the continuation options) completes it
   as that continuation.
 
+- the wrap-up's lessons row is an Orchestrator row at step 12 whose result names the URL of every lesson issue,
+  or is exactly `no lessons` (`.squad/orchestration.md`, *Squad lessons*); the summary fails without one and, while
+  there is none or it says `no lessons`, lists on standard error the lesson candidates the log shows: Lead
+  `decide` launches, loop limits, launches whose usage was never reported, continuations past the cap or into
+  another mode, and launches on another model or effort than their agent file or *Launch model* names;
+
 - `--stdin` reads the log from standard input instead of `specs/<folder>/log.md`, for the rows after step 10
   of `squad-issue` removed the folder: pipe the log table of the "Squad working record" comment in, the result
   of the command goes to standard error and the whole updated log to standard output (paste it back into the
@@ -138,7 +144,7 @@ error. Exit code 0 when the row was written, amended or
 the summary is complete, 1 when the folder has no `log.md`, the agent file is unknown, `--agent-id` finds no
 transcript of that agent in the session, no row can be amended or replaced, or `--continued` finds no earlier usage
 of the member (`--continued-from`: no fresh launch of that step), 3 when the summary lists launch rows without
-usage, 4 when commits after the pull request have no review row after them.
+usage, 4 when commits after the pull request have no review row after them, 5 when no step-12 lessons row exists.
 """
 import argparse
 import collections
@@ -180,6 +186,12 @@ ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 SPECS_PREFIX = "specs/"
 FOLDER_NAME = re.compile(r"\w[\w.-]*")
 FIX_STEP = re.compile(r"^\s*11\b")
+# The step-12 lessons row (.squad/orchestration.md, *Squad lessons*): a lesson issue's URL, or exactly "no lessons".
+LESSONS_STEP = re.compile(r"^\s*12\b")
+ISSUE_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
+NO_LESSONS = "no lessons"
+DECIDE = re.compile(r"\bdecide\b", re.I)
+LOOP_LIMIT = re.compile(r"\bloop limit", re.I)
 # Continuing a member (.squad/orchestration.md): after this many continuations, or once the agent's reported
 # tokens reach this figure, the next round is a fresh launch with a hand-over.
 CONTINUATION_CAP = 5
@@ -1039,7 +1051,7 @@ def row_command(parser, path, args, launch):
 
 def summary_command(root, folder, path, session=None):
     """Print the summary; the exit code: 3 with launch rows still without usage, 4 with unreviewed fixes after
-    the pull request."""
+    the pull request, 5 without a step-12 lessons row (`lessons_check`)."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
     print(summary(path, orchestrator_usage(rows, session)))
@@ -1049,7 +1061,79 @@ def summary_command(root, folder, path, session=None):
     if note:
         print(note, file=sys.stderr)
         return 4
-    return 0
+    return lessons_check(root, path, rows)
+
+
+def lessons_rows(rows):
+    """The results of the Orchestrator's step-12 rows that name a lesson issue's URL or say exactly "no lessons"."""
+    return [result for _, step, member, result in rows if LESSONS_STEP.match(step) and member == "Orchestrator"
+            and (ISSUE_URL.search(result) or result.strip().lower() == NO_LESSONS)]
+
+
+def lessons_check(root, path, rows):
+    """0 once a step-12 lessons row exists, else 5 with a note; while there is none, or the last one says "no
+    lessons", the log's lesson candidates go to standard error."""
+    found = lessons_rows(rows)
+    candidates = lesson_candidates(root, path, rows) if not found or found[-1].strip().lower() == NO_LESSONS else []
+    if candidates:
+        print("Lesson candidates in this log; compare them with \"no lessons\" (.squad/orchestration.md, *Squad "
+              "lessons*): " + "; ".join(candidates), file=sys.stderr)
+    if found:
+        return 0
+    print("No lessons row: log one Orchestrator row at step 12 whose result names the URL of every lesson issue, or "
+          "is exactly \"no lessons\" (.squad/orchestration.md, *Squad lessons*), and run the summary again.",
+          file=sys.stderr)
+    return 5
+
+
+def lesson_candidates(root, path, rows):
+    """What the log shows of the lesson candidates of `.squad/orchestration.md`, *Squad lessons*: Lead `decide`
+    launches, loop limits, launches whose usage was never reported, continuations past the cap or into another
+    mode, and launches on another model or effort than expected."""
+    found = []
+    for _, step, member, result in rows:
+        if member == "Lead" and DECIDE.search(f"{step} {result}"):
+            found.append(f"`{step} · {member}`: a Lead decide launch")
+        elif LOOP_LIMIT.search(f"{step} {result}"):
+            found.append(f"`{step} · {member}`: a loop limit")
+    found += [f"`{step} · {member}`: usage never reported" for step, member in unreported_usage(rows)]
+    found += [f"`{member} · {', '.join(steps)}`: continued past the cap" for member, steps in over_cap(rows)]
+    found += [f"`{step} · {member}`: continued into another mode" for step, member in mode_changes(rows)]
+    return found + model_mismatches(root, path, rows)
+
+
+def mode_changes(rows):
+    """(step, member) of every continuation logged at another step number than the fresh launch it continues, whose
+    step cell names no fix, delta or revise round (what `mode_change_warning` warns about when it is logged)."""
+    found, fresh = [], {}
+    for _, step, member, result in rows:
+        match = TRAILER.search(result)
+        if match and not match.group("continued"):
+            fresh[member] = step
+        if not match or not match.group("continued"):
+            continue
+        numbers = [STEP_NUMBER.match(text or "") for text in (match.group("origin") or fresh.get(member), step)]
+        if None not in numbers and numbers[0].group(1) != numbers[1].group(1) and not ROUND_OF_SAME_MODE.search(step):
+            found.append((step, member))
+    return found
+
+
+def member_agent(member):
+    """The agent of a member cell: `squad-devils-advocate` for `Devil's Advocate`."""
+    return "squad-" + re.sub(r"[^a-z]+", "-", member.lower().replace("'", "")).strip("-")
+
+
+def model_mismatches(root, path, rows):
+    """A candidate for every launch whose trailer names another model family or effort than its agent file or the
+    default override of *Launch model*."""
+    found = []
+    for _, step, member, result in rows:
+        match = TRAILER.search(result)
+        agent = member_agent(member) if match else None
+        expected = expected_launch(root, path, agent)[0] if agent else None
+        if expected and model_warning(agent, match.group("launch"), expected, False):
+            found.append(f"`{step} · {member}`: ran on {match.group('launch')}, not {expected}")
+    return found
 
 
 def run(parser, args, root, path):

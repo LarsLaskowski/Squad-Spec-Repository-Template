@@ -28,7 +28,8 @@ Rules that hold throughout:
    off `origin/main`. Read its `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `README.md`, `docs/`, `SECURITY.md`, `.claude/`, `.agents/`, `.github/` and its build
    files before changing anything.
    If `.squad/template.json` exists, this is a **refresh**: note its `commit` and `profile`/`profiles` (older
-   records without `repository` get it on this run) and continue with step 3. Seeded files are not
+   records without `repository` get it on this run), move the target's open `squad-upstream` issues here
+   (*Updating the template itself*) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
    with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
@@ -170,8 +171,10 @@ Rules that hold throughout:
 
 ## Updating the template itself
 
-A lesson about a template-managed file is filed as a `squad` issue in this repository (or arrives as a
-`squad-upstream` issue in a target and is moved here). It is fixed here: change `core/` or the profile, run
+A lesson about a template-managed file arrives as a `squad-upstream` issue in a target (squad runs file their
+lessons in their own repository) and is moved here as a `squad` issue: `python3 tools/squad-report.py --upstream`
+(one `--repo` per target) lists the open ones, `--move` moves them in one batch (a new issue here with the title, the
+body and a link back; the original gets a comment linking it and is closed). Without `gh` write access, move each the
+same way with the GitHub tools. A lesson is fixed here: change `core/` or the profile, run
 `python3 tools/template-check.py`, open a PR here, and after its merge refresh every target that has a
-`.squad/template.json` with this skill (README, *Rolling out a change*). On a refresh, also check the
-target for open `squad-upstream` issues and move them here.
+`.squad/template.json` with this skill (README, *Rolling out a change*).

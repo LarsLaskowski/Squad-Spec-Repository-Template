@@ -69,7 +69,7 @@ import shutil
 import subprocess
 import sys
 
-# Where squad lessons about template-managed files are filed; recorded in every target's .squad/template.json.
+# Where the targets' squad-upstream lessons are moved and fixed; recorded in every target's .squad/template.json.
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))

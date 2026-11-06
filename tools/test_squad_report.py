@@ -190,6 +190,46 @@ class TestSquadReport(unittest.TestCase):
         self.assertEqual(report.without_metrics(rows[:2]), [])
 
 
+class TestUpstream(unittest.TestCase):
+    ISSUE = {"number": 7, "title": "[Squad] Tester model (from o/r#3)", "body": "Proposal.", "user": {"login": "me"},
+             "html_url": "https://github.com/o/r/issues/7", "created_at": "2026-11-05T10:00:00Z"}
+
+    def test_upstream_lists_the_open_issues_without_pull_requests(self):
+        lists = {"repos/o/r/issues?state=open&labels=squad-upstream": [self.ISSUE, {"number": 8, "pull_request": {}}],
+                 "repos/o/s/issues?state=open&labels=squad-upstream": []}
+        out = io.StringIO()
+        with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), contextlib.redirect_stdout(out):
+            code = report.main(["--upstream", "--repo", "o/r=key", "--repo", "o/s"])
+        self.assertEqual(code, 0)
+        self.assertIn("| o/r | #7 | 2026-11-05 | [Squad] Tester model (from o/r#3) |", out.getvalue())
+        self.assertNotIn("#8", out.getvalue(), "a pull request is no lesson")
+
+    def test_move_files_the_issue_here_and_closes_the_original(self):
+        writes = []
+
+        def fake_write(method, path, fields):
+            writes.append((method, path, fields))
+            return {"number": 300, "html_url": "https://github.com/t/t/issues/300"} if path == "repos/t/t/issues" else {}
+        with mock.patch.object(report, "gh_list", lambda path, stop=None: [self.ISSUE]), \
+                mock.patch.object(report, "gh_write", fake_write), contextlib.redirect_stdout(io.StringIO()) as out:
+            code = report.main(["--upstream", "--move", "--template", "t/t", "--repo", "o/r"])
+        self.assertEqual(code, 0)
+        (create_method, create_path, created), (_, comment_path, comment), (close_method, close_path, closed) = writes
+        self.assertEqual((create_method, create_path, created["labels"]), ("POST", "repos/t/t/issues", ["squad"]))
+        self.assertIn("Moved from o/r#7 (https://github.com/o/r/issues/7)", created["body"])
+        self.assertTrue(created["body"].endswith("Proposal."))
+        self.assertEqual(comment_path, "repos/o/r/issues/7/comments")
+        self.assertIn("https://github.com/t/t/issues/300", comment["body"])
+        self.assertEqual((close_method, close_path, closed["state"]), ("PATCH", "repos/o/r/issues/7", "closed"))
+        self.assertIn("o/r#7 -> https://github.com/t/t/issues/300", out.getvalue())
+
+    def test_move_needs_upstream_and_the_report_needs_since(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            for args in (["--move", "--repo", "o/r", "--since", "2026-10-01"], ["--repo", "o/r"]):
+                with self.assertRaises(SystemExit):
+                    report.main(args)
+
+
 class TestMainOutput(unittest.TestCase):
     ARGS = ["--repo", "o/r", "--since", "2026-10-01", "--until", "2026-10-02"]
 

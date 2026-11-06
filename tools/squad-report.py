@@ -27,12 +27,18 @@ needed no fix commit, that SonarQube found nothing on, the CI failures per pull 
 weighted figure per tier. Follow-up defects (a later fix of code a run wrote) are not detectable this way and stay a
 reading task.
 
-Usage (needs `gh` with read access to the repositories):
+With `--upstream` it instead lists the open issues labelled `squad-upstream` of the repositories: the squad lessons
+a run filed in its own repository because they concern a template-managed file (`core/.squad/orchestration.md`, *Squad
+lessons*). `--move` moves them here in one batch: each becomes an issue labelled `squad` in the template repository
+with its title, its body and a link back, and the original gets a comment linking the new issue and is closed.
+
+Usage (needs `gh` with read access to the repositories; `--move` also needs write access to their issues):
     python3 tools/squad-report.py --repo LarsLaskowski/Vandox=networlddev_vandox --repo LarsLaskowski/Seluna \\
         --since 2026-10-11 [--until 2026-10-18] [--out report.md]
+    python3 tools/squad-report.py --upstream --repo LarsLaskowski/Vandox --repo LarsLaskowski/Seluna [--move]
 
 `owner/name=sonar-key` adds the SonarQube Cloud project key of that repository. Exit code 0, or 1 when GitHub
-cannot be read.
+cannot be read or written.
 """
 import argparse
 import datetime
@@ -46,6 +52,8 @@ import urllib.parse
 import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
+TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
+UPSTREAM = "squad-upstream"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
 # The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
 # total rows (`session-usage.py`) carry a number in that cell, so they never match; the total row of the table of
@@ -72,6 +80,13 @@ def gh(path):
     """GET a GitHub API path through `gh api`."""
     result = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True)
     return json.loads(result.stdout or "null") or None
+
+
+def gh_write(method, path, fields):
+    """Send `fields` as JSON to a GitHub API path through `gh api` (POST, PATCH); the answer as JSON."""
+    result = subprocess.run(["gh", "api", "-X", method, path, "--input", "-"], input=json.dumps(fields),
+                            capture_output=True, text=True, check=True)
+    return json.loads(result.stdout or "null") or {}
 
 
 def gh_list(path, stop=None):
@@ -313,39 +328,111 @@ def day(value):
     return datetime.date.fromisoformat(value).isoformat()
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="Quality report of squad pull requests.")
-    parser.add_argument("--repo", action="append", required=True, help="owner/name, or owner/name=sonar-project-key")
-    parser.add_argument("--since", required=True, type=day, help="first merge date, YYYY-MM-DD")
-    parser.add_argument("--until", type=day, help="last merge date, YYYY-MM-DD (default: today, UTC)")
-    parser.add_argument("--out", help="write the report to this file instead of printing it")
-    args = parser.parse_args(argv)
-    args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
+def upstream_issues(repo):
+    """The open issues of a repository labelled squad-upstream, pull requests left out."""
+    return [issue for issue in gh_list(f"repos/{repo}/issues?state=open&labels={UPSTREAM}") if "pull_request" not in issue]
+
+
+def upstream_lines(found):
+    """Markdown lines listing the (repository, issue) pairs."""
+    lines = ["| Repository | Issue | Opened | Title |", "| ---------- | ----- | ------ | ----- |"]
+    for repo, issue in found:
+        title = (issue.get("title") or "").replace("|", "\\|")
+        lines.append(f"| {repo} | #{issue['number']} | {(issue.get('created_at') or '')[:10]} | {title} |")
+    return lines
+
+
+def move_issue(repo, issue, template):
+    """Move a squad-upstream issue to the template repository: a new issue labelled `squad` there with its title,
+    its body and a link back, then a comment on the original linking the new issue, and the original closed. The
+    new issue's URL."""
+    number = issue["number"]
+    author = (issue.get("user") or {}).get("login", "")
+    body = (f"Moved from {repo}#{number} ({issue.get('html_url', '')}), opened on {(issue.get('created_at') or '')[:10]} "
+            f"by `{author}` with the label `{UPSTREAM}`.\n\n{issue.get('body') or ''}")
+    created = gh_write("POST", f"repos/{template}/issues",
+                       {"title": issue.get("title") or f"{repo}#{number}", "body": body, "labels": ["squad"]})
+    url = created.get("html_url") or f"{template}#{created.get('number')}"
+    gh_write("POST", f"repos/{repo}/issues/{number}/comments",
+             {"body": f"Moved to {url}: a `{UPSTREAM}` lesson is fixed in the template repository and arrives here "
+                      "with the next refresh (`adopt-template`)."})
+    gh_write("PATCH", f"repos/{repo}/issues/{number}", {"state": "closed", "state_reason": "not_planned"})
+    return url
+
+
+def upstream_command(repos, template, move):
+    """List the open squad-upstream issues of the repositories; with `move`, move each to `template` as it goes."""
+    found = [(repo, issue) for repo in repos for issue in upstream_issues(repo)]
+    if not found:
+        print(f"No open {UPSTREAM} issue in {', '.join(repos)}.")
+        return 0
+    print("\n".join([f"# Open {UPSTREAM} issues", "", *upstream_lines(found)]))
+    if move:
+        print("\nMoved:")
+        for repo, issue in found:
+            print(f"- {repo}#{issue['number']} -> {move_issue(repo, issue, template)}")
+    return 0
+
+
+def report_rows(args):
+    """The rows of every pull request merged in the window, per repository."""
     rows = []
-    try:
-        for entry in args.repo:
-            repo, _, key = entry.partition("=")
-            for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
-                rows.append(pull_request_row(repo, pr, key or None))
-    except subprocess.CalledProcessError as error:
-        detail = str(error.stderr or "").strip() or str(error)
-        print(f"GitHub could not be read: {detail}", file=sys.stderr)
-        return 1
-    except (OSError, ValueError) as error:
-        print(f"GitHub could not be read: {error}", file=sys.stderr)
-        return 1
+    for entry in args.repo:
+        repo, _, key = entry.partition("=")
+        for pr in sorted(merged_in_window(repo, args.since, args.until), key=lambda p: p["merged_at"]):
+            rows.append(pull_request_row(repo, pr, key or None))
+    return rows
+
+
+def write_report(args, rows):
+    """Print the report, or write it to `--out` (a file in the current directory); the exit code."""
     report = "\n".join([f"# Squad report {args.since} to {args.until}", "", "## Totals of squad pull requests", "",
                         *totals(rows), *without_metrics(rows), "", "## Pull requests", "", *table(rows), ""])
-    if args.out:
-        name = os.path.basename(args.out)
-        if not name or name != args.out:
-            print(f"--out must name a file in the current directory: {args.out}", file=sys.stderr)
-            return 1
-        with open(name, "w", encoding="utf-8") as handle:
-            handle.write(report)
-    else:
+    if not args.out:
         print(report)
+        return 0
+    name = os.path.basename(args.out)
+    if not name or name != args.out:
+        print(f"--out must name a file in the current directory: {args.out}", file=sys.stderr)
+        return 1
+    with open(name, "w", encoding="utf-8") as handle:
+        handle.write(report)
     return 0
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Quality report of squad pull requests, or the open squad-upstream "
+                                                 "issues of the repositories (--upstream).")
+    parser.add_argument("--repo", action="append", required=True, help="owner/name, or owner/name=sonar-project-key")
+    parser.add_argument("--since", type=day, help="first merge date, YYYY-MM-DD (required for the report)")
+    parser.add_argument("--until", type=day, help="last merge date, YYYY-MM-DD (default: today, UTC)")
+    parser.add_argument("--out", help="write the report to this file instead of printing it")
+    parser.add_argument("--upstream", action="store_true", help=f"list the open {UPSTREAM} issues instead")
+    parser.add_argument("--move", action="store_true", help="with --upstream: move them to --template")
+    parser.add_argument("--template", default=TEMPLATE_REPOSITORY, help="the template repository (owner/name)")
+    args = parser.parse_args(argv)
+    if args.move and not args.upstream:
+        parser.error("--move goes with --upstream")
+    if not args.upstream and not args.since:
+        parser.error("the report needs --since")
+    args.until = args.until or datetime.datetime.now(datetime.UTC).date().isoformat()
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    try:
+        if args.upstream:
+            return upstream_command([entry.partition("=")[0] for entry in args.repo], args.template, args.move)
+        rows = report_rows(args)
+    except subprocess.CalledProcessError as error:
+        detail = str(error.stderr or "").strip() or str(error)
+        print(f"GitHub could not be read or written: {detail}", file=sys.stderr)
+        return 1
+    except (OSError, ValueError) as error:
+        print(f"GitHub could not be read or written: {error}", file=sys.stderr)
+        return 1
+    return write_report(args, rows)
 
 
 if __name__ == "__main__":

@@ -137,18 +137,20 @@ everything project-specific.
 
 ## Changing the template
 
-Squad lessons are filed where they can be fixed (`core/.squad/orchestration.md`, *Squad lessons*):
+A squad run files its lessons in its own repository, labelled by where they can be fixed
+(`core/.squad/orchestration.md`, *Squad lessons*), so filing needs no access to this repository:
 
 | A lesson about | is filed as | and fixed by |
 | -------------- | ----------- | ------------ |
-| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad` **in this repository**, naming the source repository and run | a PR here, then a rollout |
+| a managed file or the template part of a marked file (squad rules, agents, skills, tools, the template sections of `AGENTS.md`) | an issue labelled `squad-upstream` in the product repository, naming the run | moving it here (below), a PR here, then a rollout |
 | project knowledge (`.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, project blocks) | an issue labelled `squad` in the product repository | a squad-maintenance PR there |
 
-Every target records this repository in `.squad/template.json` (`repository`), so a squad run knows where
-to file. A general lesson is always filed here: the session attaches this repository first if needed. Only a
-session that is refused access files the issue in the product repository with the label `squad-upstream`; it
-is moved here, never worked there. After the fix is merged here, the product repository adopts it with
-`adopt-template`.
+The `squad-upstream` issues are collected here in one batch: `python3 tools/squad-report.py --upstream` (one `--repo`
+per repository) lists the open ones, and with `--move` each becomes an issue labelled `squad` here with its title, its
+body and a link back, while the original gets a link to it and is closed (a `squad-upstream` issue is never worked in
+the product repository). Run it before every release and on every refresh, which also moves the target's
+own (`adopt-template`). Every target records this repository in `.squad/template.json` (`repository`). After the fix
+is merged here, the product repository adopts it with `adopt-template`.
 
 - Keep `core/` free of anything stack- or project-specific; stack details go into a profile, project
   details into a project block or `.squad/project.md`.

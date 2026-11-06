@@ -42,20 +42,29 @@ its `adopt-template` skill (`.squad/template.json` records the repository, its c
 
 ## Squad lessons
 
-Every lesson from step 12 is filed once, where it can actually be fixed:
+Every lesson from step 12 is filed once, as an issue in **this** repository (no other repository's access is needed),
+labelled by where it can actually be fixed:
 
-| The lesson concerns | Filed as | Fixed by |
-| ------------------- | -------- | -------- |
-| a **managed** file, or the template part of a **marked** file | an issue labelled `squad` in the template repository (`repository` in `.squad/template.json`), titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | a template PR, then a refresh with `adopt-template` — never a local edit, which the next refresh overwrites |
-| **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, a `<!-- project:… -->` block, another seeded file | an issue labelled `squad` in this repository | a squad-maintenance PR here, checked with `.squad/tools/config-check.py` |
+| The lesson concerns | Label | Fixed by |
+| ------------------- | ----- | -------- |
+| a **managed** file, or the template part of a **marked** file | `squad-upstream`, titled `[Squad] <lesson> (from <this repository>#<issue>)` and linking the run | the template repository (`repository` in `.squad/template.json`), which moves these issues there in one batch, fixes them in a template PR and rolls the fix out with `adopt-template` — never worked here, and never a local edit, which the next refresh overwrites |
+| **project knowledge**: `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, a `<!-- project:… -->` block, another seeded file | `squad` | a squad-maintenance PR here, checked with `.squad/tools/config-check.py` |
 
 No lesson: a SonarQube rule the local analyzers do not report (the Code Officer notes it in `stack.md` in the
 same change), and a stop hook's demand for a commit (*The stop hook*).
 
-One run's lessons go into at most one issue per destination. A general lesson — one that would change the
-template — is filed in the template repository, which the session attaches first if needed (with the access
-to create the issue, e.g. `add_repo`); only if attaching is refused it is filed here with the label
-`squad-upstream`, the user is told to move it, and it is never worked here.
+One run's lessons go into at most one issue per label; the labels are created when missing. Before "no lessons",
+the orchestrator compares that answer with its log; each of these **candidates** is a lesson unless it says
+nothing about the squad's rules, agents or tools (a Lead `decide` that settled a product question):
+
+- a Lead launch in mode `decide`, or a loop limit reached;
+- a step the orchestrator improvised, because no rule covered it or two contradicted each other;
+- a member error: a report against the wrong head, a claim the member did not verify, a tool it may not call;
+- a tool refusal: a script, hook or permission check that refused a step of the pipeline;
+- a model or continuation warning from `squad-log.py`.
+
+Step 12 then logs one Orchestrator row whose result names the URL of every lesson issue, or is exactly `no
+lessons`; `squad-log.py --summary` exits 5 without it and lists the candidates the log shows.
 
 ## Launch model
 

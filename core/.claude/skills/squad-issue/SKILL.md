@@ -181,18 +181,18 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     weaken a test to get green.
 12. **Wrap-up (mandatory).** Collect what this run taught about the squad itself — an unclear or
     contradictory rule, a misbehaving tool, an agent that could not be launched, a step you had to improvise —
-    each with the role it concerns and a concrete proposal, file them as *Squad lessons* says (create the
-    labels if missing) and link them from the working-record comment; with nothing to learn, add a `no
-    lessons` row instead. Run `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's
-    log table); exit code 3 names launch rows still without usage (the notification path of `--help`), complete
-    them and run it again; exit code 4 names commits after the PR that
-    no step-11 review row follows — run their delta review (step 11), or log a verbatim fix as such, and run it
-    again. Append the tables exactly as printed (a run
-    without them is not wrapped up) to the comment under "Squad run metrics". Then run `python3
-    .squad/tools/session-usage.py` and append its output as printed under "Session usage" (`.squad/routing.md`,
-    step 12). Report the branch, the PR
-    URL, the tier, the `squad` issues (or "no lessons"), the metrics tables and any escalation or Lead
-    decision to the user.
+    each with the role it concerns and a concrete proposal, and check your log for the lesson candidates of *Squad
+    lessons* (`squad-log.py … --summary` lists those it finds while the lessons row is missing). File the lessons
+    in this repository as *Squad lessons* says, link them from the working-record comment and log the lessons row
+    at step 12: the URL of every lesson issue, or exactly `no lessons`. Run
+    `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's log table); exit
+    code 3 names launch rows still without usage (the notification path of `--help`), complete them; exit code 4
+    names commits after the PR that no step-11 review row follows — run their delta review (step 11), or log a
+    verbatim fix as such; exit code 5 means the lessons row is missing; then run it again. Append the tables
+    exactly as printed (a run without them is not wrapped up) to the comment under "Squad run metrics". Then run
+    `python3 .squad/tools/session-usage.py` and append its output as printed under "Session usage"
+    (`.squad/routing.md`, step 12). Report the branch, the PR URL, the tier, the lesson issues (or "no lessons"),
+    the metrics tables and any escalation or Lead decision to the user.
 
 ## Notes
 

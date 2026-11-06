@@ -592,3 +592,24 @@ which the transcripts record per response. It is expressed in tokens of Sonnet i
 Product Manager's decision of 2026-11-03 to print no cost stands (*Session usage from the transcripts*), while the
 figure stays proportional to cost across roles, models and token kinds. The orchestrator's share is read from the
 session's own transcript from the log's first timed row on, so work of the session before the run is left out.
+
+## Lessons are filed in the run's own repository, collected here, and the lessons row is checked (orchestration.md, Squad lessons; squad-log.py `--summary`; squad-report.py `--upstream`; squad-issue, step 12; routing.md, Pipeline step 12)
+
+Found in the review of 2026-11-05 against the five consumers (#239, scope as in #234). The rule filed a general
+lesson in the template repository after attaching it and used `squad-upstream` locally only when attaching was
+refused; in practice lessons often did not arrive. Attaching was refused again and again:
+LarsLaskowski/DockerUpdateGuard#360, LarsLaskowski/Censio#3, #4, #11 and #13, and Seluna in every session, per its
+records. Lessons were not filed at all: LarsLaskowski/Vandox#289 ("needs push access to the template repository"),
+Vandox#337 ("outside this session's GitHub scope"), Vandox#305 ("proposed to the user"), Vandox#292 and #304 ("noted,
+not filed"); the `squad-upstream` fallback was used in none of them. "No lessons" was logged despite visible
+friction: LarsLaskowski/Seluna#121, #129 and #134 (missed CHANGELOG entries, Lead edits during the approval) and
+Vandox#301 (the same wrong Tester model as #314). And lessons went to the wrong place or label: Vandox#364 is still
+open and Vandox#367 was moved by hand, both about managed files but filed locally as `squad`;
+DockerUpdateGuard#374 and #375 concern template files but carry `squad`.
+
+Filing every lesson in the run's own repository needs no access the session may lack, so the label is the only
+choice left to the run. The template side collects them: `squad-report.py --upstream` already walks the consumers'
+issues with the owner's `gh`, and `--move` files each here with a link back and closes the original, which keeps the
+lesson's history findable from the product repository. The lessons row is checked by `squad-log.py --summary` (exit 5
+without it), and the candidates it lists come from the cases above: a Lead `decide` or a loop limit, an improvised
+step, a member error, a tool refusal and a warning of `squad-log.py` itself (the Tester model of Vandox#301).

@@ -6,7 +6,11 @@ For every pull request merged in the window it reports:
 
 - **kind** — `squad` (its issue or the PR carries a "Squad working record" comment), `refresh` (a template
   refresh: "Update the squad from …"), `dependabot`, or `manual`;
-- **tier**, **launches** and **tokens** of a squad run, read from its working record and "Squad run metrics";
+- **tier**, **launches** and **tokens** of a squad run, read from its working record and the total row of its "Squad
+  run metrics" (`squad-log.py --summary`: `| **Total** | | <launches> | <tokens> | …`) above a "Session usage" heading;
+- the **session tokens** per kind (input, output, cache read, cache write), read from the per-model total row under
+  that heading (`session-usage.py`), in columns of their own: they count the whole session, the orchestrator and the
+  cache reads included, and are never taken for the run metrics;
 - **fix commits** — commits dated after the PR was opened, merges of the base branch counted apart (a force-push
   re-dates the commits it rewrites, which then all count);
 - **CI failures** — failed or timed-out check runs, re-runs included, on the head at opening and those commits;
@@ -39,7 +43,12 @@ import urllib.request
 
 SONAR = "https://sonarcloud.io/api"
 TIER = re.compile(r"\btier\b[:*\s`]*(patch/security|docs|patch|trivial|standard|security)\b", re.I)
-TOTAL = re.compile(r"^\|\s*\*\*Total\*\*\s*\|[^|]*+\|\s*+(\d++)[^|]*+\|\s*+([\d,]++)\s*+\|", re.M)
+# The total row of `squad-log.py --summary`: an empty Model/effort cell, then launches and tokens. The session's own
+# total rows (`session-usage.py`) carry a number in that cell, so they never match.
+RUN_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+\|[ \t]*+\|[ \t]*+(\d++)[^|\n]*+\|[ \t]*+([\d,]++)[ \t]*+\|", re.M)
+# The per-model total row of `session-usage.py`: input, output, cache-read and cache-write tokens and nothing else.
+SESSION_TOTAL = re.compile(r"^\|[ \t]*+\*\*Total\*\*[ \t]*+((?:\|[ \t]*+[\d,]++[ \t]*+){4})\|[ \t]*+$", re.M)
+SESSION_HEADING = re.compile(r"^[#*_ \t]*+Session usage[*_: \t]*+$", re.M | re.I)
 CLOSES = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)(?:\s*+:)?+\s++#(\d+)", re.I)
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 MARKERS = ("Squad working record", "Squad run metrics")
@@ -81,17 +90,43 @@ def sonar_issues(key, number):
         return None
 
 
+def record_bodies(comments):
+    """(run part, session part) of every "Squad working record", "Squad run metrics" or "Session usage" comment: the
+    text above its "Session usage" heading and the text below it; None when no working record is among them."""
+    parts = []
+    for comment in comments:
+        body = (comment.get("body") or "").replace("\r\n", "\n")
+        heading = SESSION_HEADING.search(body)
+        if heading:
+            parts.append((body[:heading.start()], body[heading.end():]))
+        elif any(marker in body for marker in MARKERS):
+            parts.append((body, ""))
+    return parts if any(MARKERS[0] in run for run, _ in parts) else None
+
+
 def parse_record(comments):
     """(tier, launches, tokens) from the "Squad working record" and "Squad run metrics" comments only, the last
-    match winning (a later record of the same issue, a raised tier); None when there is no working record."""
-    bodies = [c.get("body") or "" for c in comments if any(m in (c.get("body") or "") for m in MARKERS)]
-    if not any(MARKERS[0] in body for body in bodies):
+    match winning (a later record of the same issue, a raised tier); None when there is no working record. Launches
+    and tokens come from the run metrics' total row only, never from the "Session usage" tables below them."""
+    parts = record_bodies(comments)
+    if parts is None:
         return None
-    text = "\n".join(bodies)
-    tiers, totals_found = TIER.findall(text), TOTAL.findall(text)
+    runs = "\n".join(run for run, _ in parts)
+    tiers, totals_found = TIER.findall(runs), RUN_TOTAL.findall(runs)
     return (tiers[-1].lower() if tiers else None,
             int(totals_found[-1][0]) if totals_found else None,
             int(totals_found[-1][1].replace(",", "")) if totals_found else None)
+
+
+def parse_session(comments):
+    """(input, output, cache read, cache write) tokens of the last per-model total row under a "Session usage"
+    heading of the record's comments; None without a working record or without such a row (a session that printed
+    "not provided")."""
+    parts = record_bodies(comments)
+    found = SESSION_TOTAL.findall("\n".join(session for _, session in parts)) if parts else []
+    if not found:
+        return None
+    return tuple(int(cell.strip().replace(",", "")) for cell in found[-1].split("|")[1:])
 
 
 def linked_issues(body):
@@ -166,13 +201,14 @@ def pull_request_row(repo, pr, sonar_key):
         comments += own_issue_comments(gh_list(f"repos/{repo}/issues/{issue}/comments"), commits, pr["merged_at"])
     comments += gh_list(f"repos/{repo}/issues/{number}/comments")
     record = parse_record(comments)
+    session = parse_session(comments)
     fixes, merges, checked = pushes_after_open(commits, pr["created_at"])
     failures = sum(failed_checks(repo, commit["sha"]) for commit in checked)
     bots, humans = review_comments(repo, number, (pr.get("user") or {}).get("login"))
     return {
         "repo": repo, "pr": number, "title": pr["title"], "kind": classify(pr, record),
         "tier": record[0] if record else None, "launches": record[1] if record else None,
-        "tokens": record[2] if record else None, "fix_pushes": fixes, "base_merges": merges,
+        "tokens": record[2] if record else None, "session": session, "fix_pushes": fixes, "base_merges": merges,
         "ci_failures": failures, "sonar": sonar_issues(sonar_key, number) if sonar_key else None,
         "bot_comments": bots, "human_comments": humans,
         "hours_to_merge": hours(pr["created_at"], pr["merged_at"]), "merged_at": pr["merged_at"],
@@ -222,10 +258,10 @@ def without_metrics(rows):
 
 
 def table(rows):
-    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Fix commits | Base merges | CI failures | Sonar | "
-             "Bot / human comments | Hours to merge |",
-             "| ---- | -- | ---- | ---- | -------- | ------ | ----------- | ----------- | ----------- | ----- | "
-             "-------------------- | -------------- |"]
+    lines = ["| Repo | PR | Kind | Tier | Launches | Tokens | Session input | Session output | Session cache read | "
+             "Session cache write | Fix commits | Base merges | CI failures | Sonar | Bot / human comments | Hours to merge |",
+             "| ---- | -- | ---- | ---- | -------- | ------ | ------------- | -------------- | ------------------ | "
+             "------------------- | ----------- | ----------- | ----------- | ----- | -------------------- | -------------- |"]
 
     def show(value):
         if value is None:
@@ -233,8 +269,9 @@ def table(rows):
         return f"{value:,}" if isinstance(value, int) else str(value)
 
     for r in rows:
+        session = " | ".join(show(value) for value in r.get("session") or (None,) * 4)
         lines.append(f"| {r['repo']} | #{r['pr']} | {r['kind']} | {show(r['tier'])} | {show(r['launches'])} | "
-                     f"{show(r['tokens'])} | {r['fix_pushes']} | {r['base_merges']} | {r['ci_failures']} | "
+                     f"{show(r['tokens'])} | {session} | {r['fix_pushes']} | {r['base_merges']} | {r['ci_failures']} | "
                      f"{show(r['sonar'])} | {r['bot_comments']} / {r['human_comments']} | {show(r['hours_to_merge'])} |")
     return lines
 

@@ -148,6 +148,9 @@ skills*); `review-pr` (*Answering findings on your own PR*) describes how.
   sure the corresponding documentation — [`README.md`](../../../README.md),
   [`ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md),
   [`SECURITY.md`](../../../SECURITY.md) — was updated in the same PR (see the
-  template checklist). See
+  template checklist). A change in behavior also updates its area document in
+  [`docs/areas/`](../../../docs/areas/README.md), and a decision with lasting
+  weight gets its record in [`docs/decisions/`](../../../docs/decisions/README.md),
+  both in the same PR. See
   [`CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md) for the full workflow and
   stability policy this skill follows.

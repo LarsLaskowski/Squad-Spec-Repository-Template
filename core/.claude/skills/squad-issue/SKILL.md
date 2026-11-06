@@ -41,8 +41,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 - **Pull request:** invoking this skill is the user's approval for opening the PR in step 10, once step 9
   approved it (tiers `docs` and `patch`: once the latest review round is clean). It opens as a draft and is
   marked ready in step 11 (*Draft until green*).
-- **Product Manager:** the user is contacted only when the Lead returns `RESULT: ESCALATE` (relay the
-  question verbatim with its options and wait) or to confirm a public issue comment on `RESULT: NO CHANGE`.
+- **Product Manager:** the user is asked only when the Lead returns `RESULT: ESCALATE` (relay the question
+  verbatim with its options and wait) or in the other cases *Escalation to the Product Manager* lists.
 
 ## Steps
 
@@ -130,7 +130,11 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    `git restore -- <file>` every file it changed outside the change, and check again. Launch
    `squad-code-officer` with the base ref only for analyzer diagnostics or style findings that
    need reading; structural items it hands back go to `squad-dev` (or `squad-tester`), a scope finding to its
-   owner, a file it formatted outside the change you restore. Run the gates again until they pass.
+   owner, a file it formatted outside the change you restore. Run the gates again until they pass. When the
+   plan asks for an *Early draft PR*, open it once they pass, as that section says (`create-pr` step 8 without
+   its review loop; `specs/` stays and the working record waits for step 10), subscribe to its activity, wait
+   for CI and run `python3 .squad/tools/sonar-check.py pr <number>` before step 8; its findings are worked as
+   in step 11.
 8. **Review.** Launch `squad-reviewer` (round 1, full) and — on tier `security` — `squad-security` in mode
    `diff`, in parallel (on `patch/security` only `squad-security`, *Tiers*), with the base ref, the exact code
    SHA, the work folder (tiers `docs` and `patch`: the first `log.md` row) and the gate output of step 7; tell
@@ -151,8 +155,10 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    of its plan agent) — with the base ref, the gate output, the review outcome and the open points (after the
    PR also the finished check-run list) — only for the open decisions it lists; otherwise log "approved by
    checklist".
-10. **Pull request.** Post `plan.md` (none on tiers `docs` and `patch`) and `log.md` as one comment on the
-    issue, headed "Squad working record", each inside a collapsed `<details>` block — or, for a `plan.md` too
+10. **Pull request.** With an *Early draft PR* (open since step 7) this step, too, waits for step 9: the record
+    is posted and `specs/` removed only now, and the open PR is updated as below instead of opened. Post
+    `plan.md` (none on tiers `docs` and `patch`) and `log.md` as one comment on the issue, headed "Squad
+    working record", each inside a collapsed `<details>` block — or, for a `plan.md` too
     long to re-type, a permalink to the last commit that contains it
     (`https://github.com/<owner>/<repo>/blob/<sha>/specs/issue-<number>/plan.md`) plus a summary of tier,
     criteria, decisions and challenge outcome. Then `git rm -r specs/issue-<number>/`, confirm with

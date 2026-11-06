@@ -465,3 +465,22 @@ production-code row of *Gates of a patch* already ran *Test with coverage*. `cov
 modification times of the reports with those of the tracked production and test files rather than with the HEAD
 commit time: the Code Officer's edits are still uncommitted when the gates run, and a test changed after the run
 makes the report stale as well.
+
+## Members never commit, when the Product Manager is asked, area documents outside the squad, the early draft PR in the skill, the Lead reads records by topic (AGENTS.md, Golden rules and Related skills; routing.md, Tiers and Escalation to the Product Manager; create-pr, Notes; pull_request_template.md; squad-issue, introduction and steps 7 and 10; squad-lead.md, Read first)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #246), each item checked against template
+commit 7571677. `AGENTS.md` told every agent to commit and push to a feature branch without asking, and `team.md`
+makes `AGENTS.md` binding for every member, who never runs a Git write: members kept trying the writes the guard then
+denies (*The Git guard runs from the project settings*). `AGENTS.md` and the introduction of `squad-issue` said the
+user is asked only when the Lead escalates (the skill: or to confirm a *no change* comment), although *Bug or
+feature*, *Outside authors*, *A denied measurement*, *Loop limits* (Plan ↔ Security and the safeguard stop), the dry
+run and the manual test involve the Product Manager as well; the cases are now listed once, in *Escalation to the
+Product Manager*, the section `team.md` already points to. *Tiers* named a `patch/security` row the table does not
+have; it is part of the `patch` row. The checklist of the pull request template and the *Notes* of `create-pr` named
+`README.md` and `ARCHITECTURE.md` (`create-pr` also `SECURITY.md`) but neither the area documents nor the decision
+records, so a change made outside the squad was not told that a change in behavior updates its area document in the
+same pull request (`docs/areas/README.md`). *Early draft PR* stood only in `routing.md`, not in the procedure the
+orchestrator follows step by step: LarsLaskowski/Vandox#337 posted the working record and removed `specs/` on its
+early draft pull request before the review, and logged that as improvised. The Lead read every decision record
+(110 records of about 98,000 words in Vandox, #236), the Devil's Advocate only the index and the records of the
+topic; the Lead now reads them the same way, the first step of #236.

@@ -71,8 +71,8 @@ records it in `plan.md` (with the area that made it) and launches the Lead only 
 Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or build
 configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever it is not
 "none", Security reviews the plan (step 3), whatever the tier. Security's diff review (step 8) is for tier
-`security` (and `patch/security`, its row) alone; below it the Reviewer is the diff's security review, and an area
-it finds touched but not listed goes to *Unlisted security areas*.
+`security` and for `patch/security` (the `patch` row) alone; below it the Reviewer is the diff's security
+review, and an area it finds touched but not listed goes to *Unlisted security areas*.
 
 | Tier | When | Pipeline |
 | ---- | ---- | -------- |
@@ -314,6 +314,14 @@ decision (behavior change visible to users, breaking a guarantee in `docs/ARCHIT
 record), or a loop limit where none of its options is clearly right. The escalation is one concise question with
 the options and the Lead's recommendation. Follow-up issues the Lead decides on are created by the orchestrator and
 listed in the PR under Next Steps.
+
+Besides the Lead's escalation, the orchestrator involves the Product Manager only where one of these rules says so:
+the kind of an issue labelled both bug and feature (*Bug or feature*); the public issue comment of *Outcome "no
+change"* and of *Outside authors*; a download a member was denied (*A denied measurement* in `orchestration.md`); a
+Security rejection of a fix the Lead accepted, and a safeguard stop (*Loop limits*); the dry run and the
+confirmation of statements no run has shown (*Operator environments and documented procedures*); a manual test
+before step 9 (*Criteria verified only in CI*). A request the Product Manager makes on the open pull request goes to
+the Lead first (*Loop limits*, New scope on the open PR).
 
 ## Non-blocking findings
 

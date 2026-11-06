@@ -34,7 +34,7 @@ def commit(sha, date, parents=1):
 
 class TestSquadReport(unittest.TestCase):
     def test_record_gives_tier_launches_and_tokens(self):
-        self.assertEqual(report.parse_record([RECORD, METRICS]), ("security", 16, 1382358))
+        self.assertEqual(report.parse_record([RECORD, METRICS]), ("security", 16, 1382358, None))
         self.assertIsNone(report.parse_record([{"body": "looks good"}]))
 
     def test_kinds(self):
@@ -57,19 +57,19 @@ class TestSquadReport(unittest.TestCase):
         raised = {"body": "### Squad run metrics\n\nTier raised: tier **security**\n"
                           "| **Total** | | 9 | 600,000 | 1 | 2 |\n"}
         record = report.parse_record([prose, {"body": "Squad working record\n\nTier: **standard**"}, raised])
-        self.assertEqual(record, ("security", 9, 600000))
+        self.assertEqual(record, ("security", 9, 600000, None))
 
     def test_session_usage_below_the_run_metrics_is_not_the_runs_total(self):
         both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}\n{SESSION}"}
-        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358))
+        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358, None))
         self.assertEqual(report.parse_session([both]), (750, 256585, 36619921, 1165127))
         crlf = {"body": both["body"].replace("\n", "\r\n")}
         self.assertEqual((report.parse_record([crlf])[1:], report.parse_session([crlf])),
-                         ((16, 1382358), (750, 256585, 36619921, 1165127)))
+                         ((16, 1382358, None), (750, 256585, 36619921, 1165127)))
 
     def test_the_session_tables_never_count_as_run_metrics(self):
         no_heading = {"body": f"{RECORD['body']}\n\n{SESSION.replace('### Session usage', 'Usage of the session:')}"}
-        self.assertEqual(report.parse_record([no_heading]), ("security", None, None),
+        self.assertEqual(report.parse_record([no_heading]), ("security", None, None, None),
                          "a session total row has no empty Model/effort cell")
         self.assertIsNone(report.parse_session([no_heading]), "session figures are read under their heading only")
         apart = {"body": SESSION.replace("### Session usage", "**Session usage:**")}
@@ -79,14 +79,30 @@ class TestSquadReport(unittest.TestCase):
         absent = {"body": "### Session usage\n\nnot provided (no Claude Code session transcript found)\n"}
         self.assertIsNone(report.parse_session([RECORD, METRICS, absent]))
 
+    def test_weighted_total_comes_from_the_table_of_tokens_per_kind(self):
+        kinds = ("\n| Member | Model/effort | Input | Output | Cache read | Cache write | Weighted | Share |\n"
+                 "| --- | --- | --- | --- | --- | --- | --- | --- |\n"
+                 "| Lead | opus/medium | 31 | 9,870 | 612,400 | 48,210 | 280,527 | 41% |\n"
+                 "| Orchestrator | opus/xhigh | 6 | 2,053 | 1,016,629 | 3,620 | 401,000 | 59% |\n"
+                 "| **Total** | | 37 | 11,923 | 1,629,029 | 51,830 | 681,527 | 100% |\n")
+        session = SESSION.replace("| Cache write |\n| --- | ---: | ---: | ---: | ---: |", "| Cache write | Weighted |\n"
+                                  "| --- | ---: | ---: | ---: | ---: | ---: |").replace(
+            "| **Total** | 750 | 256,585 | 36,619,921 | 1,165,127 |", "| **Total** | 750 | 256,585 | 36,619,921 | 1,165,127 | "
+            "9,000,000 |")
+        both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}{kinds}\n{session}"}
+        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358, 681527),
+                         "the per-kind total is no launch total, and the session's figures stay apart")
+        self.assertEqual(report.parse_session([both]), (750, 256585, 36619921, 1165127))
+
     def test_the_table_shows_the_session_tokens_in_columns_of_their_own(self):
         row = {"repo": "o/r", "pr": 5, "kind": "squad", "tier": "security", "launches": 16, "tokens": 1382358,
                "session": (750, 256585, 36619921, 1165127), "fix_pushes": 0, "base_merges": 0, "ci_failures": 0,
                "sonar": None, "bot_comments": 0, "human_comments": 0, "hours_to_merge": 1.5}
-        lines = report.table([row, {**row, "pr": 6, "session": None}])
-        self.assertIn("| Tokens | Session input | Session output | Session cache read | Session cache write |", lines[0])
-        self.assertIn("| 16 | 1,382,358 | 750 | 256,585 | 36,619,921 | 1,165,127 | 0 |", lines[2])
-        self.assertIn("| 16 | 1,382,358 | - | - | - | - | 0 |", lines[3])
+        lines = report.table([row, {**row, "pr": 6, "session": None, "weighted": 9876543}])
+        self.assertIn("| Tokens | Weighted | Session input | Session output | Session cache read | Session cache write |",
+                      lines[0])
+        self.assertIn("| 16 | 1,382,358 | - | 750 | 256,585 | 36,619,921 | 1,165,127 | 0 |", lines[2])
+        self.assertIn("| 16 | 1,382,358 | 9,876,543 | - | - | - | - | 0 |", lines[3])
         self.assertTrue(all(line.count("|") == lines[0].count("|") for line in lines))
 
     def test_linked_issues_ignore_html_comments(self):
@@ -168,7 +184,7 @@ class TestSquadReport(unittest.TestCase):
                 {"repo": "Vandox", "pr": 4, "kind": "manual", "merged_at": "2026-10-18T10:00:00Z", "tier": None,
                  "launches": None, "tokens": None, "fix_pushes": 5, "sonar": None, "ci_failures": 4}]
         line = report.totals(rows)[2]
-        self.assertIn("| Vandox | 2026-W42 | 3 | 2/3 | 2/3 | 0.33 | 1 | security 1.50 M |", line)
+        self.assertIn("| Vandox | 2026-W42 | 3 | 2/3 | 2/3 | 0.33 | 1 | security 1.50 M | - |", line)
         self.assertIn("Vandox#3", report.without_metrics(rows)[-1], "a squad PR without run metrics is named")
         self.assertNotIn("Vandox#4", report.without_metrics(rows)[-1], "a manual PR never has run metrics")
         self.assertEqual(report.without_metrics(rows[:2]), [])

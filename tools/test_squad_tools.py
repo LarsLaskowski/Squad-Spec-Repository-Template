@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -743,6 +744,162 @@ class TestSquadLog(unittest.TestCase):
         write(self.path, "| Date |\n")
         row = self.script.append_row(self.path, "2 Plan", "Lead", "a|b\nsecond \u202e line\tend", today="2026-01-02")
         self.assertEqual(row, "| 2026-01-02 | 2 Plan | Lead | a\\|b<br>second U+202E line end |")
+
+
+SESSION_ID = "0d1e2f30-aaaa-4bbb-8ccc-123456789abc"
+
+
+def usage(inputs, output, read, written, one_hour=0):
+    return {"input_tokens": inputs, "output_tokens": output, "cache_read_input_tokens": read,
+            "cache_creation_input_tokens": written,
+            "cache_creation": {"ephemeral_5m_input_tokens": written - one_hour, "ephemeral_1h_input_tokens": one_hour}}
+
+
+def answer(message_id, stamp, tokens, model="claude-opus-5-5", effort="medium", tools=()):
+    content = [{"type": "tool_use", "id": tool, "name": "Read", "input": {}} for tool in tools] or [{"type": "text"}]
+    return {"type": "assistant", "timestamp": stamp, "effort": effort,
+            "message": {"id": message_id, "model": model, "usage": tokens, "content": content}}
+
+
+def prompt(stamp, text="do it"):
+    return {"type": "user", "timestamp": stamp, "message": {"role": "user", "content": text}}
+
+
+def tool_result(stamp, tool):
+    return {"type": "user", "timestamp": stamp, "message": {"content": [{"type": "tool_result", "tool_use_id": tool}]}}
+
+
+def write_jsonl(path, items):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.writelines(json.dumps(item) + "\n" for item in items)
+
+
+class TestSquadLogTranscripts(unittest.TestCase):
+    """`--agent-id` reads a launch from the agent's transcript; the summary weighs the tokens per kind."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.root = os.path.join(self.dir.name, "repo")
+        self.log = os.path.join(self.root, "specs", "issue-1", "log.md")
+        write(self.log, "| Date | Step | Member | Result |\n| - | - | - | - |\n")
+        for role, model in (("lead", "opus"), ("reviewer", "opus"), ("tester", "sonnet")):
+            write(os.path.join(self.root, ".claude", "agents", f"squad-{role}.md"),
+                  f"---\nmodel: {model}\neffort: medium\n---\n")
+        self.session = os.path.join(self.dir.name, "config", "projects", "-repo", SESSION_ID)
+        write_jsonl(self.session + ".jsonl", [
+            answer("o0", "2026-01-02T09:00:00Z", usage(1, 100, 900_000, 0), effort="xhigh"),  # before the run
+            answer("o1", "2026-01-02T10:01:00Z", usage(2, 1_000, 100_000, 20_000, one_hour=20_000), effort="xhigh"),
+            answer("o1", "2026-01-02T10:01:01Z", usage(2, 1_000, 100_000, 20_000, one_hour=20_000), effort="xhigh"),
+        ])
+        self.agent("a1", "squad-lead", [
+            prompt("2026-01-02T10:02:00Z"), prompt("2026-01-02T10:02:00Z", "a reminder"),
+            answer("m1", "2026-01-02T10:02:10Z", usage(3, 400, 30_000, 10_000), tools=["t1", "t2"]),
+            answer("m1", "2026-01-02T10:02:10Z", usage(3, 400, 30_000, 10_000), tools=["t1", "t2"]),
+            tool_result("2026-01-02T10:02:20Z", "t1"),
+            answer("m2", "2026-01-02T10:03:40Z", usage(5, 600, 40_000, 2_000)),
+        ])
+        self.agent("a2", "squad-reviewer", [
+            prompt("2026-01-02T10:10:00Z"), answer("r1", "2026-01-02T10:11:00Z", usage(1, 300, 50_000, 20_000)),
+            prompt("2026-01-02T10:20:00Z", "delta round"),
+            answer("r2", "2026-01-02T10:20:30Z", usage(1, 200, 60_000, 3_000), tools=["t9"]),
+        ])
+        self.agent("a3", "squad-tester", [
+            prompt("2026-01-02T10:30:00Z"),
+            answer("s1", "2026-01-02T10:31:00Z", usage(2, 500, 70_000, 9_000), model="claude-sonnet-5-5"),
+        ])
+
+    def agent(self, name, kind, items):
+        folder = os.path.join(self.session, "subagents")
+        write_jsonl(os.path.join(folder, f"agent-{name}.jsonl"), items)
+        with open(os.path.join(folder, f"agent-{name}.meta.json"), "w", encoding="utf-8") as handle:
+            json.dump({"agentType": kind}, handle)
+
+    def run_log(self, *args):
+        env = dict(os.environ, CLAUDE_CONFIG_DIR=os.path.join(self.dir.name, "config"),
+                   CLAUDE_CODE_SESSION_ID=SESSION_ID)
+        return subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", *args], cwd=self.root,
+                              capture_output=True, text=True, check=False, env=env)
+
+    def text(self):
+        with open(self.log, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_rounds_of_a_transcript(self):
+        reader = load_script("session-usage")
+        rounds = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a1.jsonl"))
+        self.assertEqual(len(rounds), 1, "a message before the first answer belongs to the first round")
+        first = rounds[0]
+        self.assertEqual((first["tool_uses"], first["context"], first["effort"]), (2, 42_605, "medium"))
+        self.assertEqual(dict(first["usage"]), {"input_tokens": 8, "output_tokens": 1_000,
+                                                "cache_read_input_tokens": 70_000,
+                                                "cache_creation_input_tokens": 12_000})
+        self.assertEqual((first["end"] - first["start"]).total_seconds(), 100)
+        two = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a2.jsonl"))
+        self.assertEqual([(r["tool_uses"], r["context"]) for r in two], [(0, 70_301), (1, 63_201)])
+
+    def test_weighted_counts_every_kind_at_its_price(self):
+        reader = load_script("session-usage")
+        counter = reader.collections.Counter(input_tokens=1_000_000, output_tokens=1_000_000,
+                                             cache_read_input_tokens=1_000_000, cache_creation_input_tokens=2_000_000,
+                                             cache_write_1h=1_000_000)
+        # Opus: 4 + 20 + 0.2 + 5 + 8 dollars, in tokens of Sonnet input at 2 dollars per million.
+        self.assertEqual(reader.weighted(counter, "claude-opus-5-5"), 18_600_000)
+        self.assertEqual(reader.weighted(counter, "sonnet"), 9_350_000)
+        self.assertIsNone(reader.weighted(counter, "<synthetic>"))
+        self.assertEqual((reader.family("claude-haiku-5-5"), reader.family("inherit")), ("haiku", None))
+
+    def test_agent_id_logs_the_round_from_the_transcript(self):
+        done = self.run_log("2 Plan", "Lead", "plan written", "--agent-id", "a1")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("WARNING", done.stdout)
+        self.assertIn("plan written (opus/medium · 42,605 tokens · 2 tool uses · 100 s · 8 in · 1,000 out · "
+                      "70,000 cache read · 12,000 cache write · 47,016 weighted) |", self.text())
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--agent", "squad-reviewer")
+                         .returncode, 2, "the transcript names another agent")
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--tokens", "5000").returncode, 2)
+        missing = self.run_log("2 Plan", "Lead", "x", "--agent-id", "../a1")
+        self.assertEqual(missing.returncode, 1)
+        self.assertIn("task notification", missing.stderr)
+
+    def test_a_continued_agent_logs_its_latest_round(self):
+        self.assertEqual(self.run_log("8 Review", "Reviewer", "2 findings", "--agent-id", "a2").returncode, 2,
+                         "two rounds without --continued")
+        self.assertEqual(self.run_log("8 Review", "Reviewer", "2 findings", "--agent", "squad-reviewer", "--tokens",
+                                      "70301", "--tool-uses", "0", "--seconds", "60").returncode, 0)
+        done = self.run_log("8 Review delta", "Reviewer", "APPROVE", "--agent-id", "a2", "--continued")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("APPROVE (opus/medium · 63,201 tokens · 1 tool uses · 30 s · 1 in · 200 out · 60,000 cache read "
+                      "· 3,000 cache write · 15,502 weighted · continued) |", self.text(),
+                      "a context below the earlier total is the round's own")
+        self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--continued").returncode, 2,
+                         "one round is a fresh launch")
+
+    def test_a_launch_on_another_model_is_logged_as_run_with_a_warning(self):
+        write(os.path.join(self.root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: `security`\n")
+        done = self.run_log("5 Tests first", "Tester", "tests", "--agent-id", "a3")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("WARNING: squad-tester ran on sonnet/medium, but .squad/orchestration.md, *Launch model*, names "
+                      "opus/medium", done.stdout)
+        self.assertIn("tests (sonnet/medium · 79,502 tokens", self.text())
+
+    def test_summary_weighs_the_kinds_and_adds_the_orchestrators_share(self):
+        self.assertEqual(self.run_log("1 Intake", "Orchestrator", "bug").returncode, 0)
+        with open(self.log, encoding="utf-8") as handle:
+            text = handle.read()
+        write(self.log, re.sub(r"\| \d{4}-\d\d-\d\d \d\d:\d\d \| 1 Intake", "| 2026-01-02 10:00 | 1 Intake", text))
+        self.run_log("2 Plan", "Lead", "plan", "--agent-id", "a1")
+        self.run_log("8 Review", "Reviewer", "ok", "--agent", "squad-reviewer", "--tokens", "70301", "--tool-uses", "0",
+                     "--seconds", "60")
+        out = self.run_log("--summary").stdout
+        self.assertIn("| Lead | opus/medium | 8 | 1,000 | 70,000 | 12,000 | 47,016 | 32% |", out)
+        # The orchestrator's own responses from 10:00 on: 2 in, 1,000 out, 100,000 read, 20,000 written for an hour.
+        self.assertIn("| Orchestrator | opus/xhigh | 2 | 1,000 | 100,000 | 20,000 | 100,004 | 68% |", out)
+        self.assertIn("| **Total** | | 10 | 2,000 | 170,000 | 32,000 | 147,020 | 100% |", out)
+        self.assertIn("1 launch(es) logged from task notifications carry no tokens per kind", out)
+        outside = self.run_log("--summary", "--session", "unknown-session").stdout
+        self.assertIn("The orchestrator's own share: not provided", outside)
 
 
 class TestScopeCheck(unittest.TestCase):

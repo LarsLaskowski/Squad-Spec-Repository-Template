@@ -74,6 +74,16 @@ class TestSessionUsage(unittest.TestCase):
         self.assertIn("| unknown | 1 | claude-haiku-5-5 | 3 | 7 | 0 | 0 |", out, "an odd agent type is not printed")
         self.assertIn("| **Total** | 3 | | 6 | 117 | 15,000 | 1,000 |", out)
 
+    def test_weighs_every_kind_at_its_list_price(self):
+        self.write_session()
+        out = self.run_script().stdout
+        # Opus: 3 x 4 + 110 x 20 + 15,000 x 0.2 + 1,000 x 5 dollars per million, in Sonnet input at 2.
+        self.assertIn("| claude-opus-5-5 | 3 | 110 | 15,000 | 1,000 | 5,106 |", out)
+        self.assertIn("| claude-sonnet-5-5 | 15 | 300 | 4,000 | 400 | 2,415 |", out)
+        self.assertIn("| **Total** | 21 | 417 | 19,000 | 1,400 | 7,523 |", out)
+        self.assertIn("| squad-dev | 2 | claude-opus-5-5 | 3 | 110 | 15,000 | 1,000 | 5,106 |", out)
+        self.assertIn("Weighted: every token at its list price", out)
+
     def test_prints_no_cost(self):
         self.write_session()
         out = self.run_script().stdout

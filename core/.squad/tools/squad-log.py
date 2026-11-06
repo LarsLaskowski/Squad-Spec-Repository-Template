@@ -12,12 +12,27 @@ mechanics out of the orchestrator's hands:
 - a `|` in a cell is written as `\\|`, a line break in the result as `<br>` (a Markdown table cell has one line);
 - a control character (Unicode categories Cc, Cf, Zl, Zp other than tab and line break) is written as its
   escape (`U+202E`), never as the character itself; a tab becomes a space;
-- for a subagent launch, `--agent squad-<role>` (model and effort read from `.claude/agents/squad-<role>.md`,
-  so nothing is typed from memory) or `--launch MODEL/EFFORT` (a launch that overrode the agent file; a default
-  override of `.squad/orchestration.md`, *Launch model*, read against the *Tier* line of the folder's `plan.md`, is
-  refused with `--agent`), with `--tokens N --tool-uses N --seconds N` from
-  the usage block of the launch's task notification, appends a trailer `(opus/high · 37,445 tokens · 6 tool
-  uses · 57 s)` the summary can read back;
+- for a subagent launch in Claude Code, `--agent-id <id>` (the agent id the Agent tool returned) reads the
+  launch from the agent's transcript (`session-usage.py`: the latest round of
+  `<session>/subagents/agent-<id>.jsonl` of the session `CLAUDE_CODE_SESSION_ID`, or `--session`): the model and
+  effort its responses ran on, the agent's tokens (its context at the end of the round, the figure a task
+  notification reports), its tool uses and seconds, and its tokens per kind with their price-weighted figure. It
+  appends a trailer `(opus/high · 37,445 tokens · 6 tool uses · 57 s · 31 in · 9,870 out · 612,400 cache read ·
+  48,210 cache write · 280,527 weighted)`. The agent type comes from the transcript (`--agent`, if given, must
+  match it); when the model or effort differs from the agent file's, or from the default override of
+  `.squad/orchestration.md`, *Launch model* (read against the *Tier* line of the folder's `plan.md`), the row is
+  written with what the launch ran on and a warning names the difference. An agent whose transcript holds more
+  than one round was continued: its latest round is logged with `--continued` or `--continued-from`, a single
+  round without them;
+- outside Claude Code (no transcript), the notification path: `--agent squad-<role>` (model and effort read from
+  `.claude/agents/squad-<role>.md`, so nothing is typed from memory) or `--launch MODEL/EFFORT` (a launch that
+  overrode the agent file; a default override of *Launch model* is refused with `--agent`), with
+  `--tokens N --tool-uses N --seconds N` from the usage block of the launch's task notification, appends a trailer
+  `(opus/high · 37,445 tokens · 6 tool uses · 57 s)` without tokens per kind. Every number is copied from the usage
+  block of a task notification at hand, never estimated, remembered or taken from the member's hand-back; a
+  notification whose summary says the agent waits on its own background work is interim (the final notification of
+  the same task id counts, a repeated hand-back is ignored). The options below about pending, amended, replaced and
+  unreported launches belong to this path;
 - the first row replaces the template's heading `# Log: <issue #number | feature name>` with the work folder's
   (`# Log: issue #3`, `# Log: feature incidents-view`), so the posted record carries no placeholder;
 - one row names one member: a member cell that lists two (`squad-reviewer / squad-security`, a comma, `and`)
@@ -77,6 +92,9 @@ mechanics out of the orchestrator's hands:
   comment); `--summary --stdin` prints the summary of that log, nothing is written to the repository;
 
 Usage, from anywhere inside the repository:
+    python3 .squad/tools/squad-log.py <work folder> <step> <member> <result> [--agent-id a1b2c3d4e5f6a7b8c]
+    python3 .squad/tools/squad-log.py <work folder> "8 Review delta" Reviewer "APPROVE" --agent-id a1b2c3d4e5f6a7b8c
+        --continued
     python3 .squad/tools/squad-log.py <work folder> <step> <member> <result> [--agent squad-lead
         --tokens 37445 --tool-uses 6 --seconds 57]
     python3 .squad/tools/squad-log.py <work folder> --amend-last Lead --agent squad-lead --tokens 37445
@@ -105,7 +123,11 @@ uses, seconds) with a total row, for the "Squad working record" comment and the 
 **Orchestrator** table once two rows carry a time of day: the wall time from the first to the last such row,
 the part of it no launch covers (an upper bound for the orchestrator's own work and the waiting between
 launches; launches that ran in parallel count once, each placed by its row's time and its seconds) and the
-number of gate runs (Orchestrator rows of step 7). Every row of a member other than the Orchestrator, the
+number of gate runs (Orchestrator rows of step 7). Then, once a launch carries tokens per kind, a table of the
+tokens per kind and the **weighted** figure per member (every token at its list price, `session-usage.py`), with
+an Orchestrator row read from this session's own transcript from the first timed row on (the orchestrator's
+share; "not provided" outside Claude Code) and each row's share of the weighted total; launches logged from task
+notifications carry no tokens per kind and are named below it. Every row of a member other than the Orchestrator, the
 Product Manager and the User is a launch: the summary ends with the launch rows that carry no usage yet, so the
 orchestrator amends them before posting and an incomplete table is never posted as complete; launches marked
 `--unreported` are counted and named below the table instead. Once step 10 has removed the work folder, the summary
@@ -113,14 +135,16 @@ also reads the commits after that removal (the fixes of step 11, merges of the b
 them must be followed by a step-11 row of the Reviewer (the delta review of steps 7–8) or, for a verbatim
 documentation fix, of the Orchestrator naming it verbatim, or the summary names the unreviewed commits on standard
 error. Exit code 0 when the row was written, amended or
-the summary is complete, 1 when the folder has no `log.md`, the agent file is unknown, no row can be amended or
-replaced, or `--continued` finds no earlier usage of the member (`--continued-from`: no fresh launch of that
-step), 3 when the summary lists launch rows without usage, 4 when commits after the pull request have no review
-row after them.
+the summary is complete, 1 when the folder has no `log.md`, the agent file is unknown, `--agent-id` finds no
+transcript of that agent in the session, no row can be amended or replaced, or `--continued` finds no earlier usage
+of the member (`--continued-from`: no fresh launch of that step), 3 when the summary lists launch rows without
+usage, 4 when commits after the pull request have no review row after them.
 """
 import argparse
+import collections
 import contextlib
 import datetime
+import importlib.util
 import os
 import re
 import subprocess
@@ -130,15 +154,19 @@ import unicodedata
 
 CONTROL_CATEGORIES = {"Cc", "Cf", "Zl", "Zp"}
 KEEP = {"\t", "\n", "\r"}
+# The tokens per kind and the weighted figure a launch read from its transcript carries (`--agent-id`).
+KINDS = (r"(?: · (?P<input>[\d,]+) in · (?P<output>[\d,]+) out · (?P<read>[\d,]+) cache read · "
+         r"(?P<write>[\d,]+) cache write(?: · (?P<weighted>[\d,]+) weighted)?)?")
 TRAILER = re.compile(r"\((?P<launch>[\w.-]+/[\w-]+) · (?P<tokens>[\d,]+) tokens · (?P<tools>\d+) tool uses · "
-                     r"(?P<seconds>\d+) s(?P<continued> · continued(?: from (?P<origin>.+))?)?\)\s*$")
+                     rf"(?P<seconds>\d+) s{KINDS}(?P<continued> · continued(?: from (?P<origin>.+))?)?\)\s*$")
 UNREPORTED = "usage not reported"
 UNREPORTED_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · {UNREPORTED}\)\s*$")
 PENDING = "usage pending"
 PENDING_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · {PENDING}"
                              r"(?P<continued> · continued(?: from (?P<origin>.+))?)?\)\s*$")
 ANY_TRAILER = re.compile(rf"\((?P<launch>[\w.-]+/[\w-]+) · (?:{UNREPORTED}|{PENDING}(?: · continued(?: from .+)?)?|"
-                         r"[\d,]+ tokens · \d+ tool uses · \d+ s(?: · continued(?: from .+)?)?)\)\s*$")
+                         r"[\d,]+ tokens · \d+ tool uses · \d+ s(?: · [\d,]+ in · [\d,]+ out · [\d,]+ cache read · "
+                         r"[\d,]+ cache write(?: · [\d,]+ weighted)?)?(?: · continued(?: from .+)?)?)\)\s*$")
 TWO_MEMBERS = re.compile(r"[,/+&]|\band\b")
 ORCHESTRATOR = "orchestrator"
 NOT_LAUNCHES = {ORCHESTRATOR, "product manager", "user"}
@@ -162,6 +190,20 @@ PLAN_TIER = re.compile(r"^Tier:\s*`?(\w+)", re.M)
 LAUNCH_OVERRIDES = {"squad-tester": ("security", "opus")}
 
 
+_TRANSCRIPTS = []
+
+
+def transcripts():
+    """`session-usage.py` next to this script, which reads Claude Code's transcripts, as a module (loaded once)."""
+    if not _TRANSCRIPTS:
+        here = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location("session_usage", os.path.join(here, "session-usage.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _TRANSCRIPTS.append(module)
+    return _TRANSCRIPTS[0]
+
+
 def escape_controls(text):
     """Every control character other than tab and line break as `U+XXXX`."""
     return "".join(f"U+{ord(ch):04X}" if unicodedata.category(ch) in CONTROL_CATEGORIES and ch not in KEEP else ch
@@ -183,9 +225,10 @@ def cell(text):
     return text.replace("|", "\\|")
 
 
-def trailer(launch, tokens, tool_uses, seconds, continued=False, origin=None):
+def trailer(launch, tokens, tool_uses, seconds, continued=False, origin=None, kinds=None):
     """The launch trailer, already escaped as part of a cell; with `tokens` None, the mark of a launch whose usage
-    was never reported. A continuation of a fresh launch other than the member's last names that launch's step."""
+    was never reported. A continuation of a fresh launch other than the member's last names that launch's step.
+    `kinds` (input, output, cache read, cache write, weighted or None) comes from the launch's transcript."""
     launch = cell(launch)
     if tokens is None:
         return f"({launch} · {UNREPORTED})"
@@ -194,12 +237,29 @@ def trailer(launch, tokens, tool_uses, seconds, continued=False, origin=None):
         mark = f" · continued from {cell(origin)}" if origin else " · continued"
     if tokens == PENDING:
         return f"({launch} · {PENDING}{mark})"
-    return f"({launch} · {tokens:,} tokens · {tool_uses} tool uses · {seconds} s{mark})"
+    return f"({launch} · {tokens:,} tokens · {tool_uses} tool uses · {seconds} s{kind_text(kinds)}{mark})"
+
+
+def kind_text(kinds):
+    """The trailer's part with the tokens per kind and the weighted figure, or "" without them."""
+    if not kinds:
+        return ""
+    text = f" · {kinds[0]:,} in · {kinds[1]:,} out · {kinds[2]:,} cache read · {kinds[3]:,} cache write"
+    return text if kinds[4] is None else f"{text} · {kinds[4]:,} weighted"
 
 
 def metrics(match):
     """(tokens, tool uses, seconds) of a trailer match."""
     return (int(match.group("tokens").replace(",", "")), int(match.group("tools")), int(match.group("seconds")))
+
+
+def kind_metrics(match):
+    """(input, output, cache read, cache write, weighted or None) of a trailer match, or None for a launch logged
+    without its transcript."""
+    if match.group("input") is None:
+        return None
+    values = [match.group(name) for name in ("input", "output", "read", "write", "weighted")]
+    return tuple(None if value is None else int(value.replace(",", "")) for value in values)
 
 
 def agent_chains(rows, member):
@@ -295,7 +355,8 @@ def continued_launch(path, member, launch, skip_last=False, step=None, origin=No
     model, tokens, tool_uses, seconds = launch[:4]
     if tokens == PENDING:
         return (model, PENDING, None, None, True, origin)
-    return (model, tokens - earlier if tokens >= earlier else tokens, tool_uses, seconds, True, origin)
+    # The tokens per kind of a transcript (the seventh item) are the round's own already.
+    return (model, tokens - earlier if tokens >= earlier else tokens, tool_uses, seconds, True, origin, *launch[6:])
 
 
 def mode_change_warning(path, member, own_step, origin=None, amending=False, step=None):
@@ -550,9 +611,70 @@ def usage_notes(rows):
     return text
 
 
-def summary(path):
+def kind_totals(rows):
+    """({(member, model/effort): [input, output, cache read, cache write, weighted]} of the launches whose trailer
+    carries tokens per kind, the number of launches with usage but without them)."""
+    per_member, without = {}, 0
+    for _, _, member, result in rows:
+        match = TRAILER.search(result)
+        kinds = kind_metrics(match) if match else None
+        if match and kinds is None:
+            without += 1
+        if kinds is None:
+            continue
+        entry = per_member.setdefault((member, match.group("launch")), [0, 0, 0, 0, 0])
+        for index, value in enumerate(kinds):
+            entry[index] += value or 0
+    return per_member, without
+
+
+def orchestrator_kinds(usage):
+    """("Orchestrator", model/effort, [input, output, cache read, cache write, weighted]) of the orchestrating
+    session's own responses (`session-usage.py`, `usage_since`), or None when there are none."""
+    per_model, efforts = usage
+    if not per_model:
+        return None
+    reader = transcripts()
+    counter = collections.Counter()
+    for model_counter in per_model.values():
+        counter.update(model_counter)
+    models = "+".join(sorted({reader.family(model) or model for model in per_model}))
+    effort = efforts.most_common(1)[0][0] if efforts else "default"
+    values = [counter[field] for field, _ in reader.TOKEN_FIELDS]
+    return "Orchestrator", f"{models}/{effort}", values + [reader.weighted_sum(per_model)[0]]
+
+
+def kind_table(rows, usage):
+    """The table of tokens per kind and the weighted figure per member, with the orchestrator's own row (`usage`
+    as `orchestrator_kinds` takes it, or None outside Claude Code) and each row's share of the weighted total; ""
+    when no launch carries tokens per kind."""
+    per_member, without = kind_totals(rows)
+    if not per_member:
+        return ""
+    entries = [(member, launch, values) for (member, launch), values in sorted(per_member.items())]
+    own = orchestrator_kinds(usage) if usage else None
+    entries += [own] if own else []
+    total = [sum(values[index] for _, _, values in entries) for index in range(5)]
+    lines = ["Tokens per kind and their weighted figure (every token at its list price, in tokens of Sonnet input: "
+             "`.squad/tools/session-usage.py`):", "",
+             "| Member | Model/effort | Input | Output | Cache read | Cache write | Weighted | Share |",
+             "| ------ | ------------ | ----- | ------ | ---------- | ----------- | -------- | ----- |"]
+    for member, launch, values in entries:
+        share = f"{values[4] / total[4]:.0%}" if total[4] else "–"
+        lines.append(f"| {member} | {launch} | " + " | ".join(f"{value:,}" for value in values) + f" | {share} |")
+    lines.append("| **Total** | | " + " | ".join(f"{value:,}" for value in total) + " | 100% |")
+    if not own:
+        lines.append("\nThe orchestrator's own share: not provided (no Claude Code session transcript found).")
+    if without:
+        lines.append(f"\n{without} launch(es) logged from task notifications carry no tokens per kind and are not in "
+                     "this table.")
+    return "\n\n" + "\n".join(lines)
+
+
+def summary(path, usage=None):
     """Markdown table: launches, tokens, tool uses and seconds per member (and model/effort), with a total; then
-    the orchestrator's table when the rows carry a time of day."""
+    the orchestrator's table when the rows carry a time of day, and the table of tokens per kind with the
+    orchestrator's share from `usage` (`kind_table`)."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
     lines = ["| Member | Model/effort | Launches | Tokens | Tool uses | Seconds |",
@@ -564,7 +686,26 @@ def summary(path):
         total = [a + b for a, b in zip(total, entry, strict=True)]
     lines.append(f"| **Total** | | {launches(total[0], total[4])} | {total[1]:,} | {total[2]} | {total[3]} |")
     own = orchestrator(rows)
-    return "\n".join(lines) + (f"\n\n{own}" if own else "") + usage_notes(rows)
+    return "\n".join(lines) + (f"\n\n{own}" if own else "") + kind_table(rows, usage) + usage_notes(rows)
+
+
+def first_time(rows):
+    """The time of day of the log's first timed row (naive UTC), or None."""
+    times = [datetime.datetime.strptime(stamp, "%Y-%m-%d %H:%M") for stamp, _, _, _ in rows if " " in stamp]
+    return min(times) if times else None
+
+
+def session_transcript(session):
+    """The orchestrating session's transcript (`session` or `CLAUDE_CODE_SESSION_ID`), or None."""
+    reader = transcripts()
+    return reader.find_transcript(reader.projects_dir(), session or os.environ.get("CLAUDE_CODE_SESSION_ID"))
+
+
+def orchestrator_usage(rows, session):
+    """The orchestrating session's own usage from the log's first timed row on, as `usage_since` returns it; None
+    without a session transcript."""
+    path = session_transcript(session)
+    return None if path is None else transcripts().usage_since(path, first_time(rows))
 
 
 def fixes_after_pr(root, folder):
@@ -643,6 +784,10 @@ def build_parser():
     parser.add_argument("--unreported", action="store_true",
                         help="with --amend-last: the launch's task notification never arrived; the trailer marks "
                              "it as unreported (with --agent or --launch, without numbers)")
+    parser.add_argument("--agent-id", metavar="ID", help="the launched agent's id (the Agent tool's result): model, "
+                        "effort, tokens per kind, tool uses and seconds of its latest round come from its transcript")
+    parser.add_argument("--session", metavar="SESSION", help="the Claude Code session whose transcripts --agent-id "
+                        "and --summary read (default: CLAUDE_CODE_SESSION_ID)")
     parser.add_argument("--agent", metavar="squad-ROLE", help="the launched agent; model and effort come from its file")
     parser.add_argument("--launch", metavar="MODEL/EFFORT", help="the launched subagent's model and effort (when "
                                                                "the launch overrode the agent file)")
@@ -701,7 +846,10 @@ def default_override(log_path, agent, launch):
 def launch_metrics(parser, root, args, path):
     """(model/effort, tokens, tool uses, seconds) from the options, or None when no metric option is given; an
     incomplete set is a usage error, an unknown agent file ends the run with exit code 1. A launch the orchestrator
-    overrides by default is refused with `--agent` alone, so the override is logged as launched."""
+    overrides by default is refused with `--agent` alone, so the override is logged as launched. With `--agent-id`,
+    the launch comes from the agent's transcript (`transcript_launch`)."""
+    if args.agent_id:
+        return transcript_launch(parser, root, args, path)
     if not (args.agent or args.launch or has_numbers(args)):
         return None
     model = args.launch or (agent_launch(root, args.agent) if args.agent else None)
@@ -725,6 +873,83 @@ def launch_metrics(parser, root, args, path):
                      "whose notification has not arrived yet is logged with --agent alone and completed with "
                      "--amend-last")
     return (model, args.tokens, args.tool_uses, args.seconds)
+
+
+def transcript_launch(parser, root, args, path):
+    """(model/effort, tokens, tool uses, seconds, False, None, tokens per kind) of the latest round of the agent
+    `--agent-id` names, read from its transcript; a warning about the model goes to `args.warnings`. Exit code 1
+    when this session has no transcript of that agent."""
+    if args.launch or has_numbers(args) or args.unreported:
+        parser.error("--agent-id reads model, effort and usage from the agent's transcript: no --launch, --tokens, "
+                     "--tool-uses, --seconds or --unreported with it")
+    reader = transcripts()
+    session = session_transcript(args.session)
+    found = reader.subagent_transcript(session, args.agent_id) if session else None
+    rounds = reader.agent_rounds(found) if found else []
+    if not rounds:
+        sys.exit(f"No transcript of agent '{args.agent_id}' with a response in this session (CLAUDE_CODE_SESSION_ID "
+                 "or --session): outside Claude Code, log the launch from its task notification (--agent with "
+                 "--tokens, --tool-uses and --seconds)")
+    agent = transcript_agent(parser, args, reader.agent_type(found))
+    check_rounds(parser, args, len(rounds))
+    last = rounds[-1]
+    expected, overridden = expected_launch(root, path, agent)
+    model = max(last["models"], key=last["models"].get)
+    effort = last["effort"] or (expected.split("/", 1)[1] if expected else "default")
+    launched = f"{reader.family(model) or model}/{effort}"
+    args.warnings.append(model_warning(agent, launched, expected, overridden))
+    usage = last["usage"]
+    kinds = (*(usage[field] for field, _ in reader.TOKEN_FIELDS), reader.weighted(usage, model))
+    seconds = round((last["end"] - last["start"]).total_seconds()) if last["start"] else 0
+    return (launched, last["context"], last["tool_uses"], seconds, False, None, kinds)
+
+
+def transcript_agent(parser, args, recorded):
+    """The agent the transcript records (`--agent`, if given, must name the same one), or `--agent` when the
+    transcript records none."""
+    given = args.agent.strip().removesuffix(".md") if args.agent else None
+    if recorded == "unknown":
+        return given
+    if given and given != recorded:
+        parser.error(f"agent '{args.agent_id}' is {recorded}, not {given}: check the agent id")
+    return recorded
+
+
+def check_rounds(parser, args, count):
+    """A new row of an agent with several rounds is a continuation, one of an agent with one round a fresh launch."""
+    if args.amend_last or args.replace_last:
+        return
+    continued = args.continued or args.continued_from is not None
+    if count > 1 and not continued:
+        parser.error(f"agent '{args.agent_id}' ran {count} rounds: its latest continues it — log it with --continued, "
+                     "or --continued-from \"<step>\" when it is not the member's last fresh launch")
+    if count == 1 and continued:
+        parser.error(f"agent '{args.agent_id}' ran one round: a fresh launch, logged without --continued or "
+                     "--continued-from")
+
+
+def expected_launch(root, path, agent):
+    """(model/effort the agent should run on, whether *Launch model* overrides the agent file for it in this run);
+    (None, False) without an agent file."""
+    base = agent_launch(root, agent) if agent else None
+    override = default_override(path, agent, base)
+    return (override or base), bool(override)
+
+
+def model_warning(agent, launched, expected, overridden):
+    """A warning, or None, when the launch ran on another model family or effort than expected."""
+    if expected is None:
+        return None
+    family = transcripts().family
+    want_model, want_effort = expected.split("/", 1)
+    got_model, got_effort = launched.split("/", 1)
+    same_model = family(want_model) is None or family(want_model) == family(got_model)
+    if same_model and want_effort == got_effort:
+        return None
+    source = ".squad/orchestration.md, *Launch model*," if overridden else f".claude/agents/{agent}.md"
+    return (f"WARNING: {agent} ran on {launched}, but {source} names {expected}: the row records what it ran on; "
+            "its next round is a fresh launch with the right model, never a continuation (.squad/orchestration.md, "
+            "*Continuing a member*)")
 
 
 def share_of_round(path, member, launch, continued, replace=False, step=None, origin=None):
@@ -812,12 +1037,12 @@ def row_command(parser, path, args, launch):
     return 0
 
 
-def summary_command(root, folder, path):
+def summary_command(root, folder, path, session=None):
     """Print the summary; the exit code: 3 with launch rows still without usage, 4 with unreviewed fixes after
     the pull request."""
-    print(summary(path))
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
+    print(summary(path, orchestrator_usage(rows, session)))
     if missing_usage(rows):
         return 3
     note = unreviewed_fixes(root, folder, rows)
@@ -830,15 +1055,17 @@ def summary_command(root, folder, path):
 def run(parser, args, root, path):
     """The command the arguments ask for, against the log at `path`; the exit code."""
     if args.summary:
-        return summary_command(root, args.folder, path)
+        return summary_command(root, args.folder, path, args.session)
     target = args.amend_last or args.replace_last or args.member
     uses_metrics = args.amend_last or args.replace_last or args.unreported or args.agent or args.launch \
-        or args.tokens is not None or args.tool_uses is not None or args.seconds is not None or args.continued \
-        or args.continued_from is not None
+        or args.agent_id or has_numbers(args) or args.continued or args.continued_from is not None
     if target is not None and is_not_launch(target) and uses_metrics:
         parser.error(f"'{target}' is no launch: its rows are written without any metric option and never "
                      "amended, and the summary asks no usage for them")
+    args.warnings = []
     launch = launch_metrics(parser, root, args, path)
+    for warning in filter(None, args.warnings):
+        print(warning)
     args.continued = args.continued or args.continued_from is not None
     if args.amend_last and args.replace_last:
         parser.error("--amend-last and --replace-last exclude each other")

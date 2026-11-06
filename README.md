@@ -38,8 +38,10 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   no placeholder left) and `scope-check.py` (a product change touches no squad file, keeps marked files'
   template text and leaves no working record behind). `plan-check.py` checks a work folder's structure (spec
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
-  evidence, no control character); `squad-log.py` appends the pipeline's log rows; `session-usage.py` prints the
-  session's tokens per model and per subagent type from Claude Code's session transcripts for the wrap-up.
+  evidence, no control character); `squad-log.py` appends the pipeline's log rows, a launch's usage read from its
+  subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
+  share; `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
+  transcripts for the wrap-up.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with three process records from `decision-seeds/`),
   `specs/_template/`, `SECURITY.md`.
@@ -88,8 +90,9 @@ Go templates, `docker --format` strings and GitHub Actions expressions from bein
 
 `python3 tools/squad-report.py --repo <owner/name>[=<sonar-project-key>] … --since <date>` reads, for every pull
 request merged in the window, what happened after it was opened: fix pushes, CI failures, SonarQube Cloud issues and
-review comments, plus tier, launches and tokens of a squad run from its working record, and names the squad pull
-requests without run metrics (no step-12 wrap-up). Its totals per repository and week are the evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
+review comments, plus tier, launches, tokens and the price-weighted figure of a squad run from its working record,
+and names the squad pull requests without run metrics (no step-12 wrap-up). Its totals per repository and week are the
+evidence for changing the squad's rules or models; the runs' own logs only say what a run cost.
 
 ## Profiles
 

@@ -83,7 +83,8 @@ Sonnet: on Opus (until 2026-10-10) it raised 0.4 to 0.6 major objections per run
 Sonnet, with the same plans and the same instructions, 0.05 to 0.3 — the minor objections stayed, the ones
 that change a plan disappeared. One challenge costs about 55 k tokens on Sonnet, little against the 0.5 M to
 1.5 M of the run it protects. Every run records launches, tokens, tool uses and seconds per role in its
-working record (`squad-log.py --summary`), which is the evidence for the next change.
+working record (`squad-log.py --summary`), and since #234 the tokens per kind with their price-weighted figure and
+the orchestrator's share, which is the evidence for the next change.
 
 The Tester of a `security` run runs on Opus (orchestration.md, *Launch model*), the Dev stays on Sonnet. Evidence: the working records of 123 issues
 in Vandox, Seluna and PlexToJellyfinSync up to 2026-10-25 (107 runs with review rows, 74 with usage per launch:
@@ -104,6 +105,17 @@ the refreshed template), all 55 Tester launches of security runs were logged as 
 launch step named no model, and `--agent` reads the model from the agent file, so even an applied override
 would have been logged as Sonnet; the per-model summary rows that are to measure the override need the
 `--launch` the script now asks for.
+
+The model and effort of a role are decided on the **weighted** figure of the summary's table of tokens per kind
+(every token at its list price, in tokens of Sonnet input, the orchestrator's share in a row of its own) and on each
+role's share of it — not on the *Tokens* column. That column is each launch's context at its end, the figure a task
+notification reports: it leaves out the cache reads every turn repeats, the price difference between output and
+input and between the models, and the orchestrator, so in Vandox#337 it said 1.1 M while the session read 40.7 M
+cache tokens (#234). The shares per role above (Lead 27 %, Tester 25 %, …), the Devil's Advocate's 55 k per challenge
+and the 0.5 M to 1.5 M per run were measured on that column; they are measured again on the weighted figure before
+the next change of a role's model or effort, and `squad-report.py` reports the median weighted figure per tier
+next to the median tokens. Since `squad-log.py --agent-id` the model column records the model a launch ran on, read
+from its transcript, so the override above is measured by what ran, not by what was logged.
 
 ## Documentation claims are traced (squad-dev.md, Documentation)
 
@@ -548,3 +560,35 @@ orchestrator follows step by step: LarsLaskowski/Vandox#337 posted the working r
 early draft pull request before the review, and logged that as improvised. The Lead read every decision record
 (110 records of about 98,000 words in Vandox, #236), the Devil's Advocate only the index and the records of the
 topic; the Lead now reads them the same way, the first step of #236.
+
+## Usage read from the subagent transcripts, weighted by price (squad-log.py, `--agent-id` and `--summary`; session-usage.py; squad-issue, step 1; orchestration.md, Launch model; routing.md, Pipeline step 12)
+
+Found in the review of the squad against its five consumers on 2026-11-05 (#234: about 80 working records since
+2026-10-20, `squad-report.py --since 2026-10-01` with 190 squad pull requests, template commit 7571677). Logging usage
+by hand from task notifications was the most error-prone bookkeeping of a run, and step 1 needed about 450 words to
+explain it (`--amend-last`, `--replace-last`, interim notifications, `--unreported`): LarsLaskowski/Censio#15 and #16
+have no run metrics and every launch row says "usage pending", and the report lists Censio#102 and #104 without run
+metrics; in LarsLaskowski/Seluna#69, #110 and #17 a task notification never arrived; in Seluna#108 the orchestrator
+edited member cells by hand until `--summary` accepted them; Censio#13 used figures typed from `/usage`.
+
+The run metrics also counted a small part of what a run used. The *Tokens* column of "Squad run metrics" against the
+cache-read tokens of "Session usage": LarsLaskowski/Vandox#337 1.1 M against 40.7 M, Seluna#141 0.82 M against 21.2 M,
+Seluna#140 1.07 M against 36.6 M. Neither table weighed the token kinds by their price, and the orchestrator's own
+share was in neither.
+
+Checked on 2026-11-06 in a Claude Code session: the task notification of a continued subagent said 55,114 tokens,
+2 tool uses and 3,602 ms; the latest round of its transcript `subagents/agent-<id>.jsonl` (the records after the
+continuation message) had a last response whose input, output, cache-read and cache-write tokens add up to exactly
+55,114, two `tool_use` blocks and 3.58 s from its first to its last record. So the transcript gives every figure the
+notification gives — with the same meaning, the tokens being the agent's context at the end, cumulative across
+continuations — plus the tokens per kind, the model (`message.model`) and the effort (`effort`) each response ran
+on. `--agent-id` therefore replaces the notification path wherever a transcript exists, and checks the model of
+*Launch model* against the model that ran instead of the one typed into `--launch`.
+
+The weighted figure uses the list prices of 2026-10 per million tokens: Opus 5.5 $4 input, $20 output, $0.20 cache
+read; Sonnet 5.5 $2, $10, $0.20; Haiku 5.5 $0.10, $0.50, $0.01; Fable 5.1 $10, $50, $0.25; a cache write costs 1.25
+times the input price for a five-minute lifetime (subagents) and twice for a one-hour lifetime (the main session),
+which the transcripts record per response. It is expressed in tokens of Sonnet input rather than in dollars, so the
+Product Manager's decision of 2026-11-03 to print no cost stands (*Session usage from the transcripts*), while the
+figure stays proportional to cost across roles, models and token kinds. The orchestrator's share is read from the
+session's own transcript from the log's first timed row on, so work of the session before the run is left out.

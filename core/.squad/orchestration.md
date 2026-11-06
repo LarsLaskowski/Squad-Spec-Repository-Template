@@ -61,9 +61,10 @@ to create the issue, e.g. `add_repo`); only if attaching is refused it is filed 
 
 Every member is launched with the model and effort of its agent file, except: every `squad-tester` launch of a run
 whose `plan.md` names tier `security` gets `model: opus` (effort unchanged); a continued agent keeps the model it
-was launched with, so the first Tester launch of such a run already passes `model: opus` explicitly. Log such a
-launch with `--launch opus/<effort>` instead of `--agent squad-tester`, on the pending row and on its amend;
-`squad-log.py` refuses `--agent` alone there, so the summary shows the model the launch really ran on.
+was launched with, so the first Tester launch of such a run already passes `model: opus` explicitly.
+`squad-log.py --agent-id` logs the model and effort a launch really ran on and warns when they differ from the
+agent file or this override. Outside Claude Code, log such a launch with
+`--launch opus/<effort>` instead of `--agent squad-tester` (the script refuses `--agent` alone there).
 
 ## Continuing a member
 

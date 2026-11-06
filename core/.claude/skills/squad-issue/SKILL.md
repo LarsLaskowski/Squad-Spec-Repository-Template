@@ -120,8 +120,9 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    asks for a test;
    otherwise log why the pass is skipped. Repeat until the gate passes. Then, when the plan lists documentation
    updates not written yet, continue the Dev's `implement` agent for them (*Documentation* in `squad-dev.md`;
-   test documentation: the Tester in mode `coverage`), logged as a step-6 continuation, and run *Test* again. Before step 7, `grep` the test files
-   for every test the plan names; a name without a match goes to `squad-tester` in mode `coverage`. Lines
+   test documentation: the Tester in mode `coverage`), logged as a step-6 continuation, and run *Test* again. Before step 7, run `python3
+   .squad/tools/plan-check.py <folder> --matrix`: a criterion it reports `MISSING` (no test file carries its id or
+   a test name the plan gives) goes to `squad-tester` in mode `coverage`. Lines
    reported as not unit-testable go to `squad-lead` in mode `decide`.
 7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Run the gates of step 7 (*Pipeline*;
    for a change without code and for `patch` their sections) with the commands from `.squad/stack.md`,
@@ -156,7 +157,11 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    PR also the finished check-run list) — only for the open decisions it lists; otherwise log "approved by
    checklist".
 10. **Pull request.** With an *Early draft PR* (open since step 7) this step, too, waits for step 9: the record
-    is posted and `specs/` removed only now, and the open PR is updated as below instead of opened. Post
+    is posted and `specs/` removed only now, and the open PR is updated as below instead of opened. With a
+    `plan.md`, run `python3 .squad/tools/plan-check.py <folder> --matrix` (a `MISSING` row sends the change back
+    to step 6) and fill in its results: each `to record` from the log (the manual test, the check), each `after
+    merge` with a linked verification issue you create now, each `pending` CI row once the PR's checks have
+    finished (step 11). Post the matrix, not collapsed, then
     `plan.md` (none on tiers `docs` and `patch`) and `log.md` as one comment on the issue, headed "Squad
     working record", each inside a collapsed `<details>` block — or, for a `plan.md` too
     long to re-type, a permalink to the last commit that contains it
@@ -168,8 +173,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     session already has for the branch (`list_pull_requests` with `head: "<owner>:<branch>"`) gets its title
     and body updated instead (`update_pull_request`, `draft: true`). The body describes the bug, the fix and
     the reproducing test (or that the fix is not verifiable without a real external system), `Closes
-    #<number>` under Issues and the decision records; Next Steps lists **only linked GitHub issues** (create
-    them now) or "None".
+    #<number>` under Issues and the decision records, the matrix as *Test Plan*; Next Steps lists **only linked
+    GitHub issues** (create them now, the verification issues included) or "None".
 11. **After the PR.** Subscribe to the PR's activity right away (`subscribe_pr_activity`; without it, check CI
     and the code analysis yourself before finishing) — a session that ends with an unwatched PR has not
     completed this step. Stay with the PR until *Draft until green* holds, then mark it ready. Route:

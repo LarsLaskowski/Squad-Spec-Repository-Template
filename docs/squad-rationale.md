@@ -564,3 +564,26 @@ the code no longer follows. The Lead, which decides those cases in mode `decide`
 the Product Manager) and accepts a dropped criterion still named in the plan or the tasks, and the Reviewer reads
 the criteria as amended. A bug fix's criteria live in `plan.md` and can turn out wrong in the same way, so the same
 table applies there. *New scope on the open PR* records its new criteria as amendments too.
+
+## The verification matrix, criterion ids in tests, no status fields without an owner (plan-check.py --matrix; spec.md, plan.md and tasks.md templates; squad-issue, steps 6 and 10; squad-spec, step 10; profile UNIT_TESTS.md and testing blocks; adopt-template, step 1)
+
+Found in the review of 2026-11-05 against the five consumers (#242, scope in #234). The checkboxes of `- [ ] AC<n>:`
+in `spec.md` and `plan.md`, the *Status* line of the plan template (`Draft | Revised (n) | Approved by Security`)
+and that of the tasks template (`Draft | Approved`) had no rule saying who sets them or when; only the `tasks.md`
+check marks belonged to the orchestrator. The posted record therefore could not show which criteria were verified,
+and the working records of LarsLaskowski/Seluna#108 (facts 12 and 14), #109 (AC13, waived), #110 and #140 (facts 3,
+8, 13 and 14) left criteria with a live or manual check open or waived without a result. The fields are dropped
+rather than given an owner: the log already holds every revision and Security's verdict, and the matrix now holds
+each criterion's verification, so a second place would need its own rule and bookkeeping for no reader. A checkbox
+left in a record is still accepted and means nothing. Without the box a criterion line no longer stands out, so
+`plan-check.py` reads a plan's own criteria from its *Acceptance criteria* section only.
+
+The orchestrator found a criterion's tests by grepping the test names of the plan before step 7; in
+LarsLaskowski/Seluna#108 the Tester renamed or split nine tests to make them match. Each profile now says how a test
+carries its criterion id (a `TestCategory` attribute in MSTest, a subtest name or name suffix in Go, the start of the
+test or `describe` name in Node and TypeScript), and `plan-check.py --matrix` finds tests by that id, falling back to
+the plan's names, in the test paths the coverage gate and the file guard already use. Its result `pass` rests on the
+gates of step 7, which step 9 requires on the same head; the tool cannot read a test result in a stack-neutral way.
+A criterion verified in CI, by hand or only after the merge names that kind in the plan, and the orchestrator fills
+in its result in the working record; one that can only be verified after the merge gets a linked verification issue
+under Next Steps instead of an open box, and a waiver is an amendment the Product Manager decides.

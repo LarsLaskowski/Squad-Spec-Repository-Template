@@ -40,9 +40,9 @@ and documented procedures* in `.squad/routing.md`). -->
 
 <!-- The only list of criteria of this feature. Each is one testable statement and names the scenarios, edge
 cases and non-functional requirements it covers, e.g. "AC1: an export of an empty library writes a file with the
-header only (S1, E2)". -->
+header only (S1, E2)". No checkbox: the verification matrix of the working record shows what was verified. -->
 
-- [ ] AC1: …
+- AC1: …
 
 ## Out of scope
 

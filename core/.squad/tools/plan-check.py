@@ -10,7 +10,8 @@ Checks, in the work folder `specs/<folder>/`:
 - **Feature** (`spec.md` exists): every section of the spec template is filled — *Problem*, *Scenarios*,
   *Errors and edge cases*, *Non-functional requirements*, *Acceptance criteria*, *Out of scope*, *Open
   questions*, *Area documents* ("none" counts as filled, the template's guidance comments do not); there is at
-  least one scenario `S<n>` and one criterion written `- [ ] AC<n>: …`, and a line that names a criterion in
+  least one scenario `S<n>` and one criterion written `- AC<n>: …` (a leftover checkbox, `- [ ] AC<n>: …`, is
+  accepted and means nothing), and a line that names a criterion in
   another form is reported; *Non-functional requirements* says "none" or numbers them `- N<n>: …`; every
   scenario, edge case `E<n>` and non-functional requirement is named by a criterion or listed under *Out of
   scope*; every open question is answered (`Answered:`) or the section says "none"; `plan.md` defines no
@@ -26,8 +27,9 @@ Checks, in the work folder `specs/<folder>/`:
 - **Amendments** (a criterion changed after approval, in the file that defines the criteria): the *Amendments*
   table has the columns Criterion, Change, Reason, Step and Decided by, every cell filled; each row names a
   criterion the file defines, or one it no longer defines with a change that starts with `dropped`; it is decided
-  by the Lead or the Product Manager. A dropped criterion needs no test or task, and naming it there is no
-  finding.
+  by the Lead or the Product Manager, a change that starts with `waived` (a criterion no one can verify) by the
+  Product Manager. A dropped criterion needs no test or task, and naming it there is no finding; a waived one
+  needs no test.
 - **Both:** the *Tier* line names exactly one tier, and the *Security areas touched* line says "none" or lists
   them (it decides the Security plan review); *Verified facts* has at least
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
@@ -43,17 +45,29 @@ Checks, in the work folder `specs/<folder>/`:
 Ids may be written as ranges (`AC1–AC3`, `S2-S4`, `N1-N2`); backticks and emphasis around a cell are ignored. A criterion
 without a test, in a plan whose *Verification without tests* section names it, counts as covered.
 
+With `--matrix` the verification matrix of the work folder is printed, one row per criterion: its kind of
+verification and its tests or check, from the plan's *Tests per criterion* and *Verification without tests* (a
+*Test(s)* cell or a line that starts with `CI:`, `manual:`, `after merge:` or `check:` names that kind, any other
+cell names tests, an empty or "none" cell on tier `trivial` leaves the criterion to the review round), or `dropped`
+and `waived` from *Amendments*; and its result on the code head (the last commit outside `specs/`). A unit
+criterion's tests are looked up in the test files (`COVERAGE_TEST_PATHSPECS` of `squad_settings.py`, by default its
+`COVERAGE_EXCLUDES`, and the files the plan names): a file that carries the criterion id (`docs/UNIT_TESTS.md`,
+*Criterion ids*) or a test name the plan gives makes it `pass`, since the matrix runs on a head the gates of step 7
+passed on; no such file makes it `MISSING` and the exit code 1. Every other kind prints the result still to fill in
+(`squad-issue`, step 10).
+
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge. A spec longer
 than `SPEC_MAX_WORDS` (`squad_settings.py`, default 2500; the template's guidance comments do not count) is reported
 as a warning: every later launch reads it, so the Lead sizes it to the feature.
 
 Usage, from the repository root:
-    python3 .squad/tools/plan-check.py <work folder name, e.g. feature-12-export or issue-34> [--spec]
+    python3 .squad/tools/plan-check.py <work folder name, e.g. feature-12-export or issue-34> [--spec | --matrix]
 
 Exit code 0 when the work folder passes, 1 otherwise.
 """
 import os
 import re
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -67,9 +81,10 @@ PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
 SPEC_MAX_WORDS = getattr(settings, "SPEC_MAX_WORDS", 2500)
 TIERS = ("trivial", "standard", "security")
 STATUSES = ("confirmed", "refuted", "unverified")
+CRITERIA_SECTION = "Acceptance criteria"
 SPEC_SECTIONS = ["Problem", "Scenarios", "Errors and edge cases", "Non-functional requirements",
-                 "Acceptance criteria", "Out of scope", "Open questions", "Area documents"]
-CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC\d+):", re.M)
+                 CRITERIA_SECTION, "Out of scope", "Open questions", "Area documents"]
+CRITERION = re.compile(r"^\s*- (?:\[[ xX]\] )?(AC\d+):", re.M)
 CASE = re.compile(r"^\s*- (?:\*\*)?([SEN]\d+)(?:\*\*)?:", re.M)
 # A range repeats the prefix (`AC1\u2013AC3`, `S2 .. S4`) or joins the numbers without spaces (`AC1-3`), so
 # that "E1 \u2013 10 s at most" stays one id and a number.
@@ -97,8 +112,18 @@ DECLARATION_KEYWORDS = {"func", "def", "fn", "public", "private", "protected", "
                         "interface", "enum", "var", "let", "val", "abstract", "override"}
 TOP_ITEM = re.compile(r"^(?:[-*]|\d+[.)])\s+")
 AMENDMENT_COLUMNS = ("criterion", "change", "reason", "step", "decided by")
-DECIDERS = ("lead", "product manager")
+PRODUCT_MANAGER = "product manager"
+DECIDERS = ("lead", PRODUCT_MANAGER)
 DROPPED = "dropped"
+WAIVED = "waived"
+AFTER_MERGE = "after merge"
+KINDS = {"ci": "CI", "manual": "manual", AFTER_MERGE: AFTER_MERGE, "check": "check"}
+KIND = re.compile(r"^(CI|manual|after merge|check)\s*:\s*", re.I)
+LEADING_IDS = re.compile(r"^[\s*-]*(?:\**AC\d+\**[\s,.\u2013\u2014-]*)+:?\s*")
+RESULTS = {"CI": "pending: the pull request's CI (step 11)", "manual": "to record: the manual test's result",
+           "check": "to record: the check's result", AFTER_MERGE: f"{AFTER_MERGE}: the linked verification issue",
+           "review": "pass: the clean review round", DROPPED: "dropped (*Amendments*)",
+           WAIVED: "waived by the Product Manager (*Amendments*)"}
 
 
 def strip_comments(text):
@@ -232,20 +257,20 @@ def check_requirements(requirements, errors):
 
 
 def check_spec(spec, errors):
-    """The spec's sections; returns its criterion ids and the criteria its *Amendments* drop."""
+    """The spec's sections; returns its criterion ids and the criteria its *Amendments* drop or waive."""
     parts = sections(spec)
     for section in SPEC_SECTIONS:
         if not parts.get(section):
             errors.append(f"spec.md: section *{section}* is missing or empty (write \"none\" when nothing applies)")
-    block = parts.get("Acceptance criteria", "")
+    block = parts.get(CRITERIA_SECTION, "")
     criteria = CRITERION.findall(block)
     if not criteria:
-        errors.append("spec.md: no acceptance criterion written `- [ ] AC1: …` under *Acceptance criteria*")
+        errors.append("spec.md: no acceptance criterion written `- AC1: …` under *Acceptance criteria*")
     if len(criteria) != len(set(criteria)):
         errors.append("spec.md: an acceptance criterion id is used twice")
     for line in block.splitlines():
         if re.match(r"^[-*\d]", line) and ids(line, "AC") and not CRITERION.match(line):
-            errors.append(f"spec.md: criterion not written `- [ ] AC<n>: …`: {line.strip()}")
+            errors.append(f"spec.md: criterion not written `- AC<n>: …`: {line.strip()}")
     requirements = parts.get("Non-functional requirements", "")
     check_requirements(requirements, errors)
     cases = [case for name in ("Scenarios", "Errors and edge cases") for case in CASE.findall(parts.get(name, ""))]
@@ -260,7 +285,7 @@ def check_spec(spec, errors):
     return set(criteria), check_amendments(SPEC, parts, set(criteria), errors)
 
 
-def check_amendment_row(name, cells, criteria, dropped, errors):
+def check_amendment_row(name, cells, criteria, settled, errors):
     """One row of *Amendments*: (criterion, change, reason, step, decided by)."""
     shown = f"| {' | '.join(cells)} |"
     if any(empty(value) for value in cells):
@@ -271,23 +296,32 @@ def check_amendment_row(name, cells, criteria, dropped, errors):
         errors.append(f"{name}: *Amendments* row names no criterion: {shown}")
     if not cells[4].lower().startswith(DECIDERS):
         errors.append(f"{name}: *Amendments* row not decided by the Lead or the Product Manager: {shown}")
+    kind = next((k for k in (DROPPED, WAIVED) if change.startswith(k)), None)
+    if kind == WAIVED and not cells[4].lower().startswith(PRODUCT_MANAGER):
+        errors.append(f"{name}: *Amendments* waives a criterion the Product Manager did not waive: {shown}")
+    if kind:
+        settled.update(dict.fromkeys(named, kind))
     for criterion in sorted(named):
-        if change.startswith(DROPPED):
-            dropped.add(criterion)
-            if criterion in criteria:
-                errors.append(f"{name}: *Amendments* drops {criterion}, which is still a criterion")
-        elif criterion not in criteria:
-            errors.append(f"{name}: *Amendments* changes {criterion}, which no criterion defines (a dropped one "
-                          "says `dropped`)")
+        errors.extend(amended_criterion_errors(name, criterion, kind, criteria))
+
+
+def amended_criterion_errors(name, criterion, kind, criteria):
+    """A dropped criterion is no longer defined; any other amended one still is."""
+    if kind == DROPPED and criterion in criteria:
+        return [f"{name}: *Amendments* drops {criterion}, which is still a criterion"]
+    if kind != DROPPED and criterion not in criteria:
+        return [f"{name}: *Amendments* changes {criterion}, which no criterion defines (a dropped one says "
+                "`dropped`)"]
+    return []
 
 
 def check_amendments(name, parts, criteria, errors):
     """The *Amendments* table of the file that defines the criteria (a criterion changed after approval); returns
-    the criteria it drops."""
+    {criterion: `dropped` or `waived`} for the criteria it drops or waives."""
     body = parts.get("Amendments")
-    dropped = set()
+    settled = {}
     if body is None:
-        return dropped
+        return settled
     found = tables(body)
     if not found:
         errors.append(f"{name}: *Amendments* holds no table (Criterion, Change, Reason, Step, Decided by)")
@@ -298,8 +332,8 @@ def check_amendments(name, parts, criteria, errors):
                           "Decided by")
             continue
         for cells in amendment_rows(rows, index):
-            check_amendment_row(name, cells, criteria, dropped, errors)
-    return dropped
+            check_amendment_row(name, cells, criteria, settled, errors)
+    return settled
 
 
 def amendment_rows(rows, index):
@@ -307,7 +341,7 @@ def amendment_rows(rows, index):
     return [[row[i] if i < len(row) else "" for i in index] for row in rows]
 
 
-def check_tests(plan_parts, criteria, tier, errors, dropped=frozenset()):
+def check_tests(plan_parts, criteria, tier, errors, settled=None):
     named = set()
     for header, rows in tables(plan_parts.get("Tests per criterion")):
         test = column(header, "test(s)", "tests", "test")
@@ -318,10 +352,11 @@ def check_tests(plan_parts, criteria, tier, errors, dropped=frozenset()):
                 errors.append(f"plan.md: *Tests per criterion* row without a test name: | {' | '.join(row)} |")
     if tier == "trivial":
         return
+    settled = settled or {}
     without_tests = ids(plan_parts.get("Verification without tests", ""), "AC")
-    for criterion in sorted(criteria - named - without_tests):
+    for criterion in sorted(criteria - named - without_tests - set(settled)):
         errors.append(f"plan.md: {criterion} has no row in *Tests per criterion* (nor in *Verification without tests*)")
-    for criterion in sorted(named - criteria - dropped):
+    for criterion in sorted(named - criteria - set(settled)):
         errors.append(f"plan.md: *Tests per criterion* names {criterion}, which no acceptance criterion defines")
 
 
@@ -475,26 +510,26 @@ def check_security_areas(plan, errors):
 
 def check_plan(plan, spec, errors):
     """plan.md against the tier, the facts and the criteria; returns the criteria of the work folder and the ones
-    its *Amendments* drop."""
+    its *Amendments* drop or waive."""
     parts = sections(plan)
     tier = re.search(r"^Tier:\s*`?(\w+)`?([^\n]*)", plan, re.M)
     name = tier.group(1) if tier else None
     if name not in TIERS or tier.group(2).lstrip().startswith("|"):
         errors.append(f"plan.md: the *Tier* line must name exactly one of {', '.join(TIERS)}")
     check_security_areas(plan, errors)
-    own = set(CRITERION.findall(strip_comments(plan)))
+    own = set(CRITERION.findall(parts.get(CRITERIA_SECTION, "")))
     if spec is None:
         criteria = own
         if not criteria:
-            errors.append("plan.md: no acceptance criterion (`- [ ] AC1: …`) under *Acceptance criteria*")
-        dropped = check_amendments(PLAN, parts, criteria, errors)
+            errors.append("plan.md: no acceptance criterion (`- AC1: …`) under *Acceptance criteria*")
+        settled = check_amendments(PLAN, parts, criteria, errors)
     else:
-        criteria, dropped = check_spec(spec, errors)
+        criteria, settled = check_spec(spec, errors)
         for criterion in sorted(own):
             errors.append(f"plan.md: defines {criterion}; a feature's criteria live in spec.md only")
-    check_tests(parts, criteria, name, errors, dropped)
+    check_tests(parts, criteria, name, errors, settled)
     check_facts(parts, errors)
-    return criteria, dropped
+    return criteria, settled
 
 
 def check_spec_only(folder):
@@ -534,7 +569,8 @@ def check(folder):
     spec = read(os.path.join(folder, SPEC), errors)
     if plan is None:
         return ["plan.md is missing (tiers docs and patch write none: there is nothing to check)"], warnings
-    criteria, dropped = check_plan(plan, spec, errors)
+    criteria, settled = check_plan(plan, spec, errors)
+    dropped = {criterion for criterion, kind in settled.items() if kind == DROPPED}
     for name, text in ((PLAN, plan), (SPEC, spec)):
         if text is not None:
             check_placeholders(name, text, errors)
@@ -585,17 +621,150 @@ def check_plan_size(plan, errors, warnings):
                       "a scope that really needs more says why in a `Plan size:` line under the header")
 
 
+def git_output(*args):
+    """The output of a read-only git command, or "" when git fails or is missing."""
+    try:
+        result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+    except OSError:
+        return ""
+    return result.stdout if result.returncode == 0 else ""
+
+
+def test_names(text):
+    """The test names of a *Test(s)* cell: comma-separated, a qualified name (`ExportTests.Writes`, a Go subtest
+    `TestParse/empty`) by the name a test file declares."""
+    names = []
+    for part in re.split(r"[,;]", text):
+        name = re.sub(r"\(\)$", "", part.strip().strip("`'\"").strip())
+        if name and " " not in name:
+            name = name.split("/")[0].rsplit(".", 1)[-1]
+        if name:
+            names.append(name)
+    return names
+
+
+def row_verification(text, paths):
+    """(kind, tests or check, test names, test files) of one *Tests per criterion* cell."""
+    kind = KIND.match(text)
+    if kind:
+        return KINDS[kind.group(1).lower()], text[kind.end():].strip(), [], paths
+    if empty(text) or text.lower().startswith("none"):
+        return "review", "none (no tests first)", [], paths
+    return "unit", text, test_names(text), paths
+
+
+def cell_at(row, index):
+    return row[index] if index is not None and len(row) > index else ""
+
+
+def planned_verifications(parts):
+    """{criterion: (kind, tests or check, test names, test files)} from *Tests per criterion* and *Verification
+    without tests*."""
+    planned = {}
+    for header, rows in tables(parts.get("Tests per criterion")):
+        test = column(header, "test(s)", "tests", "test")
+        test = 1 if test is None else test
+        files = column(header, "test file", "test files", "file", "files")
+        for row in rows:
+            verification = row_verification(cell_at(row, test), file_list(cell_at(row, files)))
+            planned.update(dict.fromkeys(ids(row[0], "AC"), verification))
+    for line in parts.get("Verification without tests", "").splitlines():
+        verification = without_tests_verification(LEADING_IDS.sub("", line).strip())
+        for criterion in ids(line, "AC"):
+            planned.setdefault(criterion, verification)
+    return planned
+
+
+def without_tests_verification(text):
+    """(kind, check, no test names, no test files) of a *Verification without tests* line; `check` by default."""
+    kind = KIND.match(text)
+    if kind:
+        return KINDS[kind.group(1).lower()], text[kind.end():], [], []
+    return "check", text, [], []
+
+
+def test_sources(paths):
+    """{path: text} of the test files: the test paths of squad_settings.py and the files the plan names."""
+    pathspecs = getattr(settings, "COVERAGE_TEST_PATHSPECS", getattr(settings, "COVERAGE_EXCLUDES", []))
+    listed = git_output("ls-files", "--cached", "--others", "--exclude-standard", "--", *pathspecs).splitlines() \
+        if pathspecs else []
+    sources = {}
+    for path in sorted({p for p in listed if p.strip()} | set(paths)):
+        text = read(path, []) if os.path.isfile(path) else None
+        if text:
+            sources[path] = text
+    return sources
+
+
+def carriers(criterion, names, sources):
+    """The test files that carry the criterion id (not as part of a longer word or number) or name one of its
+    tests."""
+    pattern = re.compile(rf"(?<![A-Za-z0-9]){criterion}(?![0-9])")
+    return [path for path, text in sources.items() if pattern.search(text) or any(name in text for name in names)]
+
+
+def matrix_row(criterion, planned, settled, sources, head):
+    """(the row's cells, whether it is MISSING)."""
+    if criterion in settled:
+        return [criterion, settled[criterion], "\u2014", RESULTS[settled[criterion]]], False
+    if criterion not in planned:
+        return [criterion, "\u2014", "\u2014", "MISSING: no test or verification in plan.md"], True
+    kind, check, names, _ = planned[criterion]
+    if kind != "unit":
+        return [criterion, kind, check, RESULTS[kind]], False
+    found = carriers(criterion, names, sources)
+    result = f"pass on `{head}`: {', '.join(found)}" if found else \
+        f"MISSING: no test file carries {criterion} or names {', '.join(names)}"
+    return [criterion, kind, check, result], not found
+
+
+def matrix(folder):
+    """The verification matrix of the work folder as Markdown lines, and the number of MISSING rows."""
+    errors = []
+    plan = read(os.path.join(folder, PLAN), errors)
+    if plan is None:
+        return ["plan.md is missing (tiers docs and patch have no matrix: the first log.md row holds their criteria)"], 1
+    spec = read(os.path.join(folder, SPEC), errors)
+    parts = sections(plan)
+    if spec is None:
+        criteria = set(CRITERION.findall(parts.get(CRITERIA_SECTION, "")))
+        settled = check_amendments(PLAN, parts, criteria, errors)
+    else:
+        criteria, settled = check_spec(spec, errors)
+    planned = planned_verifications(parts)
+    sources = test_sources({path for _, _, _, paths in planned.values() for path in paths})
+    head = git_output("log", "-1", "--format=%h", "--", ".", ":(exclude)specs").strip() or "the working tree"
+    lines = [f"Verification matrix of {os.path.basename(folder)} on `{head}`", "",
+             "| Criterion | Verification | Tests or check | Result |", "| --- | --- | --- | --- |"]
+    missing = 0
+    for criterion in sorted(criteria | set(settled), key=lambda c: int(c[2:])):
+        cells, absent = matrix_row(criterion, planned, settled, sources, head)
+        missing += absent
+        lines.append("| " + " | ".join(value.replace("|", "\\|") for value in cells) + " |")
+    return lines, missing
+
+
+def print_matrix(folder):
+    lines, missing = matrix(folder)
+    print("\n".join(lines))
+    print("PASS" if not missing else f"FAIL: {missing} criterion(s) MISSING — the Tester writes their tests (mode "
+          "`coverage`)")
+    return 0 if not missing else 1
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    spec_only = "--spec" in argv
-    names = [arg for arg in argv if arg != "--spec"]
-    if len(names) != 1 or any(arg.startswith("-") for arg in names):
-        print("Usage: python3 .squad/tools/plan-check.py <work folder> [--spec]")
+    spec_only, matrix_only = "--spec" in argv, "--matrix" in argv
+    names = [arg for arg in argv if arg not in ("--spec", "--matrix")]
+    if len(names) != 1 or any(arg.startswith("-") for arg in names) or (spec_only and matrix_only):
+        print("Usage: python3 .squad/tools/plan-check.py <work folder> [--spec | --matrix]")
         return 1
     folder = resolve_folder(os.getcwd(), names[0])
     if folder is None:
         print(f"No work folder {names[0]!r} under specs/")
         return 1
+    if matrix_only:
+        return print_matrix(folder)
     errors, warnings = check_spec_only(folder) if spec_only else check(folder)
     for line in warnings:
         print(f"WARNING: {line}")

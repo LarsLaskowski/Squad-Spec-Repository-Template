@@ -58,7 +58,8 @@ The orchestrator tells you which **mode** to run:
     with `to verify:`, the measurement, its owner and the step where no one checked it yet;
   - for a bug fix, acceptance criteria the Tester can turn into unit tests (a feature's are the spec's: never
     copy them), and for every criterion its tests in *Tests per criterion* — the Tester writes exactly those
-    first. A criterion that words a condition for user-visible text (a status line, a message) is derived from
+    first — or, for one no unit test can verify, its kind and check (`CI:`, `manual:`, `after merge:`; the
+    template). A criterion that words a condition for user-visible text (a status line, a message) is derived from
     the code path that decides it, and the plan names that path, not a paraphrase of the trigger. New
     user-visible output gets its layout in *Approach* — heading level, list structure, order, when optional
     notes appear — or the line "layout free for the Tester, approved in step 9": the Tester does not decide it;

@@ -3,7 +3,9 @@ import contextlib
 import io
 import os
 import shutil
+import subprocess
 import tempfile
+import types
 import unittest
 
 from test_squad_tools import load_script, write
@@ -35,8 +37,8 @@ Users cannot take their watch history elsewhere.
 
 ## Acceptance criteria
 
-- [ ] AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)
-- [ ] AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)
+- AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)
+- AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)
 
 ## Out of scope
 
@@ -168,7 +170,7 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(self.errors(self.feature(spec=SPEC + table)), [])
         self.feature(spec=SPEC + table, plan=None, tasks=None)
         self.assertEqual(self.script.check_spec_only(os.path.join("specs", "feature-12-export"))[0], [])
-        dropped = (SPEC.replace("- [ ] AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)\n",
+        dropped = (SPEC.replace("- AC2: an empty library writes the header only, titles with commas are quoted (E1, E2)\n",
                                 "").replace("- S2: concurrent", "- E1, E2: in a follow-up issue.\n- S2: concurrent")
                    + table.replace("| AC1 | the limit", "| AC2 | dropped: moved to a follow-up issue; the limit"))
         self.assertEqual(self.errors(self.feature(spec=dropped)), [], "a dropped criterion may stay in plan and tasks")
@@ -183,6 +185,66 @@ class TestPlanCheck(unittest.TestCase):
             self.assertTrue(any(expected in e for e in self.errors(self.feature(spec=SPEC + bad))), expected)
         write("specs/issue-34/plan.md", BUG_PLAN + table)
         self.assertEqual(self.errors("specs/issue-34"), [], "a bug fix records its amendments in plan.md")
+
+    def matrix(self, folder):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = self.script.main([os.path.basename(folder), "--matrix"])
+        return code, output.getvalue()
+
+    def test_matrix_finds_tests_by_criterion_id_or_by_name(self):
+        folder = self.feature()
+        write("tests/ExportTests.cs", '[TestCategory("AC1")]\npublic void ExportWritesRows() {}\n'
+                                      "public void ExportQuotesCommas() {}\n")
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        self.assertIn("| AC1 | unit | ExportWritesOneRowPerItem | pass on `the working tree`: tests/ExportTests.cs |",
+                      output, "a renamed test is found by its criterion id")
+        self.assertIn("| AC2 | unit | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | pass on", output)
+        write("tests/ExportTests.cs", 'public void ExportWritesRows() { Check("AC10"); }\n')
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 1, output)
+        self.assertIn("| AC1 | unit | ExportWritesOneRowPerItem | MISSING: no test file carries AC1 or names "
+                      "ExportWritesOneRowPerItem |", output, "AC10 is not AC1")
+        self.assertIn("FAIL: 2 criterion(s) MISSING", output)
+        write("tests/ExportTests.cs", "func TestExport_AC1(t *testing.T) {}\nt.Run(\"AC2 header only\", f)\n")
+        self.assertEqual(self.matrix(folder)[0], 0, "a name suffix or a subtest name carries the id")
+
+    def test_matrix_shows_other_verifications_and_amendments(self):
+        plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",
+                            "| AC2 | after merge: the PM imports the file into the target application | — |\n"
+                            "| AC3 | CI: the image build check | — |\n| AC4 | manual: the PM on the CI artifact | — |")
+        plan += "\n## Verification without tests\n\n- AC5: check: `git diff` holds no other file.\n"
+        spec = SPEC.replace("- AC2:", "- AC3: x (S1)\n- AC4: y (S1)\n- AC5: z (S1)\n- AC6: w (S1)\n- AC2:")
+        spec += ("\n## Amendments\n\n| Criterion | Change | Reason | Step | Decided by |\n| - | - | - | - | - |\n"
+                 "| AC6 | waived: no device to test on | hardware only | 8 | Product Manager |\n"
+                 "| AC7 | dropped: in a follow-up issue | scope | 6 | Lead |\n")
+        tasks = TASKS.replace("AC1, AC2", "AC1\u2013AC6")
+        folder = self.feature(spec=spec, plan=plan, tasks=tasks)
+        self.assertEqual(self.errors(folder), [], "a waived criterion needs no test")
+        write("tests/ExportTests.cs", "ExportWritesOneRowPerItem\n")
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        for row in ("| AC2 | after merge | the PM imports the file into the target application | after merge: the "
+                    "linked verification issue |", "| AC3 | CI | the image build check | pending: the pull request's CI",
+                    "| AC4 | manual | the PM on the CI artifact | to record:",
+                    "| AC5 | check | `git diff` holds no other file. | to record:",
+                    "| AC6 | waived | \u2014 | waived by the Product Manager", "| AC7 | dropped | \u2014 | dropped"):
+            self.assertIn(row, output)
+        waived_by_lead = spec.replace("| 8 | Product Manager |", "| 8 | Lead |")
+        self.assertTrue(any("did not waive" in e for e in self.errors(self.feature(spec=waived_by_lead))))
+
+    def test_matrix_reads_the_test_paths_of_the_settings_and_needs_a_plan(self):
+        subprocess.run(["git", "init", "-q"], check=True)
+        write("pkg/export_test.go", "// AC1 and AC2\n")
+        self.script.settings = types.SimpleNamespace(COVERAGE_EXCLUDES=["*_test.go"])
+        code, output = self.matrix(self.feature(plan=PLAN.replace("| tests/ExportTests.cs |", "| — |")))
+        self.assertEqual(code, 0, output)
+        self.assertIn("pass on `the working tree`: pkg/export_test.go", output)
+        write("specs/issue-35/log.md", "| Date |\n")
+        self.assertEqual(self.matrix("specs/issue-35")[0], 1)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.script.main(["issue-35", "--spec", "--matrix"]), 1)
 
     def test_criteria_live_in_the_spec_only_and_each_needs_a_test_and_a_task(self):
         plan = PLAN + "\n## Acceptance criteria\n\n- [ ] AC3: copied from the spec\n"
@@ -316,7 +378,7 @@ class TestPlanCheck(unittest.TestCase):
         spec = (spec.replace("# Spec: <title>", "# Spec: Export").replace("Issue #<number> | the user's description", "Issue #12")
                 .replace("- S1: …", "- S1: Given a library, when the user exports it, then a CSV file is written.")
                 .replace("- E1: …", "- E1: An empty library writes the header only.").replace("- N1: …\n", "")
-                .replace("- [ ] AC1: …", "- [ ] AC1: an export writes one row per item (S1, E1)"))
+                .replace("- AC1: …", "- AC1: an export writes one row per item (S1, E1)"))
         for heading, text in (("## Problem", "Users cannot export."), ("## Non-functional requirements", "none"),
                               ("## Out of scope", "none"), ("## Open questions", "none"),
                               ("## Area documents", "- docs/areas/export.md: the format.")):
@@ -369,7 +431,7 @@ class TestPlanCheck(unittest.TestCase):
         self.assertTrue(any("claim without evidence" in e for e in errors), errors)
 
     def test_spec_without_parsable_criterion_or_scenario_fails_early(self):
-        spec = SPEC.replace("- [ ] AC1:", "- **AC1**:").replace("- [ ] AC2:", "- AC2:").replace("- S1:", "S1 is").replace(
+        spec = SPEC.replace("- AC1:", "- **AC1**:").replace("- AC2:", "1. AC2:").replace("- S1:", "S1 is").replace(
             "- S2:", "S2 is")
         self.feature(spec=spec, plan=None, tasks=None)
         errors = self.script.check_spec_only(os.path.join("specs", "feature-12-export"))[0]
@@ -403,7 +465,7 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
 
     def test_sub_bullet_and_prose_questions(self):
-        criterion = "- [ ] AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)"
+        criterion = "- AC1: an export writes one row per item, 10,000 within the request timeout (S1, N1)"
         spec = SPEC.replace(criterion, criterion + "\n  - complements AC2 for empty input")
         self.assertNotEqual(spec, SPEC)
         self.assertEqual(self.errors(self.feature(spec=spec)), [])

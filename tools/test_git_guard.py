@@ -80,9 +80,61 @@ class TestCommands(unittest.TestCase):
                            "gh pr comment 1 -b x", "gh pr create -t x", "gh issue create -t x", "gh pr merge 1",
                            "gh issue comment 1 -b x", "gh pr review 1 --approve")
 
+    def test_an_alias_set_for_the_call_is_denied(self):
+        # The alias's command is never seen by the guard, whatever it is (issue 248).
+        self.assert_denied(
+            "git -c alias.ci=commit ci -m x", "git -c alias.p=push p origin HEAD", "git -c Alias.l=log l",
+            "git -C /repo -c alias.ci=commit ci -m x", "git --config-env=alias.ci=CMD ci -m x",
+            "git --config-env alias.ci=CMD ci", "git -c include.path=/tmp/aliases.cfg ci -m x",
+            "git -c includeIf.gitdir:/repo/.path=/tmp/a.cfg ci", "bash -c 'git -c alias.ci=commit ci -m x'",
+            "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.ci GIT_CONFIG_VALUE_0=commit git ci -m x",
+            "env GIT_CONFIG_PARAMETERS=\"'alias.ci'='commit'\" git ci -m x")
+        self.assert_allowed("git -c core.pager=cat log --oneline -3", "git -c color.ui=never diff",
+                            "git --config-env=core.pager=PAGER log", "GIT_CONFIG_COUNT=0 git status")
+
+    def test_every_form_of_a_gh_api_method_and_field_is_found(self):
+        self.assert_denied(
+            "gh api -XPOST repos/o/r/issues", "gh api -X=POST repos/o/r/issues", "gh api -iXPOST repos/o/r/issues",
+            "gh api -iX DELETE repos/o/r/git/refs/heads/x", "gh api --method=put repos/o/r/rulesets/1",
+            "gh api -X PUT repos/o/r/rulesets/1 --input rules.json", "gh api repos/o/r/issues -ftitle=x",
+            "gh api repos/o/r/issues -Fbody=@b.md", "gh api repos/o/r/issues -if title=x",
+            "gh api repos/o/r/issues --raw-field=title=x", "gh api --input=- repos/o/r/issues")
+        self.assert_allowed("gh api -XGET repos/o/r", "gh api -X=get repos/o/r", "gh api -i repos/o/r",
+                            "gh api -H 'Accept: application/vnd.github.raw' -H -fx repos/o/r/contents/a",
+                            "gh api --jq '.[] | .name' repos/o/r/rulesets", "gh api --paginate repos/o/r/pulls")
+
+    def test_every_gh_write_group_is_denied(self):
+        self.assert_denied(
+            "gh workflow run .", "gh workflow run ci.yml --ref main", "gh workflow enable 1", "gh workflow disable 1",
+            "gh run rerun .", "gh run rerun 1 --failed", "gh run cancel 1", "gh run delete 1", "gh secret set .",
+            "gh secret set TOKEN -b x", "gh secret delete TOKEN", "gh secret remove TOKEN", "gh variable set .",
+            "gh variable delete X", "gh variable remove X", "gh gist create .", "gh gist new a.txt",
+            "gh gist edit 1", "gh gist delete 1", "gh gist rename 1 a b", "gh cache delete --all",
+            "gh pr new -t x", "gh issue new -t x", "gh repo new o/x", "gh release new v1", "gh pr checkout 1",
+            "gh pr co 1", "gh pr update-branch 1", "gh pr revert 1", "gh issue develop 1", "gh repo set-default o/r",
+            "gh repo autolink create JIRA- https://x/<num>", "gh repo deploy-key add key.pub",
+            "gh release delete-asset v1 a.zip", "gh discussion create", "gh project item-add 1 --url x",
+            "gh agent-task create x", "gh agent create x", "gh alias set co 'pr checkout'", "gh alias import a.yml",
+            "gh config set editor vi", "gh auth setup-git", "gh extension install o/gh-x", "gh ext install o/gh-x",
+            "gh skill install o/s", "gh ssh-key add k.pub", "gh gpg-key delete 1", "gh cs delete -c x",
+            "gh pr -R o/r create -t x", "gh pr --repo o/r merge 1", "gh secret -R o/r set X -b y")
+        self.assert_allowed(
+            "gh workflow list", "gh workflow view ci.yml", "gh run list", "gh run view 1 --log-failed",
+            "gh run watch 1", "gh secret list", "gh variable list", "gh variable get X", "gh gist list",
+            "gh gist view 1", "gh cache list", "gh ruleset list", "gh ruleset view 1", "gh ruleset check main",
+            "gh rs list", "gh repo deploy-key list", "gh repo autolink list", "gh pr -R o/r view 1", "gh pr checks 1",
+            "gh alias list", "gh config get editor", "gh auth status", "gh extension list", "gh search prs x",
+            "gh release download v1", "gh repo clone o/r /tmp/r")
+
     def test_unrelated_commands_pass(self):
         self.assert_allowed("dotnet build X.slnx -c Release", "python3 .squad/tools/coverage-check.py",
                             "grep -rn 'git push' docs/", "echo 'git commit' > note.txt")
+
+    def test_what_the_guard_does_not_see_passes(self):
+        # Not a security boundary (the docstring and .squad/team.md say so): a command that runs Git without naming
+        # it on the command line, or writes into .git/ directly, is not found.
+        self.assert_allowed("python3 -c \"import subprocess; subprocess.run(['git', 'push'])\"",
+                            "echo x > .git/HEAD")
 
 
 class TestHookInput(unittest.TestCase):
@@ -104,6 +156,12 @@ class TestHookInput(unittest.TestCase):
         self.assertEqual(decision["permissionDecision"], "deny")
         self.assertIn("squad-reviewer", decision["permissionDecisionReason"])
         self.assertIn("git commit", decision["permissionDecisionReason"])
+
+    def test_the_reason_names_the_alias_and_the_gh_write(self):
+        for command, named in (("git -c alias.ci=commit ci -m x", "alias"), ("gh api -XPOST repos/o/r/issues", "POST"),
+                               ("gh workflow run ci.yml", "gh workflow run")):
+            out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": command}})
+            self.assertIn(named, json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"], command)
 
     def test_allowed_command_and_other_tools_give_no_decision(self):
         for data in ({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": "git status"}},

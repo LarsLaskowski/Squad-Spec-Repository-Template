@@ -17,6 +17,15 @@ METRICS = {"body": "### Squad run metrics\n\n| Member | Model/effort | Launches 
                    "| ------ | --- | --- | --- | --- | --- |\n"
                    "| squad-dev | sonnet/medium | 4 (2 continued) | 308,449 | 52 | 737 |\n"
                    "| **Total** | | 16 (6 continued) | 1,382,358 | 333 | 4160 |\n"}
+# The wrap-up appends the output of session-usage.py below the run metrics (LarsLaskowski/Seluna#140).
+SESSION = ("### Session usage\n\nTokens per model (the session and all its subagents; …):\n\n"
+           "| Model | Input | Output | Cache read | Cache write |\n| --- | ---: | ---: | ---: | ---: |\n"
+           "| claude-opus-5-5 | 316 | 169,340 | 11,439,361 | 653,244 |\n"
+           "| **Total** | 750 | 256,585 | 36,619,921 | 1,165,127 |\n\nSubagents:\n\n"
+           "| Subagent | Launches | Models | Input | Output | Cache read | Cache write |\n"
+           "| --- | ---: | --- | ---: | ---: | ---: | ---: |\n"
+           "| squad-dev | 2 | claude-sonnet-5-5 | 92 | 17,956 | 2,978,915 | 250,828 |\n"
+           "| **Total** | 12 | | 426 | 199,347 | 15,120,034 | 963,420 |\n")
 
 
 def commit(sha, date, parents=1):
@@ -49,6 +58,36 @@ class TestSquadReport(unittest.TestCase):
                           "| **Total** | | 9 | 600,000 | 1 | 2 |\n"}
         record = report.parse_record([prose, {"body": "Squad working record\n\nTier: **standard**"}, raised])
         self.assertEqual(record, ("security", 9, 600000))
+
+    def test_session_usage_below_the_run_metrics_is_not_the_runs_total(self):
+        both = {"body": f"{RECORD['body']}\n\n{METRICS['body']}\n{SESSION}"}
+        self.assertEqual(report.parse_record([both]), ("security", 16, 1382358))
+        self.assertEqual(report.parse_session([both]), (750, 256585, 36619921, 1165127))
+        crlf = {"body": both["body"].replace("\n", "\r\n")}
+        self.assertEqual((report.parse_record([crlf])[1:], report.parse_session([crlf])),
+                         ((16, 1382358), (750, 256585, 36619921, 1165127)))
+
+    def test_the_session_tables_never_count_as_run_metrics(self):
+        no_heading = {"body": f"{RECORD['body']}\n\n{SESSION.replace('### Session usage', 'Usage of the session:')}"}
+        self.assertEqual(report.parse_record([no_heading]), ("security", None, None),
+                         "a session total row has no empty Model/effort cell")
+        self.assertIsNone(report.parse_session([no_heading]), "session figures are read under their heading only")
+        apart = {"body": SESSION.replace("### Session usage", "**Session usage:**")}
+        self.assertEqual(report.parse_session([RECORD, METRICS, apart]), (750, 256585, 36619921, 1165127),
+                         "the session usage may be posted in a comment of its own")
+        self.assertIsNone(report.parse_session([apart]), "without a working record nothing is read")
+        absent = {"body": "### Session usage\n\nnot provided (no Claude Code session transcript found)\n"}
+        self.assertIsNone(report.parse_session([RECORD, METRICS, absent]))
+
+    def test_the_table_shows_the_session_tokens_in_columns_of_their_own(self):
+        row = {"repo": "o/r", "pr": 5, "kind": "squad", "tier": "security", "launches": 16, "tokens": 1382358,
+               "session": (750, 256585, 36619921, 1165127), "fix_pushes": 0, "base_merges": 0, "ci_failures": 0,
+               "sonar": None, "bot_comments": 0, "human_comments": 0, "hours_to_merge": 1.5}
+        lines = report.table([row, {**row, "pr": 6, "session": None}])
+        self.assertIn("| Tokens | Session input | Session output | Session cache read | Session cache write |", lines[0])
+        self.assertIn("| 16 | 1,382,358 | 750 | 256,585 | 36,619,921 | 1,165,127 | 0 |", lines[2])
+        self.assertIn("| 16 | 1,382,358 | - | - | - | - | 0 |", lines[3])
+        self.assertTrue(all(line.count("|") == lines[0].count("|") for line in lines))
 
     def test_linked_issues_ignore_html_comments(self):
         body = "<!--- For example: Closes #123 -->\nFixes #7, closed #8 and resolves: #9"

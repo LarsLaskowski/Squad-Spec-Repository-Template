@@ -11,9 +11,12 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   skills: for a feature first a spec (scenarios, edge cases, the acceptance criteria) and its challenge, then plan → challenge → security review → tests first → implementation until the coverage gate passes
   → format and analyzer gate → review loop → PR approval by checklist → pull request. Details in
   [`core/.squad/routing.md`](core/.squad/routing.md), the orchestrator's own procedures in
-  [`core/.squad/orchestration.md`](core/.squad/orchestration.md). A `PreToolUse` hook in `.claude/settings.json`
-  (`.claude/hooks/git-guard.py`) denies Git and GitHub writes to the members (every `squad-*` agent); only the orchestrating session
-  commits, pushes and posts.
+  [`core/.squad/orchestration.md`](core/.squad/orchestration.md). Two `PreToolUse` hooks in `.claude/settings.json`
+  keep the members (every `squad-*` agent) to their part: `.claude/hooks/git-guard.py` denies them Git and GitHub
+  writes, so only the orchestrating session commits, pushes and posts, and `.claude/hooks/file-guard.py` denies a
+  Write or Edit outside the files a member owns (the Lead `specs/` and `docs/decisions/`, the Tester the test paths
+  and `docs/UNIT_TESTS.md`, no member `.git/`, `.claude/` or `.squad/`). Both prevent accidents; they are no
+  security boundary.
 - **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
   Copilot's coding agent read directly. `CLAUDE.md` only imports it (`@AGENTS.md`): Claude Code reads
   `AGENTS.md` by itself only where no `CLAUDE.md` exists, and the import also works where that fallback is off.
@@ -71,7 +74,7 @@ Four kinds of files in a target repository:
 | managed | `CLAUDE.md` (only the `@AGENTS.md` import), `.squad/team.md`, `.squad/routing.md`, `.squad/orchestration.md`, `.claude/agents/squad-*.md` (the charters), the template's skills, `.squad/tools/*.py` (except `squad_settings.py`), the hooks under `.claude/hooks/`, feature-request template, `specs/` templates, `docs/decisions/_template.md`, `docs/areas/_template.md` | overwritten |
 | marked | `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, bug report and PR template, decision and area index | rebuilt; `<!-- project:… -->` blocks keep the repository's content, `<!-- stack:… -->` blocks come from the profile; a `CLAUDE.md` that still holds the rules (older template versions) has its project blocks carried into `AGENTS.md` |
 | generated | `.github/copilot-instructions.md` | rebuilt from `core/.github/copilot-instructions.md` (title and introduction) and the body of the rebuilt `AGENTS.md` |
-| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard hook added when it lacks it |
+| seed | `.squad/stack.md`, `.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, CI, CodeQL, Dependabot, tool configs | never touched again, except that an existing `.claude/settings.json` gets the git-guard and file-guard hooks added when it lacks one |
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,

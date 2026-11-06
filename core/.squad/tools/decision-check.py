@@ -21,9 +21,11 @@ Checks, run from anywhere inside the repository (it takes no arguments):
   record is never deleted and never changed except for its status becoming `Superseded by NNNN`; an
   unreleased record is never `Superseded` (it is edited in place or deleted instead).
 
-Without release tags nothing is released and the freeze checks pass; with a remote configured that is
-reported as a warning, because the tags may simply not be fetched. Without Git history (not a Git
-repository, shallow clone) the freeze checks are skipped with a warning.
+Without release tags nothing is released and the freeze checks pass. Without local ones but with a remote
+configured, the remotes are asked (`git ls-remote --tags <remote> 'v*'`): when none has a release tag either,
+nothing is released; when one has, or cannot be asked, the freeze checks are skipped with a warning, because the
+tags may simply not be fetched. Without Git history (not a Git repository, shallow clone) the freeze checks are
+skipped with a warning.
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/decision-check.py
@@ -54,6 +56,8 @@ INDEX_NUMBER = re.compile(r"^\d{4}$")
 RECORD_LINK = re.compile(r"\[(\d{4})\]\([^)]*\)")
 LINK_TARGET = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
 RELEASE_TAGS = "v*"
+FETCH_TAGS = "run 'git fetch origin main --tags'"
+REMOTE_TIMEOUT = 30
 INDEX_FILE = "README.md"
 
 
@@ -237,8 +241,9 @@ def assigned_area(number, record, assignments, released, errors):
                       f"record about no area)")
         return None
     if released is None and not assignments:
-        errors.append(f"{rel}: possibly released (release tags unknown: no local tags or no history); add an "
-                      f"{AREA_FIELD} (an area from {AREAS_DIR}/README.md, or {NO_AREA}) if it is unreleased")
+        errors.append(f"{rel}: possibly released (release tags unknown: a remote has tags that are not fetched or "
+                      f"cannot be asked, or no history); add an {AREA_FIELD} (an area from {AREAS_DIR}/README.md, or "
+                      f"{NO_AREA}) if it is unreleased")
         return None
     if not assignments:
         errors.append(f"{rel}: released without a {AREA_FIELD} and no '## Area assignment' table in a "
@@ -311,6 +316,34 @@ def check_deleted(root, tags, records, errors):
                               f"is never deleted")
 
 
+def remote_release_tags(root, remote):
+    """The release tags `remote` has (`git ls-remote`), or None when it cannot be asked (offline, no access, no
+    answer within REMOTE_TIMEOUT seconds); it never prompts for credentials."""
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    try:
+        result = subprocess.run(["git", "-C", root, "ls-remote", "--tags", remote, RELEASE_TAGS], capture_output=True,
+                                text=True, encoding="utf-8", env=env, timeout=REMOTE_TIMEOUT, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout.split() if result.returncode == 0 else None
+
+
+def without_local_tags(root, warnings):
+    """The released records when no local release tag exists: none when no remote has a release tag either (a
+    repository before its first release), None with a warning when one has (not fetched) or cannot be asked."""
+    for remote in (git(root, "remote") or "").split():
+        tags = remote_release_tags(root, remote)
+        if tags is None:
+            warnings.append(f"no local '{RELEASE_TAGS}' tags and the remote '{remote}' could not be asked for its "
+                            f"tags - released records are not checked ({FETCH_TAGS})")
+            return None
+        if tags:
+            warnings.append(f"no local '{RELEASE_TAGS}' tags although the remote '{remote}' has some - released "
+                            f"records are not checked ({FETCH_TAGS})")
+            return None
+    return set()
+
+
 def check_freeze(root, records, errors, warnings):
     """Checks the released records and returns their numbers; None when that cannot be told."""
     if git(root, "rev-parse", "--git-dir") is None:
@@ -318,11 +351,7 @@ def check_freeze(root, records, errors, warnings):
         return None
     tags = (git(root, "tag", "--list", RELEASE_TAGS) or "").split()
     if not tags:
-        if (git(root, "remote") or "").strip():
-            warnings.append(f"no local '{RELEASE_TAGS}' tags although a remote is configured - released records "
-                            f"are not checked (run 'git fetch origin main --tags')")
-            return None
-        return set()
+        return without_local_tags(root, warnings)
     if (git(root, "rev-parse", "--is-shallow-repository") or "").strip() == "true":
         warnings.append("shallow clone - released records are not checked (fetch the full history and tags)")
         return None

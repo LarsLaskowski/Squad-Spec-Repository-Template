@@ -453,3 +453,20 @@ improvised pragmas; the seed now names the sanctioned pragma and its removal. `r
 surrogate-pair escape (`\uD83D\uDE00`) into the emoji; the Tester rebuilt the input at run time. The run of #363
 (DockerUpdateGuard#392) launched the tier-`security` Tester on Sonnet; the explicit `model: opus` at steps 5
 and 6 came with the pending-continuation change.
+
+## The report reads the run's own total row (squad-report.py)
+
+Since #225 the wrap-up appends the output of `session-usage.py` under a "Session usage" heading below the run
+metrics, and its per-model table ends in a `| **Total** | … |` row as well. `squad-report.py` took the last total
+row of the record, so from then on it read that one (#235): the launches became the leading digit group of the
+session's output tokens and the tokens its cache-read tokens. LarsLaskowski/Seluna#144 was reported with 256
+launches and 36,619,921 tokens for a run whose own metrics say 24 launches and 1,070,203 tokens; Seluna#148
+(141 / 21,205,367), Seluna#150 (107 / 17,217,521) and LarsLaskowski/Censio#99 (359 / 56,874,701) were read the same
+way, and the weekly medians from 2026-W45 on were wrong (Censio `security` 29.51 M, Vandox `security` 20.76 M,
+Seluna `standard` 21.21 M). The report now reads launches and tokens only above the "Session usage" heading and
+only from a total row of `squad-log.py`'s shape, whose Model/effort cell is empty, so a session table posted without
+its heading is not taken either. For merges from 2026-11-03 to 2026-11-05 it reads Seluna#144 as 24 / 1,070,203,
+Seluna#148 as 9 / 817,445, Seluna#150 as 11 / 529,734 and Censio#99 as 25 / 1,400,838, with the medians Seluna
+`standard` 0.82 M and Censio `security` 1.77 M. The session figures count the whole session, the orchestrator and
+the cache reads included (#234), so they get four columns of their own (input, output, cache read, cache write)
+instead of standing in for the run metrics.

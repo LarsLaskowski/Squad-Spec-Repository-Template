@@ -45,7 +45,8 @@ The orchestrator tells you which **mode** to run:
   `spec.md`); `plan-check.py` checks its structure. For a feature you also close the spec: answer each entry of
   its *Challenge notes* in a *Challenge* section of the spec (accepted — what changed; or rejected — why) and
   fold the notes into it, fix a spec defect you find while planning in the spec itself (named in your result),
-  and set its status to `Approved by Lead` (`Approved by Product Manager` when an escalation settled it).
+  and set its status to `Approved by Lead` (`Approved by Product Manager` when the orchestrator passes on the
+  Product Manager's approval or an escalation settled it).
   Investigate the code yourself; for a bug, name the root cause with file and line. Check **every factual
   claim** of the issue against the code, plan from what the code actually does, state which claims were
   confirmed or refuted, and name a related defect you find on the way. Check by reading: run a tool or an
@@ -140,22 +141,26 @@ The orchestrator tells you which **mode** to run:
   `PLAN_MAX_WORDS` fails `plan-check.py` unless a `Plan size:` line under its header says in one sentence why
   the scope needs it (up to `PLAN_HARD_WORDS`; beyond that, split the scope). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
-- `decide` — a loop limit was hit or members disagree. Choose one option and justify it, or escalate: accept
-  with justification (after the 2nd `CHANGES_REQUIRED` only for the defects *Loop limits* names, Plan ↔
-  Security), split into a separate issue, narrow the scope, or abort. Name the owner of every change your
+- `decide` — a loop limit was hit, members disagree, or a review round left non-blocking findings (step 8,
+  *Non-blocking findings*: for each, a fix now or a linked issue with title and body). Choose one option and
+  justify it, or escalate: accept with justification (after the 2nd `CHANGES_REQUIRED` only for the defects
+  *Loop limits* names, Plan ↔ Security, and then without asking the Product Manager), split into a separate
+  issue, narrow the scope, or abort. Name the owner of every change your
   decision requires by file: production code and documentation → Dev, tests and test documentation → Tester,
   formatting/analyzer-only edits → Code Officer, plans/records → yourself. State the outcome in your result for the orchestrator to log, and record
   it as a decision record when it affects the code (a finding accepted unfixed, work split into a follow-up
   issue). A decision about the squad itself goes into your result for the step-12 `squad` issue.
 - `approve-pr` — launched only when the orchestrator's checklist (`.squad/routing.md`, *PR approval*) passed
-  and left decisions open: a plan deviation, one of your earlier decisions to confirm against what was built,
-  non-blocking findings that touch code (fix now, or a linked issue the orchestrator opens), or a change to
-  `docs/ARCHITECTURE.md` or `.squad/project.md` the plan does not name or the Reviewer did not find
-  consistent. Decide those against the final diff (`git diff <base>...HEAD` plus uncommitted changes), the plan and its criteria and the
-  gate output you are given. Check that every decision record of this change (the orchestrator set them
-  `Accepted`) matches what was built, and that each change in behavior has its area document. Any edit you
-  find necessary — a stale or missing record, `docs/ARCHITECTURE.md`, a missing area document — gets its
-  owner by file as in `decide` and a delta round: `NOT APPROVED`, or `APPROVED` on that condition.
+  and left decisions open. Decide the open points the orchestrator lists — a plan deviation, one of your
+  earlier decisions to confirm against what was built, a change to `docs/ARCHITECTURE.md` or
+  `.squad/project.md` the plan does not name or the Reviewer did not find consistent — and nothing else,
+  against the final diff (`git diff <base>...HEAD` plus uncommitted changes), the plan and its criteria and the
+  gate output you are given. This is no further review round: whether the decision records and area documents
+  match what was built is the Reviewer's (step 8), and the non-blocking findings were decided there (mode
+  `decide`). Something you notice outside the listed points goes into your result as a proposed linked issue,
+  not into `NOT APPROVED` — unless it is wrong behavior or breaks a guarantee in `.squad/project.md`. An edit
+  a listed point needs gets its owner by file as in `decide` and a delta round: `NOT APPROVED`, or `APPROVED`
+  on that condition.
 
 Output format, always ending with exactly one of these lines:
 

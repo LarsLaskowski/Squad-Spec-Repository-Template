@@ -7,6 +7,9 @@ BASE_REF = "origin/main"
 # Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.
 PATCH_MAX_LINES = 30
 
+# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "lead" or "pm".
+SPEC_APPROVAL = "lead"
+
 # Coverage gate (.squad/tools/coverage-check.py): line coverage on new/changed production lines, and overall.
 # COVERAGE_OVERALL_THRESHOLD may start below COVERAGE_THRESHOLD in a repository adopted with a coverage debt;
 # it is never lowered and is raised towards COVERAGE_THRESHOLD as coverage improves.

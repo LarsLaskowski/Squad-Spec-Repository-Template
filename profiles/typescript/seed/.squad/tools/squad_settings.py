@@ -7,6 +7,9 @@ BASE_REF = "origin/main"
 # Tier `patch` (.squad/routing.md, *Tiers*; scope-check.py --tier patch): changed lines outside specs/ at most.
 PATCH_MAX_LINES = 30
 
+# Who approves a feature's spec before it is planned (.squad/orchestration.md, *Spec approval*): "lead" or "pm".
+SPEC_APPROVAL = "lead"
+
 # Analyzer gate (.squad/tools/analyzer-check.py): npm scripts that must pass for the whole repository,
 # and the extensions ESLint checks in changed files.
 CHECK_SCRIPTS = ["typecheck"]

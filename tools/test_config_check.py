@@ -168,6 +168,54 @@ class TestSeededBullets(unittest.TestCase):
         self.assertEqual([error.split(": ", 1)[0].rsplit(":", 1)[1] for error in errors], ["3", "4", "5", "6"])
         self.assertIn("'its interface' is the seed's placeholder text without its braces", errors[0])
 
+    def test_an_earlier_seed_bullet_is_still_reported(self):
+        with tempfile.TemporaryDirectory() as repo:
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                write(self.script.PROJECT_FILE, "## Guarantees\n\n"
+                                                "- guarantee — [decision NNNN](../docs/decisions/NNNN-title.md)\n"
+                                                "- guarantee — [decision NNNN](../docs/decisions/NNNN-title.md), "
+                                                "[area](../docs/areas/area.md)\n")
+                errors = []
+                self.script.check_project_files(errors)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(sorted(e.split(": '")[0] for e in errors if "placeholder text" in e),
+                         [os.path.join(".squad", "project.md") + ":3", os.path.join(".squad", "project.md") + ":4"])
+
+
+class TestSettingsFile(unittest.TestCase):
+    """A squad_settings.py that does not load is an error of config-check.py; decision-check.py keeps its defaults."""
+
+    def test_a_broken_settings_file_is_reported_once(self):
+        script = load_script()
+        with tempfile.TemporaryDirectory() as repo:
+            cwd = os.getcwd()
+            os.chdir(repo)
+            try:
+                errors = []
+                script.check_settings_file(errors)
+                self.assertEqual(errors, [], "no file: reported as a missing required file instead")
+                write(script.SETTINGS_FILE, "COVERAGE_THRESHOLD = (\n")
+                script.check_settings_file(errors)
+                script.check_profiles({"profiles": ["go", "dotnet"], "profile": "go"}, errors)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(len([e for e in errors if "squad_settings.py: does not load (SyntaxError" in e]), 1, errors)
+
+    def test_decision_check_runs_with_a_broken_settings_file(self):
+        with tempfile.TemporaryDirectory() as repo:
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            tools = os.path.join(repo, ".squad", "tools")
+            write(os.path.join(tools, "squad_settings.py"), "AREA_MAX_WORDS = (\n")
+            with open(os.path.join(ROOT, "core", ".squad", "tools", "decision-check.py"), encoding="utf-8") as handle:
+                write(os.path.join(tools, "decision-check.py"), handle.read())
+            result = subprocess.run([sys.executable, os.path.join(tools, "decision-check.py")], cwd=repo,
+                                    capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Checked 0 decision records: PASS", result.stdout)
+
 
 @unittest.skipUnless(yaml, "PyYAML is needed to compare the two parsers")
 class TestTargetWithoutYaml(unittest.TestCase):

@@ -36,10 +36,10 @@ Rules that hold throughout:
    `project.md` — a pointer file: its introduction and the section texts that say what an entry holds — and every new
    setting of `squad_settings.py` (the size limits `PROJECT_MAX_WORDS`, `AREA_MAX_WORDS`, `RECORD_MAX_WORDS` and
    `RECORD_MAX_OPTIONS`, and `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`), each carried over as the
-   seed has it. Shortening the target's existing `project.md`
-   entries to pointers, and splitting the records and area documents the size warnings of `config-check.py` name,
-   is not part of the refresh: it is a squad-maintenance pull request in that repository, so list the warnings in
-   the PR description and file them there as a `squad` issue. The same diff covers
+   seed has it. The size warnings of `config-check.py` are not worked in the refresh; list them in the PR
+   description. Shortening the target's existing `project.md` entries to pointers is a squad-maintenance pull
+   request in that repository (file it there as a `squad` issue); splitting the records and area documents the
+   warnings name is a documentation change of the product (file an issue for it). The same diff covers
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
    other change to the seed's hooks is carried over by hand.

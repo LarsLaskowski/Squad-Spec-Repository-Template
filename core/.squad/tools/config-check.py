@@ -25,8 +25,8 @@ it. This script checks, without arguments:
   `profile`); then every profile has its `analyzer-check-<profile>.py` and `session-start-<profile>.sh`
   next to the dispatchers, and `squad_settings.py` lists at least one `COVERAGE_REPORTS` entry per profile;
 - `.squad/tools/decision-check.py` passes (decision records consistent, released records frozen);
-- `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, and no file the
-  template seeded or rebuilt still contains a template placeholder (`{{TODO: …}}` — a marker that
+- `.squad/stack.md`, `.squad/project.md` and `.squad/tools/squad_settings.py` exist, the settings file loads, and no
+  file the template seeded or rebuilt still contains a template placeholder (`{{TODO: …}}` — a marker that
   ordinary Go templates, `docker --format` strings or GitHub Actions expressions never contain);
 - no bullet of a seeded file is still a seed's placeholder text with the braces removed (`- its interface` in
   `.squad/project.md`, from the seed's `- {{TODO: its interface}}`; `SEEDED_BULLETS`).
@@ -84,7 +84,7 @@ PLACEHOLDER_GLOBS = INSTRUCTION_FILES + REQUIRED_FILES + [
 # The text of every seed bullet that starts with a placeholder, braces and `TODO:` removed, by the file it is seeded
 # as: a bullet that still reads like this was never filled in (tools/test_config_check.py keeps it equal to the seeds).
 SEEDED_BULLETS = {
-    os.path.join(SQUAD_DIR, "project.md"): (
+    PROJECT_FILE: (
         "Secrets and tokens: where they are read, stored, compared, logged",
         "Authentication and sessions",
         "File writes and paths derived from external input",
@@ -112,6 +112,10 @@ SEEDED_BULLETS = {
         "project-specific conventions",
         "project-specific conventions: naming, module layout, error handling",
     ),
+}
+# Seed bullets of earlier template versions, still recognized in a repository adopted then (the seed is never refreshed).
+EARLIER_SEED_BULLETS = {
+    PROJECT_FILE: ("guarantee — [decision NNNN](../docs/decisions/NNNN-title.md)",),
 }
 BULLET = re.compile(r"^[ \t]*+[-*+][ \t]++(\S.*)$", re.M)
 
@@ -350,8 +354,7 @@ def check_profiles(record, errors):
             errors.append(f"{rel} is missing (written by adopt-template for the profiles {', '.join(profiles)})")
     try:
         reports = getattr(load_settings(), "COVERAGE_REPORTS", None)
-    except Exception as error:  # noqa: BLE001  (any failure to load the settings is the finding)
-        errors.append(f"{SQUAD_DIR}/tools/squad_settings.py: {error}")
+    except Exception:  # noqa: BLE001  (check_settings_file reports a file that does not load)
         return
     if not isinstance(reports, (list, tuple)) or len(reports) < len(profiles):
         errors.append(f"{SQUAD_DIR}/tools/squad_settings.py: COVERAGE_REPORTS needs a (format, glob) entry for "
@@ -368,13 +371,23 @@ def load_settings():
     return module
 
 
+def check_settings_file(errors):
+    """`.squad/tools/squad_settings.py` loads; every gate imports it."""
+    if not os.path.isfile(SETTINGS_FILE):
+        return  # reported as a missing required file
+    try:
+        load_settings()
+    except Exception as error:  # noqa: BLE001  (any failure to load the settings is the finding)
+        errors.append(f"{SETTINGS_FILE}: does not load ({type(error).__name__}: {error})")
+
+
 def check_project_size(warnings):
     """`.squad/project.md` past PROJECT_MAX_WORDS: a warning that says how to shorten it."""
     if not os.path.isfile(PROJECT_FILE):
         return
     try:
         limit = getattr(load_settings(), "PROJECT_MAX_WORDS", PROJECT_MAX_WORDS)
-    except Exception:  # noqa: BLE001  (a missing or broken settings file leaves the default; it is reported apart)
+    except Exception:  # noqa: BLE001  (a missing or broken settings file leaves the default; check_settings_file reports it)
         limit = PROJECT_MAX_WORDS
     words = len(read_text(PROJECT_FILE).split())
     if words > limit:
@@ -396,7 +409,8 @@ def check_project_files(errors):
             line = text.count("\n", 0, match.start()) + 1
             first = " ".join(match.group(1).split())[:60]
             errors.append(f"{path}:{line}: template placeholder '{{{{TODO: {first}}}}}' not filled in")
-    for path, bullets in SEEDED_BULLETS.items():
+    for path in SEEDED_BULLETS.keys() | EARLIER_SEED_BULLETS.keys():
+        bullets = SEEDED_BULLETS.get(path, ()) + EARLIER_SEED_BULLETS.get(path, ())
         if os.path.isfile(path):
             check_seeded_bullets(path, {bullet_key(bullet) for bullet in bullets}, errors)
 
@@ -452,6 +466,7 @@ def main():
     check_instructions(errors)
     check_template_record(errors)
     check_project_files(errors)
+    check_settings_file(errors)
     check_project_size(warnings)
     check_decisions(errors, warnings)
 

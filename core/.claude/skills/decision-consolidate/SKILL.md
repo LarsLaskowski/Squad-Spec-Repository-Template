@@ -33,8 +33,8 @@ All output you create — branch name, commit message, PR title and body — is 
 5. **Merge each group** into its survivor, in place: Context, Options considered, Decision and Consequences
    describe the current state; the rejected options of the folded records stay under *Options considered*
    (that is where the "why not" belongs). Keep the survivor's number and set *Status* to `Accepted`
-   (`Proposed` stays). Drop *Supersedes* unless it names a released record. Split each listed record the same
-   way: it keeps its number for one decision, the others take the next free numbers with their index rows.
+   (`Proposed` stays). Drop *Supersedes* unless it names a released record. Split each listed record as *Size*
+   in `docs/decisions/README.md` says.
 6. **Delete** the folded and obsolete records. Numbers are never reused; gaps are fine.
 7. **Fix every link** to a deleted record: the index in `docs/decisions/README.md`, `docs/ARCHITECTURE.md`,
    the guarantees in `.squad/project.md`, other records, code comments, issue and PR templates. Search with

@@ -572,7 +572,7 @@ every record until #246 narrowed its *Read first* to the index and the records o
 
 The seed now says that every entry points (files, types or endpoints, and a link) and that values live in the area
 document; its placeholder bullets stay as they were, so `config-check.py` still recognizes them, and the guarantee
-bullet gains its area link. Security reads the linked area documents of the areas a change touches, since the rules
+bullet gains its area link (its earlier form, braces removed, is still reported in repositories adopted before). Security reads the linked area documents of the areas a change touches, since the rules
 no longer stand in `project.md`. The limits are warnings, not errors: a repository past them cannot shrink inside a
 product pull request, and a failing `config-check.py` would block every run of Vandox until a large rewrite. The
 defaults follow the issue (1,500 words for `project.md` and a record, 8 options, 5,000 words for an area document),

@@ -11,7 +11,8 @@ Checks, without arguments:
   `scope-check.py` rejects (a zero width joiner in an emoji, for example);
 - every profile has the same required files, its `instructions.md` provides every stack block the core
   instruction files use, its `stack.md` defines every command name the core refers to, and its
-  `squad_settings.py` defines the coverage settings and the size limits of `config-check.py` and `decision-check.py`;
+  `squad_settings.py` defines the coverage settings, the size limits of `config-check.py` and `decision-check.py`
+  and the settings of `figure-check.py`;
 - a smoke test: each profile is applied to an empty git repository with `tools/apply-template.py`, and the
   target's `config-check.py` then reports nothing but unfilled placeholders; after every placeholder is
   filled and the template is applied a second time (a refresh), `config-check.py` passes completely, the
@@ -108,7 +109,8 @@ STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate"
                   "## Concurrency", "## Known pitfalls"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES",
-            "PROJECT_MAX_WORDS", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS"]
+            "PROJECT_MAX_WORDS", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS", "FIGURE_TRIVIAL",
+            "FIGURE_EXCLUDES"]
 DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see

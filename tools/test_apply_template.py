@@ -291,7 +291,8 @@ class TestProcessRecords(unittest.TestCase):
 
 
 class TestMergedSettings(unittest.TestCase):
-    """squad_settings.py of a repository with several profiles carries the size limits like a single profile's seed."""
+    """squad_settings.py of a repository with several profiles carries the size limits and the stale-figure settings
+    like a single profile's seed."""
 
     def test_the_size_limits_are_those_of_every_seed(self):
         script = load_script()
@@ -305,6 +306,8 @@ class TestMergedSettings(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(getattr(merged, name), getattr(seed, name))
                 self.assertEqual(getattr(merged, name), default)
+        self.assertEqual(merged.FIGURE_TRIVIAL, seed.FIGURE_TRIVIAL)
+        self.assertEqual(merged.FIGURE_EXCLUDES, ["go.sum", "*.svg", "packages.lock.json"], "every profile's, once")
 
 
 if __name__ == "__main__":

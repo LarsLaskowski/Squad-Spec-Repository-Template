@@ -35,7 +35,8 @@ Rules that hold throughout:
    becomes "in the squad: by the member that changed the files, `.squad/team.md`"). This includes the structure of
    `project.md` — a pointer file: its introduction and the section texts that say what an entry holds — and every new
    setting of `squad_settings.py` (the size limits `PROJECT_MAX_WORDS`, `AREA_MAX_WORDS`, `RECORD_MAX_WORDS` and
-   `RECORD_MAX_OPTIONS`), each carried over as the seed has it. Shortening the target's existing `project.md`
+   `RECORD_MAX_OPTIONS`, and `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`), each carried over as the
+   seed has it. Shortening the target's existing `project.md`
    entries to pointers, and splitting the records and area documents the size warnings of `config-check.py` name,
    is not part of the refresh: it is a squad-maintenance pull request in that repository, so list the warnings in
    the PR description and file them there as a `squad` issue. The same diff covers
@@ -101,7 +102,8 @@ Rules that hold throughout:
    refresh never brings them back. Rules that the stack or core sections already state are dropped from
    the project blocks rather than kept twice.
 5. **Fill `.squad/stack.md` and `.squad/tools/squad_settings.py`** from the target's real build: versions,
-   solution or module name, layout, every command, coverage paths. Run each command once to prove it
+   solution or module name, layout, every command, coverage paths, and the generated files whose values
+   `figure-check.py` should not read (`FIGURE_EXCLUDES`). Run each command once to prove it
    works. Where the profile expects a tool the target does not have yet (e.g. ESLint with
    eslint-plugin-sonarjs, Prettier and the npm scripts `format`, `format:check`, `lint`, `typecheck`,
    `coverage:lcov` for `node`; the same scripts with typescript-eslint's type-aware configs, Vitest and

@@ -41,6 +41,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
   evidence, no control character); `squad-log.py` appends the pipeline's log rows; `session-usage.py` prints the
   session's tokens per model and per subagent type from Claude Code's session transcripts for the wrap-up.
+  `figure-check.py` lists, in step 7, the documentation lines that still state a value the diff changed.
 - **Documentation scaffolding** — `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/UNIT_TESTS.md`,
   decision records (`docs/decisions/`, with the squad's process decisions in the managed `docs/decisions/process.md`),
   `specs/_template/`, `SECURITY.md`.

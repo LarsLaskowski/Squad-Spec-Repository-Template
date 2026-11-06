@@ -256,6 +256,7 @@ def merge_settings(profile_dirs):
               f"COVERAGE_EXCLUDES = {union_values([getattr(m, 'COVERAGE_EXCLUDES', ()) for m in modules])!r}",
               f"COVERAGE_TEST_PATHSPECS = {tests!r}  # a diff touching these is gated on overall coverage too", ""]
     lines += size_settings(modules[0])
+    lines += figure_settings(modules)
     return "\n".join(lines)
 
 
@@ -266,6 +267,16 @@ SIZE_SETTINGS = {
     "RECORD_MAX_WORDS": (1500, "each unreleased decision record"),
     "RECORD_MAX_OPTIONS": (8, "the options under *Options considered* of an unreleased decision record"),
 }
+
+
+def figure_settings(modules):
+    """The stale-figure lines of a merged squad_settings.py: the primary profile's trivial values, every profile's
+    excluded files."""
+    trivial = getattr(modules[0], "FIGURE_TRIVIAL", [str(value) for value in (*range(10), 10, 100)])
+    excludes = union_values([getattr(module, "FIGURE_EXCLUDES", ()) for module in modules])
+    return ["# Stale-figure check (.squad/tools/figure-check.py): values it does not search in the documentation (prose "
+            "uses them", "# for list items, steps and counts), and source files whose values it does not read (lock "
+            "files, generated files).", f"FIGURE_TRIVIAL = {list(trivial)!r}", f"FIGURE_EXCLUDES = {excludes!r}", ""]
 
 
 def size_settings(module):

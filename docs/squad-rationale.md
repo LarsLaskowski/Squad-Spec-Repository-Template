@@ -604,3 +604,26 @@ the template, a title of a `process.md` section, or a record that supersedes or 
 deleted; the released ones are superseded together by the one record left in `decision-seeds/`, which names the
 file. A released record whose `Superseded by` named a deleted unreleased record gets the new record as its successor
 (a released record's status may still change to another `Superseded by`), so no link points at nothing.
+
+## Documentation that still states a changed value (figure-check.py; routing.md, Pipeline step 7; squad-issue, step 7; squad-dev.md, Documentation; squad_settings.py seeds)
+
+Found in the review of 2026-11-05 against the five consumers (#234, #237; evidence in #236). The most frequent
+blocking review finding was a sentence in another file that still stated a number, limit or default the change had
+made untrue. Neither sweep caught it: the Lead's plan sweep looks for enumerations and "only these …" statements,
+and the Dev's documentation rule traces the sentences the Dev writes, so a sentence in an untouched file kept the old
+value until the Reviewer found it, at the cost of a fix round and a delta round. LarsLaskowski/Vandox#305 repeated
+one memory figure in four files, LarsLaskowski/Seluna#110 fixed a budget figure to a new wrong value, and
+LarsLaskowski/Seluna#140 left the old value in the option text of record 0043.
+
+`figure-check.py` is a tool of its own rather than a part of `scope-check.py`, whose findings are blocking and which
+runs on fork pull requests through the API: a hit here is only a candidate (an equal number can state another
+quantity), so it warns and never fails. It reads the old values per file — what the removed lines hold and the added
+lines of the same file do not — so a value moved within a file is no hit, and renames are compared with their old
+version. Released decision records state what held when they were released and cannot be edited, so they are not
+searched; neither are changelogs, which name old values on purpose, nor the template text of marked files and the
+managed `process.md` and `_template.md` files, which a product change cannot fix. The trivial values default to the
+single digits, 10 and 100 rather than the issue's 0, 1, 2 and 100: prose numbers its steps, list items and counts with
+single digits, and every such line would otherwise be a hit. The Dev runs the tool before handing back the
+documentation, when the hits are cheapest; step 7 runs it again after the merge of `main` and the Code Officer's
+edits, sends a hit the Dev did not confirm back to the Dev and the rest to the Reviewer. It runs in every tier whose
+diff changes production code or configuration, a `patch` included, because it is no gate and costs no build.

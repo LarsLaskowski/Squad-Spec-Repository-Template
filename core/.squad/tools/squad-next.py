@@ -25,13 +25,13 @@ Gates count only as the stamp rows of `gate-stamp.py`, never as a member's repor
 head the next step is step 7 (`plan-check.py --matrix` first, a `MISSING` criterion to the Tester), a review round
 belongs to the stamp it follows, and step 9 waits for the stamp to pass `gate-stamp.py --verify`. A review, a
 Security verdict and the Devil's Advocate's objections are read from the member's `VERDICT:` line, which the
-orchestrator logs as the start of the row's result; a row without one is named, and both ways are printed. Three
-blocking rounds in a row (review pass 1 and two delta rounds) send the findings to the Lead (*Loop limits*), and so
-does a second `CHANGES_REQUIRED` of the Security plan review; two plan-check revisions of one document without a
-clean run hand the findings to the Lead in mode `decide`. Once the log has a row of step 4 or later the plan is
-approved: `plan-check.py` still runs before the PR, its size limit only warns, and a finding — one a merge of `main`
-brought with new checks, say — goes to the Lead in mode `revise` with the approved scope unchanged
-(`.squad/orchestration.md`, *Merge conflicts*).
+orchestrator logs as the start of the row's result (a Reviewer's `VERDICT: NON-BLOCKING <m>` counts as `BLOCKING 0`);
+a row without one is named, and both ways are printed. Three blocking rounds in a row (review pass 1 and two delta
+rounds) send the findings to the Lead (*Loop limits*), and so does a second `CHANGES_REQUIRED` of the Security plan
+review; two plan-check revisions of one document without a clean run hand the findings to the Lead in mode `decide`.
+Once the log has a row of step 4 or later the plan is approved: `plan-check.py` still runs before the PR, its size
+limit only warns, and a finding — one a merge of `main` brought with new checks, say — goes to the Lead in mode
+`revise` with the approved scope unchanged (`.squad/orchestration.md`, *Merge conflicts*).
 
 The script recognises a step by the number at the start of its step cell (`2a` and `2b` in `squad-spec`), the member
 and, in a feature, the task group in the cell (`6 Implement (G2)`); the step cells it prints are the ones it reads.
@@ -103,7 +103,7 @@ STEP = re.compile(r"^\s*(\d+)([ab])?\b")
 GROUP = re.compile(r"\b(G\d+)\b")
 RESULT = re.compile(r"RESULT:\s*(DONE|NO CHANGE|ESCALATE|DECIDED|NOT APPROVED|APPROVED)", re.I)
 REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)|BLOCKING\s+(?P<blocking>\d+)"
-                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+))?)", re.I)
+                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+))?|NON-BLOCKING\s+(?P<only>\d+))", re.I)
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
 OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major,\s*"
                         r"(?P<minor>\d+)\s+minor)", re.I)
@@ -343,6 +343,8 @@ def review_verdict(row):
         return None
     if found.group("approve"):
         return 0, 0
+    if found.group("only"):
+        return 0, int(found.group("only"))
     return int(found.group("blocking")), int(found.group("nonblocking") or 0)
 
 

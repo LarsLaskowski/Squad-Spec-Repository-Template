@@ -317,6 +317,19 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("Next: step 9 — PR approval", out)
         self.assertIn('"9 PR approval" Orchestrator "approved by checklist"', out)
 
+    def test_a_delta_round_with_only_non_blocking_findings_is_read_without_a_blocking_count(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(row("8 Review", "Reviewer", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000),
+                      row("8 Fix", "Dev", "fixed", 9000, "sonnet/medium", continued=True))
+        self.repo.write("src/a.py", "x = 3\n")
+        self.repo.commit("fix")
+        self.stamp()
+        self.repo.log(row("8 Review delta", "Reviewer", "VERDICT: NON-BLOCKING 1", 9000, continued=True))
+        out = self.next()
+        self.assertNotIn("carries no VERDICT line", out)
+        self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
+
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
         head = self.repo.git("rev-parse", "HEAD")
@@ -429,6 +442,7 @@ class TestLaunches(NextTest):
         review = tool.review_verdict
         self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: BLOCKING 2 \\| NON-BLOCKING 1")), (2, 1))
         self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: APPROVE all good")), (0, 0))
+        self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: NON-BLOCKING 3")), (0, 3))
         self.assertIsNone(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: APPROVED")))
         self.assertEqual(review(row_of(0, "8", "8", "squad-security", "VERDICT: CHANGES_REQUIRED")), (1, 0))
         self.assertEqual(tool.objections(row_of(0, "2", "2", "x", "VERDICT: OBJECTIONS 2 major, 0 minor")), (2, 0))

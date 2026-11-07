@@ -33,8 +33,8 @@ def response(body):
     return handle
 
 
-def http_error(code):
-    return urllib.error.HTTPError(URL, code, "error", None, io.BytesIO(b""))
+def http_error(code, headers=None):
+    return urllib.error.HTTPError(URL, code, "error", headers, io.BytesIO(b""))
 
 
 class TestFetch(unittest.TestCase):
@@ -50,6 +50,14 @@ class TestFetch(unittest.TestCase):
         with mock.patch.object(sonar_local.urllib.request, "urlopen", side_effect=outcomes):
             self.assertEqual(sonar_local.fetch(URL, sleep=sleep), b"ok")
         self.assertEqual([c.args[0] for c in sleep.call_args_list], [2, 4])
+
+    def test_waits_as_long_as_retry_after_asks_within_a_limit(self):
+        sleep = mock.Mock()
+        outcomes = [http_error(429, {"Retry-After": "7"}), http_error(503, {"Retry-After": "9999"}),
+                    http_error(503, {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}), response(b"ok")]
+        with mock.patch.object(sonar_local.urllib.request, "urlopen", side_effect=outcomes):
+            self.assertEqual(sonar_local.fetch(URL, sleep=sleep), b"ok")
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [7, sonar_local.MAX_WAIT_SECONDS, 8])
 
     def test_gives_up_after_the_last_retry(self):
         sleep = mock.Mock()
@@ -130,11 +138,13 @@ class TestRules(unittest.TestCase):
             self.assertEqual(sonar_local.active_rules(""), [])
         self.assertEqual(fetch.call_args.args[1], {})
 
-    def test_reads_a_rules_file(self):
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as handle:
-            handle.write("python:S1192\n\nS100\nS100\n")
-        self.addCleanup(os.unlink, handle.name)
-        self.assertEqual(sonar_local.read_rules(handle.name), ["S100", "S1192"])
+    def test_saves_the_rules_for_an_offline_run(self):
+        with tempfile.TemporaryDirectory() as root:
+            cache = os.path.join(root, "cache")
+            with self.assertRaisesRegex(sonar_local.CannotRun, "no saved rules for --offline"):
+                sonar_local.saved_rules(cache)
+            sonar_local.save_rules(cache, ["S100", "S1192"])
+            self.assertEqual(sonar_local.saved_rules(cache), ["S100", "S1192"])
 
 
 class TestFiles(unittest.TestCase):
@@ -204,14 +214,21 @@ class TestHarness(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.cache = os.path.join(self.dir.name, "cache")
+
     def main(self, output=None, error=None, argv=(), rules=("S1",)):
         out = io.StringIO()
         harness = mock.Mock(return_value=output, side_effect=error)
         with mock.patch.object(sonar_local, "active_rules", return_value=list(rules)) as active, \
-                mock.patch.object(sonar_local, "download_jars", return_value=["p.jar"]), \
+                mock.patch.object(sonar_local, "download_jars", return_value=["p.jar"]) as download, \
                 mock.patch.object(sonar_local, "run_harness", harness), \
                 mock.patch.dict(os.environ, {"SONAR_TOKEN": "t"}), contextlib.redirect_stdout(out):
-            code = sonar_local.main(["--cache", "cache", *argv], sleep=mock.Mock())
+            code = sonar_local.main(list(argv), sleep=mock.Mock(), cache=self.cache)
+        if download.called:
+            self.assertEqual(download.call_args.args[0], self.cache)
         return code, out.getvalue(), active, harness
 
     def test_an_issue_in_a_non_test_file_fails(self):
@@ -229,14 +246,18 @@ class TestMain(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("0 issue(s) in non-test files, 1 in test files: PASS", out)
 
-    def test_a_rules_file_replaces_the_profile(self):
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as handle:
-            handle.write("S7632\n")
-        self.addCleanup(os.unlink, handle.name)
-        code, _, active, harness = self.main("RULES\t1\n", argv=["--rules", handle.name, "tools/sonar-local.py"])
+    def test_offline_reuses_the_rules_of_the_last_online_run(self):
+        code, _, _, _ = self.main("RULES\t1\n", argv=["tools/sonar-local.py"], rules=("S7632",))
+        self.assertEqual(code, 0)
+        code, _, active, harness = self.main("RULES\t1\n", argv=["--offline", "tools/sonar-local.py"], rules=())
         self.assertEqual(code, 0)
         active.assert_not_called()
         self.assertEqual(harness.call_args.args[1:3], (["S7632"], [os.path.join("tools", "sonar-local.py")]))
+
+    def test_offline_without_saved_rules_is_not_checked(self):
+        code, out, _, _ = self.main(argv=["--offline"])
+        self.assertEqual(code, 2)
+        self.assertIn("no saved rules for --offline", out)
 
     def test_cannot_run_is_not_checked(self):
         code, out, _, _ = self.main(error=sonar_local.CannotRun("java is not on PATH"))
@@ -253,9 +274,14 @@ class TestMain(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("No Python file", out)
 
-    def test_default_cache_follows_xdg(self):
-        with mock.patch.dict(os.environ, {"XDG_CACHE_HOME": "/c"}):
-            self.assertEqual(sonar_local.default_cache(), os.path.join("/c", "squad-sonar-local"))
+    def test_the_cache_is_fixed_below_the_home_directory(self):
+        with mock.patch.object(sonar_local.os.path, "expanduser", return_value="/home/u"):
+            self.assertEqual(sonar_local.default_cache(), os.path.join("/home/u", ".cache", "squad-sonar-local"))
+        with mock.patch.object(sonar_local, "default_cache", return_value=self.cache), \
+                mock.patch.object(sonar_local, "load_rules", side_effect=sonar_local.CannotRun("stop")) as load, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(sonar_local.main(["tools/sonar-local.py"]), 2)
+        self.assertEqual(load.call_args.args[:2], (False, self.cache))
 
 
 if __name__ == "__main__":

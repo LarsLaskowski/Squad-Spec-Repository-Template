@@ -9,15 +9,15 @@ receives (`core/`, `profiles/`, `multi/`, `seed/`) and over the template's own `
 
     python3 tools/sonar-local.py                  # every file; fetches the profile's rules from SonarQube Cloud
     python3 tools/sonar-local.py PATH …           # only these files or directories
-    python3 tools/sonar-local.py --rules FILE     # the rule keys from a file (one per line), no SonarQube request
+    python3 tools/sonar-local.py --offline        # the profile's rules as the last online run saved them
 
 It needs Java 17 or later (`java` on PATH). The plugin and its two dependencies are downloaded once from Maven Central
-into the cache directory (`--cache`, default `~/.cache/squad-sonar-local`) and checked against pinned SHA-256 sums;
-Maven Central rate-limits, so a download is retried with backoff. The rules are the `python:` rules active in the
-quality profile `PROFILE` of the organization `ORGANIZATION`; the closed rule repositories (`pythonsecurity`,
-`pythonbugs`, …) cannot run locally. A private profile needs a credential: a network secret of the cloud environment
-for sonarcloud.io, or `SONAR_TOKEN`. `tools/SonarLocal.java` loads the plugin's check classes and runs them; a check
-scoped to main code skips the test files (`test_*.py`), as SonarQube Cloud does.
+into `~/.cache/squad-sonar-local` and checked against pinned SHA-256 sums; Maven Central rate-limits, so a download
+is retried with backoff. The rules are the `python:` rules active in the quality profile `PROFILE` of the organization
+`ORGANIZATION`; the closed rule repositories (`pythonsecurity`, `pythonbugs`, …) cannot run locally. Every online run
+saves them in the cache for `--offline`. A private profile needs a credential: a network secret of the cloud
+environment for sonarcloud.io, or `SONAR_TOKEN`. `tools/SonarLocal.java` loads the plugin's check classes and runs
+them; a check scoped to main code skips the test files (`test_*.py`), as SonarQube Cloud does.
 
 Exit code 0 when no file but a test file has an issue, 1 on an issue in a non-test file or a file that does not parse,
 2 when the analysis cannot run (no Java, a failed download or request, a harness error).
@@ -53,9 +53,10 @@ ORGANIZATION = "networlddev"
 PROFILE = "AZ6SwXCXNtdzQiT7rg_6"  # "Sonar way comprehensive", the consumers' Python quality profile
 REPOSITORY = "python"
 PAGE_SIZE = 500
-RETRIES = 5
+RETRIES = 6
 BACKOFF_SECONDS = 2
 RETRIED_STATUS = (429, 500, 502, 503, 504)
+MAX_WAIT_SECONDS = 120
 TIMEOUT = 120
 HARNESS_TIMEOUT = 1800
 
@@ -65,8 +66,12 @@ class CannotRun(Exception):
 
 
 def default_cache():
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
-    return os.path.join(base, "squad-sonar-local")
+    """The fixed cache directory; no command-line argument names a path the tool writes or reads."""
+    return os.path.join(os.path.expanduser("~"), ".cache", "squad-sonar-local")
+
+
+def rules_path(cache):
+    return os.path.join(cache, f"rules-{PROFILE}.txt")
 
 
 def maven_url(group, artifact, version):
@@ -74,8 +79,8 @@ def maven_url(group, artifact, version):
 
 
 def fetch(url, headers=None, sleep=time.sleep):
-    """The body of an https:// GET, retried with doubling backoff on a rate limit, a server error or a broken
-    connection."""
+    """The body of an https:// GET, retried with doubling backoff (or the server's `Retry-After`) on a rate limit, a
+    server error or a broken connection."""
     if not url.startswith("https://"):
         raise CannotRun(f"refusing a non-https URL: {url}")
     # Only an https:// URL reaches urllib (checked above), so no file:// or custom scheme can be opened.
@@ -83,17 +88,25 @@ def fetch(url, headers=None, sleep=time.sleep):
     for name, value in (headers or {}).items():  # never forwarded to another host on a redirect
         request.add_unredirected_header(name, value)
     for attempt in range(RETRIES):
+        wait = BACKOFF_SECONDS * 2 ** attempt
         try:
             with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310  # nosec B310
                 return response.read()
         except urllib.error.HTTPError as error:
             if error.code not in RETRIED_STATUS or attempt == RETRIES - 1:
                 raise CannotRun(f"HTTP {error.code} for GET {url}") from error
+            wait = retry_after(error, wait)
         except OSError as error:  # URLError and timeouts included
             if attempt == RETRIES - 1:
                 raise CannotRun(f"GET {url} failed: {error}") from error
-        sleep(BACKOFF_SECONDS * 2 ** attempt)
+        sleep(wait)
     raise CannotRun(f"GET {url} failed")  # not reached: the last attempt returns or raises
+
+
+def retry_after(error, default):
+    """The seconds a `Retry-After` header asks for (at most `MAX_WAIT_SECONDS`), else `default`."""
+    value = (error.headers or {}).get("Retry-After", "")
+    return min(int(value), MAX_WAIT_SECONDS) if str(value).strip().isdigit() else default
 
 
 def download_jars(cache, sleep=time.sleep):
@@ -139,10 +152,29 @@ def active_rules(token=None, sleep=time.sleep):
         page += 1
 
 
-def read_rules(path):
-    """The rule keys of a file, one per line; a `python:` prefix is dropped."""
-    with open(path, encoding="utf-8") as handle:
-        return sorted({line.strip().removeprefix(REPOSITORY + ":") for line in handle if line.strip()})
+def save_rules(cache, rules):
+    os.makedirs(cache, exist_ok=True)
+    with open(rules_path(cache), "w", encoding="utf-8") as handle:
+        handle.write("".join(f"{rule}\n" for rule in rules))
+
+
+def saved_rules(cache):
+    """The rule keys the last online run saved; `CannotRun` without them."""
+    if not os.path.isfile(rules_path(cache)):
+        raise CannotRun("no saved rules for --offline; run once without it")
+    with open(rules_path(cache), encoding="utf-8") as handle:
+        return sorted({line.strip() for line in handle if line.strip()})
+
+
+def load_rules(offline, cache, sleep=time.sleep):
+    """The active rule keys: saved by the last online run with `offline`, else from SonarQube Cloud (then saved)."""
+    if offline:
+        return saved_rules(cache)
+    rules = active_rules(os.environ.get("SONAR_TOKEN", ""), sleep)
+    if not rules:
+        raise CannotRun(f"no active '{REPOSITORY}:' rule in the quality profile {PROFILE}")
+    save_rules(cache, rules)
+    return rules
 
 
 def python_files(paths=None, root=ROOT):
@@ -214,22 +246,21 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Run SonarSource's open Python analyzer over the template's tools.")
     parser.add_argument("paths", nargs="*", help="files or directories relative to the repository root "
                                                  f"(default: {', '.join(SCANNED_DIRS)})")
-    parser.add_argument("--rules", help="a file of rule keys, one per line, instead of the quality profile's")
-    parser.add_argument("--cache", default=default_cache(), help="where the downloaded jars are kept")
+    parser.add_argument("--offline", action="store_true",
+                        help="use the profile's rules as the last online run saved them, without a SonarQube request")
     return parser.parse_args(argv)
 
 
-def main(argv=None, sleep=time.sleep):
+def main(argv=None, sleep=time.sleep, cache=None):
     args = parse_args(argv)
+    cache = cache or default_cache()
     files = python_files(args.paths)
     if not files:
         print("No Python file to analyse.")
         return 2
     try:
-        rules = read_rules(args.rules) if args.rules else active_rules(os.environ.get("SONAR_TOKEN", ""), sleep)
-        if not rules:
-            raise CannotRun(f"no active '{REPOSITORY}:' rule in the quality profile {PROFILE}")
-        jars = download_jars(args.cache, sleep)
+        rules = load_rules(args.offline, cache, sleep)
+        jars = download_jars(cache, sleep)
         loaded, missing, issues = parse_output(run_harness(jars, rules, files))
     except (CannotRun, OSError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"NOT CHECKED: {error}")

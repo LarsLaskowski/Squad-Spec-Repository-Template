@@ -208,7 +208,7 @@ is merged here, the product repository adopts it with `adopt-template`.
 2. Release: changes are batched into a release, normally once a week, sooner for an urgent defect. First
    `python3 tools/sonar-local.py` must pass: it runs the checks of SonarSource's open `sonar-python-plugin` with the
    consumers' quality profile over every Python file a target receives and over `tools/`, as SonarQube Cloud's
-   analysis of `main` will (it needs Java 17+ and reaches Maven Central and sonarcloud.io; `--rules FILE` skips the
+   analysis of `main` will (it needs Java 17+ and reaches Maven Central and sonarcloud.io; `--offline` skips the
    profile request). A release pull request (`python3 tools/release.py prepare`) turns *Unreleased* into the next
    version, and after its merge the owner tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
 3. In each `active` repository of `consumers.json`, run `adopt-template` as a refresh from a checkout of the release

@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] The Reviewer starts its report with one of three exact verdict lines, `BLOCKING 0 | NON-BLOCKING <m>`
+  when only non-blocking findings remain, and `squad-next.py` also reads `VERDICT: NON-BLOCKING <m>` as no blocking
+  finding instead of a row without a verdict (#267)
 - [Core] A dry run's unconfirmed statements are `unverified` facts in `plan.md`, never markers in the published
   document, and a feature spec asks how far a guide may rest on third-party pages; a link or statement on a page the
   session cannot open is reported `unopened` by the Reviewer and confirmed before step 9 by the person the plan names

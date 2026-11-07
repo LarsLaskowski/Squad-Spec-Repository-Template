@@ -214,12 +214,15 @@ A nit that would not change what gets merged stays out of the report.
 
 ## Output
 
-Start your report with exactly one verdict line:
+Start your report with exactly one verdict line in one of these three forms, which `squad-next.py` reads back:
 
 ```
 VERDICT: APPROVE
+VERDICT: BLOCKING 0 | NON-BLOCKING 2
 VERDICT: BLOCKING 2 | NON-BLOCKING 1
 ```
+
+`APPROVE` only without any finding; with findings both counts, `BLOCKING 0` when only non-blocking ones remain.
 
 Then the findings, most severe first, in this shape:
 

@@ -28,8 +28,9 @@ The orchestrator tells you which **mode** to run:
   written as its own scenario (given, when, then). A feature whose change is documentation only gets no spec:
   return the `docs` result of mode `plan` instead (*Tiers*). Check every claim the issue makes about today's
   behavior against the code before you build a scenario on it. For an installer or deployment feature, ask the
-  Product Manager what the target host has and may have (`RESULT: ESCALATE`, *Operator environments and documented
-  procedures* in `.squad/routing.md`) and record the answers as scenarios and criteria. A feature that already
+  Product Manager what the target host has and may have, and for a document that leads the operator through another
+  provider's page how far it may rest on that page (`RESULT: ESCALATE`, *Operator environments and documented
+  procedures* in `.squad/routing.md`), and record the answers as that section says. A feature that already
   exists or contradicts an accepted decision record is `RESULT: NO CHANGE` with the reason and a proposed issue
   comment.
 - `plan` — pick the tier on the change (`.squad/routing.md`, *Tiers*). For tiers `docs` and `patch` write
@@ -79,6 +80,8 @@ The orchestrator tells you which **mode** to run:
   - for a change that only a CI run can exercise (a workflow, an external API the session cannot reach): the
     runtime details no one can verify beforehand, each named up front, with a design that fails closed as the
     default;
+  - for documentation that links or describes third-party pages: who opens those the session cannot, and when
+    (*Pages the session cannot open* in `.squad/routing.md`);
   - for a change without production or test code: the declaration and its *Verification without tests*
     (*Changes without production or test code*); for an input the image build is sensitive to: the *Image
     build check* as the criterion's verification, run by the Dev, and for a criterion tested by hand on a build the

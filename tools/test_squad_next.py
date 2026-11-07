@@ -156,6 +156,22 @@ class TestPlanSteps(NextTest):
         self.assertIn("Launch: squad-lead, mode decide", out)
         self.assertIn('"2 Decide (plan-check)"', out)
 
+    def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
+        self.implemented()
+        self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
+        out = self.next()
+        self.assertNotIn("plan-check.py findings", out, "a merge's lower limit does not reopen an approved plan")
+        self.repo.write("specs/issue-5/plan.md", plan_text().replace("src/a.py:1 | confirmed |", "src/a.py:1 |  |")
+                        + "\nfiller " * 6000)
+        out = self.next()
+        self.assertIn("Next: step 2 — plan-check.py findings on the approved plan", out)
+        self.assertIn("  Warning: plan.md has", out)
+        self.assertIn("Launch: squad-lead, mode revise", out)
+        self.assertIn("Hand over: the findings only, the approved scope unchanged (no challenge round)", out)
+        self.repo.log(row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertIn('"2 Decide (plan-check)"', self.next(), "two revisions after the approval, then decide")
+
     def test_a_skipped_challenge_and_minor_objections_are_the_orchestrators(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED)

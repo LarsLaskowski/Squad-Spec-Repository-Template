@@ -119,7 +119,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    them that later commits may only touch `specs/`, and avoid commits while the round runs (*The stop hook*). A
    report for another code head is a stale round. Then:
    - a tier raise: *Tiers*; an *unlisted security area*: *Unlisted security areas*; a fix marked `verbatim`:
-     *Verbatim documentation fixes*;
+     *Verbatim documentation fixes*; an `unopened` link: *Pages the session cannot open*;
    - blocking findings → their owner (`squad-dev` for code and documentation, `squad-tester`) → steps 6 and 7 again (tiers `docs` and
      `patch`: you fix them and stamp again) → **a delta round, mandatory**; at most 2 fix rounds, then
      `squad-lead` in mode `decide` (*Loop limits*);

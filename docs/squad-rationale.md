@@ -972,3 +972,41 @@ receives or `tools/`. The profile's other 82 rules (`pythonsecurity`, `pythonbug
   bounded repetition is not. `figure-check.py` now matches the run `\d[\d_.]*` and takes the number from it in
   `code_number()`, which returned the same matches as the old regex on 500,000 random strings. The local check follows
   the rule as observed and also reports `[a-z]*x`, which Sonar leaves alone.
+
+## Lessons from the setup documentation run (routing.md, Operator environments and documented procedures, Pages the session cannot open, PR approval and Escalation to the Product Manager; orchestration.md, The stop hook, Draft until green and Merge conflicts; team.md, Git and GitHub; plan-check.py; squad-next.py; git-guard.py; squad-lead.md; squad-reviewer.md; squad-dev.md; spec.md template)
+
+The `squad-spec` run on LarsLaskowski/Seluna#20 (pull request LarsLaskowski/Seluna#153) wrote user-facing setup
+guides for a GitHub App and a Cloudflare Worker; its lessons came here as #266 (Seluna#159).
+
+- **Dry-run markers.** The rule that every statement no run had shown "is marked as such in the document" put
+  "Not yet confirmed by a test run: …" notes into the published guides. After the dry run the Product Manager had
+  them all removed and ruled that guides must not depend on third-party page wording at all. Such statements are now
+  `unverified` rows of the plan's *Verified facts* with the dry run as their owner — the plan template already had
+  that form — and the spec asks how far a guide may rest on third-party pages before anyone writes one.
+- **Pages the session cannot open.** The Dev added links to third-party documentation the Reviewer could not fetch:
+  the agent proxy answered 403, and the documentation repositories could not be attached. The Product Manager
+  verified them at the Lead's request, a step no rule had. The Reviewer now lists such links as `unopened` instead of
+  judging or dropping them, the plan names who opens them, and step 9 waits for that confirmation.
+- **Bookkeeping while waiting.** Once the PR is open the stop-hook rule said not to commit half-finished or
+  bookkeeping-only work, but the cloud container was reclaimed between turns while the run waited days for the
+  Product Manager's dry run; uncommitted `log.md` rows would have been lost, so `specs/`-only commits were pushed to
+  the early draft PR anyway, each re-running CI. A commit that touches only `specs/` changes no code head
+  (`gate-stamp.py` and the review round judge the last commit outside `specs/`), so the cost is one CI run per wait.
+- **A PR marked ready early.** The user marked the early draft PR ready for review before the dry runs, then turned
+  it back into a draft; no rule said what the orchestrator does then. It now asks once and never flips the state
+  itself: the state is the user's, the pipeline's remaining steps are not.
+- **An approved plan after a tools merge.** A template refresh merged into `main` during the run changed
+  `plan-check.py` (numbered N-ids in the spec, `PLAN_MAX_WORDS` for tier `trivial`). `squad-next.py` runs
+  `plan-check.py` after every row before the PR, so after the conflict merge the approved plan of 2,883 words failed
+  with "over twice … split the scope", and the orchestrator improvised a Lead `revise` launch. A size limit exists to
+  keep a plan cheap while it is written and challenged; splitting the scope of an approved plan mid-run would reopen
+  what the challenge and Security's review settled. So once the log has a row of step 4 or later the size only warns,
+  and every other new finding (the N-ids) still goes to the Lead, as a revise of the form with the scope unchanged.
+  Letting `plan-check.py` apply the rule version the plan was approved under was the other option; the tools keep no
+  older versions to compare against.
+- **Deleting a file.** The Dev's `git rm` of a document the plan deletes was refused by `git-guard.py`; it deleted the
+  file with `rm` and handed the staging to the orchestrator, which worked but was improvised. `git add <path>` of a
+  deleted tracked file stages the removal (Git 2.0 and later), and `git add` is the one Git write members keep, so a
+  deletion is `rm` plus `git add`, named in the report; the guard's denial of `git rm` and `git mv` now says so. The
+  orchestrator's `git status` check after a report restores only what the report does not name, which is what it
+  was for: the effects of a Git write a member should not have run (`git rm` and `git mv` in Vandox#40).

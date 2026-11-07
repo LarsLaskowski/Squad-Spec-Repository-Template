@@ -28,7 +28,10 @@ Security verdict and the Devil's Advocate's objections are read from the member'
 orchestrator logs as the start of the row's result; a row without one is named, and both ways are printed. Three
 blocking rounds in a row (review pass 1 and two delta rounds) send the findings to the Lead (*Loop limits*), and so
 does a second `CHANGES_REQUIRED` of the Security plan review; two plan-check revisions of one document without a
-clean run hand the findings to the Lead in mode `decide`.
+clean run hand the findings to the Lead in mode `decide`. Once the log has a row of step 4 or later the plan is
+approved: `plan-check.py` still runs before the PR, its size limit only warns, and a finding — one a merge of `main`
+brought with new checks, say — goes to the Lead in mode `revise` with the approved scope unchanged
+(`.squad/orchestration.md`, *Merge conflicts*).
 
 The script recognises a step by the number at the start of its step cell (`2a` and `2b` in `squad-spec`), the member
 and, in a feature, the task group in the cell (`6 Implement (G2)`); the step cells it prints are the ones it reads.
@@ -496,22 +499,29 @@ def plan_written(run):
     return plan_findings(run)
 
 
+def approved_at(run):
+    """The index of the run's first row of step 4 or later, from which on the plan counts as approved, or None."""
+    return next((row.index for row in run.rows if row.number and int(STEP.match(row.number).group(1)) >= 4), None)
+
+
 def plan_findings(run):
     if run.after_pr or not os.path.isdir(run.folder):
         return None
-    errors, warnings = plan_check().check(run.folder)
+    approved = approved_at(run)
+    errors, warnings = plan_check().check(run.folder, approved=approved is not None)
     if not errors:
         return None
-    since = max([row.index for row in run.rows if row.who in (ADVOCATE, SECURITY) and row.number in ("2", "2b", "3")]
-                + [-1])
+    since = approved if approved is not None else max(
+        [row.index for row in run.rows if row.who in (ADVOCATE, SECURITY) and row.number in ("2", "2b", "3")] + [-1])
     rounds = run.of(LEAD, {run.plan_step}, after=since, word="plan-check")
-    lines = heading(f"step {run.plan_step} — plan-check.py findings") + [f"  Finding: {line}" for line in errors] + [
+    title = "plan-check.py findings" + (" on the approved plan" if approved is not None else "")
+    lines = heading(f"step {run.plan_step} — {title}") + [f"  Finding: {line}" for line in errors] + [
         f"  Warning: {line}" for line in warnings]
     if len(rounds) >= 2:
         return lines + launch(run, LEAD, "decide", f"{run.plan_step} Decide (plan-check)",
                               "the findings left after two revisions: it fixes them or escalates")
-    return lines + launch(run, LEAD, "revise", f"{run.plan_step} Plan revise (plan-check)",
-                          "the findings only (no challenge round)")
+    scope = "the findings only, the approved scope unchanged" if approved is not None else "the findings only"
+    return lines + launch(run, LEAD, "revise", f"{run.plan_step} Plan revise (plan-check)", f"{scope} (no challenge round)")
 
 
 def challenge_and_security(run):

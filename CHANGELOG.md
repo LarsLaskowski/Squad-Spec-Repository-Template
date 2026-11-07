@@ -6,6 +6,17 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A dry run's unconfirmed statements are `unverified` facts in `plan.md`, never markers in the published
+  document, and a feature spec asks how far a guide may rest on third-party pages; a link or statement on a page the
+  session cannot open is reported `unopened` by the Reviewer and confirmed before step 9 by the person the plan names
+  (#266)
+- [Core] With an early draft PR open, the `specs/` bookkeeping is committed while the run waits on the Product
+  Manager, and a PR the user marks ready early is not turned back into a draft: the Product Manager is asked once
+  (#266)
+- [Tools] After a merge of `main` that changes `.squad/tools/`, `squad-next.py` sends a new `plan-check.py` finding on
+  the approved plan to the Lead in mode `revise` with the scope unchanged; an approved plan's size only warns (#266)
+- [Core] Members delete or move a file with `rm` or `mv` and `git add`, which `git-guard.py` names when it denies
+  `git rm` or `git mv` (#266)
 - [Tools] `decision-check.py` and `figure-check.py` pass SonarQube Cloud's python:S7632 and S8786, which #261 left
   in both files: the `noqa` explanation holds no comma, and `figure-check.py` reads numbers without nested
   quantifiers (#263)

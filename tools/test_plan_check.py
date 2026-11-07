@@ -408,6 +408,16 @@ class TestPlanCheck(unittest.TestCase):
         errors, _ = self.script.check(self.feature(plan=justified + "\nfiller " * 5000))
         self.assertTrue(any("over twice PLAN_MAX_WORDS" in e for e in errors), "beyond twice the limit only a split helps")
 
+    def test_an_approved_plan_is_not_reopened_for_its_size(self):
+        folder = self.feature(plan=PLAN + "\nfiller " * 6000)
+        errors, _ = self.script.check(folder)
+        self.assertTrue(any("over twice PLAN_MAX_WORDS" in e for e in errors), "while the plan is written")
+        errors, warnings = self.script.check(folder, approved=True)
+        self.assertFalse(any("words" in e for e in errors), errors)
+        self.assertTrue(any("approved" in w and "PLAN_MAX_WORDS 2500 for tier standard" in w for w in warnings), warnings)
+        errors, _ = self.script.check(self.feature(plan=PLAN.replace("Tier: standard", "Tier: <tier>")), approved=True)
+        self.assertTrue(errors, "every other finding still counts on an approved plan")
+
     def test_skeleton_row_per_group_when_the_plan_lists_api(self):
         plan = (PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n"
                 "- `func ReadBootID() (string, error)`\n")

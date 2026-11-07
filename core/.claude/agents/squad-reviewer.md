@@ -162,7 +162,10 @@ repository names this thing, and is that statement still true?**
   needs the matching section of its area document in `docs/areas/` in the same
   diff, and a decision record repeats no rules the area document states. Each
   decision record of the change matches what was built; the PR approval (step 9)
-  does not check it again.
+  does not check it again. A link or statement that rests on a page you cannot
+  open (the proxy refuses the host, the repository cannot be attached) is
+  neither a finding nor checked: list it after the findings as `unopened`, with
+  the error you got (*Pages the session cannot open* in `.squad/routing.md`).
 - **Language**: all new code, comments, documentation and commit messages in
   English.
 - **Scope**: unrelated changes bundled in, accidental file inclusions, debug

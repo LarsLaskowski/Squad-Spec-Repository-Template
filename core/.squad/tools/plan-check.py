@@ -45,7 +45,9 @@ Checks, in the work folder `specs/<folder>/`:
   member that reads it, so the Lead moves settled material (answered challenge entries, facts verified in earlier
   rounds) into the decision record, or into *Documentation updates* for the Dev. A plan whose scope really needs
   more says why in a `Plan size:` line under the header; then up to twice the limit is a warning that quotes the
-  reason, and beyond that the scope is split.
+  reason, and beyond that the scope is split. Once the plan is approved (`squad-next.py` says so when the log has a
+  row of step 4 or later) its size is a warning only: an approved plan is not reopened for its size, also not when a
+  merge of `main` brought a lower limit (`.squad/orchestration.md`, *Merge conflicts*).
 
 After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
 `Plan challenge: due — …` or `Plan challenge: not due — …`: due on tier `security`, and on tier `standard` when
@@ -614,8 +616,9 @@ def check_control_characters(folder, errors):
                 errors.append(f"{name}: control characters {', '.join(found)} (write them as text escapes)")
 
 
-def check(folder):
-    """All findings for the work folder, and the warnings."""
+def check(folder, approved=False):
+    """All findings for the work folder, and the warnings; `approved`: the run is past the plan (step 4 or later), so
+    the plan's size is a warning only."""
     errors, warnings = [], []
     check_control_characters(folder, errors)
     plan = read(os.path.join(folder, PLAN), errors)
@@ -634,7 +637,7 @@ def check(folder):
         else:
             check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)), dropped)
             check_placeholders("tasks.md", tasks, errors)
-    check_plan_size(plan, errors, warnings)
+    check_plan_size(plan, errors, warnings, approved)
     return errors, warnings
 
 
@@ -669,8 +672,9 @@ def plan_limit(tier):
     return limits.get(tier, max(limits.values()))
 
 
-def check_plan_size(plan, errors, warnings):
-    """A plan within its tier's PLAN_MAX_WORDS, or up to twice that with a `Plan size:` line that says why."""
+def check_plan_size(plan, errors, warnings, approved=False):
+    """A plan within its tier's PLAN_MAX_WORDS, or up to twice that with a `Plan size:` line that says why; an approved
+    plan's size is a warning, since a limit a later merge brought cannot reopen it."""
     words, tier = counted_words(plan), plan_tier(plan)
     limit = plan_limit(tier)
     if words <= limit:
@@ -678,7 +682,10 @@ def check_plan_size(plan, errors, warnings):
     match = PLAN_SIZE.search(plan)
     reason = match.group(1).strip() if match and not empty(cell(match.group(1))) else None
     shown = f"PLAN_MAX_WORDS {limit} for tier {tier}"
-    if words > 2 * limit:
+    if approved:
+        warnings.append(f"plan.md has {words} words ({shown}), approved: the limit applies while the plan is written, "
+                        "not to the approved plan")
+    elif words > 2 * limit:
         errors.append(f"plan.md has {words} words, over twice {shown}: split the scope into separate issues the plan "
                       "can describe within the limit")
     elif reason and "<" not in reason:

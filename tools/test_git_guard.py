@@ -163,6 +163,17 @@ class TestHookInput(unittest.TestCase):
             out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": command}})
             self.assertIn(named, json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"], command)
 
+    def test_a_denied_delete_or_move_names_the_plain_command_that_does_the_same(self):
+        for command, instead in (("git rm docs/old.md", "run `rm <path>`, then `git add <path>`"),
+                                 ("git -C . rm -r --cached specs/x", "run `rm <path>`, then `git add <path>`"),
+                                 ("git mv a.md b.md", "run `mv <old> <new>`, then `git add <old> <new>`")):
+            out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": command}})
+            self.assertIn(instead, json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"], command)
+        out = self.run_hook({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": "git commit"}})
+        self.assertNotIn("rm <path>", json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"],
+                         "only a denial with an allowed equivalent names one")
+        self.assertIsNone(self.hook.check_command("rm docs/old.md && git add docs/old.md"), "the equivalent runs")
+
     def test_allowed_command_and_other_tools_give_no_decision(self):
         for data in ({"tool_name": "Bash", "agent_type": "squad-dev", "tool_input": {"command": "git status"}},
                      {"tool_name": "Edit", "agent_type": "squad-dev", "tool_input": {"file_path": "a"}},

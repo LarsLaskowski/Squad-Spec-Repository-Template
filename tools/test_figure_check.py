@@ -71,6 +71,20 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(found, {"512", "1000", "0.75", "30", "30s", "8.0.1", "APP_PORT", "/api/v1", "maxRetries",
                                  "GET"})
 
+    def test_a_number_ends_where_code_ends_it(self):
+        found = self.script.values(["a = 25.5. b = 1__23 c = 4_5_ d = 6.7_8 e = 1..23 f = 9.8.7 x.12 y_13 14x"])
+        self.assertEqual(found, {"25.5", "45", "6.7", "9.8.7", "14"}, "1__23 and 1..23 are 1; x.12 and y_13 none")
+
+    def test_code_number_is_the_number_a_run_starts_with(self):
+        cases = {"1_000": "1_000", "8.0.1": "8.0.1", "2.": "2", "1__2": "1", "1_": "1", "1_.5": "1", "1..3": "1",
+                 "1.5_0": "1.5", "1._5": "1", "1_2.3.4_5": "1_2.3.4"}
+        for run, number in cases.items():
+            self.assertEqual(self.script.code_number(run), number, run)
+
+    def test_a_number_is_one_value_as_code_writes_it(self):
+        self.assertTrue(all(self.script.is_number(value) for value in ("512", "1_000", "8.0.1", "0.75")))
+        self.assertFalse(any(self.script.is_number(value) for value in ("30s", "8.0.", "1__0", "1.5_0", "", "v2")))
+
     def test_trivial_values_are_left_out(self):
         self.assertEqual(self.script.values(["a = [0, 1, 2, 5, 9, 10, 100, 11]"]), {"11"})
         custom = load_script(FIGURE_TRIVIAL=["11", 512])

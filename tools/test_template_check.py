@@ -207,14 +207,40 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"a.*?b", r"(.*?)b", r"[*?]", r"\*?a", r"(?:a)?b", r"(?P<a>x)(?=y)"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
-    def test_a_colon_in_the_explanation_of_a_noqa_comment_is_reported(self):
-        source = "try:\n    pass\nexcept Exception:  # noqa: BLE001  (missing, or broken: the default)\n    pass\n"
-        self.assertEqual(self.rules(source), ["python:S7632"])
+    def test_a_comma_in_the_explanation_of_a_noqa_comment_is_reported(self):
+        for comment in ("# noqa: BLE001  (missing, or broken; the default)", "# noqa: BLE001 - a, b",
+                        "# noqa: E402, E731  (a, b)"):
+            source = f"try:\n    pass\nexcept Exception:  {comment}\n    pass\n"
+            self.assertEqual(self.rules(source), ["python:S7632"], comment)
 
-    def test_noqa_comments_without_a_colon_in_the_explanation_pass(self):
-        for comment in ("# noqa: BLE001  (missing, or broken; the default)", "# noqa: S310  # nosec B310",
-                        "# noqa: E402, E731", "# see: the docs"):
+    def test_noqa_comments_without_a_comma_in_the_explanation_pass(self):
+        for comment in ("# noqa: BLE001  (missing or broken: the default)", "# noqa: S310  # nosec B310",
+                        "# noqa: E402, E731", "# noqa: BLE001  # a, b", "# see, the docs"):
             self.assertEqual(self.rules(f"x = 1  {comment}\n"), [], comment)
+
+    def test_an_unanchored_leading_repetition_followed_by_more_is_reported(self):
+        for call in (r"re.search(r'\d+$', t)", r"re.findall(r'\d+x', t)", r"re.search(r'(?<!\w)\d+\.', t)",
+                     r"re.sub(r'\s+$', '', t)", r"re.findall(r'(\d+)x', t)", r"re.findall(r'(?:ab)+x', t)",
+                     r"re.findall(r'\d{2,}x', t)", r"re.findall(r'\d*+x', t)", r"re.search(r'[^,]+,', t)"):
+            self.assertEqual(self.rules(f"import re\nX = {call}\n"), ["python:S8786"], call)
+
+    def test_a_compiled_regex_searched_and_fullmatched_is_anchored_at_its_end(self):
+        for pattern in (r"(?<![\w.])\d++(?:_\d++)*+(?:\.\d++)*+", r"(?<!\w)\d+", r"\d+"):
+            source = f"import re\nX = re.compile(r'{pattern}')\nX.findall(t)\nX.fullmatch(t)\n"
+            self.assertEqual(self.rules(source), ["python:S8786"], pattern)
+
+    def test_anchored_bounded_or_single_character_starts_pass(self):
+        for call in (r"re.match(r'\d+x', t)", r"re.fullmatch(r'\d+x', t)", r"re.search(r'^\d+x', t)",
+                     r"re.search(r'\b\d+x', t)", r"re.findall(r'\d{2,5}x', t)", r"re.findall(r'x\d+y', t)",
+                     r"re.sub(r'\s+', ' ', t)", r"re.split(r',\s*', t)", r"re.findall(r'\d+(?:_\d+)*', t)",
+                     r"re.findall(r'(?<![\w.])(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+(?:\.\d+)*)', t)",
+                     r"re.findall(r'(', t)"):
+            self.assertEqual(self.rules(f"import re\nX = {call}\n"), [], call)
+        for uses in ("X.fullmatch(t)\n", "X.findall(t)\n", ""):
+            source = f"import re\nX = re.compile(r'(?<![\\w.])\\d+')\n{uses}"
+            self.assertEqual(self.rules(source), [], uses)
+        both = "import re\nX = re.compile(r'(?<![\\w.])\\d[\\d_.]*')\nX.findall(t)\nX.fullmatch(t)\n"
+        self.assertEqual(self.rules(both), [])
 
     def test_several_spaces_in_a_regex_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])

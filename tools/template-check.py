@@ -42,7 +42,8 @@ Checks, without arguments:
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
   arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
   followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
-  starts with an unbounded repetition and goes on with something that can fail); `sonar-project.properties`
+  starts with an unbounded repetition and goes on with something that can fail, a regex more complex than 20);
+  `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
   `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
@@ -135,8 +136,8 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6019",
-               "python:S6326", "python:S7632", "python:S8786", "python:S9081"]
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
+               "python:S6019", "python:S6326", "python:S7632", "python:S8786", "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
@@ -161,6 +162,13 @@ MULTIPLE_SPACES = re.compile(r" {2,}")
 PARTIAL_FUNCTIONS = {"search", "findall", "finditer", "sub", "subn", "split"}
 REPEATS = {sre_constants.MAX_REPEAT, sre_constants.MIN_REPEAT, getattr(sre_constants, "POSSESSIVE_REPEAT", None)}
 LOOKAROUND_OPS = {sre_constants.ASSERT, sre_constants.ASSERT_NOT}
+# python:S5843: Sonar's regex complexity and its limit. A quantifier, a lookaround and the first `|` of a disjunction
+# add their nesting depth (1 at the top level, one more inside each of them), every further `|`, a character class and
+# a backreference add 1. Sonar has reported it on a pattern written as one string literal only, never on one spread
+# over adjacent literals (two such regexes on main, at 30 and 44 by this count, carry no issue).
+REGEX_COMPLEXITY_LIMIT = 20
+QUANTIFIER = re.compile(r"(?:[*+?]|\{\d+(?:,\d*)?\}|\{,\d+\})[?+]?")
+BACKREFERENCE = re.compile(r"\\[1-9]")
 END_ANCHORS = {sre_constants.AT_END, sre_constants.AT_END_STRING}
 CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
 # The squad's rule files under core/ (paths relative to core/): watched for growth and for removed sentences.
@@ -1457,14 +1465,85 @@ def anchored(alternative, anchor):
     return len(alternative) > 1 and bool(items) and items[0 if anchor == "^" else -1] == anchor
 
 
-def regex_calls(tree, functions=REGEX_FUNCTIONS):
-    """The `re.<function>(<string literal>, …)` calls of a module, as (line, pattern)."""
+def regex_item(pattern, i):
+    """(kind, its alternatives or None, the index after it) of the regex item at pattern[i]: `class`, `backreference`,
+    `lookaround`, `group` or `atom` (a flag setter included)."""
+    char = pattern[i]
+    flag_setter = FLAG_SETTER.match(pattern, i)
+    if flag_setter:
+        return "atom", None, flag_setter.end()
+    if char == "\\":
+        return ("backreference" if BACKREFERENCE.match(pattern, i) else "atom"), None, i + 2
+    if char == "[":
+        return "class", None, CHAR_CLASS.match(pattern, i).end()
+    if char == "(":
+        alternatives, end = regex_tree(pattern, GROUP_OPENER.match(pattern, i).end())
+        return ("lookaround" if pattern.startswith(LOOKAROUNDS, i) else "group"), alternatives, end + 1
+    return "atom", None, i + 1
+
+
+def regex_tree(pattern, i=0):
+    """(alternatives, the index of the closing parenthesis or the end) of the sequence from pattern[i]: each
+    alternative a list of (kind, alternatives or None, quantified) items."""
+    alternatives = [[]]
+    while i < len(pattern) and pattern[i] != ")":
+        if pattern[i] == "|":
+            alternatives.append([])
+            i += 1
+            continue
+        kind, children, i = regex_item(pattern, i)
+        quantifier = QUANTIFIER.match(pattern, i)
+        i = quantifier.end() if quantifier else i
+        alternatives[-1].append((kind, children, bool(quantifier)))
+    return alternatives, i
+
+
+def regex_complexity(alternatives, nesting=1):
+    """python:S5843: the complexity of a parsed regex at the nesting depth (REGEX_COMPLEXITY_LIMIT)."""
+    total = 0
+    if len(alternatives) > 1:
+        total, nesting = nesting + len(alternatives) - 2, nesting + 1
+    for kind, children, quantified in itertools.chain.from_iterable(alternatives):
+        depth = nesting + quantified
+        total += (nesting if quantified else 0) + {"class": 1, "backreference": 1, "lookaround": depth}.get(kind, 0)
+        if children is not None:
+            total += regex_complexity(children, depth + (kind == "lookaround"))
+    return total
+
+
+def one_literal(source, node):
+    """Whether the string constant is written as one literal, not as adjacent literals Python joins."""
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(ast.get_source_segment(source, node)).readline)
+        return sum(token.type == tokenize.STRING for token in tokens) == 1
+    except (tokenize.TokenError, SyntaxError):
+        return False
+
+
+def complex_regexes(source, tree):
+    """python:S5843: a regex more complex than REGEX_COMPLEXITY_LIMIT; split it, or leave the rarer forms to code."""
+    findings = []
+    for node in regex_call_nodes(tree):
+        complexity = regex_complexity(regex_tree(node.args[0].value)[0])
+        if complexity > REGEX_COMPLEXITY_LIMIT and one_literal(source, node.args[0]):
+            findings.append((node.lineno, "python:S5843", f"regex complexity {complexity}, over {REGEX_COMPLEXITY_LIMIT}"))
+    return findings
+
+
+def regex_call_nodes(tree, functions=REGEX_FUNCTIONS):
+    """The `re.<function>(<string literal>, …)` calls of a module."""
     for node in ast.walk(tree):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
                 and isinstance(node.func.value, ast.Name) and node.func.value.id == "re"
                 and node.func.attr in functions and isinstance(node.args[0], ast.Constant)
                 and isinstance(node.args[0].value, str)):
-            yield node.lineno, node.args[0].value
+            yield node
+
+
+def regex_calls(tree, functions=REGEX_FUNCTIONS):
+    """The `re.<function>(<string literal>, …)` calls of a module, as (line, pattern)."""
+    for node in regex_call_nodes(tree, functions):
+        yield node.lineno, node.args[0].value
 
 
 def ungrouped_anchors(alternatives):
@@ -1602,7 +1681,7 @@ def sonar_findings(path, source):
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
-        + super_linear_regexes(tree)
+        + super_linear_regexes(tree) + complex_regexes(source, tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

@@ -57,8 +57,8 @@ round number, and — from round 2 on — the previous round's findings and the
 commits that were supposed to fix them. If no round number is given, assume
 round 1. The head is a code SHA: commits after it that touch only `specs/`
 (log rows a stop hook made the session commit) are bookkeeping — review the
-SHA you were given and report it first; a later commit outside `specs/` is
-a stale round.
+SHA you were given and name it in your verdict line (*Output*); a later commit
+outside `specs/` is a stale round.
 
 When invoked by the squad (`squad-issue` / `squad-spec`), the calling session
 also gives you the work folder (`specs/<folder>/`) and the output of the gates
@@ -217,12 +217,14 @@ A nit that would not change what gets merged stays out of the report.
 Start your report with exactly one verdict line in one of these three forms, which `squad-next.py` reads back:
 
 ```
-VERDICT: APPROVE
-VERDICT: BLOCKING 0 | NON-BLOCKING 2
-VERDICT: BLOCKING 2 | NON-BLOCKING 1
+VERDICT: APPROVE on <sha>
+VERDICT: BLOCKING 0 | NON-BLOCKING 2 on <sha>
+VERDICT: BLOCKING 2 | NON-BLOCKING 1 on <sha>
 ```
 
 `APPROVE` only without any finding; with findings both counts, `BLOCKING 0` when only non-blocking ones remain.
+`<sha>` is the code SHA you reviewed, copied from the output of `git rev-parse <the head you were given>` (all 40
+characters), never typed from memory: `squad-next.py` compares it with the gate stamp's.
 
 Then the findings, most severe first, in this shape:
 

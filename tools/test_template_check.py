@@ -207,6 +207,21 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"a.*?b", r"(.*?)b", r"[*?]", r"\*?a", r"(?:a)?b", r"(?P<a>x)(?=y)"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
+    def test_a_regex_more_complex_than_20_is_reported(self):
+        complex_ids = r"^[\s*-]*(?:\**AC\d+(?:[-\u2013]\d+(?!\d))?\**[\s,.\u2013\u2014-]*)+:?\s*"
+        findings = self.script.sonar_findings("tool.py", f"import re\nX = re.compile(r'{complex_ids}')\n")
+        self.assertEqual(findings, [(2, "python:S5843", "regex complexity 23, over 20")], "Sonar counted 23")
+        nested = r"(?:a(?:b(?:c+)+)+|d|e)\1(?=f*)"
+        self.assertEqual(self.script.regex_complexity(self.script.regex_tree(nested)[0]), 15,
+                         "| 1+1, quantifiers 2+3+4, the backreference 1, the lookaround 1 and its quantifier 2")
+
+    def test_simpler_or_split_regexes_pass_the_complexity_limit(self):
+        for pattern in (r"^[\s*-]*(?:\**AC\d+\**[\s,.\u2013\u2014\d-]*)+:?\s*", r"[(*+?|]{3}(?i:x)\(\d\)"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+        split = "import re\nX = re.compile(r'^[\\s*-]*(?:\\**AC\\d+(?:[-\\u2013]\\d+(?!\\d))?'\n" \
+            "                r'\\**[\\s,.\\u2013\\u2014-]*)+:?\\s*')\n"
+        self.assertEqual(self.rules(split), [], "Sonar reports no regex spread over adjacent literals")
+
     def test_a_comma_in_the_explanation_of_a_noqa_comment_is_reported(self):
         for comment in ("# noqa: BLE001  (missing, or broken; the default)", "# noqa: BLE001 - a, b",
                         "# noqa: E402, E731  (a, b)"):

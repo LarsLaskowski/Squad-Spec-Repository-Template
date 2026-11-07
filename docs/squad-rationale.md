@@ -1023,3 +1023,26 @@ the skeleton, and the Lead had to reword the section twice before no code format
 compile-only API for the Tester's tests, and no test calls a private member, so the template keeps private members
 out of *Signatures*; both tools also accept the explicit statement, a "none" or "no API" section and an
 orchestrator row that logs step 4 as skipped, so a plan written the old way costs no reword and no stuck run.
+
+## The matrix counts the branch's tests only; the Reviewer names the SHA it reviewed (plan-check.py; specs/_template/plan.md, Verification without tests; squad-reviewer.md, Inputs and Output; squad-next.py; squad-issue, step 8)
+
+Lessons of the run of Seluna#158 (Seluna#166, #272). A tier-`trivial` plan without production or test code wrote its
+*Tests per criterion* cells as `check (below)`. Only a cell that starts with `CI:`, `manual:`, `after merge:` or
+`check:` names a kind, so these became unit test names, and the row won over the plan's *Verification without tests*
+lines: its manual link check vanished from the matrix. The matrix then counted any test file that held the criterion
+id and passed AC1, AC3 and AC4 on `src/outbox-retry.test.ts`, the test of an unrelated earlier run whose tests are
+named `AC1 …`; even after the plan was fixed, AC2's row still listed that file beside the real one. Neither the plan
+check nor the matrix before step 7 flagged it; the orchestrator found it while filling in the matrix and improvised a
+Lead revision after the review round, which pushed the plan over its tier's word limit. Criterion ids restart with
+every run, so an id in a test file the branch leaves alone says nothing about this run: the matrix counts it only in
+a file the criterion's row names or one the branch changes, and a test name still counts anywhere. A plan with
+*Verification without tests* skips steps 4 and 5, so a test name in it can only be a test that exists already, which
+`plan-check.py` checks at step 2; a criterion verified two ways is reported there and shown in the matrix instead of
+one way being dropped. In the same run the Reviewer's round-1 report named the code SHA `c2004ea51bb…` while the
+stamp's was `c2004ea43bb…`; its diff range was right, but the orchestrator had to check that by hand. The Reviewer now
+copies the SHA from `git rev-parse` into its verdict line, and `squad-next.py` compares it with the stamp: a verdict
+without a SHA, or one naming other code, ties the round to no stamp and the Reviewer is continued on the stamp's SHA.
+SonarQube Cloud then reported python:S5843 on the extended `LEADING_IDS` of `plan-check.py`: complexity 23 over the
+limit of 20. `template-check.py` now counts it the way that number came about (a quantifier and a lookaround add their
+nesting depth, a character class 1) and reports a regex over 20; it leaves out a regex written as several adjacent
+literals, since main's analysis carries no issue for two of them at 30 and 44 by the same count.

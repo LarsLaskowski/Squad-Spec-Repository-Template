@@ -56,8 +56,9 @@ CI.
 Only when the change touches no production or test code, in any tier: steps 4, 5 and the *Coverage gate*
 are not applicable (*Changes without production or test code* in `.squad/routing.md`). Every acceptance
 criterion is then verified here instead of by a test, one line each with its kind as above (`- AC1: CI: …`, `check:`
-for a read-only check): where and by whom (workflow step, PR dry run, read-only check). Otherwise delete this
-section.
+for a read-only check): where and by whom (workflow step, PR dry run, read-only check). A criterion verified here has
+no *Tests per criterion* row, or one of the same kind or naming a test that exists already: a pointer such as
+`check (below)` reads as a test name. Otherwise delete this section.
 
 ## Approach
 

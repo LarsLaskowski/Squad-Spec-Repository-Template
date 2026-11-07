@@ -84,6 +84,10 @@ class NextTest(fixtures.RepoTest):
         self.assertEqual(code, 0, out + err)
         return out
 
+    def reviewed(self, step, verdict, tokens, **kwargs):
+        """A Reviewer row whose verdict line names the code SHA it reviewed: the head."""
+        return row(step, "Reviewer", f"{verdict} on {self.repo.git('rev-parse', 'HEAD')}", tokens, **kwargs)
+
     def stamp(self, *argv):
         code, out, _ = run_main(load("gate-stamp"), [self.folder, *argv])
         self.assertEqual(code, 0, out)
@@ -317,7 +321,7 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("Next: step 8 — Review, round 1 (full): squad-reviewer (mode review)", out)
         self.assertIn("No Security diff review on tier standard", out)
         self.assertNotIn("squad-security", out)
-        self.repo.log(row("8 Review", "Reviewer", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
         out = self.next()
         self.assertIn("Launch: squad-dev, mode fix — code and documentation", out)
         self.assertIn('"8 Fix" "Dev" "<the result>" --agent-id <id> --continued', out)
@@ -330,7 +334,7 @@ class TestReviewAndAfter(NextTest):
             out = self.next()
             self.assertIn("Review, delta round", out)
             self.assertIn('continue the agent of "8 Review"', out)
-            self.repo.log(row("8 Review delta", "Reviewer", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 9000,
+            self.repo.log(self.reviewed("8 Review delta", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 9000,
                               continued=True))
         out = self.next()
         self.assertIn("blocking findings after two delta rounds", out)
@@ -342,7 +346,7 @@ class TestReviewAndAfter(NextTest):
         out = self.next()
         self.assertIn("squad-reviewer (mode review), squad-security (mode diff)", out)
         self.assertIn('"8 Security diff" "Security"', out)
-        self.repo.log(row("8 Review", "Reviewer", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 2", 60000),
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 2", 60000),
                       row("8 Security diff", "Security", "VERDICT: APPROVED", 60000))
         out = self.next()
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
@@ -354,15 +358,40 @@ class TestReviewAndAfter(NextTest):
     def test_a_delta_round_with_only_non_blocking_findings_is_read_without_a_blocking_count(self):
         self.implemented()
         self.stamp()
-        self.repo.log(row("8 Review", "Reviewer", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000),
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000),
                       row("8 Fix", "Dev", "fixed", 9000, "sonnet/medium", continued=True))
         self.repo.write("src/a.py", "x = 3\n")
         self.repo.commit("fix")
         self.stamp()
-        self.repo.log(row("8 Review delta", "Reviewer", "VERDICT: NON-BLOCKING 1", 9000, continued=True))
+        self.repo.log(self.reviewed("8 Review delta", "VERDICT: NON-BLOCKING 1", 9000, continued=True))
         out = self.next()
         self.assertNotIn("carries no VERDICT line", out)
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
+
+    def test_the_verdict_line_must_name_the_stamped_code(self):
+        self.implemented()
+        self.stamp()
+        stamped = self.repo.git("rev-parse", "HEAD~1")
+        self.repo.log(row("8 Review", "Reviewer", "VERDICT: APPROVE", 60000))
+        out = self.next()
+        self.assertIn("the Reviewer's verdict line names no code SHA: the round cannot be matched to the stamp on "
+                      f"{stamped[:12]}", out)
+        self.assertIn('continue the agent of "8 Review"', out)
+        self.assertIn(f"the stamp's code SHA {stamped}: it reviews that SHA", out)
+        self.assertIn('"8 Review (stamp SHA)" "Reviewer"', out)
+        garbled = stamped[:9] + ("0" if stamped[9] != "0" else "1") + stamped[10:]
+        self.repo.log(row("8 Review (stamp SHA)", "Reviewer", f"VERDICT: APPROVE on {garbled}", 9000, continued=True))
+        self.assertIn(f"names {garbled[:12]}, not the stamped code {stamped[:12]}: a stale round", self.next())
+        self.repo.log(row("8 Review (stamp SHA)", "Reviewer", f"VERDICT: APPROVE on {stamped[:7]}", 9000,
+                          continued=True))
+        self.assertIn("Next: step 9 — PR approval", self.next(), "a short SHA of the stamp")
+        self.repo.write("src/a.py", "x = 5\n")
+        self.repo.commit("fix")
+        self.stamp()
+        self.repo.log(row("8 Review delta", "Reviewer", f"VERDICT: APPROVE on {stamped}", 9000, continued=True))
+        self.assertIn("a stale round", self.next(), "the code of the stamp before")
+        self.repo.log(self.reviewed("8 Review delta", "VERDICT: APPROVE", 9000, continued=True))
+        self.assertIn("Next: step 9 — PR approval", self.next(), "a commit that touched only specs/ after the stamp")
 
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
@@ -384,7 +413,7 @@ class TestReviewAndAfter(NextTest):
     def test_approval_pull_request_after_the_pr_and_wrap_up(self):
         self.implemented()
         self.stamp()
-        self.repo.log(row("8 Review", "Reviewer", "VERDICT: APPROVE", 60000))
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
         self.repo.commit("log")
         self.repo.git("checkout", "-q", "main")
         self.repo.write("NOTICE", "moved\n")
@@ -399,7 +428,7 @@ class TestReviewAndAfter(NextTest):
         self.repo.commit("fix after the review")
         self.stamp()
         self.assertIn("Review, delta round", self.next(), "a commit of its own does")
-        self.repo.log(row("8 Review delta", "Reviewer", "VERDICT: APPROVE", 9000, continued=True))
+        self.repo.log(self.reviewed("8 Review delta", "VERDICT: APPROVE", 9000, continued=True))
         self.assertIn("Next: step 9 — PR approval", self.next())
         self.repo.log(row("9 PR approval", "Orchestrator", "approved by checklist"))
         out = self.next()
@@ -421,7 +450,7 @@ class TestReviewAndAfter(NextTest):
         self.assertEqual(code, 0)
         out = self.next("--stdin", stdin=log)
         self.assertIn("Next: step 11 — Review, delta round", out)
-        log += row("11 Review delta", "Reviewer", "VERDICT: APPROVE", 9000, continued=True)
+        log += self.reviewed("11 Review delta", "VERDICT: APPROVE", 9000, continued=True)
         self.assertIn("Next: step 9 — PR approval", self.next("--stdin", stdin=log), "the re-approval")
         log += row("11 PR approval", "Orchestrator", "approved by checklist")
         log += row("11 Ready for review", "Orchestrator", "marked ready for review")
@@ -432,7 +461,7 @@ class TestReviewAndAfter(NextTest):
     def test_a_verbatim_fix_needs_the_light_stamp_and_no_delta_round(self):
         self.implemented()
         self.stamp()
-        self.repo.log(row("8 Review", "Reviewer", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000),
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000),
                       row("8 Verbatim fix", "Orchestrator", "verbatim: README.md line 1"))
         self.repo.write("README.md", "Readme, fixed\n")
         self.repo.commit("verbatim fix")
@@ -475,6 +504,10 @@ class TestLaunches(NextTest):
         tool, row_of = self.tool, self.tool.Row
         review = tool.review_verdict
         self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: BLOCKING 2 \\| NON-BLOCKING 1")), (2, 1))
+        logged = "VERDICT: BLOCKING 2 \\| NON-BLOCKING 1 on 0123456789abcdef0123456789abcdef01234567 — two defects"
+        self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", logged)), (2, 1))
+        self.assertEqual(tool.REVIEW.search(logged).group("sha"), "0123456789abcdef0123456789abcdef01234567")
+        self.assertIsNone(tool.REVIEW.search("VERDICT: APPROVE; found on 0123abc").group("sha"))
         self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: APPROVE all good")), (0, 0))
         self.assertEqual(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: NON-BLOCKING 3")), (0, 3))
         self.assertIsNone(review(row_of(0, "8", "8", "squad-reviewer", "VERDICT: APPROVED")))

@@ -231,6 +231,17 @@ class TestGatePlanning(unittest.TestCase):
         self.assertEqual(commands["Format"], ["true"], "a note after the name is no part of it")
         self.assertEqual(commands["Test (project)"], ["echo test-project <Project>"])
 
+    def test_a_filled_verification_without_tests_makes_the_plan_code_free(self):
+        for plan in ("## Verification without tests\n\n- AC1: read the file\n",
+                     "## Tier\n\n## Verification without tests  \n- AC1: read the file\n## Tasks\n\n- T1\n"):
+            self.assertTrue(self.tool.code_free(plan), plan)
+
+    def test_an_empty_or_missing_verification_without_tests_is_not_code_free(self):
+        for plan in (None, "", "## Tasks\n\n- T1\n", "## Verification without tests\n",
+                     "## Verification without tests\n<!-- AC: check -->\n\n## Tasks\n\n- T1\n",
+                     "## Verification without tests extra\n- AC1: read\n"):
+            self.assertFalse(self.tool.code_free(plan), plan)
+
     def test_due_gates_follow_the_tier_and_the_rows_of_a_patch(self):
         tool = self.tool
         full = ["Format check", "Analyzer gate", "Test with coverage", "Coverage gate"]

@@ -196,6 +196,26 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"(?:^a)|(?:b$)", r"^(?:a|b)$", r"^a$|^b$", r"[|^]a|b", r"\\^a|b"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
+    def test_anchored_alternatives_in_a_lookahead_are_reported(self):
+        self.assertEqual(self.rules("import re\nX = re.compile(r'a(?=^b|\\Z)')\n"), ["python:S5850"])
+
+    def test_a_reluctant_quantifier_followed_by_zero_width_assertions_is_reported(self):
+        for pattern in (r"a(?P<b>.*?)(?=c)", r"a.*?", r"a(.+?)\Z", r"a{2,5}?(?!b)"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), ["python:S6019"], pattern)
+
+    def test_reluctant_quantifiers_that_have_to_match_on_pass(self):
+        for pattern in (r"a.*?b", r"(.*?)b", r"[*?]", r"\*?a", r"(?:a)?b", r"(?P<a>x)(?=y)"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+
+    def test_a_colon_in_the_explanation_of_a_noqa_comment_is_reported(self):
+        source = "try:\n    pass\nexcept Exception:  # noqa: BLE001  (missing, or broken: the default)\n    pass\n"
+        self.assertEqual(self.rules(source), ["python:S7632"])
+
+    def test_noqa_comments_without_a_colon_in_the_explanation_pass(self):
+        for comment in ("# noqa: BLE001  (missing, or broken; the default)", "# noqa: S310  # nosec B310",
+                        "# noqa: E402, E731", "# see: the docs"):
+            self.assertEqual(self.rules(f"x = 1  {comment}\n"), [], comment)
+
     def test_several_spaces_in_a_regex_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])
 
@@ -242,6 +262,36 @@ class TestSonarRules(unittest.TestCase):
     def test_the_checked_tools_pass(self):
         errors = []
         self.script.check_sonar_rules(errors)
+        self.assertEqual(errors, [])
+
+
+class TestSonarSources(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    def test_a_file_below_a_hidden_directory_of_a_source_is_not_analysed(self):
+        self.assertFalse(self.script.sonar_analyses("core/.squad/tools/gate-stamp.py", ["tools", "core"]))
+
+    def test_a_file_in_a_listed_directory_is_analysed(self):
+        for relpath in ("core/.squad/tools/gate-stamp.py", "tools/release.py", "tools/sub/x.py"):
+            self.assertTrue(self.script.sonar_analyses(relpath, ["tools", "core/.squad/tools"]), relpath)
+
+    def test_a_prefix_of_a_directory_name_is_no_source_of_it(self):
+        self.assertFalse(self.script.sonar_analyses("toolsets/x.py", ["tools"]))
+
+    def test_the_sources_are_read_across_continuation_lines(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "sonar-project.properties")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("sonar.projectKey=x\nsonar.sources=tools,\\\n  core/.squad/tools/ ,\\\n  multi\nsonar.tests=tools\n")
+            self.assertEqual(self.script.sonar_sources(path), ["tools", "core/.squad/tools", "multi"])
+
+    def test_a_missing_properties_file_lists_no_source(self):
+        self.assertEqual(self.script.sonar_sources(os.path.join("no", "such", "file")), [])
+
+    def test_the_repository_analyses_every_checked_tool(self):
+        errors = []
+        self.script.check_sonar_sources(errors)
         self.assertEqual(errors, [])
 
 

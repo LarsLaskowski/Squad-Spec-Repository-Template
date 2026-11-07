@@ -40,7 +40,10 @@ Checks, without arguments:
   where it is installed (CI installs it), and trips none of the other SonarQube Cloud rules that have flagged one
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
-  arguments instead of `return_value`, a unittest assertion a more specific one replaces);
+  arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
+  followed only by zero-width assertions, a colon in the explanation of a `noqa` comment); `sonar-project.properties`
+  lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
+  `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
   `AGENTS.md` and `docs/ARCHITECTURE.md` with their empty blocks, the work-folder templates) exists. Against the
   merge base with `origin/main` it reports, as information, how many words (counted like `wc -w` in a UTF-8
@@ -129,8 +132,8 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6326",
-               "python:S9081"]
+SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6019",
+               "python:S6326", "python:S7632", "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
@@ -140,6 +143,15 @@ COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 LITERAL_EXCLUSIONS = [re.compile(p) for p in (r"[_\-a-zA-Z0-9]+", r"[0-9{} .\-_%:dfrsymhYMHS<>]+", r"#[0-9a-fA-F]{6}")]
 REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "split", "findall", "finditer", "sub", "subn"}
 FLAG_SETTER = re.compile(r"\(\?[aiLmsux-]+\)")
+# The opening of a group with its prefix (`(?:`, `(?=`, `(?<!`, `(?P<name>`, `(?i:`), which matches nothing itself.
+GROUP_OPENER = re.compile(r"\((?:\?(?:[:=!>]|<[=!]|P?<\w+>|[aiLmsux-]+:))?")
+# python:S6019: a reluctant quantifier, and what may follow one without matching a character (lookarounds, anchors,
+# the end of groups), outside character classes.
+LAZY_QUANTIFIER = re.compile(r"(?<!\\)(?:[*+?]|\{\d*+(?:,\d*+)?+\})\?")
+ZERO_WIDTH_PREFIX = re.compile(r"(?:[$)]|\\[AZzbB])*+")
+LOOKAROUNDS = ("(?=", "(?!", "(?<=", "(?<!")
+# python:S7632: a `noqa` comment whose explanation holds a colon, which Sonar reads as broken suppression syntax.
+NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*(?P<rest>[^#]*)")
 MULTIPLE_SPACES = re.compile(r" {2,}")
 CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
 # The squad's rule files under core/ (paths relative to core/): watched for growth and for removed sentences.
@@ -1417,7 +1429,7 @@ def regex_items(pattern):
             item = char
         elif char == "(":
             stack.append([[]])
-            i += 1
+            i = GROUP_OPENER.match(pattern, i).end()
             continue
         elif char == "|":
             stack[-1].append([])
@@ -1461,6 +1473,31 @@ def anchor_precedence(tree):
             if ungrouped_anchors(alternatives)]
 
 
+def zero_width(rest):
+    """Whether the rest of a regex matches no character: nothing but group ends and anchors, then at most a lookaround
+    that runs to the end."""
+    rest = rest[ZERO_WIDTH_PREFIX.match(rest).end():]
+    return not rest or (rest.startswith(LOOKAROUNDS) and rest.endswith(")"))
+
+
+def lazy_quantifiers(tree):
+    """python:S6019: a reluctant quantifier followed by nothing that has to match a character (`.*?(?=^## |\\Z)`)
+    only ever matches its minimum; write the end it should stop at as a character it consumes, or split the text."""
+    return [(line, "python:S6019", "reluctant quantifier followed only by zero-width assertions")
+            for line, pattern in regex_calls(tree)
+            for found in LAZY_QUANTIFIER.finditer(CHAR_CLASS.sub("x", pattern))
+            if zero_width(CHAR_CLASS.sub("x", pattern)[found.end():])]
+
+
+def suppression_comments(source):
+    """python:S7632: `# noqa: BLE001  (missing, or broken: …)`: a colon in the explanation breaks Sonar's reading of
+    the suppression comment."""
+    comments = (token for token in tokenize.generate_tokens(io.StringIO(source).readline)
+                if token.type == tokenize.COMMENT)
+    return [(token.start[0], "python:S7632", "colon in the explanation of a noqa comment")
+            for token in comments for found in [NOQA.search(token.string)] if found and ":" in found.group("rest")]
+
+
 def multiple_spaces(tree):
     """python:S6326: two spaces or more in a regex outside a character class; a quantifier (`{2}`) says how many."""
     return [(line, "python:S6326", "several spaces in a regex; use a quantifier")
@@ -1495,7 +1532,7 @@ def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
-        + mock_lambdas(tree) + specific_assertions(tree)
+        + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)
@@ -1507,6 +1544,32 @@ def check_sonar_rules(errors, paths=None):
     for path in checked_python_files() if paths is None else paths:
         for line, rule, message in sonar_findings(path, read(path)):
             errors.append(f"{os.path.relpath(path, ROOT)}:{line}: {rule} {message}")
+
+
+def sonar_sources(path):
+    """The source directories `sonar.sources` lists in a properties file (continuation lines joined)."""
+    text = re.sub(r"\\\n\s*", "", read(path)) if os.path.isfile(path) else ""
+    found = re.search(r"^sonar\.sources=(.*)$", text, re.M)
+    return [entry.strip().rstrip("/") for entry in found.group(1).split(",") if entry.strip()] if found else []
+
+
+def sonar_analyses(relpath, sources):
+    """Whether SonarQube Cloud analyses the file: it lies below a source directory with no hidden directory in
+    between, which the scanner would skip."""
+    return any(relpath.startswith(source + "/")
+               and not any(part.startswith(".") for part in relpath[len(source) + 1:].split("/")[:-1])
+               for source in sources)
+
+
+def check_sonar_sources(errors):
+    """CI's SonarQube Cloud analysis (`sonar-project.properties`) covers every Python file a target receives and the
+    template's own tools, so a finding shows here before a refresh brings it into a target's analysis."""
+    sources = sonar_sources(os.path.join(ROOT, "sonar-project.properties"))
+    for path in checked_python_files():
+        relpath = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        if not os.path.basename(path).startswith("test_") and not sonar_analyses(relpath, sources):
+            errors.append(f"{relpath}: not analysed by SonarQube Cloud; add its directory to sonar.sources in "
+                          "sonar-project.properties (the scanner skips hidden directories below a source directory)")
 
 
 def check_complexity(errors):
@@ -1550,6 +1613,7 @@ def main():
     check_area_assignments(errors)
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
+    check_sonar_sources(errors)
     check_complexity(errors)
     for line in info + warnings + errors:
         print(line)

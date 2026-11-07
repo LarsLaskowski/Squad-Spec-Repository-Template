@@ -1010,3 +1010,16 @@ guides for a GitHub App and a Cloudflare Worker; its lessons came here as #266 (
   deletion is `rm` plus `git add`, named in the report; the guard's denial of `git rm` and `git mv` now says so. The
   orchestrator's `git status` check after a report restores only what the report does not name, which is what it
   was for: the effects of a Git write a member should not have run (`git rm` and `git mv` in Vandox#40).
+
+## A plan without API skips the skeleton (specs/_template/plan.md, Signatures; squad-lead.md; plan-check.py; squad-next.py)
+
+Two runs in PlexToJellyfinSync shared one cause (#268). In PlexToJellyfinSync#277 (the run of PlexToJellyfinSync#273)
+the plan added only a private method and said there would be no skeleton; the orchestrator logged step 4 as skipped
+and steps 5 to 7 passed, but `squad-next.py` counted only a Dev row as step 4 and printed the skeleton launch at every
+call, so its output could not be followed from step 5 on. In PlexToJellyfinSync#280 (the run of
+PlexToJellyfinSync#275) the plan said "no public API changes; no skeleton" but named the private members in backticks
+under *Signatures*; `plan-check.py` read every backticked text there as a declaration, so `squad-next.py` demanded
+the skeleton, and the Lead had to reword the section twice before no code formatting was left in it. A skeleton is
+compile-only API for the Tester's tests, and no test calls a private member, so the template keeps private members
+out of *Signatures*; both tools also accept the explicit statement, a "none" or "no API" section and an
+orchestrator row that logs step 4 as skipped, so a plan written the old way costs no reword and no stuck run.

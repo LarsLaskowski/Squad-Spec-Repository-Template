@@ -75,7 +75,9 @@ Each alternative weighed and why it lost — or "one option: <why the fix is the
 
 ## Signatures (for the Dev's skeleton)
 
-Every new or changed member, with its full signature — or "none".
+Every new or changed API member (one a test or another type calls), with its full signature in backticks — or
+"none". Each backticked declaration here is one the Dev's skeleton adds (step 4), so a private member is described
+in *Approach*, and a plan without API writes this section in plain prose.
 
 ## Test files
 

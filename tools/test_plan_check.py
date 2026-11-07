@@ -453,6 +453,26 @@ class TestPlanCheck(unittest.TestCase):
         self.assertFalse(any("owned by the Lead" in e for e in self.errors(self.feature(tasks=record))),
                          "a decision record stays the Lead's")
 
+    def test_a_signatures_section_that_states_no_api_lists_none(self):
+        for body in ("No public API changes, so no skeleton (step 4): the private `Refresh()` and `Plan.Count` change.",
+                     "no public API changes; no skeleton (step 4 skipped) — `RefreshAsync` stays private",
+                     "- No new or changed API: `Helper()` is private", "none (only the private `Helper()` changes)",
+                     "- None.", "no new APIs"):
+            self.assertEqual(self.script.signature_names(body), [], body)
+            plan = PLAN + f"\n## Signatures (for the Dev's skeleton)\n\n{body}\n"
+            self.assertEqual(self.errors(self.feature(plan=plan)), [], body)
+        for body, names in (("- `Foo()` is new; no other API changes", ["Foo"]),
+                            ("None of the old members change; new: `Foo()`", ["Foo"]),
+                            ("- `def check(value) -> None`", ["check"]),
+                            ("- `public void Foo()` (no `API` attribute)", ["Foo", "API"])):
+            self.assertEqual(self.script.signature_names(body), names, f"{body}: API is listed")
+        self.assertEqual(self.script.signature_names("<!-- no skeleton -->\n- `Foo()`"), ["Foo"],
+                         "a guidance comment states nothing")
+        with open(os.path.join(TEMPLATES, "plan.md"), encoding="utf-8") as handle:
+            guidance = self.script.signatures_section(handle.read())
+        self.assertEqual(self.script.signature_names(guidance + "\n- `Foo()`"), ["Foo"],
+                         "the template's guidance left in states nothing")
+
     def test_spec_mode_checks_the_spec_alone(self):
         self.feature(plan=None, tasks=None)
         output = io.StringIO()

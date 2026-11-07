@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.1 — 2026-11-07
+
 - [Tools] `plan-check.py --matrix` counts a criterion id only in a test file the criterion's row names or the branch
   changes, so the test of an earlier change no longer passes a criterion; `plan-check.py` reports a criterion that
   *Tests per criterion* and *Verification without tests* verify as different kinds, which the matrix also shows as a

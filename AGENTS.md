@@ -39,8 +39,13 @@ The targets receive the template by release, so every squad run can be traced to
 - A pull request that changes what the targets receive (`core/`, `profiles/`, `multi/`, `seed/`, `decision-seeds/`,
   `tools/apply-template.py`) adds one line under `## Unreleased` in `CHANGELOG.md`: `- [Area] what changes for the
   targets (#issue)`. `template-check.py` fails without it.
-- Releases are batched, normally once a week, sooner for an urgent defect. A release pull request (`[Docs] Release
-  vYYYY.MM.N`) made with `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
+- Releases are batched, normally once a week, sooner for an urgent defect. Before a release, `python3
+  tools/sonar-local.py` runs SonarSource's open Python analyzer with the `python:` rules of the consumers' quality
+  profile over every Python file a target receives and over `tools/` (Java 17+, network to Maven Central and
+  sonarcloud.io); it must pass, and a finding is fixed in a pull request of its own first, its rule added to
+  `SONAR_RULES` where `template-check.py` can detect it. SonarQube Cloud's pull request analysis can miss what the
+  analysis of `main` reports after the merge. A release pull request (`[Docs] Release vYYYY.MM.N`) made with
+  `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
   squash merge, `python3 tools/release.py tag` checks the checkout of `main` and prints the commands for the annotated
   tag on that merge commit; the tag is created and pushed only with the owner's explicit approval (*Golden rules*).
 - The rollout refreshes every `active` repository of `consumers.json` from a checkout of the release tag, so

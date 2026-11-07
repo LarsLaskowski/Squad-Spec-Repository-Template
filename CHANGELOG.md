@@ -6,6 +6,13 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Tools] `plan-check.py --matrix` counts a criterion id only in a test file the criterion's row names or the branch
+  changes, so the test of an earlier change no longer passes a criterion; `plan-check.py` reports a criterion that
+  *Tests per criterion* and *Verification without tests* verify as different kinds, which the matrix also shows as a
+  `CONFLICT` row, and, in a plan without production or test code, a *Tests per criterion* cell that names no kind
+  and no test the test files hold, such as `check (below)` (#272)
+- [Core] The Reviewer's verdict line names the code SHA it reviewed, copied from `git rev-parse`, and `squad-next.py`
+  continues a Reviewer whose verdict names no SHA or another code than the gate stamp's (#272)
 - [Tools] A plan without API no longer demands the skeleton step: `plan-check.py` lists no signatures for a
   *Signatures* section that starts with "none" or states "no new API", "no public API changes" or "no skeleton", and
   `squad-next.py` takes an orchestrator row that logs step 4 as skipped as step 4 done; the plan template keeps

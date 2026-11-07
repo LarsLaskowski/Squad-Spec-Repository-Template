@@ -8,7 +8,7 @@ import tempfile
 import types
 import unittest
 
-from test_squad_tools import load_script, write
+from test_squad_tools import git, load_script, write
 
 TEMPLATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", "specs", "_template")
 
@@ -262,8 +262,8 @@ class TestPlanCheck(unittest.TestCase):
         write("tests/ExportTests.cs", 'public void ExportWritesRows() { Check("AC10"); }\n')
         code, output = self.matrix(folder)
         self.assertEqual(code, 1, output)
-        self.assertIn("| AC1 | unit | ExportWritesOneRowPerItem | MISSING: no test file carries AC1 or names "
-                      "ExportWritesOneRowPerItem |", output, "AC10 is not AC1")
+        self.assertIn("| AC1 | unit | ExportWritesOneRowPerItem | MISSING: no test file names ExportWritesOneRowPerItem, "
+                      "and none its row names or the branch changes carries AC1 |", output, "AC10 is not AC1")
         self.assertIn("FAIL: 2 criterion(s) MISSING", output)
         write("tests/ExportTests.cs", "func TestExport_AC1(t *testing.T) {}\nt.Run(\"AC2 header only\", f)\n")
         self.assertEqual(self.matrix(folder)[0], 0, "a name suffix or a subtest name carries the id")
@@ -279,8 +279,8 @@ class TestPlanCheck(unittest.TestCase):
                  "| AC7 | dropped: in a follow-up issue | scope | 6 | Lead |\n")
         tasks = TASKS.replace("AC1, AC2", "AC1\u2013AC6")
         folder = self.feature(spec=spec, plan=plan, tasks=tasks)
-        self.assertEqual(self.errors(folder), [], "a waived criterion needs no test")
         write("tests/ExportTests.cs", "ExportWritesOneRowPerItem\n")
+        self.assertEqual(self.errors(folder), [], "a waived criterion needs no test")
         code, output = self.matrix(folder)
         self.assertEqual(code, 0, output)
         for row in ("| AC2 | after merge | the PM imports the file into the target application | after merge: the "
@@ -304,6 +304,63 @@ class TestPlanCheck(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(self.script.main(["issue-35", "--spec", "--matrix"]), 1)
 
+    def test_matrix_counts_a_bare_criterion_id_only_in_a_file_the_row_names_or_the_branch_changes(self):
+        git("init", "-q", "-b", "main")
+        write("tests/OldTests.cs", 'it("AC1 retries the outbox")\nit("AC2 drops a stale row")\n')
+        write("tests/ExportTests.cs", "// AC2: the header row\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", "an earlier change")
+        git("checkout", "-q", "-b", "work")
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["tests/*"])
+        folder = self.feature()
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 1, output)
+        self.assertIn("| AC1 | unit | ExportWritesOneRowPerItem | MISSING:", output, "an earlier change's test carries AC1")
+        self.assertRegex(output, r"\| AC2 \| unit \| [^|]+ \| pass on `\w+`: tests/ExportTests.cs \|", "the file AC2's row names")
+        self.assertNotIn("OldTests", output, "a test file the branch leaves alone")
+        self.assertNotIn("no merge base", output)
+        write("tests/NewTests.cs", 'it("AC1 writes one row per item")\n')
+        self.assertRegex(self.matrix(folder)[1], r"\| AC1 \| unit \| ExportWritesOneRowPerItem \| pass on `\w+`: "
+                         r"tests/NewTests.cs \|", "an untracked test file is a change of the branch")
+        git("add", "-A")
+        git("commit", "-q", "-m", "the tests")
+        write("tests/OldTests.cs", 'it("AC1 retries the outbox")\nit("AC2 drops a stale row")\nit("AC3")\n')
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        self.assertIn("tests/NewTests.cs, tests/OldTests.cs |", output, "committed and uncommitted changes count")
+
+    def test_a_criterion_verified_two_ways_or_by_a_pointer_cell_is_reported(self):
+        git("init", "-q", "-b", "main")
+        write("src/outbox-retry.test.ts", 'it("AC1 retries the outbox")\nit("AC4 keeps the order")\n')
+        git("add", "-A")
+        git("commit", "-q", "-m", "an earlier change")
+        git("checkout", "-q", "-b", "work")
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["*.test.ts"])
+        plan = BUG_PLAN.replace("- [ ] AC1: an empty title writes no title element",
+                                "- AC1: every link of the guide opens\n- AC2: the docs build passes\n"
+                                "- AC3: only the guide changes\n- AC4: the guide names the order").replace(
+            "| AC1 | NfoWriterEmptyTitleWritesNoTitle | tests/NfoWriterTests.cs |",
+            "| AC1 | check (below) | \u2014 |\n| AC2 | CI: the docs build | \u2014 |\n| AC3 | none | \u2014 |\n"
+            "| AC4 | see below | \u2014 |")
+        plan += ("\n## Verification without tests\n\n- AC1: manual: the PM opens every link of the guide\n"
+                 "- AC2: CI: the docs build, as AC4 needs no build\n- AC3: check: `git diff` holds only the guide\n")
+        write("specs/issue-158/plan.md", plan)
+        errors = self.errors("specs/issue-158")
+        self.assertEqual(len(errors), 2, errors)
+        self.assertIn("AC1 is verified as unit under *Tests per criterion* (check (below)) and as manual under "
+                      "*Verification without tests*", errors[0])
+        self.assertIn("AC4: the *Tests per criterion* cell `see below` names no kind", errors[1],
+                      "a test file that carries AC4 from an earlier change holds no test of that name")
+        code, output = self.matrix("specs/issue-158")
+        self.assertEqual(code, 1, output)
+        for row in ("| AC1 | unit | check (below) | MISSING:", "| AC1 | manual | the PM opens every link of the guide | "
+                    "CONFLICT: *Tests per criterion* verifies it as unit", "| AC2 | CI | the docs build | pending:",
+                    "| AC3 | check | `git diff` holds only the guide | to record:", "| AC4 | unit | see below | MISSING:"):
+            self.assertIn(row, output)
+        self.assertNotIn("outbox-retry", output, "an earlier change's AC1 and AC4 are no carriers")
+        self.assertIn("FAIL: 2 criterion(s) MISSING", output)
+        self.assertIn("1 CONFLICT row(s) — the Lead keeps one verification per criterion", output)
+
     def test_criteria_live_in_the_spec_only_and_each_needs_a_test_and_a_task(self):
         plan = PLAN + "\n## Acceptance criteria\n\n- [ ] AC3: copied from the spec\n"
         plan = plan.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |\n", "")
@@ -315,7 +372,12 @@ class TestPlanCheck(unittest.TestCase):
     def test_criterion_verified_without_tests_needs_no_test_row(self):
         plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |\n", "")
         plan += "\n## Verification without tests\n\n- AC2: checked by the workflow's dry run.\n"
-        self.assertEqual(self.errors(self.feature(plan=plan)), [])
+        write("tests/ExportTests.cs", "public void ExportWritesOneRowPerItem() {}\n")
+        self.assertEqual(self.errors(self.feature(plan=plan)), [], "a test that exists already may verify a criterion")
+        os.remove("tests/ExportTests.cs")
+        errors = self.errors(self.feature(plan=plan))
+        self.assertTrue(any("AC1: the *Tests per criterion* cell `ExportWritesOneRowPerItem` names no kind" in e
+                            and "the plan writes no test" in e for e in errors), errors)
 
     def test_facts_need_evidence_and_unverified_ones_a_measurement(self):
         plan = PLAN.replace("to verify: Dev runs", "Dev runs").replace(

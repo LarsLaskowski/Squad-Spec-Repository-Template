@@ -26,7 +26,10 @@ head the next step is step 7 (`plan-check.py --matrix` first, a `MISSING` criter
 belongs to the stamp it follows, and step 9 waits for the stamp to pass `gate-stamp.py --verify`. A review, a
 Security verdict and the Devil's Advocate's objections are read from the member's `VERDICT:` line, which the
 orchestrator logs as the start of the row's result (a Reviewer's `VERDICT: NON-BLOCKING <m>` counts as `BLOCKING 0`);
-a row without one is named, and both ways are printed. Three blocking rounds in a row (review pass 1 and two delta
+a row without one is named, and both ways are printed. A Reviewer's verdict line names the code SHA it reviewed
+(`VERDICT: APPROVE on <sha>`); one that names none, or a commit whose code differs from the stamp of its round (a
+later commit that touched only `specs/` holds the same code), ties the round to no stamp, and the Reviewer is
+continued on the stamp's SHA. Three blocking rounds in a row (review pass 1 and two delta
 rounds) send the findings to the Lead (*Loop limits*), and so does a second `CHANGES_REQUIRED` of the Security plan
 review; two plan-check revisions of one document without a clean run hand the findings to the Lead in mode `decide`.
 Once the log has a row of step 4 or later the plan is approved: `plan-check.py` still runs before the PR, its size
@@ -105,7 +108,8 @@ STEP = re.compile(r"^\s*(\d+)([ab])?\b")
 GROUP = re.compile(r"\b(G\d+)\b")
 RESULT = re.compile(r"RESULT:\s*(DONE|NO CHANGE|ESCALATE|DECIDED|NOT APPROVED|APPROVED)", re.I)
 REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)|BLOCKING\s+(?P<blocking>\d+)"
-                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+))?|NON-BLOCKING\s+(?P<only>\d+))", re.I)
+                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+))?|NON-BLOCKING\s+(?P<only>\d+))"
+                    r"(?:\s+on\s+`?(?P<sha>[0-9a-f]{7,40})\b)?", re.I)
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
 OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major,\s*"
                         r"(?P<minor>\d+)\s+minor)", re.I)
@@ -903,9 +907,37 @@ def review(run):
         return heading("step 8 — route the review round") + no_verdict(rows[verdicts.index(None)]) + [
             "  blocking findings: their owner, then steps 6–7 and a delta round; non-blocking: the Lead (mode decide) "
             "first; clean: step 9"]
+    stale = unmatched_review(run, stamp_index, rows)
+    if stale:
+        return stale
     blocking = sum(v[0] for v in verdicts) - len(verbatim_rows(run, max(r.index for r in rows)))
     nonblocking = sum(v[1] for v in verdicts)
     return review_outcome(run, rows, max(blocking, 0), nonblocking)
+
+
+def unmatched_review(run, stamp_index, rows):
+    """The Reviewer's row whose verdict line names no code SHA, or another code than the stamp of its round: the
+    round is not tied to the stamp, so the Reviewer is continued on the stamp's SHA."""
+    stamp = next((stamp_tool().STAMP.match(row.result.strip()) for row in run.rows if row.index == stamp_index), None)
+    for row in rows:
+        found = REVIEW.search(row.result) if row.who == REVIEWER and stamp else None
+        sha = found.group("sha") if found else None
+        if found is None or (sha and names_stamped_code(run, sha, stamp.group("sha"))):
+            continue
+        what = f"names {sha[:12]}, not the stamped code {stamp.group('sha')[:12]}: a stale round" if sha else \
+            f"names no code SHA: the round cannot be matched to the stamp on {stamp.group('sha')[:12]}"
+        return heading(f"step {row.number} — the Reviewer's verdict line {what}") + launch(
+            run, REVIEWER, "review", f"{row.number} Review (stamp SHA)", f"the stamp's code SHA {stamp.group('sha')}: "
+            "it reviews that SHA, copies it from `git rev-parse` into its verdict line and reports again")
+    return None
+
+
+def names_stamped_code(run, sha, stamp):
+    """True when the SHA a Reviewer names is the stamp's, or a commit with the same code (one that touched only
+    `specs/` after it)."""
+    if stamp.startswith(sha.lower()):
+        return True
+    return stamp_tool().git(run.root, "diff", "--quiet", stamp, sha, *stamp_tool().OUTSIDE_SPECS)[0] == 0
 
 
 def work_record(run):

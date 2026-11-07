@@ -39,7 +39,11 @@ Checks, in the work folder `specs/<folder>/`:
   (the alternatives, or `one option: <why>`); *Verified facts* has at least
   one row, and every row has evidence and a status (`confirmed`, `refuted`, or `unverified` with the measurement
   that settles it, starting with `to verify:`); no template placeholder is left; no Markdown file of the work
-  folder contains a control character (`scope-check.py`'s check, here before any member reads the folder). A
+  folder contains a control character (`scope-check.py`'s check, here before any member reads the folder); a
+  criterion that *Tests per criterion* and *Verification without tests* verify as different kinds is reported (a
+  "none" cell on tier `trivial` yields to the line); in a plan with *Verification without tests*, which writes no
+  test, a *Tests per criterion* cell that names no kind names only tests the test files already hold, so a pointer
+  such as `check (below)` is reported instead of read as a test name. A
   plan longer than its tier's `PLAN_MAX_WORDS` (`squad_settings.py`, default `tests` and `trivial` 800,
   `standard` 2500, `security` 4000; HTML comments, lines kept verbatim from `specs/_template/plan.md` and the
   orchestrator-appended *Challenge notes* and *Security notes* sections do not count) is a finding: a long plan
@@ -63,13 +67,17 @@ without a test, in a plan whose *Verification without tests* section names it, c
 With `--matrix` the verification matrix of the work folder is printed, one row per criterion: its kind of
 verification and its tests or check, from the plan's *Tests per criterion* and *Verification without tests* (a
 *Test(s)* cell or a line that starts with `CI:`, `manual:`, `after merge:` or `check:` names that kind, any other
-cell names tests, an empty or "none" cell on tier `trivial` leaves the criterion to the review round), or `dropped`
-and `waived` from *Amendments*; and its result on the code head (the last commit outside `specs/`). A unit
-criterion's tests are looked up in the test files (`COVERAGE_TEST_PATHSPECS` of `squad_settings.py`, by default its
-`COVERAGE_EXCLUDES`, and the files the plan names): a file that carries the criterion id (`docs/UNIT_TESTS.md`,
-*Criterion ids*) or a test name the plan gives makes it `pass`, since the matrix runs on a head the gates of step 7
-passed on; no such file makes it `MISSING` and the exit code 1. Every other kind prints the result still to fill in
-(`squad-issue`, step 10).
+cell names tests, an empty or "none" cell on tier `trivial` leaves the criterion to the review round unless a
+*Verification without tests* line names it), or `dropped` and `waived` from *Amendments*; and its result on the code
+head (the last commit outside `specs/`). A unit criterion's tests are looked up in the test files
+(`COVERAGE_TEST_PATHSPECS` of `squad_settings.py`, by default its `COVERAGE_EXCLUDES`, and the files the plan names):
+a file that names a test the plan gives, or that carries the criterion id (`docs/UNIT_TESTS.md`, *Criterion ids*)
+and is a file the criterion's row names or one the branch changes against its merge base with BASE_REF (uncommitted
+and untracked files included), makes it `pass`, since the matrix runs on a head the gates of step 7 passed on; an id
+in a test file the branch leaves alone is an earlier change's test and counts for nothing. No such file makes it
+`MISSING` and the exit code 1. A *Verification without tests* line of another kind than the criterion's *Tests per
+criterion* row is printed as a `CONFLICT` row below it, also exit code 1. Every other kind prints the result still
+to fill in (`squad-issue`, step 10).
 
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge. A spec longer
 than `SPEC_BASE_WORDS` plus `SPEC_WORDS_PER_CRITERION` per acceptance criterion, at most `SPEC_MAX_WORDS`
@@ -149,7 +157,8 @@ WAIVED = "waived"
 AFTER_MERGE = "after merge"
 KINDS = {"ci": "CI", "manual": "manual", AFTER_MERGE: AFTER_MERGE, "check": "check"}
 KIND = re.compile(r"^(CI|manual|after merge|check)\s*:\s*", re.I)
-LEADING_IDS = re.compile(r"^[\s*-]*(?:\**AC\d+\**[\s,.\u2013\u2014-]*)+:?\s*")
+LEADING_IDS = re.compile(r"^[\s*-]*(?:\**AC\d+(?:[-\u2013]\d+(?!\d))?\**[\s,.\u2013\u2014-]*)+:?\s*")
+QUOTE_PATHS = "core.quotePath=false"
 RESULTS = {"CI": "pending: the pull request's CI (step 11)", "manual": "to record: the manual test's result",
            "check": "to record: the check's result", AFTER_MERGE: f"{AFTER_MERGE}: the linked verification issue",
            "review": "pass: the clean review round", DROPPED: "dropped (*Amendments*)",
@@ -600,8 +609,41 @@ def check_plan(plan, spec, errors):
             errors.append("spec.md: *Scenarios* says \"none\", which a feature that touches a security area may "
                           "not: write the scenarios")
     check_tests(parts, criteria, name, errors, settled)
+    check_verification_kinds(parts, errors)
     check_facts(parts, errors)
     return criteria, settled
+
+
+def check_verification_kinds(parts, errors):
+    """A criterion verified two ways is reported, since the matrix keeps only the *Tests per criterion* row; in a plan
+    without production or test code, which writes no test, a *Tests per criterion* cell that names no kind names
+    tests the test files already hold — `check (below)` would read as a test name."""
+    conflicts = verification_conflicts(parts)
+    for criterion, row, line in conflicts:
+        errors.append(f"plan.md: {criterion} is verified as {row[0]} under *Tests per criterion* ({row[1]}) and as "
+                      f"{line[0]} under *Verification without tests* ({line[1]}): keep one")
+    if parts.get(WITHOUT_TESTS):
+        check_existing_tests(parts, {conflict[0] for conflict in conflicts}, errors)
+
+
+def check_existing_tests(parts, reported, errors):
+    """In a plan without production or test code, every test a *Tests per criterion* cell names exists already
+    (criteria `reported` as verified two ways left out)."""
+    units = {criterion: verification for criterion, verification in test_rows(parts).items()
+             if verification[0] == "unit" and criterion not in reported}
+    sources = test_sources({path for _, _, _, paths in units.values() for path in paths}) if units else {}
+    for criterion in sorted(units, key=criterion_number):
+        _, text, names, _ = units[criterion]
+        absent = [name for name in names if not any(name in source for source in sources.values())]
+        if absent:
+            errors.append(f"plan.md: {criterion}: the *Tests per criterion* cell `{text}` names no kind (`CI:`, "
+                          f"`manual:`, `after merge:`, `check:`), and no test file holds {', '.join(absent)}, while the "
+                          "plan writes no test (*Verification without tests*): write its kind, or verify it under "
+                          "*Verification without tests* alone")
+
+
+def criterion_number(criterion):
+    return int(criterion[2:])
 
 
 def check_spec_only(folder):
@@ -754,9 +796,8 @@ def cell_at(row, index):
     return row[index] if index is not None and len(row) > index else ""
 
 
-def planned_verifications(parts):
-    """{criterion: (kind, tests or check, test names, test files)} from *Tests per criterion* and *Verification
-    without tests*."""
+def test_rows(parts):
+    """{criterion: (kind, tests or check, test names, test files)} of the plan's *Tests per criterion*."""
     planned = {}
     for header, rows in tables(parts.get("Tests per criterion")):
         test = column(header, "test(s)", "tests", "test")
@@ -765,11 +806,38 @@ def planned_verifications(parts):
         for row in rows:
             verification = row_verification(cell_at(row, test), file_list(cell_at(row, files)))
             planned.update(dict.fromkeys(ids(row[0], "AC"), verification))
-    for line in parts.get(WITHOUT_TESTS, "").splitlines():
-        verification = without_tests_verification(LEADING_IDS.sub("", line).strip())
-        for criterion in ids(line, "AC"):
-            planned.setdefault(criterion, verification)
     return planned
+
+
+def without_tests_rows(parts):
+    """[(criterion, (kind, check, no test names, no test files))] of the plan's *Verification without tests*: the
+    criteria a line starts with (`- AC1, AC2: …`), or every one it names when it starts with none."""
+    found = []
+    for line in parts.get(WITHOUT_TESTS, "").splitlines():
+        lead = LEADING_IDS.match(line)
+        named = ids(lead.group(0), "AC") if lead else set()
+        verification = without_tests_verification(LEADING_IDS.sub("", line).strip())
+        found += [(criterion, verification) for criterion in sorted(named or ids(line, "AC"), key=criterion_number)]
+    return found
+
+
+def planned_verifications(parts):
+    """{criterion: (kind, tests or check, test names, test files)}: its *Tests per criterion* row, else its first
+    *Verification without tests* line; a row that names no test ("none" on tier `trivial`) yields to such a line."""
+    rows = test_rows(parts)
+    planned = {criterion: row for criterion, row in rows.items() if row[0] != "review"}
+    for criterion, verification in without_tests_rows(parts):
+        planned.setdefault(criterion, verification)
+    for criterion, row in rows.items():
+        planned.setdefault(criterion, row)
+    return planned
+
+
+def verification_conflicts(parts):
+    """[(criterion, its *Tests per criterion* verification, a *Verification without tests* one of another kind)]."""
+    rows = test_rows(parts)
+    return [(criterion, rows[criterion], line) for criterion, line in without_tests_rows(parts)
+            if criterion in rows and rows[criterion][0] not in ("review", line[0])]
 
 
 def without_tests_verification(text):
@@ -793,14 +861,26 @@ def test_sources(paths):
     return sources
 
 
-def carriers(criterion, names, sources):
-    """The test files that carry the criterion id (not as part of a longer word or number) or name one of its
-    tests."""
+def changed_files():
+    """The files the branch changes against its merge base with BASE_REF, uncommitted and untracked ones included,
+    and whether that merge base was found (without it: the uncommitted and untracked files only)."""
+    base = git_output("merge-base", BASE_REF, "HEAD").strip()
+    changed = git_output("-c", QUOTE_PATHS, "diff", "--name-only", "--no-renames", base or "HEAD", "--").splitlines()
+    untracked = git_output("-c", QUOTE_PATHS, "ls-files", "--others", "--exclude-standard").splitlines()
+    return {path for path in changed + untracked if path.strip()}, bool(base)
+
+
+def carriers(criterion, verification, sources, changed):
+    """The test files that carry the criterion: one that names one of its tests, or one that carries its id (not as
+    part of a longer word or number) and is a file its row names or one the branch changes \u2014 the id in a test file
+    the branch leaves alone belongs to the test of an earlier change."""
+    _, _, names, files = verification
     pattern = re.compile(rf"(?<![A-Za-z0-9]){criterion}(?![0-9])")
-    return [path for path, text in sources.items() if pattern.search(text) or any(name in text for name in names)]
+    return [path for path, text in sources.items() if any(name in text for name in names)
+            or (pattern.search(text) and (path in files or path in changed))]
 
 
-def matrix_row(criterion, planned, settled, sources, head):
+def matrix_row(criterion, planned, settled, sources, head, changed=frozenset()):
     """(the row's cells, whether it is MISSING)."""
     if criterion in settled:
         return [criterion, settled[criterion], "\u2014", RESULTS[settled[criterion]]], False
@@ -809,18 +889,25 @@ def matrix_row(criterion, planned, settled, sources, head):
     kind, check, names, _ = planned[criterion]
     if kind != "unit":
         return [criterion, kind, check, RESULTS[kind]], False
-    found = carriers(criterion, names, sources)
+    found = carriers(criterion, planned[criterion], sources, changed)
     result = f"pass on `{head}`: {', '.join(found)}" if found else \
-        f"MISSING: no test file carries {criterion} or names {', '.join(names)}"
+        f"MISSING: no test file names {', '.join(names)}, and none its row names or the branch changes carries {criterion}"
     return [criterion, kind, check, result], not found
 
 
-def matrix(folder):
-    """The verification matrix of the work folder as Markdown lines, and the number of MISSING rows."""
+def conflict_row(criterion, row, line):
+    """The matrix row of a *Verification without tests* line of another kind than the criterion's test row."""
+    return [criterion, line[0], line[1], f"CONFLICT: *Tests per criterion* verifies it as {row[0]}; the Lead keeps one"]
+
+
+def matrix_table(folder):
+    """The verification matrix of the work folder as Markdown lines, the number of MISSING rows and the number of
+    CONFLICT rows."""
     errors = []
     plan = read(os.path.join(folder, PLAN), errors)
     if plan is None:
-        return ["plan.md is missing (tiers docs and patch have no matrix: the first log.md row holds their criteria)"], 1
+        return ["plan.md is missing (tiers docs and patch have no matrix: the first log.md row holds their criteria)"], \
+            1, 0
     spec = read(os.path.join(folder, SPEC), errors)
     parts = sections(plan)
     if spec is None:
@@ -829,15 +916,27 @@ def matrix(folder):
     else:
         criteria, settled = check_spec(spec, errors)
     planned = planned_verifications(parts)
+    conflicts = verification_conflicts(parts)
     sources = test_sources({path for _, _, _, paths in planned.values() for path in paths})
+    changed, based = changed_files()
     head = git_output("log", "-1", "--format=%h", "--", ".", ":(exclude)specs").strip() or "the working tree"
     lines = [f"Verification matrix of {os.path.basename(folder)} on `{head}`", "",
              "| Criterion | Verification | Tests or check | Result |", "| --- | --- | --- | --- |"]
     missing = 0
-    for criterion in sorted(criteria | set(settled), key=lambda c: int(c[2:])):
-        cells, absent = matrix_row(criterion, planned, settled, sources, head)
+    for criterion in sorted(criteria | set(settled), key=criterion_number):
+        cells, absent = matrix_row(criterion, planned, settled, sources, head, changed)
         missing += absent
-        lines.append("| " + " | ".join(value.replace("|", "\\|") for value in cells) + " |")
+        rows = [cells] + [conflict_row(*conflict) for conflict in conflicts if conflict[0] == criterion]
+        lines += ["| " + " | ".join(value.replace("|", "\\|") for value in row) + " |" for row in rows]
+    if not based:
+        lines += ["", f"Note: no merge base with {BASE_REF} (fetch it): a criterion id counted only in the test files "
+                  "its row names and the uncommitted or untracked ones"]
+    return lines, missing, len(conflicts)
+
+
+def matrix(folder):
+    """The verification matrix of the work folder as Markdown lines, and the number of MISSING rows."""
+    lines, missing, _ = matrix_table(folder)
     return lines, missing
 
 
@@ -866,11 +965,13 @@ def challenge_verdict(plan, on_base=record_on_base):
 
 
 def print_matrix(folder):
-    lines, missing = matrix(folder)
+    lines, missing, conflicts = matrix_table(folder)
     print("\n".join(lines))
-    print("PASS" if not missing else f"FAIL: {missing} criterion(s) MISSING — the Tester writes their tests (mode "
-          "`coverage`)")
-    return 0 if not missing else 1
+    failures = ([f"{missing} criterion(s) MISSING — the Tester writes their tests (mode `coverage`)"] if missing else []) \
+        + ([f"{conflicts} CONFLICT row(s) — the Lead keeps one verification per criterion (mode `revise`)"]
+           if conflicts else [])
+    print("FAIL: " + "; ".join(failures) if failures else "PASS")
+    return 1 if failures else 0
 
 
 def main(argv=None):

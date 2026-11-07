@@ -941,8 +941,34 @@ them, so CI's analysis sees what the targets' analysis will. `.coveragerc` measu
 
 Three of the rules have a local check in `SONAR_RULES` (S5850 in a lookahead, which the check missed because it read
 the `?=` of a group as the start of its first alternative; S6019; S7632, which Sonar raised only for the one `noqa`
-explanation holding a colon, not for the others in parentheses). Each check flags the original findings and nothing
-else in the template. S8786 (super-linear backtracking) has no local check: no simple heuristic matches Sonar's
-analysis, and the corrected Sonar sources catch it in CI. `CODE_NUMBER` uses possessive quantifiers, which need
-Python 3.11; every consumer runs 3.12. The S3776 finding was 16 where complexipy 8.3 measures 15: complexipy leaves
+explanation holding a colon, not for the others in parentheses — a wrong reading, see the next section). Each check
+flags the original findings and nothing else in the template. S8786 (super-linear backtracking) had no local check
+yet, and the possessive quantifiers `CODE_NUMBER` received did not satisfy it (next section). The S3776 finding was 16 where complexipy 8.3 measures 15: complexipy leaves
 out the `or` in `a or (b if c else None)`, so `check_complexity` can pass a function SonarQube Cloud rejects by one.
+
+## S7632 and S8786 are checked against Sonar's own analyzer (template-check.py, `SONAR_RULES`; figure-check.py, decision-check.py)
+
+Found in the refresh of LarsLaskowski/Censio#110 to `v2026.11.07` (#263): two of the five findings of #261 were still
+reported, at the lines #262 had changed, and the template's analysis of `main` after the merge of #262 reported the same
+two. SonarQube Cloud's analysis of #262 itself, on its head commit and with both files in it, had reported none, so a
+clean PR analysis is no proof that a template-managed file stays clean in a target.
+
+The check that agreed with `main` was a local run of SonarSource's Python analyzer (`sonar-python-plugin` 5.32 from
+Maven Central, its `TestPythonVisitorRunner`) with the 396 `python:` rules of *Sonar way comprehensive*, the profile of
+every consumer: on `main` it reported exactly the two findings, on this change none in any Python file a target
+receives or `tools/`. The profile's other 82 rules (`pythonsecurity`, `pythonbugs`, `pythonenterprise`,
+`pythonarchitecture`) are not in the open analyzer. What the run showed about the two rules:
+
+- S7632 is about a comma, not a colon: Sonar reads `# noqa: A1, B2` as a list, so a comma in the explanation after the
+  keys starts a key that is none (`# noqa: BLE001  (a, b)` is reported, `(x: y)` is not). The original comment held
+  both; #262 replaced the colon and kept the commas. The explanation now stands on a comment line of its own, and the
+  local check looks for the comma.
+- S8786 reports an unanchored regex that starts with an unbounded repetition (greedy, reluctant or possessive, also in
+  a group or after a lookbehind) followed by something that can fail: `\d+x`, `[^,]+,`, `\s+$`, `\d++x`. A compiled
+  regex counts only once the module calls a method on it (`.match` included), and one that is fullmatched as well as
+  searched counts as anchored at the end, which is why `CODE_NUMBER`
+  (`findall` and `fullmatch`) was reported with possessive quantifiers and an atomic group alike, and even as
+  `(?<![\w.])\d+`; a regex that starts with `^`, `\A` or `\b`, with a single character (`\d[\d_.]*`) or with a
+  bounded repetition is not. `figure-check.py` now matches the run `\d[\d_.]*` and takes the number from it in
+  `code_number()`, which returned the same matches as the old regex on 500,000 random strings. The local check follows
+  the rule as observed and also reports `[a-z]*x`, which Sonar leaves alone.

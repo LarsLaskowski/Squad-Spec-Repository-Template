@@ -41,7 +41,8 @@ Checks, without arguments:
   (`SONAR_RULES`: duplicated string literals, nested conditional expressions, anchored regex alternatives without a
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
   arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
-  followed only by zero-width assertions, a colon in the explanation of a `noqa` comment); `sonar-project.properties`
+  followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
+  starts with an unbounded repetition and goes on with something that can fail); `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
   `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
 - every squad rule file in `RULE_FILES` (the squad's rules, skills and agents, the template parts of
@@ -75,6 +76,8 @@ import itertools
 import json
 import os
 import re
+import re._constants as sre_constants
+import re._parser as sre_parser
 import shutil
 import subprocess
 import sys
@@ -133,7 +136,7 @@ COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
 SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5850", "python:S5906", "python:S6019",
-               "python:S6326", "python:S7632", "python:S9081"]
+               "python:S6326", "python:S7632", "python:S8786", "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
@@ -150,9 +153,15 @@ GROUP_OPENER = re.compile(r"\((?:\?(?:[:=!>]|<[=!]|P?<\w+>|[aiLmsux-]+:))?")
 LAZY_QUANTIFIER = re.compile(r"(?<!\\)(?:[*+?]|\{\d*+(?:,\d*+)?+\})\?")
 ZERO_WIDTH_PREFIX = re.compile(r"(?:[$)]|\\[AZzbB])*+")
 LOOKAROUNDS = ("(?=", "(?!", "(?<=", "(?<!")
-# python:S7632: a `noqa` comment whose explanation holds a colon, which Sonar reads as broken suppression syntax.
+# python:S7632: a `noqa` comment whose explanation holds a comma, which Sonar reads as the separator of another rule key.
 NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*(?P<rest>[^#]*)")
 MULTIPLE_SPACES = re.compile(r" {2,}")
+# python:S8786: how a regex is used. A compiled one counts once the module calls a method on it, as a partial match
+# (search, findall, match, …) unless it is only fullmatched; a fullmatch next to a partial use anchors its end too.
+PARTIAL_FUNCTIONS = {"search", "findall", "finditer", "sub", "subn", "split"}
+REPEATS = {sre_constants.MAX_REPEAT, sre_constants.MIN_REPEAT, getattr(sre_constants, "POSSESSIVE_REPEAT", None)}
+LOOKAROUND_OPS = {sre_constants.ASSERT, sre_constants.ASSERT_NOT}
+END_ANCHORS = {sre_constants.AT_END, sre_constants.AT_END_STRING}
 CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
 # The squad's rule files under core/ (paths relative to core/): watched for growth and for removed sentences.
 RULE_FILES = [
@@ -1448,12 +1457,12 @@ def anchored(alternative, anchor):
     return len(alternative) > 1 and bool(items) and items[0 if anchor == "^" else -1] == anchor
 
 
-def regex_calls(tree):
+def regex_calls(tree, functions=REGEX_FUNCTIONS):
     """The `re.<function>(<string literal>, …)` calls of a module, as (line, pattern)."""
     for node in ast.walk(tree):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
                 and isinstance(node.func.value, ast.Name) and node.func.value.id == "re"
-                and node.func.attr in REGEX_FUNCTIONS and isinstance(node.args[0], ast.Constant)
+                and node.func.attr in functions and isinstance(node.args[0], ast.Constant)
                 and isinstance(node.args[0].value, str)):
             yield node.lineno, node.args[0].value
 
@@ -1490,12 +1499,72 @@ def lazy_quantifiers(tree):
 
 
 def suppression_comments(source):
-    """python:S7632: `# noqa: BLE001  (missing, or broken: …)`: a colon in the explanation breaks Sonar's reading of
-    the suppression comment."""
+    """python:S7632: `# noqa: BLE001  (missing, or broken)`: Sonar reads a comma after the rule keys as the start of
+    another key, so the explanation goes on a comment line of its own."""
     comments = (token for token in tokenize.generate_tokens(io.StringIO(source).readline)
                 if token.type == tokenize.COMMENT)
-    return [(token.start[0], "python:S7632", "colon in the explanation of a noqa comment")
-            for token in comments for found in [NOQA.search(token.string)] if found and ":" in found.group("rest")]
+    return [(token.start[0], "python:S7632", "comma in the explanation of a noqa comment")
+            for token in comments for found in [NOQA.search(token.string)] if found and "," in found.group("rest")]
+
+
+def compiled_patterns(tree):
+    """The `NAME = re.compile(<string literal>, …)` assignments of a module, as {name: (line, pattern)}."""
+    return {node.targets[0].id: (node.lineno, node.value.args[0].value) for node in ast.walk(tree)
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute)
+            and isinstance(node.value.func.value, ast.Name) and node.value.func.value.id == "re"
+            and node.value.func.attr == "compile" and node.value.args and isinstance(node.value.args[0], ast.Constant)
+            and isinstance(node.value.args[0].value, str)}
+
+
+def regex_uses(tree):
+    """The regexes of a module that are matched partially, as (line, pattern, whether a fullmatch anchors the end)."""
+    methods = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            methods.setdefault(node.value.id, set()).add(node.attr)
+    uses = [(line, pattern, False) for line, pattern in regex_calls(tree, PARTIAL_FUNCTIONS)]
+    for name, (line, pattern) in compiled_patterns(tree).items():
+        used = methods.get(name, set())
+        if used - {"fullmatch"}:
+            uses.append((line, pattern, "fullmatch" in used))
+    return uses
+
+
+def after_leading_repetition(items):
+    """The items after the unbounded repetition a regex starts with (lookarounds before it skipped, a group around it
+    opened), or None when it starts with anything else, an anchor included."""
+    items = list(items)
+    while items and items[0][0] in LOOKAROUND_OPS:
+        items.pop(0)
+    if not items:
+        return None
+    op, value = items[0]
+    if op is sre_constants.SUBPATTERN:
+        inner = after_leading_repetition(value[-1].data)
+        return None if inner is None else inner + items[1:]
+    return items[1:] if op in REPEATS and value[1] == sre_constants.MAXREPEAT else None
+
+
+def super_linear(pattern, end_anchored):
+    """Whether an unanchored regex starts with an unbounded repetition and goes on with something that can fail (a
+    character, an end anchor): every start position retries the repetition (`\\d+x`, `[^,]+,`, `\\s+$`)."""
+    try:
+        parsed = sre_parser.parse(pattern)
+    except re.error:
+        return False
+    rest = after_leading_repetition(parsed.data)
+    if rest is None:
+        return False
+    return end_anchored or any(op is sre_constants.AT and value in END_ANCHORS for op, value in rest) \
+        or sre_parser.SubPattern(parsed.state, rest).getwidth()[0] > 0
+
+
+def super_linear_regexes(tree):
+    """python:S8786: a regex that backtracks super-linearly. Sonar reports it with possessive quantifiers and atomic
+    groups too: start with a single character (`\\d[\\d_.]*`), anchor it, or check the match in code."""
+    return [(line, "python:S8786", "unanchored regex that starts with an unbounded repetition followed by more")
+            for line, pattern, end_anchored in regex_uses(tree) if super_linear(pattern, end_anchored)]
 
 
 def multiple_spaces(tree):
@@ -1532,7 +1601,8 @@ def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
-        + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source)
+        + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
+        + super_linear_regexes(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

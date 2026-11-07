@@ -35,7 +35,9 @@ limit only warns, and a finding — one a merge of `main` brought with new check
 
 The script recognises a step by the number at the start of its step cell (`2a` and `2b` in `squad-spec`), the member
 and, in a feature, the task group in the cell (`6 Implement (G2)`); the step cells it prints are the ones it reads.
-Steps 4–6 of a feature run per task group of `tasks.md`, in table order.
+Steps 4–6 of a feature run per task group of `tasks.md`, in table order. An orchestrator row of step 4 that says it
+skipped the step (`4 Skeleton skipped`: the plan adds no API after all) ends step 4 for its group, a row without a group
+for every group.
 
 `--launch squad-<role> <mode>` prints that one launch — model, fresh or continued, the log command — for a launch the
 log cannot foresee (a CI failure or a review comment in step 11). `--stdin` reads the log from standard input after
@@ -627,6 +629,12 @@ def group_rows(run, who, number, group, word=None):
     return [row for row in run.of(who, {number}, word=word) if in_group(row, group)]
 
 
+def skeleton_skipped(run, group):
+    """True when the orchestrator logged step 4 as skipped for the group, or without a group for every group."""
+    return any(re.search(r"\bskip", f"{row.step} {row.result}", re.I) and (in_group(row, group) or not GROUP.search(row.step))
+               for row in run.of(ORCHESTRATOR, {"4"}))
+
+
 def code_steps(run):
     """Steps 4–6, per task group of a feature."""
     if run.base_tier not in ("trivial", "standard", "security", "tests") or run.plan is None:
@@ -655,11 +663,13 @@ def group_step(run, group, skeleton):
     tag = f" ({group})" if group else ""
     rows = "the group's task rows and spec.md" if group else "the plan"
     if run.base_tier in ("standard", "security"):
-        if skeleton and not group_rows(run, DEV, "4", group):
+        if skeleton and not group_rows(run, DEV, "4", group) and not skeleton_skipped(run, group):
             return heading(f"step 4 — Skeleton{tag}") + launch(
                 run, DEV, "skeleton", f"4 Skeleton{tag}", f"the body the *Skeleton* section of .squad/stack.md names, "
                 f"quoted in the prompt; the planned signatures and the test call sites the plan assigns to the Dev "
-                f"({rows})")
+                f"({rows})") + [
+                "  Not due when the plan states it adds no API (its *Signatures* names only private members): " +
+                orchestrator_log(run, f"4 Skeleton skipped{tag}", "skipped — <where the plan says it adds no API>").strip()]
         if not group_rows(run, TESTER, "5", group):
             return heading(f"step 5 — Tests first{tag}") + launch(
                 run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "

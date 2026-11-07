@@ -72,8 +72,9 @@ The orchestrator tells you which **mode** to run:
     fixes the text;
   - for a feature, `tasks.md`: task groups in build order, each naming the spec's criteria it delivers, the
     tasks it waits for and a skeleton row for its *Signatures* (or "no new API");
-  - the exact **signatures** of every new or changed member (for the Dev's skeleton) and the existing files
-    the skeleton must rewrite — a file you call final is one you read and found so;
+  - the exact **signatures** of every new or changed API member (for the Dev's skeleton; no private member, and
+    no backticks in a plan without API: the template's *Signatures*) and the existing files the skeleton must
+    rewrite — a file you call final is one you read and found so;
   - the **test files**, named strictly by *Layout* in `.squad/stack.md` and `docs/UNIT_TESTS.md`, and the
     existing test call sites a changed signature affects, with who adapts them (*Loop limits*); a test kept
     unchanged has no input a new criterion handles differently, else it is adapted, with owner;

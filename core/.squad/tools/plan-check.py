@@ -23,7 +23,9 @@ Checks, in the work folder `specs/<folder>/`:
   consecutive; when the plan's *Signatures* lists any API, every group has a *Skeleton* row (its *Task* cell
   starts with "Skeleton") or a row saying "no new API", a group of documentation rows alone excepted (no row is
   the Lead's outside `specs/` and `docs/decisions/`), and every name in
-  *Signatures* (the identifier of each backticked declaration) appears in a skeleton row of some group.
+  *Signatures* (the identifier of each backticked declaration) appears in a skeleton row of some group. A
+  *Signatures* section that starts with "none" or states that the change adds no API ("no new API", "no public API
+  changes", "no skeleton") lists none, whatever else it puts in backticks.
 - **Bug fix** (no `spec.md`): `plan.md` defines its acceptance criteria, and each has a row in *Tests per
   criterion* (tier `trivial`, which writes no tests first, needs none).
 - **Amendments** (a criterion changed after approval, in the file that defines the criteria): the *Amendments*
@@ -79,6 +81,7 @@ Usage, from the repository root:
 
 Exit code 0 when the work folder passes, 1 otherwise.
 """
+import itertools
 import os
 import re
 import subprocess
@@ -128,6 +131,9 @@ LEAD_FILES = (SPECS_PREFIX, "docs/decisions/")
 NONE = re.compile(r"^\s*(?:[-*]\s+)?none\.?\s*$", re.I)
 SKELETON_ROW = re.compile(r"^skeleton\b", re.I)
 NO_NEW_API = re.compile(r"\bno new API\b", re.I)
+# The words that may stand between "no" and "API" in a *Signatures* section that states the change adds no API.
+API_MODIFIERS = {"new", "changed", "public", "internal", "exported", "or", "and"}
+NO_API_WORDS = {"api", "apis", "skeleton"}
 SPAN = re.compile(r"`([^`\n]+)`")
 # The receiver of a Go method (`func (o *Options) Kernel() string`): its parentheses are no call.
 GO_RECEIVER = re.compile(r"^\s*func\s*\([^)]*\)\s*")
@@ -438,11 +444,25 @@ def signatures_section(plan):
     return next((body for name, body in parts.items() if name.startswith("Signatures")), "")
 
 
+def states_no_api(text):
+    """True when the prose of a *Signatures* section (its code spans left out) starts with "none" or says "no API",
+    "no new API", "no public API changes", "no skeleton": only API_MODIFIERS may stand between "no" and "API", so "no
+    other API changes" beside a listed member is no such statement."""
+    words = re.findall(r"[a-z]+", SPAN.sub(" ", text).lower())
+    if words[:1] == ["none"] and words[1:2] != ["of"]:
+        return True
+    return any(word == "no" and next(itertools.dropwhile(API_MODIFIERS.__contains__, words[index + 1:]), "")
+               in NO_API_WORDS for index, word in enumerate(words))
+
+
 def signature_names(body):
     """The identifier of every backticked declaration in the plan's *Signatures* section (`Options.Kernel` and the
-    Go method `func (o *Options) Kernel() string` give `Kernel`); a "none" section gives none."""
-    names = []
-    for span in SPAN.findall(strip_comments(body or "")):
+    Go method `func (o *Options) Kernel() string` give `Kernel`); a section that says "none" or states that the change
+    adds no API gives none, also when it names private members in backticks."""
+    names, text = [], strip_comments(body or "")
+    if states_no_api(text):
+        return names
+    for span in SPAN.findall(text):
         span = GO_RECEIVER.sub("", span)
         call = re.search(r"([A-Za-z_]\w*)\s*\(", span)
         words = [w for w in re.findall(r"[A-Za-z_][\w.]*", span) if w not in DECLARATION_KEYWORDS]

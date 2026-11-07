@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Tools] A plan without API no longer demands the skeleton step: `plan-check.py` lists no signatures for a
+  *Signatures* section that starts with "none" or states "no new API", "no public API changes" or "no skeleton", and
+  `squad-next.py` takes an orchestrator row that logs step 4 as skipped as step 4 done; the plan template keeps
+  private members out of *Signatures* (#268)
 - [Core] The Reviewer starts its report with one of three exact verdict lines, `BLOCKING 0 | NON-BLOCKING <m>`
   when only non-blocking findings remain, and `squad-next.py` also reads `VERDICT: NON-BLOCKING <m>` as no blocking
   finding instead of a row without a verdict (#267)

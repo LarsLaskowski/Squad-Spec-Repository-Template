@@ -230,6 +230,23 @@ class TestCodeSteps(NextTest):
         self.assertIn("Gates due (tier standard): Format check, Analyzer gate, Test with coverage, Coverage gate, "
                       "scope-check.py + figure-check.py (no gate)", out)
 
+    def test_the_orchestrators_skip_row_ends_step_4(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED)
+        out = self.next()
+        self.assertIn("Next: step 4 — Skeleton", out)
+        self.assertIn('"4 Skeleton skipped" Orchestrator "skipped — <where the plan says it adds no API>"', out)
+        self.repo.log(row("4 Skeleton", "Orchestrator", "Skipped: the plan adds only a private method"))
+        self.assertIn("Next: step 5 — Tests first", self.next(), "the skip record is step 4")
+
+    def test_a_plan_whose_signatures_state_no_api_needs_no_skeleton(self):
+        signatures = "No public API changes, so no skeleton (step 4): the private `Refresh()` changes."
+        self.repo.write("specs/issue-5/plan.md", plan_text(signatures=signatures))
+        self.repo.log(INTAKE, PLANNED, SKIPPED)
+        out = self.next()
+        self.assertNotIn("Next: step 4", out)
+        self.assertIn("Next: step 5 — Tests first", out)
+
     def test_documentation_updates_come_after_the_code(self):
         self.implemented(documentation="- README.md: the new flag")
         out = self.next()
@@ -273,6 +290,23 @@ class TestCodeSteps(NextTest):
         out = self.next()
         self.assertIn("Next: step 5 — Tests first (G2)", out)
         self.assertIn('"5 Tests first (G2)" "Tester" "<the result>" --agent-id <id> --continued\n', out)
+
+    def test_a_skip_row_ends_step_4_for_its_group_and_one_without_a_group_for_every_group(self):
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.write("specs/feature-7-export/plan.md", feature_plan())
+        self.repo.write("specs/feature-7-export/tasks.md", TASKS)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("2b Plan", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2b Challenge skipped", "Orchestrator", "challenge skipped — one option"))
+        self.assertIn('"4 Skeleton skipped (G1)" Orchestrator', self.next())
+        self.repo.log(row("4 Skeleton skipped (G2)", "Orchestrator", "the group adds no API"))
+        self.assertIn("Next: step 4 — Skeleton (G1)", self.next(), "a skip of G2 leaves G1's skeleton due")
+        self.repo.log(row("4 Skeleton skipped", "Orchestrator", "the plan adds no API"))
+        self.assertIn("Next: step 5 — Tests first (G1)", self.next())
 
 
 class TestReviewAndAfter(NextTest):

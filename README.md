@@ -88,7 +88,8 @@ multi/            dispatchers (analyzer gate, SessionStart hook) written when a 
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
-                  squad-upstream issues), release.py (changelog and release tags)
+                  squad-upstream issues), release.py (changelog and release tags), sonar-local.py with SonarLocal.java
+                  (SonarSource's open Python analyzer over the tools, before a release)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 consumers.json    the repositories that use the template: profiles, SonarQube Cloud key, active or legacy
 CHANGELOG.md      what each release brings to them
@@ -204,9 +205,12 @@ is merged here, the product repository adopts it with `adopt-template`.
 
 1. Merge the template PR here (`python3 tools/template-check.py` and the Python CI pass), with its line under
    *Unreleased* in `CHANGELOG.md`.
-2. Release: changes are batched into a release, normally once a week, sooner for an urgent defect. A release pull
-   request (`python3 tools/release.py prepare`) turns *Unreleased* into the next version, and after its merge the owner
-   tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
+2. Release: changes are batched into a release, normally once a week, sooner for an urgent defect. First
+   `python3 tools/sonar-local.py` must pass: it runs the checks of SonarSource's open `sonar-python-plugin` with the
+   consumers' quality profile over every Python file a target receives and over `tools/`, as SonarQube Cloud's
+   analysis of `main` will (it needs Java 17+ and reaches Maven Central and sonarcloud.io; `--offline` skips the
+   profile request). A release pull request (`python3 tools/release.py prepare`) turns *Unreleased* into the next
+   version, and after its merge the owner tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
 3. In each `active` repository of `consumers.json`, run `adopt-template` as a refresh from a checkout of the release
    tag: it re-applies the template, records the tag in `.squad/template.json`, keeps every project block and seeded
    file, verifies the gates and opens one PR per repository (`[Docs] Update the squad from

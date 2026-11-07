@@ -157,7 +157,8 @@ WAIVED = "waived"
 AFTER_MERGE = "after merge"
 KINDS = {"ci": "CI", "manual": "manual", AFTER_MERGE: AFTER_MERGE, "check": "check"}
 KIND = re.compile(r"^(CI|manual|after merge|check)\s*:\s*", re.I)
-LEADING_IDS = re.compile(r"^[\s*-]*(?:\**AC\d+(?:[-\u2013]\d+(?!\d))?\**[\s,.\u2013\u2014-]*)+:?\s*")
+# The ids a line starts with; the digits in the separators keep a range's end (`AC1-3`).
+LEADING_IDS = re.compile(r"^[\s*-]*(?:\**AC\d+\**[\s,.\u2013\u2014\d-]*)+:?\s*")
 QUOTE_PATHS = "core.quotePath=false"
 RESULTS = {"CI": "pending: the pull request's CI (step 11)", "manual": "to record: the manual test's result",
            "check": "to record: the check's result", AFTER_MERGE: f"{AFTER_MERGE}: the linked verification issue",

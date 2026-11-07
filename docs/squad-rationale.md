@@ -1042,3 +1042,7 @@ one way being dropped. In the same run the Reviewer's round-1 report named the c
 stamp's was `c2004ea43bb…`; its diff range was right, but the orchestrator had to check that by hand. The Reviewer now
 copies the SHA from `git rev-parse` into its verdict line, and `squad-next.py` compares it with the stamp: a verdict
 without a SHA, or one naming other code, ties the round to no stamp and the Reviewer is continued on the stamp's SHA.
+SonarQube Cloud then reported python:S5843 on the extended `LEADING_IDS` of `plan-check.py`: complexity 23 over the
+limit of 20. `template-check.py` now counts it the way that number came about (a quantifier and a lookaround add their
+nesting depth, a character class 1) and reports a regex over 20; it leaves out a regex written as several adjacent
+literals, since main's analysis carries no issue for two of them at 30 and 44 by the same count.

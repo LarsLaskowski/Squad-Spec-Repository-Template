@@ -361,6 +361,15 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("FAIL: 2 criterion(s) MISSING", output)
         self.assertIn("1 CONFLICT row(s) — the Lead keeps one verification per criterion", output)
 
+    def test_a_verification_line_names_the_criteria_it_starts_with(self):
+        parts = {"Verification without tests": "- AC1-3: manual: the PM on the build\n"
+                                                "- AC4, AC5: CI: the image build, unlike AC6\n"}
+        found = self.script.without_tests_rows(parts)
+        self.assertEqual([criterion for criterion, _ in found], ["AC1", "AC2", "AC3", "AC4", "AC5"],
+                         "a range and a list; AC6 in the prose belongs to no verification of the line")
+        self.assertEqual(found[0][1][:2], ("manual", "the PM on the build"), "the ids are stripped before the kind")
+        self.assertEqual(found[3][1][:2], ("CI", "the image build, unlike AC6"))
+
     def test_criteria_live_in_the_spec_only_and_each_needs_a_test_and_a_task(self):
         plan = PLAN + "\n## Acceptance criteria\n\n- [ ] AC3: copied from the spec\n"
         plan = plan.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |\n", "")

@@ -486,6 +486,102 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("Next: step 10 — Pull request", self.next(), "no step 9 on tiers docs and patch")
 
 
+RECORD = ("# 0001: Topic\n\n- **Status:** {status}\n- **Date:** 2026-01-01\n- **Supersedes:** —\n\n## Context\n\n"
+          "Why.\n\n## Decision\n\nThis.\n")
+RECORD_INDEX = ("# Decision records\n\n<!-- project:begin index -->\n| # | Title | Status | Date |\n| - | ----- | ------ "
+                "| ---- |\n| 0001 | Topic | {status} | 2026-01-01 |\n<!-- project:end index -->\n")
+
+
+class TestReviewFollowUps(NextTest):
+    def test_verbatim_fixes_clear_the_non_blocking_findings_they_name(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 1", 60000),
+                      row("8 Verbatim", "Orchestrator", "verbatim: [BLOCKING, verbatim] README.md line 1; "
+                          "[NON-BLOCKING, verbatim] README.md line 2"))
+        self.repo.write("README.md", "Readme, fixed\nand more\n")
+        self.repo.commit("verbatim fixes")
+        self.stamp("--verbatim")
+        out = self.next()
+        self.assertNotIn("mode decide", out, "a non-blocking finding applied verbatim needs no Lead decide launch")
+        self.assertIn("Next: step 9 — PR approval", out)
+
+    def test_a_non_blocking_finding_not_applied_verbatim_still_goes_to_the_lead(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 1", 60000),
+                      row("8 Verbatim", "Orchestrator", "verbatim: [BLOCKING, verbatim] README.md line 1"))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("verbatim fix")
+        self.stamp("--verbatim")
+        out = self.next()
+        self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
+        self.assertIn("Verdict line: quote it in the prompt", out)
+        self.assertIn("`FIX` in capitals whenever it orders a change", out)
+
+    def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 1", 60000),
+                      row("8 Decide", "Lead", "RESULT: DECIDED — FIX: Dev src/a.py names the constant", 9000))
+        out = self.next()
+        self.assertIn("Next: step 8 — the Lead ordered fixes: their owner, then steps 6–7 and a mandatory delta round",
+                      out)
+        self.assertIn("Launch: squad-dev, mode fix — when the Lead names the Dev", out)
+        self.assertNotIn("step 9", out)
+        self.repo.log(row("8 Fix", "Dev", "fixed", 9000, "sonnet/medium", continued=True))
+        self.repo.write("src/a.py", "x = 3\n")
+        self.repo.commit("fix")
+        self.assertIn("the code changed since the gate stamp", self.next())
+        self.stamp()
+        self.assertIn("Review, delta round", self.next())
+
+    def test_a_decision_without_a_fix_goes_on_to_step_9(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 1", 60000),
+                      row("8 Decide", "Lead", "RESULT: DECIDED — ISSUE: rename the constant later", 9000))
+        self.assertIn("Next: step 9 — PR approval", self.next())
+
+    def test_the_record_status_of_step_9_needs_no_delta_round(self):
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Proposed"))
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.assertIn("--verbatim (the record status needs no delta round)", self.next())
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Accepted"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Accepted"))
+        self.repo.commit("accept the record")
+        out = self.next()
+        self.assertIn("Only decision-record status lines and index rows changed since the stamp", out)
+        self.stamp("--verbatim")
+        self.assertIn("Next: step 9 — PR approval", self.next())
+        self.stamp()
+        self.assertIn("Next: step 9 — PR approval", self.next(), "a full stamp of the status alone needs none either")
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Accepted").replace("This.", "That."))
+        self.repo.commit("change the decision")
+        self.stamp()
+        self.assertIn("Review, delta round", self.next(), "a change beyond the status does")
+
+    def test_a_row_without_a_verdict_line_names_the_format_and_the_correction(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(row("8 Review", "Reviewer", "one non-blocking finding", 60000))
+        out = self.next()
+        self.assertIn("carries no VERDICT line", out)
+        self.assertIn('--replace-last "Reviewer" --step "8 Review" --new-result', out)
+        self.assertIn("`VERDICT: BLOCKING <n> | NON-BLOCKING <m> on <sha>`", out)
+        tool = self.tool
+        self.assertIsNone(tool.verdict_problem("squad-reviewer", "VERDICT: APPROVE on abc1234"))
+        self.assertIn("on <sha>", tool.verdict_problem("squad-reviewer", "approve"))
+        self.assertIn("OBJECTIONS <n> major", tool.verdict_problem("squad-devils-advocate", "two objections"))
+        self.assertIsNone(tool.verdict_problem("squad-dev", "fixed"))
+        self.assertIn("RESULT:", tool.verdict_problem("squad-lead", "decided"))
+        self.assertEqual(tool.FIX_ORDERED.search("RESULT: DECIDED - fix now: x").group(0), "fix now")
+        self.assertIsNone(tool.FIX_ORDERED.search("RESULT: DECIDED — accept, the prefix stays"))
+
+
 class TestLaunches(NextTest):
     def test_the_cap_and_another_model_make_a_fresh_launch(self):
         self.implemented()

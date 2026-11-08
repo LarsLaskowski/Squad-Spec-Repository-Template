@@ -535,7 +535,9 @@ class TestPlanCheck(unittest.TestCase):
         for body, names in (("- `Foo()` is new; no other API changes", ["Foo"]),
                             ("None of the old members change; new: `Foo()`", ["Foo"]),
                             ("- `def check(value) -> None`", ["check"]),
-                            ("- `public void Foo()` (no `API` attribute)", ["Foo", "API"])):
+                            ("- `public void Foo()` (no `API` attribute)", ["Foo", "API"]),
+                            ("- `func New() *T`\n- Deleted: `validHost(host string) bool`", ["New"]),
+                            ("- `Foo()` is new\n- `Bar(x int)` is removed", ["Foo"])):
             self.assertEqual(self.script.signature_names(body), names, f"{body}: API is listed")
         self.assertEqual(self.script.signature_names("<!-- no skeleton -->\n- `Foo()`"), ["Foo"],
                          "a guidance comment states nothing")

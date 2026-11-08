@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.2 — 2026-11-08
+
 - [Tools] A non-blocking finding the orchestrator applied verbatim no longer demands a Lead `decide` launch: the
   verbatim row names each finding by the Reviewer's tag (`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`) and
   `squad-next.py` subtracts both kinds (#276, #278)

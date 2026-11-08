@@ -578,8 +578,8 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("OBJECTIONS <n> major", tool.verdict_problem("squad-devils-advocate", "two objections"))
         self.assertIsNone(tool.verdict_problem("squad-dev", "fixed"))
         self.assertIn("RESULT:", tool.verdict_problem("squad-lead", "decided"))
-        self.assertEqual(tool.FIX_ORDERED.search("RESULT: DECIDED - fix now: x").group(0), "fix now")
-        self.assertIsNone(tool.FIX_ORDERED.search("RESULT: DECIDED — accept, the prefix stays"))
+        self.assertTrue(tool.fix_ordered("RESULT: DECIDED - Fix now: x"))
+        self.assertFalse(tool.fix_ordered("RESULT: DECIDED — accept, the prefix stays; a fix is not needed"))
 
 
 class TestLaunches(NextTest):

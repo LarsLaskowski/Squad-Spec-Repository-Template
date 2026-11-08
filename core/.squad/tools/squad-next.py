@@ -148,8 +148,9 @@ VERDICT_FORMATS = {
 }
 DECIDE_FORMAT = ("`RESULT: DECIDED — <option>`; on review findings `FIX: <each change and its owner>` and `ISSUE: "
                  "<each linked issue>` after the dash, `FIX` in capitals whenever it orders a change")
-# A Lead decision that orders a change: `FIX` in capitals, or "fix now".
-FIX_ORDERED = re.compile(r"\bFIX\b|(?i:\bfix now\b)")
+# A Lead decision that orders a change: `FIX` in capitals, or "fix now" in any case.
+FIX_WORD = re.compile(r"\bFIX\b")
+FIX_NOW = re.compile(r"\bfix now\b", re.I)
 # The tags a verbatim row names its findings by, as the Reviewer wrote them (`[NON-BLOCKING, verbatim]`).
 NONBLOCKING_TAG = re.compile(r"\bNON-BLOCKING\b", re.I)
 BLOCKING_TAG = re.compile(r"(?<!NON-)\bBLOCKING\b", re.I)
@@ -358,6 +359,11 @@ def verdict_format(agent, mode):
     if agent == LEAD:
         return DECIDE_FORMAT if mode == "decide" else None
     return VERDICT_FORMATS.get(agent)
+
+
+def fix_ordered(result):
+    """True when a Lead decision orders a change: `FIX` in capitals, or "fix now"."""
+    return bool(FIX_WORD.search(result) or FIX_NOW.search(result))
 
 
 def verdict_problem(agent, result):
@@ -1090,7 +1096,7 @@ def review_outcome(run, rows, blocking, nonblocking):
             "  Verbatim ones: *Verbatim documentation fixes*; all others in one Lead launch, before the round's fix round:"
         ] + launch(run, LEAD, "decide", run.step_cell("8", "Decide"), "the round's non-blocking findings (and, for "
                    "context, its blocking ones)")
-    ordered = bool(decided) and bool(FIX_ORDERED.search(decided[-1].result))
+    ordered = bool(decided) and fix_ordered(decided[-1].result)
     if not blocking and not ordered:
         return None
     fixed = [row for row in run.rows if row.index > last and row.who in (DEV, TESTER)]

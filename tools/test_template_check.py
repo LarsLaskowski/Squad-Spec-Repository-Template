@@ -194,7 +194,7 @@ class TestSonarRules(unittest.TestCase):
 
     def test_grouped_or_fully_anchored_alternatives_pass(self):
         for pattern in (r"(?:^a)|(?:b$)", r"^(?:a|b)$", r"^a$|^b$", r"[|^]a|b", r"\\^a|b"):
-            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+            self.assertNotIn("python:S5850", self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), pattern)
 
     def test_anchored_alternatives_in_a_lookahead_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'a(?=^b|\\Z)')\n"), ["python:S5850"])
@@ -217,7 +217,7 @@ class TestSonarRules(unittest.TestCase):
 
     def test_simpler_or_split_regexes_pass_the_complexity_limit(self):
         for pattern in (r"^[\s*-]*(?:\**AC\d+\**[\s,.\u2013\u2014\d-]*)+:?\s*", r"[(*+?|]{3}(?i:x)\(\d\)"):
-            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
+            self.assertNotIn("python:S5843", self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), pattern)
         split = "import re\nX = re.compile(r'^[\\s*-]*(?:\\**AC\\d+(?:[-\\u2013]\\d+(?!\\d))?'\n" \
             "                r'\\**[\\s,.\\u2013\\u2014-]*)+:?\\s*')\n"
         self.assertEqual(self.rules(split), [], "Sonar reports no regex spread over adjacent literals")
@@ -259,6 +259,13 @@ class TestSonarRules(unittest.TestCase):
 
     def test_several_spaces_in_a_regex_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])
+
+    def test_a_needless_non_capturing_group_is_reported(self):
+        for pattern in (r"\bFIX\b|(?i:\bfix now\b)", r"a(?:bc)d", r"(?:x)"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), ["python:S6395"], pattern)
+        for pattern in (r"a(?:b|c)d", r"(?:ab)+", r"(?:ab){2}", r"[(?:x)]", r"\(?:x\)", r"(ab)", r"(?P<n>ab)",
+                        r"(?=ab)", r"(?:a(?:b|c))?"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
     def test_single_spaces_quantifiers_and_classes_pass(self):
         for pattern in (r"^ {2}([a-z]+):", r"a b", r"[ ]{2}", r"[  ]x"):

@@ -269,12 +269,32 @@ class TestSizeWarnings(unittest.TestCase):
         self.assertEqual([w.split(":", 2)[1].strip() for w in warnings if "decisions/" in w],
                          ["docs/decisions/0004-topic.md"])
 
-    def test_an_unknown_release_state_says_so(self):
+    def test_an_unknown_release_state_is_one_summary_line(self):
         script = load_script()
-        records = {"0002": {"rel": "docs/decisions/0002-topic.md", "text": record_text("0002", 9)}}
+        records = {"0002": {"rel": "docs/decisions/0002-topic.md", "text": record_text("0002", 9)},
+                   "0003": {"rel": "docs/decisions/0003-topic.md", "text": record_text("0003", 2, words=1600)},
+                   "0004": {"rel": "docs/decisions/0004-topic.md", "text": record_text("0004", 2)}}
         warnings = []
         script.check_record_sizes(records, None, warnings)
-        self.assertIn("unless it is released", warnings[0])
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("2 record(s) past RECORD_MAX_WORDS 1500, RECORD_MAX_OPTIONS 8 (0002, 0003)", warnings[0])
+        self.assertIn("they may all be released", warnings[0])
+        self.assertNotIn("split it into", warnings[0])
+
+    def test_a_shallow_clone_names_its_fix(self):
+        self.git("add", "-A")
+        self.git("commit", "-qm", "records")
+        self.git("tag", "v1.0.0")
+        clone = os.path.join(self.dir.name, "shallow")
+        subprocess.run(["git", "clone", "-q", "--depth", "1", "--no-local", self.repo, clone], check=True,
+                       capture_output=True)
+        subprocess.run(["git", "-C", clone, "fetch", "-q", "--depth", "1", "origin", "tag", "v1.0.0"], check=True,
+                       capture_output=True)
+        result = subprocess.run([sys.executable, SCRIPT], cwd=clone, capture_output=True, text=True, encoding="utf-8")
+        warnings = [line for line in result.stdout.splitlines() if line.startswith("WARNING: ")]
+        self.assertIn("shallow clone - released records are not checked (run 'git fetch --unshallow --tags' and "
+                      "check again)", warnings[0])
+        self.assertEqual(len([w for w in warnings if "decisions/" in w or "record(s) past" in w]), 1, warnings)
 
     def test_options_are_the_top_level_items_of_their_section(self):
         script = load_script()

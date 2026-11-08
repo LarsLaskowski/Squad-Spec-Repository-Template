@@ -117,6 +117,33 @@ class TestSquadLog(unittest.TestCase):
             self.assertIn(row.encode() + b"\r\n| 2026-01-02 | 6 Implement | Dev | done |\r\n", handle.read())
         self.assertIn("| **Total** | | 1 | 37,445 | 6 | 57 |", self.script.summary(self.path))
 
+    def test_new_result_corrects_a_verdict_line_and_keeps_the_trailer(self):
+        root = os.path.join(self.dir.name, "repo")
+        log = os.path.join(root, "specs", "issue-1", "log.md")
+        write(log, "| Date |\n| 2026-01-02 | 8 Review | Reviewer | one finding (opus/medium · 9,000 tokens · 1 tool uses"
+                   " · 5 s) |\n| 2026-01-02 | 8 Decide | Lead | RESULT: DECIDED — accept |\n")
+        script = os.path.join(TOOLS, "squad-log.py")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, "issue-1", *args], cwd=root, capture_output=True,
+                                  text=True, check=False)
+        refused = run("--replace-last", "Reviewer", "--new-result", "x", "--tokens", "1500")
+        self.assertEqual(refused.returncode, 2, "a result text and a trailer are corrected in calls of their own")
+        self.assertEqual(run("--new-result", "x").returncode, 2, "--new-result needs --replace-last")
+        self.assertEqual(run("--replace-last", "Reviewer", "--step", "9 PR approval", "--new-result", "x").returncode, 1)
+        done = run("--replace-last", "Reviewer", "--step", "8 Review", "--new-result",
+                   "VERDICT: BLOCKING 0 | NON-BLOCKING 1 on abc1234 — one finding")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertNotIn("WARNING", done.stdout)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("| 8 Review | Reviewer | VERDICT: BLOCKING 0 \\| NON-BLOCKING 1 on abc1234 — one finding "
+                          "(opus/medium · 9,000 tokens · 1 tool uses · 5 s) |\n| 2026-01-02 | 8 Decide |", handle.read())
+        warned = run("8 Review delta", "Reviewer", "approved")
+        self.assertIn("WARNING: the row of Reviewer carries no verdict line", warned.stdout)
+        self.assertIn('--replace-last "Reviewer" --step "8 Review delta" --new-result', warned.stdout)
+        self.assertNotIn("WARNING", run("8 Fix", "Dev", "fixed").stdout, "the Dev reports no verdict line")
+        self.assertNotIn("WARNING", run("9 PR approval", "Orchestrator", "approved by checklist").stdout)
+
     def test_cli_refuses_placeholder_metrics_and_replaces_a_trailer(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-lead.md"), "---\nmodel: opus\neffort: high\n---\n")
@@ -242,7 +269,7 @@ class TestSquadLog(unittest.TestCase):
         self.assertEqual(run("8 Review delta", "Reviewer", "APPROVE", "--continued").returncode, 2, "no usage")
         self.assertEqual(run("3 Confirm", "Security", "APPROVED", "--continued", *usage).returncode, 1,
                          "no earlier usage of Security")
-        done = run("8 Review delta", "Reviewer", "APPROVE", "--continued", *usage)
+        done = run("8 Review delta", "Reviewer", "VERDICT: APPROVE", "--continued", *usage)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertTrue(done.stdout.rstrip().endswith("(opus/medium · 1,500 tokens · 2 tool uses · 30 s · continued) |"),
                         done.stdout)
@@ -945,7 +972,7 @@ class TestSquadLogTranscripts(unittest.TestCase):
         self.assertEqual((reader.family("claude-haiku-5-5"), reader.family("inherit")), ("haiku", None))
 
     def test_agent_id_logs_the_round_from_the_transcript(self):
-        done = self.run_log("2 Plan", "Lead", "plan written", "--agent-id", "a1")
+        done = self.run_log("2 Plan", "Lead", "RESULT: DONE plan written", "--agent-id", "a1")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn("WARNING", done.stdout)
         self.assertIn("plan written (opus/medium · 42,605 tokens · 2 tool uses · 100 s · 8 in · 1,000 out · "

@@ -42,7 +42,8 @@ Checks, without arguments:
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
   arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
   followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
-  starts with an unbounded repetition and goes on with something that can fail, a regex more complex than 20);
+  starts with an unbounded repetition and goes on with something that can fail, a regex more complex than 20, a
+  non-capturing group without alternation or quantifier);
   `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
   `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
@@ -137,7 +138,8 @@ COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
 SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
-               "python:S6019", "python:S6326", "python:S7632", "python:S8786", "python:S9081"]
+               "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786",
+               "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
@@ -151,6 +153,8 @@ FLAG_SETTER = re.compile(r"\(\?[aiLmsux-]+\)")
 GROUP_OPENER = re.compile(r"\((?:\?(?:[:=!>]|<[=!]|P?<\w+>|[aiLmsux-]+:))?")
 # python:S6019: a reluctant quantifier, and what may follow one without matching a character (lookarounds, anchors,
 # the end of groups), outside character classes.
+# python:S6395: the opening of a non-capturing group, a flag group (`(?i:`) included.
+NON_CAPTURING = re.compile(r"\(\?[aiLmsux-]*:")
 LAZY_QUANTIFIER = re.compile(r"(?<!\\)(?:[*+?]|\{\d*+(?:,\d*+)?+\})\?")
 ZERO_WIDTH_PREFIX = re.compile(r"(?:[$)]|\\[AZzbB])*+")
 LOOKAROUNDS = ("(?=", "(?!", "(?<=", "(?<!")
@@ -1646,6 +1650,33 @@ def super_linear_regexes(tree):
             for line, pattern, end_anchored in regex_uses(tree) if super_linear(pattern, end_anchored)]
 
 
+def needless_groups(pattern):
+    """The non-capturing groups of a regex (flag groups too) that hold no alternation and take no quantifier, outside
+    character classes: python:S6395 asks to unwrap them."""
+    found, i = [], 0
+    while i < len(pattern):
+        opener = NON_CAPTURING.match(pattern, i)
+        if pattern[i] == "\\":
+            i += 2
+            continue
+        if pattern[i] == "[":
+            i = CHAR_CLASS.match(pattern, i).end()
+            continue
+        if opener:
+            alternatives, end = regex_tree(pattern, opener.end())
+            if len(alternatives) == 1 and not QUANTIFIER.match(pattern, end + 1):
+                found.append(pattern[i:end + 1])
+        i += 1
+    return found
+
+
+def unwrapped_groups(tree):
+    """python:S6395: a non-capturing group without alternation or quantifier; a flag group of one alternative is
+    flagged too, so its flag goes to the whole regex or a regex of its own."""
+    return [(line, "python:S6395", f"unnecessary non-capturing group {group}")
+            for line, pattern in regex_calls(tree) for group in needless_groups(pattern)]
+
+
 def multiple_spaces(tree):
     """python:S6326: two spaces or more in a regex outside a character class; a quantifier (`{2}`) says how many."""
     return [(line, "python:S6326", "several spaces in a regex; use a quantifier")
@@ -1681,7 +1712,7 @@ def sonar_findings(path, source):
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
-        + super_linear_regexes(tree) + complex_regexes(source, tree)
+        + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

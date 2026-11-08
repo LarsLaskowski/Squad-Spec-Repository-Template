@@ -6,6 +6,22 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Tools] A non-blocking finding the orchestrator applied verbatim no longer demands a Lead `decide` launch: the
+  verbatim row names each finding by the Reviewer's tag (`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`) and
+  `squad-next.py` subtracts both kinds (#276, #278)
+- [Tools] A Lead `decide` row that orders a fix (`FIX` in its `RESULT` line, or "fix now") makes `squad-next.py`
+  print the fix launches, the gates and a delta round before step 9, and the step-9 record status is stamped with
+  `gate-stamp.py --verbatim` and needs no delta round, also after a full stamp (#279)
+- [Tools] Every launch `squad-next.py` prints quotes the exact verdict line of the Reviewer (with `on <sha>`), the
+  Devil's Advocate, Security and the Lead in mode `decide`; `squad-log.py` warns when such a row carries none, and
+  `--replace-last MEMBER --new-result TEXT` corrects the row's result and keeps its trailer, so the launch is not
+  logged twice (#277, #278)
+- [Tools] `plan-check.py` lists no skeleton signature for a *Signatures* line that says its member is deleted or
+  removed (#278)
+- [Tools] `decision-check.py` names the fix of a shallow clone (`git fetch --unshallow --tags`) and, while the release
+  of the records cannot be told, reports the records past the size limits as one line that says they may all be
+  released and exempt, instead of one split warning per record (#275)
+
 ## v2026.11.1 — 2026-11-07
 
 - [Tools] `plan-check.py --matrix` counts a criterion id only in a test file the criterion's row names or the branch

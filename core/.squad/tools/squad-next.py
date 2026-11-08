@@ -32,10 +32,11 @@ a row without one is named, and both ways are printed. A Reviewer's verdict line
 later commit that touched only `specs/` holds the same code), ties the round to no stamp, and the Reviewer is
 continued on the stamp's SHA. The Orchestrator's verbatim rows after a round subtract the findings they name by tag
 (`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`; a row without a tag counts as one blocking finding), so a
-non-blocking finding applied verbatim needs no Lead launch; a Lead `decide` row that orders a change (`FIX` in
-capitals, or "fix now") sends its owners, the gates and a delta round before step 9. A new stamp whose code differs
-from the reviewed one only in the `Status` lines of decision records and their index rows (step 9's record status)
-needs no new round, and the code check suggests `--verbatim` for it. Three blocking rounds in a row (review pass 1
+non-blocking finding applied verbatim needs no Lead launch, and a word "blocking" in its prose counts nothing; a
+Lead `decide` row that orders a change (`FIX:` in capitals, with its colon) sends its owners, the gates and a delta
+round before step 9. A new stamp whose code differs from the reviewed one only in the `Status` lines of decision
+records and their index rows (step 9's record status) needs no new round, and the code check suggests `--verbatim`
+for it. Three blocking rounds in a row (review pass 1
 and two delta rounds) send the findings to the Lead (*Loop limits*), and so does a second `CHANGES_REQUIRED` of the Security plan
 review; two plan-check revisions of one document without a clean run hand the findings to the Lead in mode `decide`.
 Once the log has a row of step 4 or later the plan is approved: `plan-check.py` still runs before the PR, its size
@@ -147,13 +148,12 @@ VERDICT_FORMATS = {
     SECURITY: "`VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED`",
 }
 DECIDE_FORMAT = ("`RESULT: DECIDED — <option>`; on review findings `FIX: <each change and its owner>` and `ISSUE: "
-                 "<each linked issue>` after the dash, `FIX` in capitals whenever it orders a change")
-# A Lead decision that orders a change: `FIX` in capitals, or "fix now" in any case.
-FIX_WORD = re.compile(r"\bFIX\b")
-FIX_NOW = re.compile(r"\bfix now\b", re.I)
+                 "<each linked issue>` after the dash, `FIX:` in capitals whenever it orders a change")
+# A Lead decision that orders a change: `FIX:` in capitals, with its colon ("no FIX needed" orders none).
+FIX_ORDERED = re.compile(r"\bFIX:")
 # The tags a verbatim row names its findings by, as the Reviewer wrote them (`[NON-BLOCKING, verbatim]`).
-NONBLOCKING_TAG = re.compile(r"\bNON-BLOCKING\b", re.I)
-BLOCKING_TAG = re.compile(r"(?<!NON-)\bBLOCKING\b", re.I)
+NONBLOCKING_TAG = re.compile(r"\[NON-BLOCKING, verbatim\]", re.I)
+BLOCKING_TAG = re.compile(r"\[BLOCKING, verbatim\]", re.I)
 STATUS_FIELD = re.compile(r"^[+-]- \*\*Status:\*\*")
 DECISIONS = "docs/decisions/"
 DO = "  Do: "
@@ -349,7 +349,8 @@ def launch(run, agent, mode, step, handover, rule=None, purpose=""):
     lines.append(f"  Hand over: {handover}{short}")
     verdict = verdict_format(agent, mode)
     if verdict:
-        lines.append(f"  Verdict line: quote it in the prompt, it must start the report: {verdict}")
+        place = "it starts the report" if agent == REVIEWER else "it ends the report"
+        lines.append(f"  Verdict line: quote it in the prompt, exactly as here; {place}: {verdict}")
     lines.append(log_command(run, step, agent, continuation))
     return lines
 
@@ -362,8 +363,8 @@ def verdict_format(agent, mode):
 
 
 def fix_ordered(result):
-    """True when a Lead decision orders a change: `FIX` in capitals, or "fix now"."""
-    return bool(FIX_WORD.search(result) or FIX_NOW.search(result))
+    """True when a Lead decision orders a change: `FIX:` in capitals, with its colon."""
+    return bool(FIX_ORDERED.search(result))
 
 
 def verdict_problem(agent, result):
@@ -877,20 +878,28 @@ def record_status_only(run, old, new):
                                  *stamp_tool().OUTSIDE_SPECS)
     if code != 0 or not out.strip():
         return False
-    path = None
+    path, in_header = None, False
     for line in out.splitlines():
-        if line.startswith("+++ "):
-            path = line[6:] if line.startswith("+++ b/") else None
-        elif not line_allowed(path, line):
+        if line.startswith("diff --git "):
+            path, in_header = None, True
+        elif line.startswith("@@"):
+            in_header = False
+        elif in_header:
+            path = header_path(path, line)
+            if path is False:
+                return False
+        elif line.startswith(("+", "-")) and not status_change(path, line):
             return False
     return True
 
 
-def line_allowed(path, line):
-    """True for a diff line that is no new or deleted file and, when it changes content, a status change."""
+def header_path(path, line):
+    """The path a file header line of a diff names (`+++ b/<path>`), the path so far for another header line, or
+    False for a new, deleted or binary file, which no record status changes. Only lines before a file's first `@@`
+    are headers: with `-U0` a removed `-- comment` shows as `--- comment` in the hunk."""
     if line.startswith(("new file", "deleted file", "Binary")):
         return False
-    return not line.startswith(("+", "-")) or line.startswith("--- ") or status_change(path, line)
+    return line[6:] if line.startswith("+++ b/") else path
 
 
 def status_change(path, line):

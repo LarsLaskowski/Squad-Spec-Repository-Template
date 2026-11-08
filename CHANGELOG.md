@@ -6,6 +6,17 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Tools] `squad-next.py` counts a verbatim row's findings only by the Reviewer's bracketed tags (`[BLOCKING,
+  verbatim]`, `[NON-BLOCKING, verbatim]`), so the word "blocking" in its prose clears nothing, and takes a Lead
+  decision as ordering a fix only on `FIX:` in capitals with its colon, so "no FIX needed" or "do not fix now" starts
+  no fix round (#282)
+- [Tools] `squad-next.py` reads `--- ` and `+++ ` lines as file headers only before a file's first hunk, so a removed
+  `-- comment` beside a record status no longer passes as a status-only change, and the verdict line it hands over
+  says where the member's report puts it (the Reviewer's starts the report, the others' end it) (#282)
+- [Tools] `plan-check.py` leaves out only a *Signatures* line that states its member is deleted ("Deleted:", "is
+  removed"), so a new member whose description says it "removes" something is still a planned signature; the usage
+  examples of `squad-log.py` log a Reviewer verdict line it can read (#282)
+
 ## v2026.11.2 — 2026-11-08
 
 - [Tools] A non-blocking finding the orchestrator applied verbatim no longer demands a Lead `decide` launch: the

@@ -111,8 +111,8 @@ mechanics out of the orchestrator's hands:
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/squad-log.py <work folder> <step> <member> <result> [--agent-id a1b2c3d4e5f6a7b8c]
-    python3 .squad/tools/squad-log.py <work folder> "8 Review delta" Reviewer "APPROVE" --agent-id a1b2c3d4e5f6a7b8c
-        --continued
+    python3 .squad/tools/squad-log.py <work folder> "8 Review delta" Reviewer "VERDICT: APPROVE on <sha>"
+        --agent-id a1b2c3d4e5f6a7b8c --continued
     python3 .squad/tools/squad-log.py <work folder> <step> <member> <result> [--agent squad-lead
         --tokens 37445 --tool-uses 6 --seconds 57]
     python3 .squad/tools/squad-log.py <work folder> --amend-last Lead --agent squad-lead --tokens 37445
@@ -125,8 +125,8 @@ Usage, from anywhere inside the repository:
         squad-security --tokens 45751 --tool-uses 7 --seconds 108
     python3 .squad/tools/squad-log.py <work folder> --amend-last "Devil's Advocate" --unreported --agent
         squad-devils-advocate
-    python3 .squad/tools/squad-log.py <work folder> "8 Review delta" Reviewer "APPROVE" --agent squad-reviewer
-        --tokens 139230 --tool-uses 4 --seconds 61 --continued
+    python3 .squad/tools/squad-log.py <work folder> "8 Review delta" Reviewer "VERDICT: APPROVE on <sha>"
+        --agent squad-reviewer --tokens 139230 --tool-uses 4 --seconds 61 --continued
     python3 .squad/tools/squad-log.py <work folder> "7 Fix" Dev "fixed" --agent squad-dev --tokens 412000
         --tool-uses 9 --seconds 317 --continued-from "6 Implement (rows 9-14)"
     python3 .squad/tools/squad-log.py <work folder> "7 Fix" Dev "fixed" --agent squad-dev

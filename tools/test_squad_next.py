@@ -2,6 +2,7 @@
 import importlib.util
 import os
 import sys
+import types
 import unittest
 
 sys.dont_write_bytecode = True
@@ -516,8 +517,8 @@ class TestReviewFollowUps(NextTest):
         self.stamp("--verbatim")
         out = self.next()
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
-        self.assertIn("Verdict line: quote it in the prompt", out)
-        self.assertIn("`FIX` in capitals whenever it orders a change", out)
+        self.assertIn("Verdict line: quote it in the prompt, exactly as here; it ends the report", out)
+        self.assertIn("`FIX:` in capitals whenever it orders a change", out)
 
     def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
         self.implemented()
@@ -564,6 +565,18 @@ class TestReviewFollowUps(NextTest):
         self.stamp()
         self.assertIn("Review, delta round", self.next(), "a change beyond the status does")
 
+    def test_a_removed_comment_line_that_looks_like_a_diff_header_is_no_status_change(self):
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))
+        self.repo.write("src/a.sql", "select 1;\n-- drop me\n")
+        old = self.repo.commit("record and query")
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Accepted"))
+        self.repo.write("src/a.sql", "select 1;\n")
+        self.repo.write("src/b.sql", "select 2;\n++ kept\n")
+        new = self.repo.commit("status and two comment lines")
+        run = self.tool.Run(self.repo.root, self.folder, [], False)
+        self.assertFalse(self.tool.record_status_only(run, old, new), "`--- drop me` is content, not a file header")
+        self.assertIn("it starts the report", "\n".join(self.tool.launch(run, "squad-reviewer", "review", "8 Review", "x")))
+
     def test_a_row_without_a_verdict_line_names_the_format_and_the_correction(self):
         self.implemented()
         self.stamp()
@@ -578,8 +591,15 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("OBJECTIONS <n> major", tool.verdict_problem("squad-devils-advocate", "two objections"))
         self.assertIsNone(tool.verdict_problem("squad-dev", "fixed"))
         self.assertIn("RESULT:", tool.verdict_problem("squad-lead", "decided"))
-        self.assertTrue(tool.fix_ordered("RESULT: DECIDED - Fix now: x"))
-        self.assertFalse(tool.fix_ordered("RESULT: DECIDED — accept, the prefix stays; a fix is not needed"))
+        self.assertTrue(tool.fix_ordered("RESULT: DECIDED — FIX: Dev src/a.py; ISSUE: none"))
+        for declined in ("RESULT: DECIDED — no FIX needed, ISSUE: #3", "RESULT: DECIDED — do not fix now; ISSUE: #4",
+                         "RESULT: DECIDED — accept, the prefix stays; a fix is not needed"):
+            self.assertFalse(tool.fix_ordered(declined), declined)
+        run = types.SimpleNamespace()
+        prose = [tool.Row(5, "8 Verbatim", "8", "orchestrator", "verbatim: [BLOCKING, verbatim] docs/a.md — the "
+                          "blocking sentence corrected; [NON-BLOCKING, verbatim] README.md, non-blocking wording")]
+        run.of = lambda who, after=-1: prose
+        self.assertEqual(tool.verbatim_findings(run, 0), (1, 1), "the word blocking in prose counts nothing")
 
 
 class TestLaunches(NextTest):

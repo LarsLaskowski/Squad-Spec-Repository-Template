@@ -537,7 +537,9 @@ class TestPlanCheck(unittest.TestCase):
                             ("- `def check(value) -> None`", ["check"]),
                             ("- `public void Foo()` (no `API` attribute)", ["Foo", "API"]),
                             ("- `func New() *T`\n- Deleted: `validHost(host string) bool`", ["New"]),
-                            ("- `Foo()` is new\n- `Bar(x int)` is removed", ["Foo"])):
+                            ("- `Foo()` is new\n- `Bar(x int)` is removed", ["Foo"]),
+                            ("- `purgeExpired(now: Date)` — removes the expired rows\n- `old()` is deleted",
+                             ["purgeExpired"])):
             self.assertEqual(self.script.signature_names(body), names, f"{body}: API is listed")
         self.assertEqual(self.script.signature_names("<!-- no skeleton -->\n- `Foo()`"), ["Foo"],
                          "a guidance comment states nothing")

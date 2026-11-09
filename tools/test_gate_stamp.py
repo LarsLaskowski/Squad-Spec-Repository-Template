@@ -385,6 +385,16 @@ class TestGateStamp(RepoTest):
         self.assertEqual(self.stamp("--check", "bash -n run.sh")[0], 0)
         self.assertIn("(tier patch): ", self.repo.read("specs/issue-5/log.md").splitlines()[-1])
 
+    def test_a_changed_record_or_area_document_runs_decision_check_with_history_required(self):
+        code, out, _ = self.stamp("--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("decision-check.py", out, "no record or area document changed")
+        self.repo.write("docs/areas/storage.md", "# Storage\n")
+        self.repo.commit("area document")
+        code, out, _ = self.stamp("--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertIn("decision-check.py: `python3 .squad/tools/decision-check.py --require-history`", out)
+
     def test_after_step_10_the_stamp_reads_the_log_from_stdin(self):
         log = self.repo.read("specs/issue-5/log.md")
         self.repo.git("rm", "-q", "-r", "specs/issue-5")

@@ -12,10 +12,11 @@ tree. It reads the hook input JSON from stdin and denies, by `agent_type`:
 - every member: a file under `.git/` or `.claude/`, and one under `.squad/` other than `.squad/stack.md` for
   `squad-code-officer` (its *Analyzer gate* notes);
 - `squad-lead`: a file outside `specs/` and `docs/decisions/`;
-- `squad-tester`: a file outside the test paths and `docs/UNIT_TESTS.md`. The test paths are
-  `COVERAGE_TEST_PATHSPECS` in `.squad/tools/squad_settings.py`, by default its `COVERAGE_EXCLUDES` (as
-  `coverage-check.py` reads them), matched as Git pathspecs: a path, a directory, or a wildcard whose `*` also
-  matches `/`, with `:(exclude)` / `:!` exclusions;
+- `squad-tester`: a file outside the test paths, the Markdown files under their directories (a fixture README) and
+  `docs/UNIT_TESTS.md`. The test paths are `COVERAGE_TEST_PATHSPECS` in `.squad/tools/squad_settings.py`, by default
+  its `COVERAGE_EXCLUDES` (as `coverage-check.py` reads them), matched as Git pathspecs: a path, a directory, or a
+  wildcard whose `*` also matches `/`, with `:(exclude)` / `:!` exclusions; a test path's directory is the part of an
+  inclusion before its first wildcard, up to its last `/` (`tests/` of `tests/*.cs`; `*_test.go` names none);
 - `squad-devils-advocate`, `squad-security` and `squad-reviewer`: every file (they are read-only).
 
 `squad-dev`, `squad-code-officer` and any other `squad-*` agent write everything else. A denied call answers
@@ -108,6 +109,23 @@ def is_test_path(rel, pathspecs):
     return not includes or any(pathspec_matches(rel, pattern) for pattern in includes)
 
 
+def test_document(rel, pathspecs):
+    """Whether `rel` is a Markdown file under the directory of an included test path (a fixture README under
+    `tests/` for `tests/*.cs`); an inclusion without a directory before its first wildcard (`*_test.go`) gives none,
+    and an exclusion that matches the file wins."""
+    if not rel.lower().endswith(".md"):
+        return False
+    parsed = [split_magic(pathspec) for pathspec in pathspecs]
+    if any(pathspec_matches(rel, pattern) for magic, pattern in parsed if "exclude" in magic):
+        return False
+    for magic, pattern in parsed:
+        literal = pattern.removeprefix("./").split("*", 1)[0].split("?", 1)[0].split("[", 1)[0]
+        directory = literal.rsplit("/", 1)[0] + "/" if "/" in literal else ""
+        if "exclude" not in magic and directory and rel.startswith(directory):
+            return True
+    return False
+
+
 def tester_pathspecs(tree):
     """COVERAGE_TEST_PATHSPECS of the tree's squad_settings.py, by default its COVERAGE_EXCLUDES; None when the file
     cannot be loaded or names neither."""
@@ -125,10 +143,12 @@ def tester_verdict(rel, tree):
     if rel == TEST_DOCUMENT:
         return None
     pathspecs = tester_pathspecs(tree)
-    if pathspecs is None or is_test_path(rel, pathspecs):
+    if pathspecs is None or is_test_path(rel, pathspecs) or test_document(rel, pathspecs):
         return None
     return (f"the Tester writes only the test paths ({', '.join(pathspecs) or 'none'}: COVERAGE_TEST_PATHSPECS in "
-            f"{SETTINGS}, by default its COVERAGE_EXCLUDES) and {TEST_DOCUMENT}")
+            f"{SETTINGS}, by default its COVERAGE_EXCLUDES), the Markdown files under their directories and "
+            f"{TEST_DOCUMENT}; .squad/project.md (*Test doubles*): report the rows verbatim, the orchestrator writes "
+            "them")
 
 
 def ownership_verdict(agent, rel, tree):

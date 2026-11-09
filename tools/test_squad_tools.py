@@ -288,6 +288,50 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("(opus/medium · 2,500 tokens · 2 tool uses · 20 s · continued) |", replaced.stdout)
         self.assertIn("| Reviewer | opus/medium | 3 (2 continued) | 104,000 | 34 | 250 |", run("--summary").stdout)
 
+    def test_a_continuation_of_another_groups_agent_of_the_same_mode_is_a_note_naming_continued_from(self):
+        root = os.path.join(self.dir.name, "repo")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        write(os.path.join(root, "specs", "issue-1", "log.md"),
+              "| Date |\n| 2026-01-02 13:00 | 4 Skeleton (G1) | Dev | built (sonnet/medium · 60,000 tokens · 10 tool uses "
+              "· 300 s) |\n| 2026-01-02 13:10 | 6 Implement (G1) | Dev | green (sonnet/medium · 50,000 tokens · 10 tool "
+              "uses · 300 s) |\n")
+        done = subprocess.run([sys.executable, os.path.join(TOOLS, "squad-log.py"), "issue-1", "4 Skeleton (G2)", "Dev",
+                               "built", "--continued", "--agent", "squad-dev", "--tokens", "90000", "--tool-uses", "5",
+                               "--seconds", "60"], cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("NOTE: '4 Skeleton (G2)' is logged as continuing Dev's last fresh launch, '6 Implement (G1)'",
+                      done.stdout)
+        self.assertIn('--continued-from "4 Skeleton (G1)"', done.stdout)
+        self.assertNotIn("WARNING", done.stdout)
+
+    def test_stdin_reads_the_rows_of_the_removed_log_before_a_table_that_starts_at_step_10(self):
+        root = os.path.join(self.dir.name, "repo")
+        script = os.path.join(TOOLS, "squad-log.py")
+        write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")
+        early = ("| 2026-01-02 13:00 | 1 Intake | Orchestrator | bug |\n"
+                 "| 2026-01-02 13:10 | 6 Implement | Dev | green (sonnet/medium · 60,000 tokens · 10 tool uses · 300 s) |\n")
+        write(os.path.join(root, "specs", "issue-1", "log.md"), "# Log\n\n| Date | Step | Member | Result |\n"
+              "| ---- | ---- | ------ | ------ |\n" + early)
+        for args in (["init", "-q", "-b", "work"], ["add", "-A"], ["commit", "-q", "-m", "work"],
+                     ["rm", "-q", "-r", "specs"], ["commit", "-q", "-m", "Remove squad working record"]):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@e", *args], cwd=root, check=True)
+        comment = ("| Date | Step | Member | Result |\n| ---- | ---- | ------ | ------ |\n"
+                   "| 2026-01-02 14:00 | 10 Pull request | Orchestrator | rows 1–9 in the linked log.md |\n")
+
+        def run(*args, text=comment):
+            return subprocess.run([sys.executable, script, "issue-1", *args, "--stdin"], cwd=root, input=text,
+                                  capture_output=True, text=True, check=False)
+        fixed = run("11 Fix", "Dev", "fixed", "--continued", "--agent", "squad-dev", "--tokens", "70000",
+                    "--tool-uses", "3", "--seconds", "30")
+        self.assertEqual(fixed.returncode, 0, fixed.stderr)
+        self.assertIn("10,000 tokens", fixed.stdout, "the continuation counts against the linked log's launch")
+        self.assertNotIn("1 Intake", fixed.stdout, "the output is the comment's table with its new row only")
+        self.assertTrue(fixed.stdout.startswith(comment), fixed.stdout)
+        whole = run("11 Fix", "Dev", "fixed", "--agent", "squad-dev", "--tokens", "5000", "--tool-uses", "3",
+                    "--seconds", "30", text=early + comment.splitlines(True)[-1])
+        self.assertEqual(whole.returncode, 0, whole.stderr)
+        self.assertEqual(whole.stdout.count("1 Intake"), 1, "a table that holds the whole log gets nothing added")
+
     def test_continuation_at_another_step_warns_unless_it_names_its_round(self):
         root = os.path.join(self.dir.name, "repo")
         write(os.path.join(root, ".claude", "agents", "squad-dev.md"), "---\nmodel: sonnet\neffort: medium\n---\n")

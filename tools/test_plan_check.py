@@ -592,6 +592,19 @@ class TestPlanCheck(unittest.TestCase):
         no_column = TASKS.replace("| # | Group | Task |", "| # | Phase | Task |")
         self.assertTrue(any("without a *Group* column" in e for e in self.errors(self.feature(tasks=no_column))))
 
+    def test_the_pm_group_holds_the_product_managers_and_the_leads_tasks_anywhere_in_the_table(self):
+        rows = ("| 0 | PM | Layout probe | specs/x/log.md | AC1 | — | Product Manager | [ ] |\n"
+                "| 1 | G1 | Writer | src/Export.cs | AC1, AC2 | 0 | Dev | [ ] |\n"
+                "| 2 | PM | Fact corrected | specs/x/plan.md | AC1 | 1 | Product Manager, Lead | [ ] |\n")
+        tasks = TASKS.replace("| 1 | G1 | Writer | src/Export.cs | AC1, AC2 | — | Dev | [ ] |\n", rows)
+        self.assertEqual(self.errors(self.feature(tasks=tasks)), [])
+        plan = PLAN + "\n## Signatures (for the Dev's skeleton)\n\n- `Options.Kernel string`\n"
+        with_api = tasks.replace("| Writer |", "| Skeleton: Options.Kernel; writer |")
+        self.assertEqual(self.errors(self.feature(plan=plan, tasks=with_api)), [], "group PM needs no skeleton row")
+        dev = tasks.replace("| Product Manager, Lead |", "| Dev |")
+        errors = self.errors(self.feature(tasks=dev))
+        self.assertTrue(any("row 2 of group PM is owned by Dev" in e for e in errors), errors)
+
     def test_control_character_in_any_markdown_file_of_the_folder_is_reported(self):
         folder = self.feature(plan=PLAN.replace("single worker", "single\u202eworker"))
         write(os.path.join(folder, "log.md"), "# Log\n\nzero\u200bwidth\n")

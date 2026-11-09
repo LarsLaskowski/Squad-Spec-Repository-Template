@@ -295,6 +295,12 @@ class TestSizeWarnings(unittest.TestCase):
         self.assertIn("shallow clone - released records are not checked (run 'git fetch --unshallow --tags' and "
                       "check again)", warnings[0])
         self.assertEqual(len([w for w in warnings if "decisions/" in w or "record(s) past" in w]), 1, warnings)
+        self.assertEqual(result.returncode, 0, "without --require-history the skip only warns")
+        strict = subprocess.run([sys.executable, SCRIPT, "--require-history"], cwd=clone, capture_output=True,
+                                text=True, encoding="utf-8")
+        self.assertEqual(strict.returncode, 1, strict.stdout)
+        self.assertIn("ERROR: shallow clone - released records are not checked (run 'git fetch --unshallow --tags'",
+                      strict.stdout)
 
     def test_options_are_the_top_level_items_of_their_section(self):
         script = load_script()

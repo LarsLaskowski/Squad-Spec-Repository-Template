@@ -45,13 +45,18 @@ limit only warns, and a finding — one a merge of `main` brought with new check
 
 The script recognises a step by the number at the start of its step cell (`2a` and `2b` in `squad-spec`), the member
 and, in a feature, the task group in the cell (`6 Implement (G2)`); the step cells it prints are the ones it reads.
-Steps 4–6 of a feature run per task group of `tasks.md`, in table order. An orchestrator row of step 4 that says it
-skipped the step (`4 Skeleton skipped`: the plan adds no API after all) ends step 4 for its group, a row without a group
-for every group.
+Steps 4–6 of a feature run per task group of `tasks.md`, in table order; group `PM` (the Product Manager's and the
+Lead's tasks) runs none of them. An orchestrator row of step 4 that says it skipped the step (`4 Skeleton skipped`: the
+plan adds no API after all) ends step 4 for its group, a row without a group for every group; any orchestrator row of
+step 5 for the group (`5 Tests first skipped (G3)`) ends step 5 for it, one without a group only when it says it
+skipped, and an orchestrator coverage row of step 6 without a group (`6 Coverage gate (all groups)`) ends the coverage
+pass of every group. A group whose every task row names only documentation files (Markdown, READMEs) has no
+skeleton and no tests first: the Dev writes it in step 6.
 
 `--launch squad-<role> <mode>` prints that one launch — model, fresh or continued, the log command — for a launch the
 log cannot foresee (a CI failure or a review comment in step 11). `--stdin` reads the log from standard input after
-step 10 removed the work folder; `plan.md`, `spec.md` and `tasks.md` then come from the commit before that removal.
+step 10 removed the work folder; `plan.md`, `spec.md` and `tasks.md` then come from the commit before that removal, and
+so do the rows of `log.md` when the piped table starts at step 10 (a comment that links `log.md` holds only those).
 The work folder is matched against the folders under `specs/`; the script writes nothing.
 
 Usage, from anywhere inside the repository:
@@ -114,12 +119,14 @@ MODE_STEPS = {"spec": "2a Spec", "plan": "2 Plan", "revise": "2 Plan revise", "d
 STEP = re.compile(r"^\s*(\d+)([ab])?\b")
 GROUP = re.compile(r"\b(G\d+)\b")
 RESULT = re.compile(r"RESULT:\s*(DONE|NO CHANGE|ESCALATE|DECIDED|NOT APPROVED|APPROVED)", re.I)
-REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)|BLOCKING\s+(?P<blocking>\d+)"
-                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+))?|NON-BLOCKING\s+(?P<only>\d+))"
-                    r"(?:\s+on\s+`?(?P<sha>[0-9a-f]{7,40})\b)?", re.I)
+# A note in parentheses after a count (`1 major (N3 unsatisfiable), 5 minor (…)`), one level of nesting deep.
+NOTE = r"(?:\s*\((?:[^()]|\([^()]*\))*\))?"
+REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)|BLOCKING\s+(?P<blocking>\d+)" + NOTE +
+                    r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+)" + NOTE + r")?|NON-BLOCKING\s+(?P<only>\d+)"
+                    + NOTE + r")(?:\s+on\s+`?(?P<sha>[0-9a-f]{7,40})\b)?", re.I)
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
-OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major,\s*"
-                        r"(?P<minor>\d+)\s+minor)", re.I)
+OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major" + NOTE +
+                        r",\s*(?P<minor>\d+)\s+minor)", re.I)
 WAITS = re.compile(r"\bwaits? for\b|\bposted for agreement\b", re.I)
 APPROVED_ROW = re.compile(r"\bapproved\b", re.I)
 NOT_APPROVED = re.compile(r"\bnot approved\b", re.I)
@@ -664,19 +671,34 @@ def security_verdict(row):
 
 
 def groups(run):
-    """[(group, has a skeleton row)] of tasks.md in table order; one unnamed group for a bug fix."""
+    """[(group, has a skeleton row, documentation rows alone)] of tasks.md in table order, group `PM` left out (steps
+    4–6 launch no member for it); one unnamed group for a bug fix."""
+    check = plan_check()
     if not run.feature:
-        api = plan_check().signature_names(plan_check().signatures_section(run.plan or ""))
-        return [("", bool(api))]
-    found = {}
-    for header, rows in plan_check().tables(run.tasks or ""):
-        group, task = plan_check().column(header, "group"), plan_check().column(header, "task")
+        api = check.signature_names(check.signatures_section(run.plan or ""))
+        return [("", bool(api), False)]
+    found, no_code = {}, False
+    for name, task, files in task_rows(run.tasks):
+        if name == check.NO_CODE_GROUP:
+            no_code = True
+            continue
+        had_skeleton, all_docs = found.get(name, (False, True))
+        found[name] = (had_skeleton or bool(re.match(r"skeleton\b", task, re.I)),
+                       all_docs and files is not None and check.documentation_only(files))
+    if not found and no_code:
+        return []
+    return [(name, *state) for name, state in found.items()] or [("", False, False)]
+
+
+def task_rows(tasks):
+    """(group, task, files or None without a *Files* column) of every task row of tasks.md that names its group."""
+    check = plan_check()
+    for header, rows in check.tables(tasks or ""):
+        group, task, files = (check.column(header, name) for name in ("group", "task", "files"))
         for row in rows:
-            name = plan_check().cell_at(row, group)
-            if name:
-                skeleton = bool(re.match(r"skeleton\b", plan_check().cell_at(row, task), re.I))
-                found[name] = found.get(name, False) or skeleton
-    return list(found.items()) or [("", False)]
+            if check.cell_at(row, group):
+                yield (check.cell_at(row, group), check.cell_at(row, task),
+                       None if files is None else check.cell_at(row, files))
 
 
 def in_group(row, group):
@@ -694,14 +716,33 @@ def skeleton_skipped(run, group):
                for row in run.of(ORCHESTRATOR, {"4"}))
 
 
+def tests_first_ended(run, group):
+    """True when step 5 is over for the group: a Tester row of it, any orchestrator row of step 5 that names the group
+    (`5 Tests first skipped (G3)`), or one without a group that says it skipped."""
+    if group_rows(run, TESTER, "5", group):
+        return True
+    for row in run.of(ORCHESTRATOR, {"5"}):
+        tagged = GROUP.search(row.step)
+        if (tagged and in_group(row, group)) or (not tagged and re.search(r"\bskip", f"{row.step} {row.result}", re.I)):
+            return True
+    return False
+
+
+def coverage_ended(run, group):
+    """True when the group's coverage pass is over: a Tester row of step 6, or an orchestrator coverage row of step 6
+    that names the group or no group (`6 Coverage gate (all groups)`)."""
+    return bool(group_rows(run, TESTER, "6", group)) or any(
+        in_group(row, group) or not GROUP.search(row.step) for row in run.of(ORCHESTRATOR, {"6"}, word="coverage"))
+
+
 def code_steps(run):
     """Steps 4–6, per task group of a feature."""
     if run.base_tier not in ("trivial", "standard", "security", "tests") or run.plan is None:
         return None
     if run.code_free():
         return code_free_steps(run)
-    for group, skeleton in groups(run):
-        found = group_step(run, group, skeleton)
+    for group, skeleton, docs_only in groups(run):
+        found = group_step(run, group, skeleton, docs_only)
         if found:
             return found
     return documentation(run)
@@ -718,9 +759,11 @@ def code_free_steps(run):
     return None
 
 
-def group_step(run, group, skeleton):
+def group_step(run, group, skeleton, docs_only=False):
     tag = f" ({group})" if group else ""
     rows = "the group's task rows and spec.md" if group else "the plan"
+    if docs_only:
+        return documentation_group(run, group, tag)
     if run.base_tier in ("standard", "security"):
         if skeleton and not group_rows(run, DEV, "4", group) and not skeleton_skipped(run, group):
             return heading(f"step 4 — Skeleton{tag}") + launch(
@@ -729,11 +772,14 @@ def group_step(run, group, skeleton):
                 f"({rows})") + [
                 "  Not due when the plan states it adds no API (its *Signatures* names only private members): " +
                 orchestrator_log(run, f"4 Skeleton skipped{tag}", "skipped — <where the plan says it adds no API>").strip()]
-        if not group_rows(run, TESTER, "5", group):
+        if not tests_first_ended(run, group):
             return heading(f"step 5 — Tests first{tag}") + launch(
                 run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "
                 f"{BASE_HANDOVER}") + [THEN + "confirm yourself that the new tests compile and fail on the current "
-                                       "code; note the tests it hands back as deferred"]
+                                       "code; note the tests it hands back as deferred",
+                                       "  Not due when the group adds no production behaviour (a limit change that "
+                                       "was not due, say): " + orchestrator_log(
+                                           run, f"5 Tests first skipped{tag}", "skipped — <why>").strip()]
     if run.base_tier == "tests":
         if not group_rows(run, TESTER, "6", group):
             return heading(f"step 6 — the Tester writes the plan's tests{tag} (tier tests: no Dev)") + launch(
@@ -744,9 +790,20 @@ def group_step(run, group, skeleton):
         return heading(f"step 6 — Implement{tag}") + launch(
             run, DEV, "implement", f"6 Implement{tag}", f"{rows}, the test names (the deferred ones marked), "
             f"{BASE_HANDOVER}")
-    if not group_rows(run, TESTER, "6", group) and not group_rows(run, ORCHESTRATOR, "6", group, word="coverage"):
+    if not coverage_ended(run, group):
         return coverage_pass(run, tag, rows)
     return None
+
+
+def documentation_group(run, group, tag):
+    """A group of documentation rows alone: no skeleton, no tests first, no coverage pass; the Dev writes it, the
+    test documentation among it too (the Tester's draft, when the plan gives it the Tester)."""
+    if group_rows(run, DEV, "6", group) or group_rows(run, ORCHESTRATOR, "6", group, word="document"):
+        return None
+    return heading(f"step 6 — Documentation{tag} (the group names documentation files alone: no skeleton, no tests "
+                   "first)") + launch(
+        run, DEV, "implement", f"6 Documentation{tag}", "the group's task rows (squad-dev.md, *Documentation*), "
+        f"{BASE_HANDOVER}", rule=SAME)
 
 
 def coverage_pass(run, tag, rows):
@@ -1172,7 +1229,8 @@ def pull_request(run):
         lines.append("  Matrix: plan-check.py --matrix passes; fill in each result still to record")
     early = run.of(ORCHESTRATOR, {"7"}, word="draft")
     return heading("step 10 — Pull request") + lines + [
-        DO + "post the working record (the matrix, plan.md, log.md; a feature also spec.md and tasks.md) as one comment, "
+        DO + "post the working record (the matrix, plan.md, log.md; a feature also spec.md and tasks.md) as one comment "
+        "(a part too long for it as a permalink, the log table then from this row on: squad-issue step 10), "
         f"git rm -r specs/{run.name}/, scope-check.py --no-specs, commit \"Remove squad working record\", push, and "
         + ("update the early draft PR" if early else "open the PR as a draft (create-pr step 8, without its review loop)"),
         f"  Log (into the comment's log table): {LOG_TOOL} {run.name} \"10 Pull request\" Orchestrator \"<PR url>\" "
@@ -1247,7 +1305,7 @@ def launch_only(run, agent, mode):
 def read_log(options, root, name):
     """The log's raw rows and whether they come from standard input; None when the folder has no log."""
     if options.stdin:
-        return squad_log().parse_rows(sys.stdin.read()), True
+        return squad_log().parse_rows(squad_log().with_earlier_rows(root, name, sys.stdin.read())), True
     path = squad_log().resolve_log(root, name)
     if path is None:
         return None

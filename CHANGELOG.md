@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.3 — 2026-11-09
+
 - [Tools] `squad-next.py` counts a verbatim row's findings only by the Reviewer's bracketed tags (`[BLOCKING,
   verbatim]`, `[NON-BLOCKING, verbatim]`), so the word "blocking" in its prose clears nothing, and takes a Lead
   decision as ordering a fix only on `FIX:` in capitals with its colon, so "no FIX needed" or "do not fix now" starts

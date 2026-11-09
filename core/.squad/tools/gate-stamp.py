@@ -29,7 +29,8 @@ code*):
 - once step 10 removed the work folder, `scope-check.py` runs with `--no-specs`;
 - every tier: when the branch changes a file under `docs/decisions/` or `docs/areas/`, `decision-check.py` runs before
   `scope-check.py`, with `--require-history`: a released record it cannot check (a shallow clone, release tags not
-  fetched) fails it, and `git fetch --unshallow --tags` is the fix. A verbatim stamp runs it the same way.
+  fetched, a remote that cannot be asked) fails it, with the fix `decision-check.py` names. A verbatim stamp runs it
+  the same way.
 
 The tier is the *Tier* line of `plan.md`, or for `docs` and `patch` (no `plan.md`) what the Lead's first step-2 row
 names (`Tier: patch`, `tier docs`). Each gate's command is the first code span of its row in the *Commands* tables of

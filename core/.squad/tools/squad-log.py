@@ -1352,6 +1352,9 @@ def earlier_rows(root, folder, piped):
         return ""
     removed = removed_log(root, folder)
     if removed is None:
+        print(f"WARNING: the piped log table starts at step 10 or later, but no removed specs/{folder}/log.md was found "
+              "to read the earlier rows from (a shallow clone: git fetch --unshallow; or another folder name): the "
+              "steps before it are missing", file=sys.stderr)
         return ""
     return "".join(f"{line.strip()}\n" for line in removed.splitlines() if parse_rows(line))
 

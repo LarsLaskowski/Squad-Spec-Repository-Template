@@ -331,6 +331,9 @@ class TestSquadLog(unittest.TestCase):
                     "--seconds", "30", text=early + comment.splitlines(True)[-1])
         self.assertEqual(whole.returncode, 0, whole.stderr)
         self.assertEqual(whole.stdout.count("1 Intake"), 1, "a table that holds the whole log gets nothing added")
+        other = subprocess.run([sys.executable, script, "issue-2", "--summary", "--stdin"], cwd=root, input=comment,
+                               capture_output=True, text=True, check=False)
+        self.assertIn("no removed specs/issue-2/log.md was found", other.stderr)
 
     def test_continuation_at_another_step_warns_unless_it_names_its_round(self):
         root = os.path.join(self.dir.name, "repo")

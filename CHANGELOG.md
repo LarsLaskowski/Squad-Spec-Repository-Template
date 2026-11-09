@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` profile's *Writing code* names the analyzer rules that refuse a planned name, S2344 and
+  Reihitsu's RH2101–RH2108 for nested types of any visibility, instead of CA1034 and CA1724, which no target's
+  analysis level reports (#287)
+
 ## v2026.11.3 — 2026-11-09
 
 - [Tools] `squad-next.py` counts a verbatim row's findings only by the Reviewer's bracketed tags (`[BLOCKING,

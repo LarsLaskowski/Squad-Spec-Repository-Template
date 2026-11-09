@@ -99,6 +99,14 @@ class TestOwnership(GuardTestCase):
         self.assert_denied("squad-tester", "src/App/README.md", "README.md", "docs/areas/tests.md", PROJECT_MD,
                            "tests/App.Tests/Fixtures/notes.txt")
 
+    def test_the_test_paths_directory_is_matched_as_a_pattern(self):
+        pathspecs = ["src/**/*.Tests/*.cs", ":!src/**/Generated/*"]
+        self.assertTrue(self.hook.test_document("src/App.Tests/Fixtures/README.md", pathspecs))
+        self.assertTrue(self.hook.test_document("src/a/b/App.Tests/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("src/App/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("src/App.Tests/Generated/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("README.md", ["*_test.go"]))
+
     def test_a_squad_file_of_the_tester_goes_to_the_orchestrator(self):
         self.assertIn(".squad/project.md (*Test doubles*): report the rows verbatim", self.reason("squad-tester",
                                                                                                     "docs/a.md"))

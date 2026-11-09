@@ -15,8 +15,9 @@ tree. It reads the hook input JSON from stdin and denies, by `agent_type`:
 - `squad-tester`: a file outside the test paths, the Markdown files under their directories (a fixture README) and
   `docs/UNIT_TESTS.md`. The test paths are `COVERAGE_TEST_PATHSPECS` in `.squad/tools/squad_settings.py`, by default
   its `COVERAGE_EXCLUDES` (as `coverage-check.py` reads them), matched as Git pathspecs: a path, a directory, or a
-  wildcard whose `*` also matches `/`, with `:(exclude)` / `:!` exclusions; a test path's directory is the part of an
-  inclusion before its first wildcard, up to its last `/` (`tests/` of `tests/*.cs`; `*_test.go` names none);
+  wildcard whose `*` also matches `/`, with `:(exclude)` / `:!` exclusions; a test path's directory is an inclusion
+  up to its last `/`, matched against the folders above the file (`tests` of `tests/*.cs`, `src/**/*.Tests` of
+  `src/**/*.Tests/*.cs`; `*_test.go` names none);
 - `squad-devils-advocate`, `squad-security` and `squad-reviewer`: every file (they are read-only).
 
 `squad-dev`, `squad-code-officer` and any other `squad-*` agent write everything else. A denied call answers
@@ -111,17 +112,20 @@ def is_test_path(rel, pathspecs):
 
 def test_document(rel, pathspecs):
     """Whether `rel` is a Markdown file under the directory of an included test path (a fixture README under
-    `tests/` for `tests/*.cs`); an inclusion without a directory before its first wildcard (`*_test.go`) gives none,
-    and an exclusion that matches the file wins."""
+    `tests/` for `tests/*.cs`, under `src/App.Tests/` for `src/**/*.Tests/*.cs`); an inclusion without a directory
+    (`*_test.go`) gives none, and an exclusion that matches the file wins."""
     if not rel.lower().endswith(".md"):
         return False
     parsed = [split_magic(pathspec) for pathspec in pathspecs]
     if any(pathspec_matches(rel, pattern) for magic, pattern in parsed if "exclude" in magic):
         return False
+    parents = [rel.rsplit("/", depth)[0] for depth in range(1, rel.count("/") + 1)]
     for magic, pattern in parsed:
-        literal = pattern.removeprefix("./").split("*", 1)[0].split("?", 1)[0].split("[", 1)[0]
-        directory = literal.rsplit("/", 1)[0] + "/" if "/" in literal else ""
-        if "exclude" not in magic and directory and rel.startswith(directory):
+        pattern = pattern.removeprefix("./").rstrip("/")
+        directory = pattern.rsplit("/", 1)[0] if "/" in pattern else ""
+        if "exclude" not in magic and directory and any(
+                fnmatch.fnmatchcase(parent, variant) for parent in parents
+                for variant in {directory, directory.replace("**/", "")}):
             return True
     return False
 

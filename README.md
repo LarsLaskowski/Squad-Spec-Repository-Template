@@ -14,8 +14,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   [`core/.squad/orchestration.md`](core/.squad/orchestration.md). Two `PreToolUse` hooks in `.claude/settings.json`
   keep the members (every `squad-*` agent) to their part: `.claude/hooks/git-guard.py` denies them Git and GitHub
   writes, so only the orchestrating session commits, pushes and posts, and `.claude/hooks/file-guard.py` denies a
-  Write or Edit outside the files a member owns (the Lead `specs/` and `docs/decisions/`, the Tester the test paths
-  and `docs/UNIT_TESTS.md`, no member `.git/`, `.claude/` or `.squad/`). Both prevent accidents; they are no
+  Write or Edit outside the files a member owns (the Lead `specs/` and `docs/decisions/`, the Tester the test paths,
+  the Markdown files under their directories and `docs/UNIT_TESTS.md`, no member `.git/`, `.claude/` or `.squad/`). Both prevent accidents; they are no
   security boundary.
 - **One rule set for every AI coding agent** — `AGENTS.md` holds the rules, which Codex, Kimi Code and GitHub
   Copilot's coding agent read directly; the squad itself needs Claude Code (*What depends on Claude Code* below).
@@ -30,7 +30,7 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
 - **Decision records with a release boundary** — records are edited in place until a `v*` tag contains them,
   then they are append-only (superseded by a new record); a record is added only for a decision with lasting
   weight, one record per decision, and state only the *why*: what holds today is written once in an area document
-  (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`) enforces consistency and the
+  (`docs/areas/<area>.md`, indexed in `docs/areas/README.md`) that the same PR keeps current. `decision-check.py` (run by `config-check.py`, and by `gate-stamp.py` with the history required when a branch changes a record or an area document) enforces consistency and the
   freeze and warns about a record or area document past its size limit; the `decision-consolidate` skill folds
   unreleased chains into one record.
 - **Quality gates before the PR** — *Format*, *Analyzer gate* (no diagnostic of any severity in a changed

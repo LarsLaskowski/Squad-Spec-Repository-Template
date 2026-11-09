@@ -314,6 +314,131 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 5 — Tests first (G1)", self.next())
 
 
+    def feature(self, tasks):
+        """A feature through the plan (no challenge) with the given tasks.md."""
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.write("specs/feature-7-export/plan.md", feature_plan())
+        self.repo.write("specs/feature-7-export/tasks.md", tasks)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("2b Plan", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2b Challenge skipped", "Orchestrator", "challenge skipped — one option"))
+
+    def group_one_done(self):
+        self.repo.log(row("4 Skeleton (G1)", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first (G1)", "Tester", "red", 30000, "sonnet/medium"),
+                      row("6 Implement (G1)", "Dev", "green", 30000, "sonnet/medium"),
+                      row("6 Coverage skipped (G1)", "Orchestrator", "passes"))
+
+    def test_an_orchestrator_row_of_step_5_ends_tests_first_for_its_group(self):
+        self.feature(TASKS)
+        self.group_one_done()
+        self.repo.log(row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"))
+        out = self.next()
+        self.assertIn("Next: step 5 — Tests first (G2)", out)
+        self.assertIn('"5 Tests first skipped (G2)" Orchestrator', out, "the skip row is offered")
+        self.repo.log(row("5 Tests first (G2)", "Orchestrator", "Tester launch denied, relaunching"))
+        self.assertIn("Next: step 5 — Tests first (G2)", self.next(), "a row that does not say it skipped ends nothing")
+        self.repo.log(row("5 Tests first (G2)", "Orchestrator", "skipped — G2 adds no production behaviour"))
+        self.assertIn("Next: step 6 — Implement (G2)", self.next(), "an orchestrator skip row of step 5 ends it")
+
+    def test_a_skip_row_of_step_5_without_a_group_ends_it_for_every_group(self):
+        self.feature(TASKS)
+        self.repo.log(row("4 Skeleton skipped", "Orchestrator", "the plan adds no API"),
+                      row("5 Tests first skipped", "Orchestrator", "skipped — documentation only"))
+        self.assertIn("Next: step 6 — Implement (G1)", self.next())
+
+    def test_a_coverage_row_without_a_group_ends_the_coverage_pass_of_every_group(self):
+        self.feature(TASKS)
+        self.group_one_done()
+        self.repo.log(row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"),
+                      row("5 Tests first (G2)", "Tester", "red", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement (G2)", "Dev", "green", 9000, "sonnet/medium", continued="6 Implement (G1)"))
+        self.assertIn("Next: step 6 — Coverage (G2)", self.next())
+        self.repo.log(row("6 Coverage gate (all groups)", "Orchestrator", "PASS"))
+        self.assertNotIn("Coverage (G2)", self.next())
+
+    def test_a_coverage_row_without_a_group_before_a_groups_implementation_leaves_its_pass_due(self):
+        self.feature(TASKS)
+        self.group_one_done()
+        self.repo.log(row("6 Coverage gate", "Orchestrator", "PASS"),
+                      row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"),
+                      row("5 Tests first (G2)", "Tester", "red", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement (G2)", "Dev", "green", 9000, "sonnet/medium", continued="6 Implement (G1)"))
+        self.assertIn("Next: step 6 — Coverage (G2)", self.next())
+
+    def test_a_documentation_group_needs_no_skeleton_and_no_tests_first(self):
+        self.feature(TASKS + "| 5 | G3 | Area document | `docs/areas/export.md` | AC1 | 4 | Dev | [ ] |\n"
+                     "| 6 | G3 | Test doubles | `tests/fixtures/README.md` | AC2 | 4 | Tester | [ ] |\n")
+        self.group_one_done()
+        self.repo.log(row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"),
+                      row("5 Tests first (G2)", "Tester", "red", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement (G2)", "Dev", "green", 9000, "sonnet/medium", continued="6 Implement (G1)"),
+                      row("6 Coverage skipped (G2)", "Orchestrator", "passes"))
+        out = self.next()
+        self.assertIn("Next: step 6 — Documentation (G3)", out)
+        self.assertNotIn("Tests first (G3)", out)
+        self.repo.log(row("6 Documentation (G3)", "Dev", "written", 9000, "sonnet/medium", continued=True))
+        out = self.next()
+        self.assertIn("Launch: squad-tester, mode coverage", out, "the Tester writes the group's test documentation")
+        self.assertIn('"6 Test documentation (G3)"', out)
+        self.repo.log(row("6 Test documentation (G3)", "Tester", "written", 9000, "sonnet/medium"))
+        self.assertNotIn("Next: step 6 — Documentation (G3)", self.next(), "the group is done after both rows")
+
+    def test_a_note_in_parentheses_naming_code_keeps_a_group_out_of_documentation(self):
+        self.feature(TASKS + "| 5 | G3 | Setting | `README.md` (read in `src/Settings.py`) | AC1 | 4 | Dev | [ ] |\n")
+        self.assertFalse(self.tool.documentation_cell("`README.md` (read in `src/Settings.py`)"))
+        self.assertTrue(self.tool.documentation_cell("`docs/areas/a.md`, `tests/Fixtures/README.md`"))
+
+    def test_the_pm_group_runs_no_member(self):
+        self.feature(TASKS.replace("| 1 | G1 |", "| 0 | PM | Layout probe | `specs/x/log.md` | AC1 | — | "
+                                   "Product Manager | [ ] |\n| 1 | G1 |"))
+        out = self.next()
+        self.assertIn("Next: step 4 — Skeleton (G1)", out)
+        self.assertNotIn("(PM)", out)
+
+
+class TestVerdictLines(NextTest):
+    def test_objections_with_notes_in_parentheses_are_counted(self):
+        tool = self.tool
+        line = ("VERDICT: OBJECTIONS 1 major (N3/AC3 unsatisfiable: small integers, delta (sum) relations), 5 minor "
+                "(E8 vs N4/AC7, time shift bounds)")
+        self.assertEqual(tool.objections(tool.Row(0, "2a Spec challenge", "2a", tool.ADVOCATE, line)), (1, 5))
+        self.assertIsNone(tool.verdict_problem(tool.ADVOCATE, line))
+
+    def test_review_counts_with_notes_in_parentheses_are_counted(self):
+        tool = self.tool
+        line = "VERDICT: BLOCKING 2 (S1, S2) | NON-BLOCKING 1 (wording) on 0123456789abcdef"
+        found = tool.REVIEW.search(line)
+        self.assertEqual((found.group("blocking"), found.group("nonblocking"), found.group("sha")),
+                         ("2", "1", "0123456789abcdef"))
+
+    def test_an_approval_with_a_note_keeps_its_sha_and_a_cut_short_line_is_named(self):
+        tool = self.tool
+        self.assertEqual(tool.REVIEW.search("VERDICT: APPROVE (no findings) on 0123456789abcdef").group("sha"),
+                         "0123456789abcdef")
+        cut = "VERDICT: BLOCKING 0 (a (b (c))) | NON-BLOCKING 2 on 0123456789abcdef"
+        self.assertIsNotNone(tool.verdict_problem(tool.REVIEWER, cut), "a line read only in part is named")
+        self.assertIsNone(tool.verdict_problem(tool.REVIEWER, "VERDICT: BLOCKING 1 | NON-BLOCKING 0 on 0123456789ab"))
+
+    def test_a_spec_challenge_with_notes_moves_on_to_the_lead_revision(self):
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 1 major (N3 unsatisfiable), "
+                          "5 minor (E8 vs N4, AC7 name match)", 9000))
+        out = self.next()
+        self.assertIn("Next: step 2a — a major spec objection", out)
+        self.repo.log(row("2a Spec challenge (revise)", "Lead", "RESULT: DONE — all objections answered", 9000,
+                          continued=True))
+        self.assertNotIn("step 2a", self.next())
+
+
 class TestReviewAndAfter(NextTest):
     def test_the_review_set_follows_the_tier_and_a_round_follows_a_stamp(self):
         self.implemented()

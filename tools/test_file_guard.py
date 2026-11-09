@@ -94,6 +94,23 @@ class TestOwnership(GuardTestCase):
                            "tests/App.Tests/Data/sample.json", "README.md", "docs/ARCHITECTURE.md", "specs/x/plan.md",
                            "src/tests/A.cs")
 
+    def test_the_tester_writes_markdown_under_the_test_paths_directory(self):
+        self.assert_allowed("squad-tester", "tests/App.Tests/Fixtures/README.md", "tests/README.md")
+        self.assert_denied("squad-tester", "src/App/README.md", "README.md", "docs/areas/tests.md", PROJECT_MD,
+                           "tests/App.Tests/Fixtures/notes.txt")
+
+    def test_the_test_paths_directory_is_matched_as_a_pattern(self):
+        pathspecs = ["src/**/*.Tests/*.cs", ":!src/**/Generated/*"]
+        self.assertTrue(self.hook.test_document("src/App.Tests/Fixtures/README.md", pathspecs))
+        self.assertTrue(self.hook.test_document("src/a/b/App.Tests/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("src/App/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("src/App.Tests/Generated/README.md", pathspecs))
+        self.assertFalse(self.hook.test_document("README.md", ["*_test.go"]))
+
+    def test_a_squad_file_of_the_tester_goes_to_the_orchestrator(self):
+        self.assertIn(".squad/project.md (*Test doubles*): report the rows verbatim", self.reason("squad-tester",
+                                                                                                    "docs/a.md"))
+
     def test_the_tester_is_told_where_test_files_go(self):
         reason = self.reason("squad-tester", "src/App/Service.cs")
         self.assertIn("tests/*.cs", reason)
@@ -159,7 +176,8 @@ class TestGoTestPaths(GuardTestCase):
 
     def test_the_coverage_excludes_are_the_test_paths(self):
         self.assert_allowed("squad-tester", "internal/store/store_test.go", "main_test.go", TEST_DOCUMENT)
-        self.assert_denied("squad-tester", "internal/store/store.go", "internal/store/testdata/a.json")
+        self.assert_denied("squad-tester", "internal/store/store.go", "internal/store/testdata/a.json",
+                           "internal/store/README.md", "README.md")
 
 
 class TestUnreadableSettings(GuardTestCase):

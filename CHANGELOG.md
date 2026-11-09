@@ -16,6 +16,28 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Tools] `plan-check.py` leaves out only a *Signatures* line that states its member is deleted ("Deleted:", "is
   removed"), so a new member whose description says it "removes" something is still a planned signature; the usage
   examples of `squad-log.py` log a Reviewer verdict line it can read (#282)
+- [Tools] `squad-next.py` moves on after an Orchestrator row that skips step 5 for a task group (`5 Tests first skipped
+  (G4)`, or one without a group), takes an Orchestrator coverage row without a group as the coverage pass of every
+  group implemented before it, and sends a group of documentation rows alone to the Dev's and the Tester's
+  documentation launches, without skeleton, tests first and coverage pass (#284)
+- [Tools] `squad-log.py` turns its warning for a continuation of another task group's agent of the same mode into a
+  note that names the `--continued-from` step to log instead (#284)
+- [Tools] Group `PM` in `tasks.md` holds the tasks of the Product Manager and the Lead alone: `plan-check.py` lets its
+  rows stand anywhere in the table and needs no skeleton row for it, and `squad-next.py` runs no member for it (#285)
+- [Tools] A working-record comment too long for the whole log links `log.md` and starts its log table at step 10:
+  `squad-log.py` and `squad-next.py` with `--stdin` read the earlier rows from the commit before the folder's
+  removal, and warn when they find none (#286)
+- [Core] The Lead checks every new name in *Signatures* against the analyzer's naming rules before step 4; the
+  `dotnet` profile's *Writing code* lists the rules a skeleton has hit (S2344, CA1034, CA1724) (#287)
+- [Core] The Tester writes Markdown files under the directories of the test paths (a fixture README); an edit under
+  `.squad/` the plan lists (*Test doubles* in `.squad/project.md`) is the orchestrator's, written verbatim from the
+  member's text (#288)
+- [Tools] `squad-next.py` reads a verdict line whose counts carry notes in parentheses (`OBJECTIONS 1 major (…), 5
+  minor (…)`, `BLOCKING 2 (…) | NON-BLOCKING 1 (…)`, `APPROVE (…) on <sha>`) instead of stalling on it, and
+  `squad-log.py` names a Reviewer line it can read only in part (#289)
+- [Tools] `gate-stamp.py` runs `decision-check.py --require-history` whenever the branch changes a decision record or
+  an area document: a released record a shallow clone cannot check fails the gate instead of passing with a warning
+  (#290)
 
 ## v2026.11.2 — 2026-11-08
 

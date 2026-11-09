@@ -271,6 +271,12 @@ class TestSonarRules(unittest.TestCase):
         for pattern in (r"^ {2}([a-z]+):", r"a b", r"[ ]{2}", r"[  ]x"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\n"), [], pattern)
 
+    def test_a_not_of_a_comparison_is_reported(self):
+        for expression in ("not a <= b", "not a == b", "not a is b", "not (a > b)"):
+            self.assertEqual(self.rules(f"x = {expression}\n"), ["python:S1940"], expression)
+        for expression in ("not a", "not a < b < c", "not f(a <= b)", "a - b"):
+            self.assertEqual(self.rules(f"x = {expression}\n"), [], expression)
+
     def test_an_assertion_with_a_more_specific_one_is_reported(self):
         for call in ("self.assertTrue(a == b)", "self.assertFalse(a in b)", "self.assertTrue(a < b)",
                      "self.assertTrue(isinstance(a, int))", "self.assertEqual(a, None)", "self.assertIsNot(None, a)",

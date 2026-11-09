@@ -471,7 +471,7 @@ def owners(text):
 def check_no_code_row(row, owner, errors):
     """A row of group `PM` is owned by the Product Manager or the Lead alone: steps 4–6 launch no member for it."""
     names = owners(cell_at(row, owner))
-    if not names or not names <= NO_CODE_OWNERS:
+    if not names or names - NO_CODE_OWNERS:
         errors.append(f"tasks.md: row {row[0]} of group {NO_CODE_GROUP} is owned by {cell_at(row, owner) or 'no one'}: "
                       "that group holds only tasks of the Product Manager and the Lead, which steps 4–6 skip")
 

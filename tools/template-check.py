@@ -43,7 +43,7 @@ Checks, without arguments:
   arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
   followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
   starts with an unbounded repetition and goes on with something that can fail, a regex more complex than 20, a
-  non-capturing group without alternation or quantifier);
+  non-capturing group without alternation or quantifier, a `not` of a single comparison);
   `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
   `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
@@ -137,11 +137,14 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
+SONAR_RULES = ["python:S1192", "python:S1940", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
                "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786",
                "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
+# python:S1940: `not` of a single comparison, which the opposite operator states directly (for sets, where `not a <= b`
+# is no `a > b`, a difference or another form).
+INVERTED_COMPARISONS = (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
 TRUTH_ASSERTS = {"assertTrue": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn),
                  "assertFalse": (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)}
 VALUE_ASSERTS = ("assertEqual", "assertNotEqual", "assertIs", "assertIsNot", "assertAlmostEqual", "assertNotAlmostEqual")
@@ -1225,7 +1228,7 @@ def check_consumer(entry, profiles, seen, errors):
         errors.append(f"consumers.json: {name} is listed twice")
     seen.add(name)
     listed = entry.get("profiles")
-    if not isinstance(listed, list) or not listed or not set(listed) <= set(profiles):
+    if not isinstance(listed, list) or not listed or set(listed) - set(profiles):
         errors.append(f"consumers.json: {name} needs 'profiles', a list of {', '.join(profiles)}")
     if entry.get("sonar") is not None and not re.fullmatch(r"[\w.:-]+", str(entry.get("sonar"))):
         errors.append(f"consumers.json: {name} has an invalid 'sonar' project key")
@@ -1707,12 +1710,21 @@ def specific_assertions(tree):
             and needs_specific_assertion(node.func.attr, node.args)]
 
 
+def inverted_comparisons(tree):
+    """python:S1940: `not a <= b` and the like: the opposite operator says it without the inversion."""
+    return [(node.lineno, "python:S1940", "a `not` of a comparison: use the opposite operator (or, for sets, another form)")
+            for node in ast.walk(tree)
+            if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not) and isinstance(node.operand, ast.Compare)
+            and len(node.operand.ops) == 1 and isinstance(node.operand.ops[0], INVERTED_COMPARISONS)]
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
-        + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree)
+        + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree) \
+        + inverted_comparisons(tree)
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

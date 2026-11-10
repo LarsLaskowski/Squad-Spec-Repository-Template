@@ -216,7 +216,9 @@ is merged here, the product repository adopts it with `adopt-template`.
    a removed file; it lists the seeded files changed since each target's recorded commit. One `squad-reviewer` pass
    reviews the release diff since the last tag. A release pull request (`python3 tools/release.py prepare`) turns
    *Unreleased* into the next version, with a `[Seed]` line naming the changed seeded files, and after its merge the
-   owner tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
+   owner creates the release on GitHub with the tag `vYYYY.MM.N` on that merge commit (or, with Python, `python3
+   tools/release.py tag`; `AGENTS.md`, *Releases*). Before the rollout, check that the tag points at the release pull
+   request's merge commit: `git fetch origin --tags`, then `git rev-parse vYYYY.MM.N^{commit}`.
 3. In each `active` repository of `consumers.json`, run `adopt-template` as a refresh from a checkout of the release
    tag: it re-applies the template, records the tag in `.squad/template.json`, keeps every project block and seeded
    file, verifies the gates and opens one PR per repository (`[Docs] Update the squad from

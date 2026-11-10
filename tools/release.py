@@ -9,7 +9,9 @@ release, newest first, headed `## vYYYY.MM.N — YYYY-MM-DD` (N counts the relea
     python3 tools/release.py prepare [--date D]  # on a release branch: Unreleased becomes the next version
     python3 tools/release.py tag [--create]      # on main, after the release PR's merge: the tag of its section
 
-`prepare` rewrites `CHANGELOG.md` only and prints the version; the release pull request carries the change. When the
+The owner normally creates the release and its tag on GitHub's web page (`AGENTS.md`, *Releases*); `tag` is the
+local alternative. `prepare` rewrites `CHANGELOG.md` only and prints the version; the release pull request carries the
+change. When the
 release changes a seeded file (`seed/`, `decision-seeds/`, `profiles/<profile>/seed/`) since the last tag, the new
 section ends with a `[Seed]` line naming them: existing targets keep their own copy, so the refresh carries those
 changes over by hand (`adopt-template` step 1). Before `prepare`, `tools/rollout-check.py` rehearses the rollout on
@@ -186,7 +188,8 @@ def prepare_command(date, root=ROOT):
     with open(os.path.join(root, CHANGELOG), "w", encoding="utf-8") as handle:
         handle.write(prepare(text, version, date, seed_changes(root)))
     print(f"{CHANGELOG}: '{UNRELEASED}' became {version} — {date.isoformat()}. Open the release pull request "
-          f"('[Docs] Release {version}'); after its merge, run 'python3 tools/release.py tag' on main.")
+          f"('[Docs] Release {version}'); after its merge, create the release {version} on GitHub at the merge "
+          f"commit (or run 'python3 tools/release.py tag' on main).")
     return 0
 
 

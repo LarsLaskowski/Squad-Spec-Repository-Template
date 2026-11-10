@@ -57,7 +57,7 @@ record status of step 9 (`.squad/routing.md`, *PR approval*): *Format
 check*, `decision-check.py` and `scope-check.py` only, marked `(tier <tier>, verbatim)`; it is refused unless the last
 stamp of the full gates passed and HEAD differs from it only in Markdown files and `docs/` (any other file only in
 whitespace at the end of its lines or blank lines at its end: a `git diff --check` fix; a changed line ending or final
-newline is none), and `--verify` accepts it on
+newline, mode or file type is none), and `--verify` accepts it on
 the same terms. A review round belongs to the full stamp before it, so a verbatim fix needs no new round.
 
 `--dry-run` prints the gates and their commands without running them. `--stdin` reads the log from standard input
@@ -544,6 +544,13 @@ def blob(root, sha, path):
     return done.stdout if done.returncode == 0 else None
 
 
+def tree_entry(root, sha, path):
+    """The mode and type of `path` at `sha` (`git ls-tree`), or None when the commit has no such file."""
+    code, out = git(root, "ls-tree", sha, "--", path)
+    fields = out.split(None, 2)
+    return tuple(fields[:2]) if code == 0 and len(fields) == 3 else None
+
+
 def whitespace_normal(data):
     """`data` without spaces and tabs before a line end and without blank lines at its end; line endings (`\r`) and
     the final newline are kept, so a conversion of either is no whitespace fix."""
@@ -558,7 +565,10 @@ def whitespace_normal(data):
 
 def whitespace_fix(root, old, new, path):
     """True when `path` differs between `old` and `new` only in spaces and tabs at the end of its lines or in blank
-    lines at its end (what `git diff --check` reports); a changed line ending or final newline is no such fix."""
+    lines at its end (what `git diff --check` reports); a changed line ending, final newline, mode or file type is no
+    such fix."""
+    if tree_entry(root, old, path) != tree_entry(root, new, path):
+        return False  # a changed mode or file type (the exec bit, a symlink) is no whitespace fix
     before, after = blob(root, old, path), blob(root, new, path)
     if before is None or after is None:
         return False

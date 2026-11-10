@@ -39,12 +39,18 @@ The targets receive the template by release, so every squad run can be traced to
 - A pull request that changes what the targets receive (`core/`, `profiles/`, `multi/`, `seed/`, `decision-seeds/`,
   `tools/apply-template.py`) adds one line under `## Unreleased` in `CHANGELOG.md`: `- [Area] what changes for the
   targets (#issue)`. `template-check.py` fails without it.
+- A rule text that states how an outside tool behaves (an analyzer rule id, a CLI option, a version) carries its
+  evidence in the pull request: the output of that tool in a consumer's build or a probe with the consumers' versions.
 - Releases are batched, normally once a week, sooner for an urgent defect. Before a release, `python3
   tools/sonar-local.py` runs SonarSource's open Python analyzer with the `python:` rules of the consumers' quality
   profile over every Python file a target receives and over `tools/` (Java 17+, network to Maven Central and
   sonarcloud.io); it must pass, and a finding is fixed in a pull request of its own first, its rule added to
   `SONAR_RULES` where `template-check.py` can detect it. SonarQube Cloud's pull request analysis can miss what the
-  analysis of `main` reports after the merge. A release pull request (`[Docs] Release vYYYY.MM.N`) made with
+  analysis of `main` reports after the merge. Then the release is rehearsed, so a refresh never stops on what the
+  release brought: `python3 tools/rollout-check.py` applies `main` to a scratch copy of every `active` consumer and
+  must pass; one `squad-reviewer` pass (the charter `core/.claude/agents/squad-reviewer.md`, the review every refresh
+  runs) reviews `git diff <last tag>..origin/main` over what the targets receive; a finding of either is fixed in a pull
+  request of its own first. A release pull request (`[Docs] Release vYYYY.MM.N`) made with
   `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
   squash merge, `python3 tools/release.py tag` checks the checkout of `main` and prints the commands for the annotated
   tag on that merge commit; the tag is created and pushed only with the owner's explicit approval (*Golden rules*).

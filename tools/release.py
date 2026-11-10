@@ -9,7 +9,11 @@ release, newest first, headed `## vYYYY.MM.N — YYYY-MM-DD` (N counts the relea
     python3 tools/release.py prepare [--date D]  # on a release branch: Unreleased becomes the next version
     python3 tools/release.py tag [--create]      # on main, after the release PR's merge: the tag of its section
 
-`prepare` rewrites `CHANGELOG.md` only and prints the version; the release pull request carries the change. `tag`
+`prepare` rewrites `CHANGELOG.md` only and prints the version; the release pull request carries the change. When the
+release changes a seeded file (`seed/`, `decision-seeds/`, `profiles/<profile>/seed/`) since the last tag, the new
+section ends with a `[Seed]` line naming them: existing targets keep their own copy, so the refresh carries those
+changes over by hand (`adopt-template` step 1). Before `prepare`, `tools/rollout-check.py` rehearses the rollout on
+every active consumer (`AGENTS.md`, *Releases*). `tag`
 checks that the checkout is `origin/main` and that the newest version section has no tag yet, locally or on
 `origin`, and prints the commands that set the annotated tag on that commit and push it; with `--create` it creates
 the tag locally and prints the push command. A tag is created only with the owner's explicit approval (`AGENTS.md`,
@@ -31,6 +35,7 @@ VERSION = re.compile(r"v(\d{4})\.(\d{2})\.(\d+)")
 HEADING = re.compile(r"^## (?:(Unreleased)|(v\d{4}\.\d{2}\.\d+) — (\d{4}-\d{2}-\d{2}))[ \t]*$")
 ENTRY = re.compile(r"^- \S")
 REMOTE_TIMEOUT = 20
+SEED_PATHS = ("seed", "decision-seeds", "profiles/*/seed")
 
 
 def sections(text):
@@ -113,13 +118,16 @@ def next_version(text, tags, date):
     return f"v{date.year}.{date.month:02d}.{max(counts, default=0) + 1}"
 
 
-def prepare(text, version, date):
-    """The changelog with the `## Unreleased` entries moved into a new section of `version`; an empty
-    `## Unreleased` stays on top."""
+def prepare(text, version, date, seeds=()):
+    """The changelog with the `## Unreleased` entries moved into a new section of `version`, ending with a `[Seed]`
+    line when `seeds` names changed seeded files; an empty `## Unreleased` stays on top."""
     lines = text.splitlines()
     start = next(i for i, line in enumerate(lines) if line.strip() == UNRELEASED)
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
     body = "\n".join(lines[start + 1:end]).strip("\n")
+    if seeds:
+        body += ("\n- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these "
+                 "changes over by hand: " + ", ".join(f"`{path}`" for path in seeds))
     head = "\n".join(lines[:start]).rstrip("\n")
     rest = "\n".join(lines[end:]).strip("\n")
     parts = [head, UNRELEASED, f"## {version} — {date.isoformat()}\n\n{body}"] + ([rest] if rest else [])
@@ -145,6 +153,16 @@ def remote_has_tag(tag, root=ROOT):
     return bool(result.stdout.strip()) if result.returncode == 0 else None
 
 
+def seed_changes(root=ROOT):
+    """The seeded files HEAD changes against the newest release tag (none before the first release)."""
+    tags = sorted((tag for tag in local_tags(root) if VERSION.fullmatch(tag)), key=version_key)
+    if not tags:
+        return []
+    out = git("-c", "core.quotePath=false", "diff", "--name-only", tags[-1], "HEAD", "--",
+              *(f":(glob){path}/**" for path in SEED_PATHS), root=root).stdout
+    return sorted(line for line in out.splitlines() if line)
+
+
 def read_changelog(root=ROOT):
     with open(os.path.join(root, CHANGELOG), encoding="utf-8") as handle:
         return handle.read()
@@ -166,7 +184,7 @@ def prepare_command(date, root=ROOT):
         return 1
     version = next_version(text, local_tags(root), date)
     with open(os.path.join(root, CHANGELOG), "w", encoding="utf-8") as handle:
-        handle.write(prepare(text, version, date))
+        handle.write(prepare(text, version, date, seed_changes(root)))
     print(f"{CHANGELOG}: '{UNRELEASED}' became {version} — {date.isoformat()}. Open the release pull request "
           f"('[Docs] Release {version}'); after its merge, run 'python3 tools/release.py tag' on main.")
     return 0

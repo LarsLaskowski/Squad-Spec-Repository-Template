@@ -250,6 +250,11 @@ class TestGatePlanning(unittest.TestCase):
                          "figure-check.py only when a file is neither documentation nor a test")
         self.assertEqual(tool.due_gates("trivial", plan_text(code_free=True), {"lint"})[0], full[:3],
                          "a plan without production or test code drops the Coverage gate")
+        self.assertEqual(tool.due_gates("trivial", plan_text(code_free=True), {"documentation"}),
+                         (["Format check"], [], False, False),
+                         "a branch of Markdown files only is neither built, analysed nor tested (Vandox#404)")
+        self.assertEqual(tool.due_gates("standard", plan_text(), {"documentation", "data"})[0], full,
+                         "any other file keeps the full gates")
         self.assertEqual(tool.due_gates("docs", None, {"documentation"}), (["Format check"], ["--tier", "docs"],
                                                                          False, False))
         self.assertEqual(tool.due_gates("tests", plan_text(), {"test"})[:2],
@@ -395,6 +400,21 @@ class TestGateStamp(RepoTest):
         self.assertEqual(code, 0, out)
         self.assertIn("decision-check.py: `python3 .squad/tools/decision-check.py --require-history`", out)
 
+    def test_a_shallow_clone_is_refused_before_a_gate_runs_when_records_are_checked(self):
+        self.repo.write("docs/areas/storage.md", "# Storage\n")
+        self.repo.commit("area document")
+        self.tool.shallow = lambda root: True
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 1)
+        self.assertIn("git fetch --unshallow --tags origin", out)
+        self.assertNotIn("$ echo format-check", out, "no gate runs before the refusal")
+        self.assertEqual(self.stamp("--dry-run")[0], 0, "a dry run only lists the gates")
+
+    def test_a_shallow_clone_without_a_record_change_is_stamped(self):
+        self.tool.shallow = lambda root: True
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 0, out)
+
     def test_after_step_10_the_stamp_reads_the_log_from_stdin(self):
         log = self.repo.read("specs/issue-5/log.md")
         self.repo.git("rm", "-q", "-r", "specs/issue-5")
@@ -420,6 +440,13 @@ class TestGateStamp(RepoTest):
         self.assertIn("(tier standard, verbatim): Format check pass; decision-check.py pass; scope-check.py pass", last)
         self.repo.commit("log")
         self.assertEqual(self.stamp("--verify")[0], 0)
+        self.repo.write("src/a.py", "x = 2   \n")
+        self.repo.commit("trailing whitespace")
+        self.assertEqual(self.stamp()[0], 0)
+        self.repo.commit("log")
+        self.repo.write("src/a.py", "x = 2\n")
+        self.repo.commit("verbatim whitespace fix")
+        self.assertEqual(self.stamp("--verbatim")[0], 0, "a git diff --check fix is verbatim in any file (Vandox#404)")
         self.repo.write("src/a.py", "x = 9\n")
         self.repo.commit("code")
         code, out, _ = self.stamp("--verbatim")

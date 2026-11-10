@@ -234,6 +234,7 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 7 — Code check: no gate stamp in the log", out)
         self.assertIn("Gates due (tier standard): Format check, Analyzer gate, Test with coverage, Coverage gate, "
                       "scope-check.py + figure-check.py (no gate)", out)
+        self.assertIn("Start the stamp in the background (Bash run_in_background)", out)
 
     def test_the_orchestrators_skip_row_ends_step_4(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
@@ -603,7 +604,9 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("launch squad-tester once", out)
         self.repo.write("README.md", "Readme 2\n")
         self.repo.commit("edit")
-        self.assertIn("Gates due (tier patch/security): Format check, scope-check.py --tier patch", self.next())
+        out = self.next()
+        self.assertIn("Gates due (tier patch/security): Format check, scope-check.py --tier patch", out)
+        self.assertNotIn("run_in_background", out, "only a stamp that runs the full suite")
         self.stamp()
         out = self.next()
         self.assertIn("Launch: squad-security, mode diff", out)

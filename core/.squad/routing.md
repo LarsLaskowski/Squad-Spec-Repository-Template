@@ -29,6 +29,11 @@ When the kind points to the other skill, switch to it now and say so in one line
 `log.md` names the kind and what decided it (`feature: user request`, `feature: label enhancement`,
 `bug: no feature label`).
 
+An issue whose change needs values only the Product Manager can produce (measurements on a real system, figures from
+a production host) runs with the skill its kind decides, but the Product Manager supplies the values before step 1;
+the orchestrator asks for them and creates no branch until they are in. The Lead writes them, as given, into
+`measurements.md` in the work folder, which step 10 posts with the working record.
+
 ## Work folder
 
 - Issue (bug fix): `specs/issue-<number>/` — `plan.md`, `log.md`
@@ -111,7 +116,8 @@ configuration, documentation only) may declare steps 4 (*Skeleton*), 5 (*Tests f
 gate* **not applicable**; the tier and its other steps stay. The Lead then names in `plan.md`, under
 *Verification without tests*, where and by whom each acceptance criterion is verified instead (a workflow
 step, a PR dry run, a build of the image, a read-only check); the orchestrator logs the skipped steps with a
-pointer to it. Step 6 is the Dev's edits alone, and step 7 runs every gate but the *Coverage gate*. The
+pointer to it. Step 6 is the Dev's edits alone, and step 7 runs every gate but the *Coverage gate* (a branch of
+Markdown files only: *Format check* alone, `gate-stamp.py`). The
 Reviewer checks that the section exists, covers every criterion and that the diff really holds no production
 or test code — otherwise the skip is blocking. If such code changes after all, steps 4–6 apply again.
 

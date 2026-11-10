@@ -98,6 +98,24 @@ class TestCommands(unittest.TestCase):
             code = function(*args, root=self.root)
         return code, out.getvalue()
 
+    def test_prepare_names_the_seeded_files_changed_since_the_last_tag(self):
+        git(self.root, "tag", "v2026.11.1")
+        for rel in ("profiles/dotnet/seed/.squad/stack.md", "core/.squad/team.md", "seed/SECURITY.md"):
+            os.makedirs(os.path.dirname(os.path.join(self.root, rel)), exist_ok=True)
+            with open(os.path.join(self.root, rel), "w", encoding="utf-8") as handle:
+                handle.write("changed\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-q", "-m", "seed")
+        self.assertEqual(release.seed_changes(self.root), ["profiles/dotnet/seed/.squad/stack.md", "seed/SECURITY.md"])
+        code, out = self.run_command(release.prepare_command, datetime.date(2026, 11, 9))
+        self.assertEqual(code, 0, out)
+        with open(os.path.join(self.root, "CHANGELOG.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("- [Tools] Third change (#4)\n- [Seed] Seeded files changed; existing targets keep their own copy, "
+                      "so the refresh carries these changes over by hand: `profiles/dotnet/seed/.squad/stack.md`, "
+                      "`seed/SECURITY.md`\n\n## v2026.11.1", text)
+        self.assertEqual(release.check(text), [])
+
     def test_prepare_refuses_an_empty_unreleased_section(self):
         self.write("# Changelog\n\n## Unreleased\n\n## v2026.11.1 — 2026-11-02\n\n- x\n")
         code, out = self.run_command(release.prepare_command, datetime.date(2026, 11, 9))

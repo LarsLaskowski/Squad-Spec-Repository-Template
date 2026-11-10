@@ -31,7 +31,8 @@ Rules that hold throughout:
    records without `repository` or `tag` get them on this run), move the target's open `squad-upstream` issues here
    (*Updating the template itself*) and continue with step 3. Seeded files are not
    refreshed, so on a refresh compare the target's `.squad/stack.md`, `.squad/project.md` and `squad_settings.py`
-   with the seeds (`git -C <template> diff <old commit>..main -- seed profiles/<profile>/seed`) and carry over
+   with the seeds (`git -C <template> diff <old commit>..<tag> -- seed profiles/<profile>/seed`; the `[Seed]` line of
+   each release section since the recorded tag names the files) and carry over
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
    becomes "in the squad: by the member that changed the files, `.squad/team.md`"). A setting the target's
    `squad_settings.py` lacks is added with the seed's comment and default: `SPEC_APPROVAL = "lead"` (who approves a

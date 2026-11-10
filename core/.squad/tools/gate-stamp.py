@@ -12,7 +12,9 @@ The gates (`.squad/routing.md`, *Pipeline* step 7, *Tiers*, *Gates of a patch*, 
 code*):
 
 - tiers `trivial`, `standard` and `security`: *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate*
-  and `scope-check.py`; a plan with *Verification without tests* leaves out the *Coverage gate*. When the branch
+  and `scope-check.py`; a plan with *Verification without tests* leaves out the *Coverage gate*, and a branch that
+  changes only Markdown files outside `specs/` runs *Format check* and `scope-check.py` alone (nothing it changes is
+  built, analysed or tested). When the branch
   changes a file that is neither documentation (Markdown) nor a test, `figure-check.py` runs too: no gate, its hits are
   counted in the row and printed for routing;
 - tier `tests`: the *test code only* row, *Format check*, *Analyzer gate* and *Test (project)*, and
@@ -30,7 +32,8 @@ code*):
 - every tier: when the branch changes a file under `docs/decisions/` or `docs/areas/`, `decision-check.py` runs before
   `scope-check.py`, with `--require-history`: a released record it cannot check (a shallow clone, release tags not
   fetched, a remote that cannot be asked) fails it, with the fix `decision-check.py` names. A verbatim stamp runs it
-  the same way.
+  the same way. In a shallow clone that check cannot pass, so the stamp refuses before any gate runs and names the
+  command that fetches the history (`git fetch --unshallow --tags origin`).
 
 The tier is the *Tier* line of `plan.md`, or for `docs` and `patch` (no `plan.md`) what the Lead's first step-2 row
 names (`Tier: patch`, `tier docs`). Each gate's command is the first code span of its row in the *Commands* tables of
@@ -52,7 +55,8 @@ same without the last two parts.
 `--verbatim` stamps a verbatim documentation fix (`.squad/orchestration.md`, *Verbatim documentation fixes*) and the
 record status of step 9 (`.squad/routing.md`, *PR approval*): *Format
 check*, `decision-check.py` and `scope-check.py` only, marked `(tier <tier>, verbatim)`; it is refused unless the last
-stamp of the full gates passed and HEAD differs from it only in Markdown files and `docs/`, and `--verify` accepts it on
+stamp of the full gates passed and HEAD differs from it only in Markdown files and `docs/` (any other file only in
+whitespace at the end of its lines: a `git diff --check` fix), and `--verify` accepts it on
 the same terms. A review round belongs to the full stamp before it, so a verbatim fix needs no new round.
 
 `--dry-run` prints the gates and their commands without running them. `--stdin` reads the log from standard input
@@ -135,6 +139,8 @@ ORDER = (FORMAT_CHECK, ANALYZER_LINT, ANALYZER, TEST_PROJECT, TEST_COVERAGE, COV
 PATCH_ROWS = {"documentation": (FORMAT_CHECK,), "lint": (ANALYZER_LINT,), "data": (),
               "test": (FORMAT_CHECK, ANALYZER, TEST_PROJECT), "production": FULL}
 NEEDS_CHECK = {"lint", "data"}
+DOCUMENTATION_ONLY = {"documentation"}
+UNSHALLOW = "git fetch --unshallow --tags origin"
 FIGURE_TIERS = ("trivial", "standard", "security")
 DEPENDS = {COVERAGE_GATE: TEST_COVERAGE}
 
@@ -276,6 +282,8 @@ def due_gates(tier, plan, kinds):
         return patch_gates(kinds), ["--tier", "patch"], bool(kinds & NEEDS_CHECK), False
     if base == "tests":
         return [FORMAT_CHECK, ANALYZER, TEST_PROJECT], ["--tier", "tests"], False, False
+    if kinds and kinds <= DOCUMENTATION_ONLY:
+        return [FORMAT_CHECK], [], False, False  # nothing the branch changes is built, analysed or tested
     gates = [gate for gate in FULL if not (gate == COVERAGE_GATE and code_free(plan))]
     figure = base in FIGURE_TIERS and bool(kinds - {"documentation", "test"})
     return gates, [], False, figure
@@ -366,6 +374,20 @@ def verbatim_run(context):
     check*, `decision-check.py` and `scope-check.py` with the tier's options."""
     _, scope, _, _ = due_gates(context["tier"], context["plan"], set())
     return [FORMAT_CHECK], scope
+
+
+def shallow(root):
+    """True when the repository is a shallow clone (`git rev-parse --is-shallow-repository`)."""
+    code, out = git(root, "rev-parse", "--is-shallow-repository")
+    return code == 0 and out.strip() == "true"
+
+
+def shallow_refusal(root, run):
+    """Refuse a run with `decision-check.py --require-history` in a shallow clone before any gate runs: the check
+    cannot pass there, and the gates before it may take minutes."""
+    if any(label == DECISION for label, _ in run) and shallow(root):
+        raise Refusal(f"the clone is shallow, so {DECISION} --require-history cannot check the released records: run "
+                      f"'{UNSHALLOW}' (step 1 of the skill) and stamp again")
 
 
 def decision_gate():
@@ -462,6 +484,8 @@ def stamp_command(options, root, name, log_path, after_pr, stream=None):
     if options.verbatim:
         verbatim_refusal(root, rows)
     run, figure = plan_run(root, context, options)
+    if not options.dry_run:
+        shallow_refusal(root, run)
     if options.dry_run:
         for label, commands in run:
             print(f"{label}: " + " && ".join(f"`{command}`" for command in commands))
@@ -499,10 +523,16 @@ def same_code(root, sha):
 
 
 def documentation_only(root, old, new):
-    """True when every file that differs between `old` and `new` outside `specs/` is Markdown or under `docs/`: what a
-    verbatim documentation fix may touch."""
+    """True when every file that differs between `old` and `new` outside `specs/` is Markdown or under `docs/`, or
+    differs only in whitespace at the end of its lines (a `git diff --check` fix): what a verbatim fix may touch."""
     code, out = git(root, "-c", QUOTE_PATHS, "diff", "--name-only", "--no-renames", old, new, *OUTSIDE_SPECS)
-    return code == 0 and all(path.endswith(".md") or path.startswith("docs/") for path in out.splitlines() if path)
+    if code != 0:
+        return False
+    others = [path for path in out.splitlines() if path and not (path.endswith(".md") or path.startswith("docs/"))]
+    if not others:
+        return True
+    code, out = git(root, "-c", QUOTE_PATHS, "diff", "--ignore-space-at-eol", "--no-renames", old, new, "--", *others)
+    return code == 0 and not out.strip()
 
 
 def last_full(found):

@@ -1046,3 +1046,32 @@ SonarQube Cloud then reported python:S5843 on the extended `LEADING_IDS` of `pla
 limit of 20. `template-check.py` now counts it the way that number came about (a quantifier and a lookaround add their
 nesting depth, a character class 1) and reports a regex over 20; it leaves out a regex written as several adjacent
 literals, since main's analysis carries no issue for two of them at 30 and 44 by the same count.
+
+## A release is rehearsed on every consumer before it is tagged (tools/rollout-check.py; tools/release.py, the `[Seed]` line; AGENTS.md of the template, Releases; adopt-template, step 1)
+
+Two releases in a row needed a fix pull request once the rollout had started (#302). v2026.11.2 brought tool changes
+(#280) that nobody had reviewed with the squad's reviewer charter; the `squad-reviewer` round of the refresh pull
+requests (PlexToJellyfinSync#283, DockerUpdateGuard#410, Seluna#175) was the first to read them and found six defects,
+fixed in #283 and released a day later, so every target was refreshed twice. v2026.11.3 added a sentence to the
+`dotnet` seed (#287) naming CA1034 and CA1724, which none of the consumers' analysis levels reports; a probe with
+Censio's analyzer versions showed S2344 and RH2101–RH2108 instead (#293). Seeded files are not refreshed, so each .NET
+refresh pull request had to carry the sentence over by hand, and nothing listed which seeded files the release had
+changed. Vandox#400 also had to wait for Vandox#399: `config-check.py` with the full history failed on the target's own
+`main`, which the refresh found and no check before the release could. The rehearsal applies the release candidate to a
+scratch copy of every active consumer and runs what a refresh runs there; the one review of the release diff gives the
+reviewer the same diff five refresh pull requests would review five times; a claim about an outside tool carries its
+evidence from a consumer's build; and the release section names the changed seeded files, so the carry-over is read,
+not reconstructed from the diff.
+
+## Lessons of the Vandox#342, Vandox#401 and Censio#23 runs (gate-stamp.py; squad-next.py; squad-issue and squad-spec, steps 1, 7 and 10; routing.md, Bug or feature and Changes without production or test code; orchestration.md, Verbatim documentation fixes; squad-reviewer.md; team.md, Git and GitHub; squad-dev.md; squad-lead.md, mode revise)
+
+Both runs' first step-7 stamps failed in a cloud session's shallow clone, on `decision-check.py --require-history`,
+after the gates before it had run; in Vandox that cost a second 10-minute stamp (#294). The intake now unshallows,
+and the stamp refuses before its first gate. A documentation-only change in Vandox#342 ran the backend and agent suites
+(1,231 tests, 8–10 minutes) and was killed by a 590-second timeout (#295): a branch of Markdown files only has nothing
+to build, analyse or test. The same run had no place for the Product Manager's measurements (#296) and spent a Lead
+launch, a Dev launch, a stamp and a delta round on one trailing space (#297). Censio#23's working record would have
+had to be re-typed into the comment tool (45 KB, #298); its Dev staged files and then tried `git reset`, and reported
+an unchecked assumption about existing code (#299; `git add` stays allowed, the coverage gate counts tracked files
+only); Security's second plan rejection was a signature left unchanged beside a revised *Approach* (#300). Vandox#401
+and #402 ran as one pull request without a rule for it (#301).

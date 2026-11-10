@@ -28,6 +28,7 @@ picks up with the next `adopt-template` run.
 - [ ] `python3 tools/template-check.py` passes.
 - [ ] `ruff check .` and `python -m unittest discover tools` pass (if Python files changed).
 - [ ] `core/` stays stack- and project-neutral; stack details live in `profiles/<stack>/`.
+- [ ] A rule that states how an outside tool behaves (a rule id, an option, a version) has its evidence from a consumer's build below.
 - [ ] [`README.md`](../README.md) is updated if the layout, a profile or a tool's behaviour changed.
 
 ## 🚀 Rollout

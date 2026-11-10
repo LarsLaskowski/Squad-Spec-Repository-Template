@@ -52,8 +52,11 @@ The targets receive the template by release, so every squad run can be traced to
   runs) reviews `git diff <last tag>..origin/main` over what the targets receive; a finding of either is fixed in a pull
   request of its own first. A release pull request (`[Docs] Release vYYYY.MM.N`) made with
   `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
-  squash merge, `python3 tools/release.py tag` checks the checkout of `main` and prints the commands for the annotated
-  tag on that merge commit; the tag is created and pushed only with the owner's explicit approval (*Golden rules*).
+  squash merge, the owner creates the release on GitHub (*Releases*, *Draft a new release*): a new tag `vYYYY.MM.N` on
+  `main` at that merge commit, the version's `CHANGELOG.md` section as its notes; no local tool is needed, and the
+  rollout reads this lightweight tag like an annotated one. With Python, `python3 tools/release.py tag` checks the
+  checkout of `main` and prints the commands for an annotated tag instead. A tag is created only by the owner or with
+  the owner's explicit approval (*Golden rules*).
 - The rollout refreshes every `active` repository of `consumers.json` from a checkout of the release tag, so
   `.squad/template.json` records it (`README.md`, *Rolling out a change*). A new consumer, or one that turns legacy
   or is dropped, is a change of `consumers.json`.

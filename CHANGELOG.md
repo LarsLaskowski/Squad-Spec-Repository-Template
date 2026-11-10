@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.4 — 2026-11-10
+
 - [Profile] The `dotnet` profile's *Writing code* names the analyzer rules that refuse a planned name, S2344 and
   Reihitsu's RH2101 and RH2104–RH2108 for nested types of any visibility, instead of CA1034 and CA1724, which no target's
   analysis level reports (#287)
@@ -26,6 +28,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   (#300)
 - [Core] `squad-issue` says how a request for several issues runs: one run per issue by default, one shared run only
   for one `docs` or `patch` change or on the user's request (#301)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.squad/stack.md`
 
 ## v2026.11.3 — 2026-11-09
 

@@ -7,7 +7,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 ## Unreleased
 
 - [Profile] The `dotnet` profile's *Writing code* names the analyzer rules that refuse a planned name, S2344 and
-  Reihitsu's RH2101–RH2108 for nested types of any visibility, instead of CA1034 and CA1724, which no target's
+  Reihitsu's RH2101 and RH2104–RH2108 for nested types of any visibility, instead of CA1034 and CA1724, which no target's
   analysis level reports (#287)
 - [Tools] `gate-stamp.py` refuses in a shallow clone before its first gate when it would run `decision-check.py
   --require-history`, and names `git fetch --unshallow --tags origin`; `squad-issue` and `squad-spec` unshallow at
@@ -18,8 +18,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   1, and the Lead records them in `measurements.md`, posted with the working record (#296)
 - [Core] Trailing whitespace and a final blank line reported by `git diff --check` are verbatim fixes in any file, and
   `gate-stamp.py --verbatim` accepts a file that differs only there (#297)
-- [Core] Step 10 may link any document of the working record by permalink with a summary, instead of re-typing it into
-  the comment (#298)
+- [Core] Step 10 may link any document of the working record but the verification matrix by permalink with a summary,
+  instead of re-typing it into the comment, and a feature run posts its `measurements.md` too (#298, #296)
 - [Core] A member reports a file it staged by mistake instead of unstaging it, and the Dev checks a claim about code it
   did not change, or marks it unverified (#299)
 - [Core] The Lead's revision reads *Signatures* against every changed *Approach*, security and resource statement

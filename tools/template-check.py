@@ -1531,26 +1531,29 @@ def complex_regexes(source, tree):
     """python:S5843: a regex more complex than REGEX_COMPLEXITY_LIMIT; split it, or leave the rarer forms to code."""
     findings = []
     for node in regex_call_nodes(tree):
-        complexity = regex_complexity(regex_tree(node.args[0].value)[0])
+        value = node.args[0].value
+        complexity = regex_complexity(regex_tree(value.decode("latin-1") if isinstance(value, bytes) else value)[0])
         if complexity > REGEX_COMPLEXITY_LIMIT and one_literal(source, node.args[0]):
             findings.append((node.lineno, "python:S5843", f"regex complexity {complexity}, over {REGEX_COMPLEXITY_LIMIT}"))
     return findings
 
 
 def regex_call_nodes(tree, functions=REGEX_FUNCTIONS):
-    """The `re.<function>(<string literal>, …)` calls of a module."""
+    """The `re.<function>(<string or bytes literal>, …)` calls of a module."""
     for node in ast.walk(tree):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.args
                 and isinstance(node.func.value, ast.Name) and node.func.value.id == "re"
                 and node.func.attr in functions and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)):
+                and isinstance(node.args[0].value, (str, bytes))):
             yield node
 
 
 def regex_calls(tree, functions=REGEX_FUNCTIONS):
-    """The `re.<function>(<string literal>, …)` calls of a module, as (line, pattern)."""
+    """The `re.<function>(<string or bytes literal>, …)` calls of a module, as (line, pattern); a bytes pattern as
+    the text it spells (Sonar checks both)."""
     for node in regex_call_nodes(tree, functions):
-        yield node.lineno, node.args[0].value
+        value = node.args[0].value
+        yield node.lineno, value.decode("latin-1") if isinstance(value, bytes) else value
 
 
 def ungrouped_anchors(alternatives):

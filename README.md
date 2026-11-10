@@ -88,7 +88,8 @@ multi/            dispatchers (analyzer gate, SessionStart hook) written when a 
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
-                  squad-upstream issues), release.py (changelog and release tags), sonar-local.py with SonarLocal.java
+                  squad-upstream issues), release.py (changelog and release tags), rollout-check.py (a rollout
+                  rehearsed on every active consumer before the release), sonar-local.py with SonarLocal.java
                   (SonarSource's open Python analyzer over the tools, before a release)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 consumers.json    the repositories that use the template: profiles, SonarQube Cloud key, active or legacy
@@ -209,8 +210,13 @@ is merged here, the product repository adopts it with `adopt-template`.
    `python3 tools/sonar-local.py` must pass: it runs the checks of SonarSource's open `sonar-python-plugin` with the
    consumers' quality profile over every Python file a target receives and over `tools/`, as SonarQube Cloud's
    analysis of `main` will (it needs Java 17+ and reaches Maven Central and sonarcloud.io; `--offline` skips the
-   profile request). A release pull request (`python3 tools/release.py prepare`) turns *Unreleased* into the next
-   version, and after its merge the owner tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
+   profile request). Then `python3 tools/rollout-check.py` rehearses the rollout: it applies this checkout to a
+   scratch copy of every `active` consumer's `main` (clones next to this repository, fetched and unshallowed), runs
+   the target's `config-check.py` on the result, and fails on a check that fails, a seed conflict or a reference to
+   a removed file; it lists the seeded files changed since each target's recorded commit. One `squad-reviewer` pass
+   reviews the release diff since the last tag. A release pull request (`python3 tools/release.py prepare`) turns
+   *Unreleased* into the next version, with a `[Seed]` line naming the changed seeded files, and after its merge the
+   owner tags the merge commit (`python3 tools/release.py tag`; `AGENTS.md`, *Releases*).
 3. In each `active` repository of `consumers.json`, run `adopt-template` as a refresh from a checkout of the release
    tag: it re-applies the template, records the tag in `.squad/template.json`, keeps every project block and seeded
    file, verifies the gates and opens one PR per repository (`[Docs] Update the squad from

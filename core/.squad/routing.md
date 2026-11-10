@@ -31,12 +31,12 @@ When the kind points to the other skill, switch to it now and say so in one line
 
 An issue whose change needs values only the Product Manager can produce (measurements on a real system, figures from
 a production host) runs with the skill its kind decides, but the Product Manager supplies the values before step 1;
-the orchestrator asks for them and creates no branch until they are in. The Lead writes them, as given, into
-`measurements.md` in the work folder, which step 10 posts with the working record.
+the orchestrator asks for them (*Escalation to the Product Manager*) and creates no branch until they are in. The
+Lead writes them, as given, into `measurements.md` in the work folder, which step 10 posts with the working record.
 
 ## Work folder
 
-- Issue (bug fix): `specs/issue-<number>/` — `plan.md`, `log.md`
+- Issue (bug fix): `specs/issue-<number>/` — `plan.md`, `log.md` (and `measurements.md`, *Bug or feature*)
 - Feature: `specs/feature-<short-slug>/`, from an issue `specs/feature-<number>-<short-slug>/` — `spec.md`,
   `plan.md`, `tasks.md`, `log.md`
 - The work folder lives **only on the work branch**: it is committed and pushed after every step so a
@@ -340,7 +340,8 @@ the options and the Lead's recommendation. Follow-up issues the Lead decides on 
 listed in the PR under Next Steps.
 
 Besides the Lead's escalation, the orchestrator involves the Product Manager only where one of these rules says so:
-the kind of an issue labelled both bug and feature (*Bug or feature*); the approval of a feature's spec (*Spec
+the kind of an issue labelled both bug and feature and the values only the Product Manager can produce (*Bug or
+feature*); the approval of a feature's spec (*Spec
 approval* in `orchestration.md`); the public issue comment of *Outcome "no change"* and of *Outside authors*; a
 download a member was denied (*A denied measurement* in `orchestration.md`); a Security rejection of a fix the Lead
 accepted, and a safeguard stop (*Loop limits*); the dry run and the confirmation of statements no run has shown

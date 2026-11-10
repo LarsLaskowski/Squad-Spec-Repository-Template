@@ -13,8 +13,8 @@ code*):
 
 - tiers `trivial`, `standard` and `security`: *Format check*, *Analyzer gate*, *Test with coverage*, *Coverage gate*
   and `scope-check.py`; a plan with *Verification without tests* leaves out the *Coverage gate*, and a branch that
-  changes only Markdown files outside `specs/` runs *Format check* and `scope-check.py` alone (nothing it changes is
-  built, analysed or tested). When the branch
+  changes only Markdown files outside `specs/` runs *Format check* and `scope-check.py` alone, with `decision-check.py`
+  when it changes a record or an area document (nothing it changes is built, analysed or tested). When the branch
   changes a file that is neither documentation (Markdown) nor a test, `figure-check.py` runs too: no gate, its hits are
   counted in the row and printed for routing;
 - tier `tests`: the *test code only* row, *Format check*, *Analyzer gate* and *Test (project)*, and
@@ -56,7 +56,8 @@ same without the last two parts.
 record status of step 9 (`.squad/routing.md`, *PR approval*): *Format
 check*, `decision-check.py` and `scope-check.py` only, marked `(tier <tier>, verbatim)`; it is refused unless the last
 stamp of the full gates passed and HEAD differs from it only in Markdown files and `docs/` (any other file only in
-whitespace at the end of its lines: a `git diff --check` fix), and `--verify` accepts it on
+whitespace at the end of its lines or blank lines at its end: a `git diff --check` fix; a changed line ending or final
+newline is none), and `--verify` accepts it on
 the same terms. A review round belongs to the full stamp before it, so a verbatim fix needs no new round.
 
 `--dry-run` prints the gates and their commands without running them. `--stdin` reads the log from standard input
@@ -531,8 +532,37 @@ def documentation_only(root, old, new):
     others = [path for path in out.splitlines() if path and not (path.endswith(".md") or path.startswith("docs/"))]
     if not others:
         return True
-    code, out = git(root, "-c", QUOTE_PATHS, "diff", "--ignore-space-at-eol", "--no-renames", old, new, "--", *others)
-    return code == 0 and not out.strip()
+    return all(whitespace_fix(root, old, new, path) for path in others)
+
+
+def blob(root, sha, path):
+    """The bytes of `path` at `sha`, or None when the commit has no such file."""
+    try:
+        done = subprocess.run(["git", "-C", root, "show", f"{sha}:{path}"], capture_output=True, check=False)
+    except OSError:
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def whitespace_normal(data):
+    """`data` without spaces and tabs before a line end and without blank lines at its end; line endings (`\r`) and
+    the final newline are kept, so a conversion of either is no whitespace fix."""
+    final = data.endswith(b"\n")
+    lines = [re.sub(rb"[ \t]+(\r?)$", rb"\1", line) for line in data.split(b"\n")]
+    if final:
+        lines.pop()
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return b"\n".join(lines), final
+
+
+def whitespace_fix(root, old, new, path):
+    """True when `path` differs between `old` and `new` only in spaces and tabs at the end of its lines or in blank
+    lines at its end (what `git diff --check` reports); a changed line ending or final newline is no such fix."""
+    before, after = blob(root, old, path), blob(root, new, path)
+    if before is None or after is None:
+        return False
+    return whitespace_normal(before) == whitespace_normal(after)
 
 
 def last_full(found):

@@ -235,6 +235,11 @@ class TestCodeSteps(NextTest):
         self.assertIn("Gates due (tier standard): Format check, Analyzer gate, Test with coverage, Coverage gate, "
                       "scope-check.py + figure-check.py (no gate)", out)
         self.assertIn("Start the stamp in the background (Bash run_in_background)", out)
+        self.assertNotIn("The clone is shallow", out, "no record or area document changed")
+        self.repo.write("docs/areas/storage.md", "# Storage\n")
+        self.repo.commit("area document")
+        self.tool.stamp_tool().shallow = lambda root: True
+        self.assertIn("The clone is shallow: run 'git fetch --unshallow --tags origin' before the stamp", self.next())
 
     def test_the_orchestrators_skip_row_ends_step_4(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())

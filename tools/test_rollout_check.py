@@ -82,13 +82,13 @@ class TestConsumer(unittest.TestCase):
     def test_main_reports_every_consumer_and_fails_on_a_finding(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            skips = [option for repo in ("Vandox", "DockerUpdateGuard", "Seluna", "Censio")
-                     for option in ("--skip", f"LarsLaskowski/{repo}")]
+            named = "LarsLaskowski/PlexToJellyfinSync"
+            skips = [option for repo in tool.active_consumers() if repo != named for option in ("--skip", repo)]
             code = tool.main(["--no-fetch", *skips, "--target",
                               f"LarsLaskowski/PlexToJellyfinSync={self.dir.name}/missing"])
         self.assertEqual(code, 1)
         self.assertIn("## LarsLaskowski/PlexToJellyfinSync: FAIL", out.getvalue())
-        self.assertIn("Skipped: LarsLaskowski/Vandox", out.getvalue())
+        self.assertIn("Skipped: LarsLaskowski/Vandox", out.getvalue(), "every other active consumer is skipped")
         self.assertIn("(1 consumer(s) rehearsed)", out.getvalue())
 
 

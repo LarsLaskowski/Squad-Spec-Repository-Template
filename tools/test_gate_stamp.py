@@ -447,6 +447,20 @@ class TestGateStamp(RepoTest):
         self.repo.write("src/a.py", "x = 2\n")
         self.repo.commit("verbatim whitespace fix")
         self.assertEqual(self.stamp("--verbatim")[0], 0, "a git diff --check fix is verbatim in any file (Vandox#404)")
+        self.repo.commit("log")
+
+    def test_only_trailing_whitespace_and_final_blank_lines_pass_as_a_verbatim_fix(self):
+        self.repo.write("src/a.py", "x = 2  \ny = 3\n\n\n")
+        self.repo.commit("whitespace")
+        self.assertEqual(self.stamp()[0], 0)
+        base = self.repo.commit("log")
+        fix = self.tool.whitespace_fix
+        for text, accepted in (("x = 2\ny = 3\n", True), ("x = 2\ny = 3\n\n", True), ("x = 2\r\ny = 3\r\n", False),
+                               ("x = 2\ny = 3", False), ("x = 2\ny = 4\n", False), ("x  = 2\ny = 3\n", False)):
+            self.repo.write("src/a.py", text)
+            head = self.repo.commit("candidate")
+            self.assertEqual(fix(self.repo.root, base, head, "src/a.py"), accepted, repr(text))
+        self.assertFalse(fix(self.repo.root, base, head, "src/missing.py"), "a file only one side has")
         self.repo.write("src/a.py", "x = 9\n")
         self.repo.commit("code")
         code, out, _ = self.stamp("--verbatim")

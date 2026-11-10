@@ -51,16 +51,18 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    (*Bug or feature*): a feature switches to `squad-spec` now, before any branch or work folder exists. Note
    the reported environment (versions, image tag or release, host OS, configuration). A closed issue: stop
    and report that. Run `git fetch origin main --tags` (in a shallow clone, `git rev-parse
-   --is-shallow-repository` prints `true`: `git fetch --unshallow --tags origin`, or the step-7 stamp refuses),
+   --is-shallow-repository` prints `true`: `git fetch --unshallow --tags origin`; a stamp that checks the decision
+records refuses a shallow clone),
    then start from a clean working tree on a new branch off the latest `main`, e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create `specs/issue-<number>/log.md`
    from `specs/_template/log.md`, commit and push it.
 
    **Several issues in one request.** By default each issue gets its own run, branch and pull request, one after
-   another. Several share one run only when the Lead's step-2 result covers them all in one tier `docs` or `patch`
-   change, or the user asks for one pull request: the work folder is named after the lowest number, the intake row
-   lists every issue, the pull request carries one `Closes #<number>` per issue, and the working record goes to the
-   first issue with a one-line pointer on each other. When the session prescribes a single branch but the issues
+   another. Several may share one run: intake then starts with the lowest number (its work folder) and its row lists
+   every issue; when the Lead's step-2 result does not cover them all in one tier `docs` or `patch` change and the
+   user did not ask for one pull request, the others go back to runs of their own. A shared run's pull request
+   carries one `Closes #<number>` per issue, and the working record goes to the first issue with a one-line pointer
+   on each other. When the session prescribes a single branch but the issues
    need separate pull requests, ask the user before step 2 of the second issue.
 
    **Logging.** Only you write `log.md`, one row per step and per launch, always with

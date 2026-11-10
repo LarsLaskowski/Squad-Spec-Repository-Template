@@ -52,8 +52,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    the reported environment (versions, image tag or release, host OS, configuration). A closed issue: stop
    and report that. Run `git fetch origin main --tags` (in a shallow clone, `git rev-parse
    --is-shallow-repository` prints `true`: `git fetch --unshallow --tags origin`; a stamp that checks the decision
-records refuses a shallow clone),
-   then start from a clean working tree on a new branch off the latest `main`, e.g.
+   records refuses a shallow clone), then start from a clean working tree on a new branch off the latest `main`, e.g.
    `fix-issue-<number>-<short-slug>` (or the branch the session prescribes). Create `specs/issue-<number>/log.md`
    from `specs/_template/log.md`, commit and push it.
 

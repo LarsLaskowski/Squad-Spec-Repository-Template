@@ -4,6 +4,7 @@ import importlib.util
 import io
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -462,7 +463,8 @@ class TestGateStamp(RepoTest):
             self.assertEqual(fix(self.repo.root, base, head, "src/a.py"), accepted, repr(text))
         self.assertFalse(fix(self.repo.root, base, head, "src/missing.py"), "a file only one side has")
         self.repo.write("src/a.py", "x = 2  \ny = 3\n\n\n")
-        self.repo.git("update-index", "--chmod=+x", "src/a.py")
+        path = os.path.join(self.repo.root, "src", "a.py")
+        os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR)
         head = self.repo.commit("mode only")
         self.assertFalse(fix(self.repo.root, base, head, "src/a.py"), "a changed mode is no whitespace fix")
         self.repo.write("src/a.py", "x = 9\n")

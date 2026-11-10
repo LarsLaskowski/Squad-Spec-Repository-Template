@@ -551,11 +551,17 @@ def tree_entry(root, sha, path):
     return tuple(fields[:2]) if code == 0 and len(fields) == 3 else None
 
 
+def strip_line_end(line):
+    """A line without the spaces and tabs before its end; a carriage return that ends it stays."""
+    carriage = line.endswith(b"\r")
+    return (line[:-1] if carriage else line).rstrip(b" \t") + (b"\r" if carriage else b"")
+
+
 def whitespace_normal(data):
-    """`data` without spaces and tabs before a line end and without blank lines at its end; line endings (`\r`) and
-    the final newline are kept, so a conversion of either is no whitespace fix."""
+    """`data` without spaces and tabs before a line end and without blank lines at its end; line endings (a carriage
+    return) and the final newline are kept, so a conversion of either is no whitespace fix."""
     final = data.endswith(b"\n")
-    lines = [re.sub(rb"[ \t]+(\r?)$", rb"\1", line) for line in data.split(b"\n")]
+    lines = [strip_line_end(line) for line in data.split(b"\n")]
     if final:
         lines.pop()
     while lines and not lines[-1].strip():

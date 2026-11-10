@@ -236,7 +236,8 @@ class TestSonarRules(unittest.TestCase):
     def test_an_unanchored_leading_repetition_followed_by_more_is_reported(self):
         for call in (r"re.search(r'\d+$', t)", r"re.findall(r'\d+x', t)", r"re.search(r'(?<!\w)\d+\.', t)",
                      r"re.sub(r'\s+$', '', t)", r"re.findall(r'(\d+)x', t)", r"re.findall(r'(?:ab)+x', t)",
-                     r"re.findall(r'\d{2,}x', t)", r"re.findall(r'\d*+x', t)", r"re.search(r'[^,]+,', t)"):
+                     r"re.findall(r'\d{2,}x', t)", r"re.findall(r'\d*+x', t)", r"re.search(r'[^,]+,', t)",
+                     r"re.sub(rb'[ \t]+(\r?)$', rb'\1', t)"):
             self.assertEqual(self.rules(f"import re\nX = {call}\n"), ["python:S8786"], call)
 
     def test_a_compiled_regex_searched_and_fullmatched_is_anchored_at_its_end(self):

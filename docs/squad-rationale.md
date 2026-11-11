@@ -1102,6 +1102,33 @@ issues the local gate never reported (S3776, S1192, S107, S2589), because SonarA
 (166 rules) while the consumers' profile is *Sonar way comprehensive* (379; #312); `sonar-rules.py` writes the
 difference at `suggestion` by default, so the gate reports it in changed files while untouched code keeps building.
 
+## .NET 11 in the dotnet profile (the seed `.config/dotnet-tools.json`, `ci.yml`, `dependabot.yml` and `stack.md`; the managed SessionStart hook)
+
+A probe with only the .NET 11 SDK (11.0.100) installed, on a `net11.0` class library and an MSTest project, 2026-11-11
+(#322): `reihitsu.cli` 1.1.0 and 1.2.0 target `net10.0` and name no roll-forward, so with the seed's `"rollForward":
+false` `dotnet tool run reihitsu-format` stopped with "You must install or update .NET to run this application …
+'Microsoft.NETCore.App', version '10.0.0'", and with `true` it formatted the file. `dotnet-sonarscanner` rolls forward
+by its own runtimeconfig (`LatestMajor`). The analyzer build with an SARIF error log (Reihitsu.Analyzer 1.2.0,
+SonarAnalyzer.CSharp 10.35) and `coverlet.collector`'s Cobertura report behaved as on .NET 10. NuGet lists
+`Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.EntityFrameworkCore` 11.0.0 for `net11.0` only, while
+`Microsoft.Extensions.Logging` 11.0.0 still targets `net10.0`: only the first kind is held back from Dependabot's
+major updates.
+
+With the .NET 10 and 11 SDKs both installed, `reihitsu-format` under `"rollForward": true` still ran on the
+Microsoft.NETCore.App 10.0.15 runtime (host trace), so the roll-forward only takes effect where .NET 10 is missing.
+`actions/setup-dotnet` installs the versions of both `dotnet-version` and `global-json-file` when both are given, and
+honours `rollForward: latestFeature` (its README at the pinned v6.0.0). Vandox keeps its `global.json` current through
+Dependabot's `dotnet-sdk` ecosystem (10.0.100 → 10.0.401 → 10.0.402 → 10.0.403), while Censio, without it, still names
+10.0.100: with `latestFeature` that is only the lowest band allowed, and its CI installs the newest 10.0 SDK, but the
+file no longer says what builds.
+
+One major per repository, though several are installed (the owner's decision on #322): a project `dotnet new` adds
+gets the major of the SDK `global.json` selects, and Dependabot no longer offers the next one, so the remaining way to
+a second major is a hand edit, which `dotnet_major.py` reports in the *Analyzer gate* of that change. On the four .NET
+consumers it found .NET 10 everywhere: Vandox 1 target framework and 2 images (as `<NAME>_IMAGE` and `<NAME>_TAG`
+build arguments), DockerUpdateGuard and PlexToJellyfinSync 5 target frameworks and 2 images each (image references in
+build arguments), Censio 15 target frameworks and 2 images.
+
 ## A continuation past the cap is named until the next fresh launch (squad-next.py; squad-issue, step 1)
 
 Censio#25's Dev agent reached 518,670 tokens and 8 continuations (Censio#146, #324). Its log, cut before `8 Fix (round

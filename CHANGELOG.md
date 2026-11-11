@@ -33,6 +33,12 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   exact text the orchestrator writes in (#316); the Lead's proposed no-change comment thanks no one when the issue's
   author posts it (#317); the Lead leaves the verbatim *Challenge notes* and *Security notes* alone outside a challenge
   revision (#318)
+- [Profile] The `dotnet` profile keeps a repository on one .NET major while 10 and 11 are installed side by side: the
+  new managed `dotnet_major.py`, run by the *Analyzer gate*, fails a target framework, `global.json` or .NET image of
+  another major; a seeded `global.json` fixes the SDK (newest feature band of its major), which the seed CI installs;
+  the seed tool manifest lets `reihitsu-format` roll forward only where .NET 10 is missing; the seed Dependabot keeps
+  the SDK (`dotnet-sdk`), the packages and the images current within the major; and the SessionStart hook warns about
+  a missing SDK or target runtime (#322)
 
 ## v2026.11.4 — 2026-11-10
 

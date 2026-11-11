@@ -1076,6 +1076,32 @@ an unchecked assumption about existing code (#299; `git add` stays allowed, the 
 only); Security's second plan rejection was a signature left unchanged beside a revised *Approach* (#300). Vandox#401
 and #402 ran as one pull request without a rule for it (#301).
 
+## Lessons of the Censio#24, Censio#133, Vandox#362, Vandox#370 and DockerUpdateGuard#320 runs, and the report of 2026-11-01..11-10 (squad-next.py; plan-check.py `--matrix`; gate-stamp.py; session-usage.py; squad-report.py; git-guard.py; sonar-rules.py; routing.md, Changes without production or test code, Dry-run artifacts, PR approval and Outcome "no change"; orchestration.md, Continuing a member and Draft until green; squad-lead.md; squad-dev.md; squad-tester.md; the dotnet seed's Skeleton and Analyzer gate)
+
+In Censio#24 the orchestrator's checklist row named "the Lead's NOT APPROVED fix … done", and `squad-next.py`, which
+matched "not approved" anywhere in the row, asked for the fix again (#319); the approval is now read from the Lead's
+`RESULT:` line and the row's first words. The same run's Tester agent of a coverage pass was continued for the next
+group's tests first, and a Dev agent past 300,000 tokens was continued: `squad-next.py` had named the right agents, but
+the orchestrator kept only each member's last agent id (#320). A Lead `decide` folded the verbatim *Challenge notes*
+and the orchestrator was sent back to append them (#318). Every .NET skeleton raised RH2003, S2325, S4487, CS0067 or
+CS0649 besides the two ids the pragma allowed (#306, also DockerUpdateGuard#414, where a DI registration in the
+skeleton made a criterion's test pass before it was red). Censio#133's coverage pass for four deferred tests was
+skipped because the gate passed (#307), and its matrix listed test files of other features that carry the same `AC2`
+category, with a backtick lost from a cell of several code spans (#308).
+
+Vandox#370 changed no production code, yet its plan gave test documentation and a dry-run test to the Tester, which
+`squad-next.py` did not launch, and the hook denied the Tester `git apply --check` (#314, #315); its plan assigned a
+`stack.md` edit to the orchestrator, against the rule that the orchestrator never does a member's work (#316). In
+Vandox#362 the Lead's no-change comment thanked the repository owner, who posts it, for the report (#317).
+
+The report of 2026-11-01..11-10: six Censio runs ended without step 12 because the owner merged within minutes of the
+PR turning ready (Censio#102, #104, #113, #115, #123, #127; #311), and Censio#134's metrics, posted seven seconds after
+the merge, were dropped by `squad-report.py` (#310). The orchestrating session carried 17–49 % of the weighted figure
+on Sonnet and up to 86 % on Fable (Vandox#405; Seluna#166 63 % on Opus; #313). 6 of 22 Censio squad PRs got SonarCloud
+issues the local gate never reported (S3776, S1192, S107, S2589), because SonarAnalyzer.CSharp runs *Sonar way core*
+(166 rules) while the consumers' profile is *Sonar way comprehensive* (379; #312); `sonar-rules.py` writes the
+difference at `suggestion` by default, so the gate reports it in changed files while untouched code keeps building.
+
 ## .NET 11 in the dotnet profile (the seed `.config/dotnet-tools.json`, `ci.yml`, `dependabot.yml` and `stack.md`; the managed SessionStart hook)
 
 A probe with only the .NET 11 SDK (11.0.100) installed, on a `net11.0` class library and an MSTest project, 2026-11-11

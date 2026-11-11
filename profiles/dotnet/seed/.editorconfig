@@ -76,3 +76,6 @@ dotnet_diagnostic.RH4124.severity = none
 dotnet_diagnostic.RH7004.severity = none
 dotnet_diagnostic.RH8027.severity = none
 dotnet_diagnostic.RH8306.severity = none
+
+# squad:sonar-rules begin — written by .squad/tools/sonar-rules.py from the project's SonarQube Cloud C# profile against "Sonar way core"; never edited by hand (.squad/stack.md, Analyzer gate)
+# squad:sonar-rules end

@@ -82,7 +82,7 @@ same with these tools:
 core/             stack-neutral files; template-managed, except the "marked" files below
 profiles/<stack>/
   instructions.md the stack blocks of AGENTS.md
-  managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook)
+  managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook; dotnet: sonar-rules.py)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
@@ -115,6 +115,11 @@ refresh never resets filled-in text; `config-check.py` fails while any is left. 
 Go templates, `docker --format` strings and GitHub Actions expressions from being mistaken for one.
 
 ## Measuring the squad
+
+The orchestrating session is often a run's largest single cost (17–49 % of the weighted figure on Sonnet, more on
+Opus or Fable: `docs/squad-rationale.md`): start a squad run in a session on Sonnet with medium effort, since the
+members' models are set by their agent files whatever the session runs on. `session-usage.py` prints the session's
+own share and names its model when it is above half.
 
 `python3 tools/squad-report.py --since <date>` reads, for every pull request merged in the window in every active
 consumer of `consumers.json` (or the ones named with `--repo <owner/name>[=<sonar-project-key>]`), what happened after

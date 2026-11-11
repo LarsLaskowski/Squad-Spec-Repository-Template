@@ -51,8 +51,12 @@ anywhere. Do not grep console build output instead: an incremental build prints 
 Easy to get wrong by hand: `#region` blocks on every type, XML documentation on every member, no
 underscores in member names, a region for an interface implementation named after the interface.
 
-SonarQube Cloud's own quality profile can still report `S####` rules the local default profile does not,
-and its non-Roslyn checks (hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate*
+SonarAnalyzer.CSharp runs only the rules of *Sonar way core* by default. The rules the project's SonarQube Cloud C#
+profile adds (*Sonar way comprehensive*: S3776, S1192, S107, …), and the core rules it switches off, are set in the
+`squad:sonar-rules` block of `.editorconfig`, which `python3 .squad/tools/sonar-rules.py` writes from the two
+profiles (`--check` reports a block out of date; severity `SONAR_RULES_SEVERITY` in `squad_settings.py`): the
+*Analyzer gate* reports them in a changed file, so no rule of the profile is "one no local analyzer reports". Its
+non-Roslyn checks (hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate*
 below reports their issues and hotspots and the quality gate, duplication included, on the draft pull request.
 
 Own browser scripts (`wwwroot/js/*.js`, no Node build) have no local analyzer: SonarQube Cloud's JavaScript
@@ -163,10 +167,13 @@ Constructors store their arguments and never throw: a test harness builds these 
 fail.
 The `Skeleton` body above is the default. A zero-value stub is allowed only where it would break a test that
 exists and passes today: the new tests must still fail on the stub, and the Dev reports it as a deviation.
-A private member or parameter that nothing calls or reads yet fails the build as S1144 (unused private member) or
-S1172 (unused parameter). Wrap exactly those members in `#pragma warning disable S1144, S1172` /
-`#pragma warning restore S1144, S1172` with the comment `// Skeleton: removed with the implementation`; the Dev lists
-each pragma in its report and removes it in mode `implement`, and the Reviewer blocks one that is still there.
+A skeleton raises diagnostics by construction, which the zero-diagnostic rule does not count against it: S1144
+(unused private member), S1172 (unused parameter), S4487 (a private field assigned but not read yet), S2325 (a member
+that does not use instance data yet), CS0067 (an event never raised yet), CS0649 (a field never assigned yet) and
+RH2003 (`NotImplementedException`). Wrap exactly the members that raise one in `#pragma warning disable <the ids the
+build reports>` / `#pragma warning restore <the same ids>` with the comment `// Skeleton: removed with the
+implementation` — no other id; the Dev lists each pragma in its report and removes it in mode `implement`, and the
+Reviewer blocks one that is still there.
 
 ## Dependencies
 

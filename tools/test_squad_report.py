@@ -159,6 +159,11 @@ class TestSquadReport(unittest.TestCase):
         self.assertEqual(len(report.own_issue_comments([record, early], [commit("c", "2026-10-27T17:50:00Z")],
                                                        "2026-10-27T18:02:57Z")), 1,
                          "a record posted after an early draft PR opened still counts")
+        metrics = {"body": "Squad run metrics", "created_at": "2026-10-27T18:03:04Z"}
+        later = {"body": "Squad working record", "created_at": "2026-10-27T20:00:00Z"}
+        own = report.own_issue_comments([early, metrics, later], [commit("c", "2026-10-27T17:50:00Z")],
+                                        "2026-10-27T18:02:57Z")
+        self.assertEqual(own, [early, metrics], "metrics posted seconds after the merge count, a later run's do not")
 
     def test_merge_before_creation_shows_no_hours(self):
         self.assertIsNone(report.hours("2026-11-01T09:52:13Z", "2026-11-01T09:31:03Z"))

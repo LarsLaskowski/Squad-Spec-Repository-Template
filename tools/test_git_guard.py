@@ -45,6 +45,14 @@ class TestCommands(unittest.TestCase):
             "git add -A", "git add src/new.go", "git worktree add --detach /tmp/review HEAD",
             "git worktree remove --force /tmp/review", "git worktree prune", "git worktree list")
 
+    def test_a_patch_is_checked_but_never_applied(self):
+        # The Tester checks its dry-run patch (Vandox#410); applying it is the orchestrator's commit.
+        self.assert_allowed("git apply --check /tmp/dry-run.patch", "git apply --check --index /tmp/p.patch",
+                            "git apply --stat /tmp/p.patch", "git -C /repo apply --numstat --summary /tmp/p.patch")
+        self.assert_denied("git apply /tmp/p.patch", "git apply --index /tmp/p.patch", "git apply -R /tmp/p.patch",
+                           "git apply --check --apply /tmp/p.patch", "git apply --3way /tmp/p.patch",
+                           "git apply --stat --ap /tmp/p.patch", "git apply --check --appl /tmp/p.patch")
+
     def test_git_writes_are_denied(self):
         self.assert_denied(
             "git commit -m x", "git commit --amend", "git push -u origin b", "git push --force", "git stash",

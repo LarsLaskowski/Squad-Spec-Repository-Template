@@ -1121,3 +1121,10 @@ honours `rollForward: latestFeature` (its README at the pinned v6.0.0). Vandox k
 Dependabot's `dotnet-sdk` ecosystem (10.0.100 → 10.0.401 → 10.0.402 → 10.0.403), while Censio, without it, still names
 10.0.100: with `latestFeature` that is only the lowest band allowed, and its CI installs the newest 10.0 SDK, but the
 file no longer says what builds.
+
+One major per repository, though several are installed (the owner's decision on #322): a project `dotnet new` adds
+gets the major of the SDK `global.json` selects, and Dependabot no longer offers the next one, so the remaining way to
+a second major is a hand edit, which `dotnet_major.py` reports in the *Analyzer gate* of that change. On the four .NET
+consumers it found .NET 10 everywhere: Vandox 1 target framework and 2 images (as `<NAME>_IMAGE` and `<NAME>_TAG`
+build arguments), DockerUpdateGuard and PlexToJellyfinSync 5 target frameworks and 2 images each (image references in
+build arguments), Censio 15 target frameworks and 2 images.

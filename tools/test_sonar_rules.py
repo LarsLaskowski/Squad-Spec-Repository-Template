@@ -110,6 +110,34 @@ class SonarRulesTest(unittest.TestCase):
         self.assertNotIn("roslyn", text)
         self.assertEqual(self.run_script("--check")[0], 0)
 
+    def test_only_a_section_of_every_cs_file_is_the_files_own_choice(self):
+        tool = load()
+        for glob in ("*", "**", "*.cs", "**.cs", "*.{cs,vb}", "{*.cs,*.vb}", "*.{cs,razor}", "*.[cC][sS]"):
+            self.assertTrue(tool.every_cs_file(f"[{glob}]"), glob)
+        for glob in ("*.g.cs", "*.{g,designer}.cs", "*Tests.cs", "Program.cs", "tests/**.cs", "**/Migrations/*.cs",
+                     "*.csproj", "*.md"):
+            self.assertFalse(tool.every_cs_file(f"[{glob}]"), glob)
+        self.assertFalse(tool.cs_section("[*]"), "the block goes into a section of the C# files alone")
+        self.assertTrue(tool.cs_section("[*.{cs,razor}]"))
+
+    def test_a_rule_off_for_every_file_stays_out_and_one_off_for_some_names_goes_in(self):
+        write(".editorconfig", "root = true\n\n[*]\ndotnet_diagnostic.S3776.severity = none\n\n[*.cs]\n"
+                               "indent_size = 4\n\n[*Tests.cs]\ndotnet_diagnostic.S107.severity = none\n")
+        code, out = self.run_script()
+        self.assertEqual(code, 0, out)
+        block = self.read().split("[*Tests.cs]")[0].split("# squad:sonar-rules begin")[1]
+        self.assertNotIn("S3776", block, "[*] is the project's choice for every C# file")
+        self.assertIn("S107.severity = suggestion", block, "[*Tests.cs] is no choice for the rest")
+        self.assertNotIn("WARNING", out)
+
+    def test_a_narrower_section_before_the_block_is_reported(self):
+        write(".editorconfig", "root = true\n\n[tests/**.cs]\ndotnet_diagnostic.S107.severity = none\n\n[*.cs]\n"
+                               "indent_size = 4\n")
+        code, out = self.run_script()
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARNING: [tests/**.cs] sets S107 before the block", out)
+        self.assertEqual(self.run_script("--check")[1].count("WARNING"), 1, "also once the block exists")
+
     def test_a_changed_profile_rewrites_the_block_in_place(self):
         write(".editorconfig", EDITORCONFIG)
         self.run_script()

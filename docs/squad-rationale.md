@@ -1137,3 +1137,11 @@ launch each time (the agent was at 365,086 tokens after the documentation of G3,
 within the cap): the tool was right, and the orchestrator continued the agent all the same, warned only by
 `squad-log.py` when it logged the row. The warning now stands at the top of every `squad-next.py` output until the
 member's next launch is fresh.
+
+## git apply by allowlist, and Microsoft.Extensions held to the major (git-guard.py; the dotnet seed dependabot.yml)
+
+Security's diff review of Censio's v2026.11.5 refresh (#328): with a read-only option present, `git apply
+--build-fake-ancestor=.git/index` still wrote the index (git 2.43.0; a staged file dropped from it), which the
+denylist of #315 let through. The guard now allows `git apply` only with options that write no file. The review of
+PlexToJellyfinSync's refresh found its only .NET-versioned packages, `Microsoft.Extensions.*`, at 11.0.0 with a
+`net10.0` target as well, which Dependabot's grouped NuGet update would have proposed.

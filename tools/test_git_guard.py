@@ -51,7 +51,14 @@ class TestCommands(unittest.TestCase):
                             "git apply --stat /tmp/p.patch", "git -C /repo apply --numstat --summary /tmp/p.patch")
         self.assert_denied("git apply /tmp/p.patch", "git apply --index /tmp/p.patch", "git apply -R /tmp/p.patch",
                            "git apply --check --apply /tmp/p.patch", "git apply --3way /tmp/p.patch",
-                           "git apply --stat --ap /tmp/p.patch", "git apply --check --appl /tmp/p.patch")
+                           "git apply --stat --ap /tmp/p.patch", "git apply --check --appl /tmp/p.patch",
+                           # Squad-Spec-Repository-Template#328: it writes an index file even beside --stat.
+                           "git apply --stat --build-fake-ancestor=.git/index /tmp/p.patch",
+                           "git apply --check --build-fake-ancestor .git/index /tmp/p.patch",
+                           "git apply --check --bu .git/index /tmp/p.patch", "git apply --check --unsafe-paths p.patch",
+                           "git apply --check -N p.patch", "git apply --check --future-option p.patch")
+        self.assert_allowed("git apply --check -p1 --directory src --exclude=docs/* p.patch",
+                            "git apply --check --3way --reject -R p.patch", "git apply --stat -- p.patch")
 
     def test_git_writes_are_denied(self):
         self.assert_denied(

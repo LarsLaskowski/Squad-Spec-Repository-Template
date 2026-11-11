@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] `sonar-rules.py` reads a section's glob to decide whether it applies to every C# file: `[*]` sets the
+  project's own choice, `[*.g.cs]` or `[*Tests.cs]` only that of some files; it warns when such a section comes before
+  the block, whose line then wins there too (#333)
 - [Core] `git-guard.py` denies a member `git apply --3way` also beside `--check`, which stores the merged blob in
   `.git/objects` (#328)
 - [Profile] `sonar-rules.py` leaves a rule out of its block only when `.editorconfig` sets it for every C# file; one

@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.5 — 2026-11-11
+
 - [Profile] The `dotnet` profile's new managed `sonar-rules.py` writes the rules of the project's SonarQube Cloud C#
   profile beyond *Sonar way core* into a marked `.editorconfig` block (severity `SONAR_RULES_SEVERITY`), so the
   *Analyzer gate* reports S3776, S1192, S107 and the rest locally; `adopt-template` runs it on every refresh (#312)
@@ -41,6 +43,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   fresh, a fix round too (#324)
 - [Profile] The `dotnet` SessionStart hook warns when no installed SDK of the `global.json` version's major and minor
   is at least that version (an older 10.0 band beside a pin of 10.0.404), not only when the major is missing (#322)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.config/dotnet-tools.json`, `profiles/dotnet/seed/.editorconfig`, `profiles/dotnet/seed/.github/dependabot.yml`, `profiles/dotnet/seed/.github/workflows/ci.yml`, `profiles/dotnet/seed/.squad/stack.md`, `profiles/dotnet/seed/.squad/tools/squad_settings.py`, `profiles/dotnet/seed/global.json`
 
 ## v2026.11.4 — 2026-11-10
 

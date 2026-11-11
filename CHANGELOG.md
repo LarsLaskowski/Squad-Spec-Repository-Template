@@ -31,13 +31,16 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   revision (#318)
 - [Profile] The `dotnet` profile keeps a repository on one .NET major while 10 and 11 are installed side by side: the
   new managed `dotnet_major.py`, run by the *Analyzer gate*, fails a target framework, `global.json` or .NET image of
-  another major; a seeded `global.json` fixes the SDK (newest feature band of its major), which the seed CI installs;
-  the seed tool manifest lets `reihitsu-format` roll forward only where .NET 10 is missing; the seed Dependabot keeps
-  the SDK (`dotnet-sdk`), the packages and the images current within the major; and the SessionStart hook warns about
-  a missing SDK or target runtime (#322)
+  another major; a seeded `global.json` fixes the SDK (newest feature band of its major, `10.0.404`), which the seed CI
+  installs and a refresh creates in a target without one, whose environments then need that SDK or a later one of its
+  band; the seed tool manifest lets `reihitsu-format` roll forward only where .NET 10 is missing; the seed Dependabot
+  keeps the SDK (`dotnet-sdk`), the packages and the images current within the major; and the SessionStart hook warns
+  about a missing SDK or target runtime (#322)
 - [Tools] `squad-next.py` warns in every output while a member's last launch continued an agent past the continuation
   cap, and its fresh launch says it is a new agent, not a `SendMessage`; `squad-issue` says a launch it names fresh is
   fresh, a fix round too (#324)
+- [Profile] The `dotnet` SessionStart hook warns when no installed SDK of the `global.json` version's major and minor
+  is at least that version (an older 10.0 band beside a pin of 10.0.404), not only when the major is missing (#322)
 
 ## v2026.11.4 — 2026-11-10
 

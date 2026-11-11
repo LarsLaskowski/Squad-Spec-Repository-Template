@@ -23,14 +23,21 @@ if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
   } >> "$CLAUDE_ENV_FILE"
 fi
 
-# The SDK major global.json asks for must be installed here: a cloud environment set up for an older .NET installs the
-# newer one in its setup script. A warning only; the restore below then names the missing SDK itself.
+# The SDK global.json asks for must be installed here: with rollForward latestFeature, that version or a later one of
+# the same major and minor. A cloud environment set up for an older SDK installs it in its setup script. A warning
+# only; the restore below then names the missing SDK itself.
 if [[ -f global.json ]]; then
-  wanted="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9]*\)\..*/\1/p' global.json | head -n 1)"
-  installed="$(dotnet --list-sdks 2>/dev/null || true)"
-  if [[ -n "$wanted" ]] && ! grep -q "^${wanted}\." <<< "$installed"; then
-    echo "global.json asks for .NET SDK ${wanted}, which this session lacks: install it in the environment's setup" \
-      "script (curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel ${wanted}.0)" >&2
+  wanted="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' global.json \
+    | head -n 1)"
+  if [[ -n "$wanted" ]]; then
+    channel="${wanted%.*}"
+    newest="$( (dotnet --list-sdks 2>/dev/null || true) | awk '{print $1}' | grep "^${channel//./\\.}\." \
+      | sort -V | tail -n 1 || true)"
+    if [[ -z "$newest" ]] || [[ "$(printf '%s\n%s\n' "$wanted" "$newest" | sort -V | head -n 1)" != "$wanted" ]]; then
+      echo "global.json asks for .NET SDK ${wanted} or a later one of ${channel}, which this session lacks" \
+        "(newest: ${newest:-none}): install it in the environment's setup script" \
+        "(curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel ${channel})" >&2
+    fi
   fi
 fi
 

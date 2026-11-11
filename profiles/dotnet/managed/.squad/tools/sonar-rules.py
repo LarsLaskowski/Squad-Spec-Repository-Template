@@ -194,16 +194,18 @@ def own_rules(lines):
 
 
 def overridden_ahead(lines):
-    """{rule: section} of the rules a narrower section sets in `lines`, the part of the file before the block: the
-    block's line comes later and wins there too."""
+    """{rule: (section, severity)} of the rules a narrower section of C# files sets in `lines`, the part of the file
+    before the block: the block's line comes later and wins there too."""
     found, section = {}, None
     for line in lines:
         if SECTION.match(line):
-            section = None if every_cs_file(line) else line.strip()
+            narrower = not every_cs_file(line) and any(section_matches(line, [path]) for path in CS_PATHS)
+            section = line.strip() if narrower else None
             continue
         match = OWN_RULE.match(line)
         if match and section:
-            found.setdefault(match.group("rule").upper(), section)
+            severity = line.split("=", 1)[1].split("#")[0].strip().lower()
+            found.setdefault(match.group("rule").upper(), (section, severity))
     return found
 
 
@@ -257,8 +259,9 @@ def report(own_profile, added, removed, own, ahead):
     kept = sorted((added | removed) & own, key=lambda rule: int(rule[1:]))
     if kept:
         print(f"Set by {EDITORCONFIG} itself, left out of the block: {', '.join(kept)}")
-    for rule, section in sorted(ahead.items(), key=lambda item: int(item[0][1:])):
-        if rule in (added | removed) - own:
+    for rule, (section, severity) in sorted(ahead.items(), key=lambda item: int(item[0][1:])):
+        written = SEVERITY if rule in added else "none"
+        if rule in (added | removed) - own and severity != written:
             print(f"WARNING: {section} sets {rule} before the block, whose line comes later and wins there too: move "
                   "that section after the block")
 

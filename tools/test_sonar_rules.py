@@ -138,6 +138,13 @@ class SonarRulesTest(unittest.TestCase):
         self.assertIn("WARNING: [tests/**.cs] sets S107 before the block", out)
         self.assertEqual(self.run_script("--check")[1].count("WARNING"), 1, "also once the block exists")
 
+    def test_a_section_the_block_does_not_override_is_not_reported(self):
+        write(".editorconfig", "root = true\n\n[*.vb]\ndotnet_diagnostic.S107.severity = none\n\n[tests/**.cs]\n"
+                               "dotnet_diagnostic.S3776.severity = suggestion\n\n[*.cs]\nindent_size = 4\n")
+        code, out = self.run_script()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("WARNING", out, "no C# file under [*.vb]; [tests/**.cs] sets the block's own value")
+
     def test_a_changed_profile_rewrites_the_block_in_place(self):
         write(".editorconfig", EDITORCONFIG)
         self.run_script()

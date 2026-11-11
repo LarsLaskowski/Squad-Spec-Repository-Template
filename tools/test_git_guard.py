@@ -50,7 +50,8 @@ class TestCommands(unittest.TestCase):
         self.assert_allowed("git apply --check /tmp/dry-run.patch", "git apply --check --index /tmp/p.patch",
                             "git apply --stat /tmp/p.patch", "git -C /repo apply --numstat --summary /tmp/p.patch")
         self.assert_denied("git apply /tmp/p.patch", "git apply --index /tmp/p.patch", "git apply -R /tmp/p.patch",
-                           "git apply --check --apply /tmp/p.patch", "git apply --3way /tmp/p.patch")
+                           "git apply --check --apply /tmp/p.patch", "git apply --3way /tmp/p.patch",
+                           "git apply --stat --ap /tmp/p.patch", "git apply --check --appl /tmp/p.patch")
 
     def test_git_writes_are_denied(self):
         self.assert_denied(

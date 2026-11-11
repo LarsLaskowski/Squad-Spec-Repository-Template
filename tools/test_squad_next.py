@@ -306,6 +306,15 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
         self.assertNotIn("deferred tests", self.next())
 
+    def test_a_tests_first_fix_round_without_a_deferred_line_keeps_the_deferred_tests(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`", 30000, "sonnet/medium"),
+                      row("5 Tests first fix", "Tester", "test_b now fails", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement", "Dev", "green", 30000, "sonnet/medium"),
+                      row("6 Coverage skipped", "Orchestrator", "the gate passes"))
+        self.assertIn("the deferred tests (`test_a`)", self.next())
+
     def test_no_deferred_tests_leave_the_skip_row_in_force(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
@@ -687,6 +696,10 @@ class TestReviewAndAfter(NextTest):
         out = self.next()
         self.assertIn("NOT APPROVED without a fix", out)
         self.assertIn("Launch: squad-lead, mode decide", out)
+        self.repo.log(row("9 Decide", "Lead", "RESULT: DECIDED — keep the guarantee, approve", 9000))
+        out = self.next()
+        self.assertNotIn("NOT APPROVED without a fix", out, "the decision settles it: no second decide launch")
+        self.assertIn("Next: step 9 — PR approval", out)
 
     def test_a_verbatim_fix_needs_the_light_stamp_and_no_delta_round(self):
         self.implemented()

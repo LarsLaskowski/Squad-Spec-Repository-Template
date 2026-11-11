@@ -160,7 +160,7 @@ class TestSquadReport(unittest.TestCase):
                                                        "2026-10-27T18:02:57Z")), 1,
                          "a record posted after an early draft PR opened still counts")
         metrics = {"body": "Squad run metrics", "created_at": "2026-10-27T18:03:04Z"}
-        later = {"body": "Squad working record", "created_at": "2026-10-29T09:00:00Z"}
+        later = {"body": "Squad working record", "created_at": "2026-10-27T20:00:00Z"}
         own = report.own_issue_comments([early, metrics, later], [commit("c", "2026-10-27T17:50:00Z")],
                                         "2026-10-27T18:02:57Z")
         self.assertEqual(own, [early, metrics], "metrics posted seconds after the merge count, a later run's do not")

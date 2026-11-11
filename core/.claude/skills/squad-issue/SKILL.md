@@ -32,8 +32,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
 - **Next step:** after every row of `log.md`, run `python3 .squad/tools/squad-next.py <folder>` (after step 10
   with `--stdin` and the comment's log table): it prints the next step with its exact launch — agent, mode, model,
   fresh or continued (*Continuing a member*), hand-over and log command — or your own row, and the gates and review
-  set the tier calls for. Follow it: keep the agent id of every fresh launch with its step cell, and continue exactly
-  the agent it names (with `--continued-from` when it names one), never simply the member's last one.
+  set the tier calls for. Follow it, continuing exactly the agent it names (*Continuing a member* in
+  `.squad/orchestration.md`).
 - **Scope:** a product PR touches neither the squad nor the instruction files outside their project blocks
   (*Scope of a product PR*, which `scope-check.py` enforces).
 - **One build at a time:** launch the members that build or test one after another (*Concurrency*).

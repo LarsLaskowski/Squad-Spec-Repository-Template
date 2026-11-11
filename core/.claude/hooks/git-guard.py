@@ -168,7 +168,8 @@ def config_verdict(args):
 
 def apply_verdict(args):
     """`git apply --check` (or `--stat`, `--numstat`, `--summary`) reads a patch; any other form applies it."""
-    if "--apply" not in args and any(a in APPLY_READ for a in args):
+    # Git accepts an unambiguous prefix of a long option, so `--ap` and `--appl` are `--apply` too.
+    if not any(len(a) >= 4 and "--apply".startswith(a) for a in args) and any(a in APPLY_READ for a in args):
         return None
     return "git apply (only --check, --stat, --numstat or --summary without --apply reads a patch)"
 

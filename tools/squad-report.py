@@ -248,15 +248,22 @@ def hours(start, end):
 
 def own_issue_comments(comments, commits, merged_at):
     """The comments of a linked issue that belong to this pull request's run: posted from the branch's first
-    commit to `AFTER_MERGE` after the merge. An issue that two pull requests close (a feature, then its release)
-    carries the working record of the earlier run only, which was posted before the later branch started; the run
-    metrics of step 12 may follow the merge by seconds (Censio#134: seven)."""
+    commit to the merge, and a run-metrics comment of its own up to `AFTER_MERGE` after it (step 12 may follow the
+    merge by seconds, Censio#134: seven). An issue that two pull requests close (a feature, then its release) carries
+    the working record of the earlier run only, which was posted before the later branch started."""
     dates = [c["commit"]["committer"]["date"] for c in commits]
     first = min(dates) if dates else None
     last = (parse_time(merged_at) + AFTER_MERGE).strftime("%Y-%m-%dT%H:%M:%SZ") if merged_at else None
-    return [c for c in comments
-            if not c.get("created_at") or ((first is None or c["created_at"] >= first)
-                                           and (last is None or c["created_at"] <= last))]
+    return [c for c in comments if not c.get("created_at") or (
+        (first is None or c["created_at"] >= first) and (c["created_at"] <= merged_at or (
+            last is not None and c["created_at"] <= last and metrics_only(c))))]
+
+
+def metrics_only(comment):
+    """True for the step-12 run metrics posted on their own: after the merge only they still belong to the run, never a
+    later run's working record."""
+    body = comment.get("body") or ""
+    return MARKERS[1] in body and MARKERS[0] not in body
 
 
 def parse_time(stamp):

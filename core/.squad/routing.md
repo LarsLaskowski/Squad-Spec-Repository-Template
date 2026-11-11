@@ -127,8 +127,8 @@ or test code — otherwise the skip is blocking. If such code changes after all,
 
 A criterion verified by a dry run on the branch — a planted failing test that must turn a gate or a CI job red, a
 deliberate defect a check must catch — never reaches the merged change. Its owner writes the artifact as a patch file
-outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` (the one `git apply`
-form `git-guard.py` allows a member) and hands back its path. The orchestrator applies it as one commit, runs or waits
+outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` (`git-guard.py` allows a
+member only the forms of `git apply` that read a patch) and hands back its path. The orchestrator applies it as one commit, runs or waits
 for the check, reverts that commit with `git revert`, and logs both commits with the check's result; the Reviewer
 confirms that the revert left nothing of it.
 

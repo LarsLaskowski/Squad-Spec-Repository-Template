@@ -803,10 +803,16 @@ def tests_first_ended(run, group):
 
 def deferred_tests(run, group):
     """The deferred tests the group's last step-5 Tester row names after `Deferred:` (Censio#137), or ''."""
-    rows = group_rows(run, TESTER, "5", group)
-    found = DEFERRED.search(squad_log().ANY_TRAILER.sub("", rows[-1].result)) if rows else None
+    row = deferred_row(run, group)
+    found = DEFERRED.search(squad_log().ANY_TRAILER.sub("", row.result)) if row else None
     names = found.group("names").strip().rstrip(";,.") if found else ""
     return "" if not names or re.match(r"none\b", names, re.I) else names
+
+
+def deferred_row(run, group):
+    """The group's last step-5 Tester row that carries a `Deferred:` line (a later fix round may carry none), or None."""
+    rows = [row for row in group_rows(run, TESTER, "5", group) if DEFERRED.search(row.result)]
+    return rows[-1] if rows else None
 
 
 def coverage_ended(run, group):
@@ -814,7 +820,7 @@ def coverage_ended(run, group):
     names the group, or one without a group after the group's implementation (`6 Coverage gate (all groups)`). With
     deferred tests open, only a Tester row of step 6 ends it."""
     if deferred_tests(run, group):
-        tests_first = group_rows(run, TESTER, "5", group)[-1].index
+        tests_first = deferred_row(run, group).index
         return any(row.index > tests_first for row in group_rows(run, TESTER, "6", group))
     if group_rows(run, TESTER, "6", group) or [row for row in run.of(ORCHESTRATOR, {"6"}, word="coverage")
                                                if GROUP.search(row.step) and in_group(row, group)]:
@@ -1322,12 +1328,11 @@ def approval(run):
             and approval_verdict(row)]
     if rows and approval_verdict(rows[-1]) == "APPROVED":
         return None
-    if rows:
-        verdict = rows[-1]
-        if not fix_ordered(verdict.result):
-            return heading("step 9 — NOT APPROVED without a fix") + launch(
-                run, LEAD, "decide", run.step_cell("9", "Decide"), "the Lead's NOT APPROVED reasons: it decides or "
-                "escalates")
+    verdict = rows[-1] if rows else None
+    if verdict and not fix_ordered(verdict.result) and not settled_by_decision(run, verdict):
+        return heading("step 9 — NOT APPROVED without a fix") + launch(
+            run, LEAD, "decide", run.step_cell("9", "Decide"), "the Lead's NOT APPROVED reasons: it decides or escalates")
+    if verdict and fix_ordered(verdict.result):
         return heading("step 9 — NOT APPROVED with a fix") + [
             "  The fixes the Lead orders go to their owner, then the stamp (step 7) and a delta round; once that round "
             "is clean the checklist runs again, and the Lead's approve-pr agent is continued only for a point the fix "
@@ -1345,6 +1350,13 @@ def approval(run):
         "or .squad/project.md):"] + launch(run, LEAD, "approve-pr", run.step_cell("9", "PR approval"),
                                            "the base ref, the gate output, the review outcome and the open points one "
                                            "by one (after the PR also the finished check-run list)")
+
+
+def settled_by_decision(run, verdict):
+    """True when a Lead row of step 9 or 11 after the NOT APPROVED row `verdict` decided it without ordering a fix: the
+    checklist runs again (a decision that orders one goes the way of step 8's fixes)."""
+    decided = [row for row in run.of(LEAD, {"9", "11"}, after=verdict.index) if lead_result(row) == "DECIDED"]
+    return bool(decided) and not fix_ordered(decided[-1].result)
 
 
 def approval_verdict(row):

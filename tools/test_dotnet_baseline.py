@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dotnet-baseline.py")
 spec = importlib.util.spec_from_file_location("dotnet_baseline", SCRIPT)
@@ -218,20 +219,81 @@ class TestAnalyzerIds(unittest.TestCase):
         self.assertEqual(tool.ids_in(self.BINARY, "S"), {"S1125", "S3776"})
         self.assertEqual(tool.ids_in(self.BINARY, "RH"), {"RH3001"})
 
-    def test_ids_are_recorded_from_a_package_by_the_family_its_assembly_owns(self):
+    def package(self):
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, "w") as archive:
+            archive.writestr("analyzers/SonarAnalyzer.CSharp.dll", self.BINARY)
+            archive.writestr("analyzers/dotnet/cs/de/SonarAnalyzer.CSharp.resources.dll", "S9999".encode("utf-16-le"))
+            archive.writestr("analyzers/dotnet/vb/SonarAnalyzer.CSharp.dll", "S7777".encode("utf-16-le"))
+            archive.writestr("lib/Other.dll", "S8888".encode("utf-16-le"))
+        return data.getvalue()
+
+    def test_the_analyzers_in_use_are_read_from_the_consumers(self):
+        props = ('<Project><ItemGroup>\n<PackageVersion Include="SonarAnalyzer.CSharp" Version="10.36.0.15337" />\n'
+                 '<PackageVersion Version="4.5.2" Include="MSTest" />\n<PackageVersion Include="Reihitsu.Analyzer" '
+                 'Version="$(Floating)" />\n<PackageVersion Include="NodaTime" Version="3.3.7" />\n</ItemGroup></Project>')
+        self.assertEqual(tool.analyzer_versions(props), {("SonarAnalyzer.CSharp", "10.36.0.15337"),
+                                                         ("MSTest.Analyzers", "4.5.2")},
+                         "the MSTest metapackage brings MSTest.Analyzers; a version that is no version is skipped")
+        self.assertEqual(tool.sdk_version('{"sdk": {"version": "11.0.100", "rollForward": "latestFeature"}}'), "11.0.100")
+        self.assertIsNone(tool.sdk_version("not json"))
+        self.assertIsNone(tool.sdk_version('{"sdk": {"version": "--help"}}'))
+
+    def test_the_sdk_of_the_feature_band_is_taken(self):
+        installed = {"11.0.100": "/d/sdk/11.0.100", "11.0.103": "/d/sdk/11.0.103", "11.0.200": "/d/sdk/11.0.200",
+                     "10.0.404": "/d/sdk/10.0.404"}
+        self.assertEqual(tool.sdk_folder("11.0.100", installed), "/d/sdk/11.0.103", "the newest patch of 11.0.1xx")
+        self.assertEqual(tool.sdk_folder("10.0.400", installed), "/d/sdk/10.0.404")
+        with self.assertRaises(tool.NotChecked):
+            tool.sdk_folder("9.0.100", installed)
+
+    def test_the_installed_sdks_are_read_from_dotnet(self):
+        listing = "10.0.404 [/usr/lib/dotnet/sdk]\n11.0.100 [/usr/lib/dotnet/sdk]\nnot an sdk line\n--x [/tmp]\n"
+        done = subprocess.CompletedProcess(["dotnet"], 0, stdout=listing, stderr="")
+        with mock.patch.object(tool.subprocess, "run", return_value=done):
+            self.assertEqual(tool.installed_sdks(), {"10.0.404": os.path.join("/usr/lib/dotnet/sdk", "10.0.404"),
+                                                     "11.0.100": os.path.join("/usr/lib/dotnet/sdk", "11.0.100")})
+        with mock.patch.object(tool.subprocess, "run", side_effect=OSError("no dotnet")):
+            self.assertEqual(tool.installed_sdks(), {})
+
+    def test_ids_are_recorded_from_the_packages_and_sdks_the_consumers_use(self):
         with tempfile.TemporaryDirectory() as root:
-            package = os.path.join(root, "sonaranalyzer.csharp.1.0.0.nupkg")
-            with zipfile.ZipFile(package, "w") as archive:
-                archive.writestr("analyzers/SonarAnalyzer.CSharp.dll", self.BINARY)
-                archive.writestr("analyzers/dotnet/cs/de/SonarAnalyzer.CSharp.resources.dll", "S9999".encode("utf-16-le"))
-                archive.writestr("lib/Other.dll", "S8888".encode("utf-16-le"))
+            clone = os.path.join(root, "App")
+            os.makedirs(clone)
+            git(clone, "init", "-q")
+            with open(os.path.join(clone, "Directory.Packages.props"), "w", encoding="utf-8") as handle:
+                handle.write('<Project><PackageVersion Include="SonarAnalyzer.CSharp" Version="1.0.0" /></Project>')
+            with open(os.path.join(clone, "global.json"), "w", encoding="utf-8") as handle:
+                handle.write('{"sdk": {"version": "11.0.100"}}')
+            git(clone, "add", "-A")
+            git(clone, "commit", "-qm", "x")
+            git(clone, "update-ref", "refs/remotes/origin/main", "HEAD")
+            analyzers = os.path.join(root, "sdk", "11.0.100", "Sdks", "Microsoft.NET.Sdk", "analyzers")
+            os.makedirs(analyzers)
+            for name, text in (("Microsoft.CodeAnalysis.NetAnalyzers.dll", "CA1822"), ("X.NetAnalyzers.resources.dll", "CA9999")):
+                with open(os.path.join(analyzers, name), "wb") as handle:
+                    handle.write(text.encode("utf-16-le"))
+            fetched = []
+
+            def fetch(package, version):
+                fetched.append((package, version))
+                return self.package()
+
             out = os.path.join(root, "ids.txt")
             with contextlib.redirect_stdout(io.StringIO()):
-                tool.record_ids([package], out)
-            self.assertEqual(tool.load_ids(out), {"S1125", "S3776"},
-                             "only the analyzer's own family, without resources or other folders")
+                tool.record_ids({"o/App": clone}, out, fetch=fetch,
+                                sdks=lambda: {"11.0.100": os.path.join(root, "sdk", "11.0.100")})
+            self.assertEqual(fetched, [("SonarAnalyzer.CSharp", "1.0.0")])
+            self.assertEqual(tool.load_ids(out), {"S1125", "S3776", "CA1822"},
+                             "only each analyzer's own family, without resource, VB or other assemblies")
             with open(out, encoding="utf-8") as handle:
-                self.assertIn("sonaranalyzer.csharp.1.0.0.nupkg: analyzers/SonarAnalyzer.CSharp.dll", handle.read())
+                text = handle.read()
+            self.assertIn("SonarAnalyzer.CSharp 1.0.0: analyzers/SonarAnalyzer.CSharp.dll", text)
+            self.assertIn("sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll", text)
+
+    def test_a_folder_that_is_no_repository_is_refused(self):
+        with tempfile.TemporaryDirectory() as root, self.assertRaises(tool.NotChecked):
+            tool.clone_root("o/App", root)
 
     def test_a_source_is_named_without_the_machine_part(self):
         self.assertEqual(tool.source_label("/usr/lib/dotnet/sdk/11.0.100/Sdks/x/A.NetAnalyzers.dll"),

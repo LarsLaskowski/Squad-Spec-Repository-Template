@@ -42,7 +42,8 @@ Checks, without arguments:
   group, several spaces in a regex, a function that always returns the same value, a mock lambda that ignores its
   arguments instead of `return_value`, a unittest assertion a more specific one replaces, a reluctant quantifier
   followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
-  starts with an unbounded repetition and goes on with something that can fail, a regex more complex than 20, a
+  starts with an unbounded repetition and goes on with something that can fail, two adjacent unbounded repetitions
+  that can match the same character, a character class that names a character twice, a regex more complex than 20, a
   non-capturing group without alternation or quantifier, a `not` of a single comparison);
   `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
@@ -138,7 +139,7 @@ COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
 SONAR_RULES = ["python:S1192", "python:S1940", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
-               "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786",
+               "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786",
                "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
@@ -166,6 +167,7 @@ NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*(?P<rest>[^#]*)")
 MULTIPLE_SPACES = re.compile(r" {2,}")
 # python:S8786: how a regex is used. A compiled one counts once the module calls a method on it, as a partial match
 # (search, findall, match, …) unless it is only fullmatched; a fullmatch next to a partial use anchors its end too.
+SUPER_LINEAR = "python:S8786"
 PARTIAL_FUNCTIONS = {"search", "findall", "finditer", "sub", "subn", "split"}
 REPEATS = {sre_constants.MAX_REPEAT, sre_constants.MIN_REPEAT, getattr(sre_constants, "POSSESSIVE_REPEAT", None)}
 LOOKAROUND_OPS = {sre_constants.ASSERT, sre_constants.ASSERT_NOT}
@@ -178,6 +180,12 @@ QUANTIFIER = re.compile(r"(?:[*+?]|\{\d+(?:,\d*)?\}|\{,\d+\})[?+]?")
 BACKREFERENCE = re.compile(r"\\[1-9]")
 END_ANCHORS = {sre_constants.AT_END, sre_constants.AT_END_STRING}
 CHAR_CLASS = re.compile(r"\[\^?\]?(?:\\.|[^\]\\])*\]?", re.S)
+# python:S5869 and the second form of python:S8786 ask whether two parts of a regex can match the same character; it is
+# tried on the characters the tools' regexes name (Latin-1, Latin Extended and a few other spaces and digits).
+SAMPLE = tuple(chr(code) for code in range(0x250)) + ("\u2028", "\u3000", "\uff10")
+CATEGORIES = {getattr(sre_constants, f"CATEGORY_{name}"): re.compile(escape) for name, escape in
+              (("DIGIT", r"\d"), ("NOT_DIGIT", r"\D"), ("SPACE", r"\s"), ("NOT_SPACE", r"\S"), ("WORD", r"\w"),
+               ("NOT_WORD", r"\W"))}
 # The squad's rule files under core/ (paths relative to core/): watched for growth and for removed sentences.
 RULE_FILES = [
     ".squad/routing.md",
@@ -1652,8 +1660,143 @@ def super_linear(pattern, end_anchored):
 def super_linear_regexes(tree):
     """python:S8786: a regex that backtracks super-linearly. Sonar reports it with possessive quantifiers and atomic
     groups too: start with a single character (`\\d[\\d_.]*`), anchor it, or check the match in code."""
-    return [(line, "python:S8786", "unanchored regex that starts with an unbounded repetition followed by more")
+    return [(line, SUPER_LINEAR, "unanchored regex that starts with an unbounded repetition followed by more")
             for line, pattern, end_anchored in regex_uses(tree) if super_linear(pattern, end_anchored)]
+
+
+def member_test(op, value):
+    """Whether a character is one a single-character regex item matches (a literal, a range, `\\d`, `.`), or None."""
+    tests = {sre_constants.LITERAL: lambda char: ord(char) == value,
+             sre_constants.NOT_LITERAL: lambda char: ord(char) != value,
+             sre_constants.RANGE: lambda char: value[0] <= ord(char) <= value[1],
+             sre_constants.ANY: lambda char: char != "\n"}
+    if op is sre_constants.CATEGORY:
+        return CATEGORIES[value].fullmatch if value in CATEGORIES else None
+    return tests.get(op)
+
+
+def matched_chars(test, ignore_case):
+    """The characters of SAMPLE a test accepts, with their other case under IGNORECASE."""
+    def accepts(char):
+        variants = (char, char.lower(), char.upper()) if ignore_case else (char,)
+        return any(len(variant) == 1 and test(variant) for variant in variants)
+    return frozenset(char for char in SAMPLE if accepts(char))
+
+
+def item_chars(op, value, ignore_case):
+    """The characters a single-character item matches (a class negated included), or None for any other item."""
+    if op is not sre_constants.IN:
+        test = member_test(op, value)
+        return None if test is None else matched_chars(test, ignore_case)
+    tests = [member_test(member, item) for member, item in value if member is not sre_constants.NEGATE]
+    if None in tests:
+        return None
+    inside = matched_chars(lambda char: any(test(char) for test in tests), ignore_case)
+    negated = any(member is sre_constants.NEGATE for member, _ in value)
+    return frozenset(SAMPLE) - inside if negated else inside
+
+
+def duplicated_member(members, ignore_case):
+    """python:S5869: whether two members of a character class match a common character (`[\\w_]`, `[a-zA-Z]` under
+    IGNORECASE); a literal named twice (`[aab]`) is folded by Python's parser before this sees it."""
+    seen = frozenset()
+    for op, value in members:
+        test = member_test(op, value) if op is not sre_constants.NEGATE else None
+        found = matched_chars(test, ignore_case) if test else frozenset()
+        if seen & found:
+            return True
+        seen |= found
+    return False
+
+
+def nested_bodies(value):
+    """The item lists an item's value holds: a group's or a repetition's body, the alternatives of a branch."""
+    for part in value if isinstance(value, (list, tuple)) else (value,):
+        for sub in part if isinstance(part, list) else [part]:
+            if isinstance(sub, sre_parser.SubPattern):
+                yield sub.data
+
+
+def sub_patterns(items):
+    """Every nested item list of a parsed regex: the bodies of groups, repetitions, lookarounds and alternatives."""
+    for _, value in items:
+        for body in nested_bodies(value):
+            yield body
+            yield from sub_patterns(body)
+
+
+def flattened(items):
+    """The items of a sequence with the groups that take no quantifier opened, atomic ones too, as Sonar reads them."""
+    for op, value in items:
+        if op is sre_constants.SUBPATTERN:
+            yield from flattened(value[-1].data)
+        elif op is getattr(sre_constants, "ATOMIC_GROUP", None):
+            yield from flattened(value.data)
+        else:
+            yield op, value
+
+
+def repeated_chars(item, ignore_case, possessive=True):
+    """The characters an unbounded repetition of a single-character item matches, or None (also for a possessive one
+    unless `possessive`)."""
+    op, value = item
+    allowed = REPEATS if possessive else {sre_constants.MAX_REPEAT, sre_constants.MIN_REPEAT}
+    if op not in allowed or value[1] != sre_constants.MAXREPEAT or len(value[2].data) != 1:
+        return None
+    return item_chars(*value[2].data[0], ignore_case)
+
+
+def can_fail(state, rest):
+    """Whether what follows can fail: something of a width above zero, or an end anchor."""
+    return any(op is sre_constants.AT and value in END_ANCHORS for op, value in rest) \
+        or sre_parser.SubPattern(state, list(rest)).getwidth()[0] > 0
+
+
+def overlapping_repetitions(state, items, ignore_case):
+    """Whether two unbounded repetitions follow each other, can match a common character and are followed by something
+    that can fail: python:S8786 reports `\\d+\\S* x`, `[a-z]+\\w*y`, `\\d*?\\d+y` and `(?>\\d+)\\S*y`, not `[a-z]+\\d+y`,
+    `\\w+ \\w+y` or a possessive first repetition (`\\d++\\S*y`)."""
+    sequence = list(flattened(items))
+    for i in range(len(sequence) - 1):
+        first = repeated_chars(sequence[i], ignore_case, possessive=False)
+        second = repeated_chars(sequence[i + 1], ignore_case)
+        if first and second and first & second and can_fail(state, sequence[i + 2:]):
+            return True
+    return False
+
+
+def ignores_case(node):
+    """Whether a regex call passes re.I or re.IGNORECASE among its flags."""
+    return any(isinstance(part, ast.Attribute) and part.attr in ("I", "IGNORECASE")
+               for argument in node.args[1:] + [keyword.value for keyword in node.keywords]
+               for part in ast.walk(argument))
+
+
+def parsed_regexes(tree):
+    """(line, parsed regex, whether it ignores case) of every `re.<function>(<literal>, …)` call of a module."""
+    for node in regex_call_nodes(tree):
+        value = node.args[0].value
+        try:
+            parsed = sre_parser.parse(value.decode("latin-1") if isinstance(value, bytes) else value,
+                                      re.IGNORECASE if ignores_case(node) else 0)
+        except re.error:
+            continue
+        yield node.lineno, parsed, bool(parsed.state.flags & re.IGNORECASE)
+
+
+def overlap_findings(tree, test_file=False):
+    """python:S5869 (a character class that names a character twice) and python:S8786 (two adjacent unbounded
+    repetitions that share a character and something after them that can fail: `\\d+\\S* x`), which Sonar does not
+    report in a test file."""
+    findings = []
+    for line, parsed, ignore_case in parsed_regexes(tree):
+        bodies = [parsed.data, *sub_patterns(parsed.data)]
+        classes = [value for body in bodies for op, value in body if op is sre_constants.IN]
+        if any(duplicated_member(members, ignore_case) for members in classes):
+            findings.append((line, "python:S5869", "a character class that names a character twice"))
+        if not test_file and any(overlapping_repetitions(parsed.state, body, ignore_case) for body in bodies):
+            findings.append((line, SUPER_LINEAR, "two adjacent unbounded repetitions that can match the same character"))
+    return findings
 
 
 def needless_groups(pattern):
@@ -1727,7 +1870,7 @@ def sonar_findings(path, source):
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
         + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree) \
-        + inverted_comparisons(tree)
+        + inverted_comparisons(tree) + overlap_findings(tree, os.path.basename(path).startswith("test"))
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     return sorted(findings)

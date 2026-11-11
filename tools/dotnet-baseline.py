@@ -22,28 +22,32 @@ severity, but its value (`file_scoped`, `crlf`, a naming style) must be the same
 out, each with its reason, and the sections of paths the baseline carries for every repository. A decision replaces
 the merged value and resolves a conflict; its reason is written as a comment above the line.
 
-`tools/dotnet-baseline/analyzer-ids.txt` lists the rule ids the analyzers in use know (`--record-ids` writes it from
-their packages or assemblies). A rule of a recorded family (`RH`, `S`, `CA`, `IDE`, `MSTEST`) the analyzers do not
-know is never written; it is listed. `CS` and other families are not checked.
+`tools/dotnet-baseline/analyzer-ids.txt` lists the rule ids the analyzers in use know. `--record-ids` writes it: it
+reads the versions of Reihitsu.Analyzer, SonarAnalyzer.CSharp and MSTest(.Analyzers) from every consumer's
+`Directory.Packages.props` and its SDK from `global.json`, downloads those packages from nuget.org and reads the SDK's
+analyzers from the installed SDK of that feature band (`dotnet --list-sdks`). A rule of a recorded family (`RH`, `S`,
+`CA`, `IDE`, `MSTEST`) the analyzers do not know is never written; it is listed. `CS` and other families are not checked.
 
 The result is `tools/dotnet-baseline/baseline.editorconfig`, the input of the rules block (#341). The report lists the
 open conflicts, the rules switched off in one repository only, the rules dropped as unknown, the project exceptions
 and, per repository, how many settings the baseline tightens or adds (`--verbose`: each of them).
 
 Usage, from the template repository's root:
-    python3 tools/dotnet-baseline.py [--check] [--verbose] [--target OWNER/NAME=PATH] [--ref REF]
-    python3 tools/dotnet-baseline.py --record-ids PATH...   # .nupkg, .dll or a folder of them
+    python3 tools/dotnet-baseline.py [--check] [--verbose] [--target OWNER/NAME=PATH]
+    python3 tools/dotnet-baseline.py --record-ids [--target OWNER/NAME=PATH]
 
 Exit code 0 when the baseline was written or is current, 1 when a conflict is open or `--check` finds the file out of
-date, 2 NOT CHECKED (a consumer's clone or its ref is missing), 4 wrong usage.
+date, 2 NOT CHECKED (a consumer's clone, its origin/main, an analyzer package or an SDK is missing), 4 wrong usage.
 """
 import argparse
 import importlib.util
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+import urllib.request
 import xml.etree.ElementTree as ElementTree  # noqa: S405  # nosec B405
 import zipfile
 
@@ -54,6 +58,14 @@ IDS = os.path.join(DATA, "analyzer-ids.txt")
 BASELINE = os.path.join(DATA, "baseline.editorconfig")
 CURRENT, FAILED, NOT_CHECKED, USAGE = 0, 1, 2, 4
 PROFILE = "dotnet"
+REF = "origin/main"
+NUGET = "https://api.nuget.org/v3-flatcontainer"
+MSTEST_ANALYZERS = "MSTest.Analyzers"
+# The analyzer package each of the consumers' packages brings (the MSTest metapackage brings MSTest.Analyzers).
+ANALYZER_PACKAGES = {"reihitsu.analyzer": "Reihitsu.Analyzer", "sonaranalyzer.csharp": "SonarAnalyzer.CSharp",
+                     "mstest.analyzers": MSTEST_ANALYZERS, "mstest": MSTEST_ANALYZERS}
+PACKAGE_VERSION = re.compile(r"<PackageVersion\b[^>]*>", re.IGNORECASE)
+VERSION = re.compile(r"\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z.]+)?")
 
 SEVERITIES = ("none", "silent", "suggestion", "warning", "error")
 RANK = {name: rank for rank, name in enumerate(SEVERITIES)}
@@ -63,14 +75,14 @@ ALIASES = {"hint": "silent", "info": "suggestion", "hidden": "silent"}
 RULESET_ACTIONS = {"none": "none", "hidden": "silent", "info": "suggestion", "warning": "warning", "error": "error"}
 SONAR_BEGIN = "# squad:sonar-rules begin"
 SONAR_END = "# squad:sonar-rules end"
-DIAGNOSTIC = re.compile(r"^dotnet_diagnostic\.(?P<id>[A-Za-z]+\d+)\.severity$", re.IGNORECASE)
+DIAGNOSTIC = re.compile(r"^dotnet_diagnostic\.(?P<id>[A-Z]+\d+)\.severity$", re.IGNORECASE)
 RULE_ID = re.compile(r"^(?P<family>[A-Z]+)\d+$")
 NO_WARN = re.compile(r"<NoWarn>(?P<ids>[^<]*)</NoWarn>", re.IGNORECASE)
-SUPPRESSION = re.compile(r"\[assembly:\s*SuppressMessage\(\s*\"[^\"]*\"\s*,\s*\"(?P<id>[A-Za-z]+\d+)[^\"]*\"(?P<rest>[^\]]*)\]")
+SUPPRESSION = re.compile(r'\[assembly:\s*SuppressMessage\(\s*"[^"]*"\s*,\s*"(?P<id>[A-Za-z]+\d+)(?::[^"]*)?"(?P<rest>[^\]]*)\]')
 OPTION_PREFIXES = ("csharp_", "dotnet_style_", "dotnet_naming_", "dotnet_sort_", "dotnet_separate_",
                    "dotnet_code_quality", "indent_", "tab_width", "end_of_line", "insert_final_newline")
 # The analyzer assemblies whose rule ids --record-ids reads, by a part of the file name, and the family each owns.
-FAMILIES = (("Reihitsu.Analyzer", "RH"), ("SonarAnalyzer.CSharp", "S"), ("MSTest.Analyzers", "MSTEST"),
+FAMILIES = (("Reihitsu.Analyzer", "RH"), ("SonarAnalyzer.CSharp", "S"), (MSTEST_ANALYZERS, "MSTEST"),
             ("NetAnalyzers", "CA"), ("CodeStyle", "IDE"))
 GROUPS = (("Files", ("charset", "end_of_line", "insert_final_newline", "trim_trailing_whitespace", "indent_", "tab_width")),
           ("Formatting", ("csharp_new_line", "csharp_indent", "csharp_space", "csharp_preserve")),
@@ -221,12 +233,22 @@ def suppressed(text):
 # --- consumers ----------------------------------------------------------------------------------------------------
 
 def git(clone, *args):
-    done = subprocess.run(["git", "-C", clone, *args], capture_output=True, text=True, check=False)
+    """(exit code, output) of a git command run in a clone; the clone is the working directory, never an argument."""
+    done = subprocess.run(["git", *args], cwd=clone, capture_output=True, text=True, check=False)
     return done.returncode, done.stdout
 
 
-def read_consumer(name, clone, ref):
+def clone_root(name, path):
+    """The real path of a consumer's clone, which must be the root of a git repository."""
+    root = os.path.realpath(path)
+    if not os.path.exists(os.path.join(root, ".git")):
+        raise NotChecked(f"{name}: {root} is not the root of a git repository")
+    return root
+
+
+def read_consumer(name, clone, ref=REF):
     """The Config of one consumer at `ref` of its clone."""
+    clone = clone_root(name, clone)
     code, listing = git(clone, "ls-tree", "-r", "--name-only", ref)
     if code != 0:
         raise NotChecked(f"{name}: no {ref} in {clone}")
@@ -377,25 +399,21 @@ def is_analyzer(name):
             and "/vb/" not in name)
 
 
-def package_assemblies(path):
-    with zipfile.ZipFile(path) as package:
+def package_assemblies(data):
+    """(name, bytes) of the analyzer assemblies in a package's bytes."""
+    with zipfile.ZipFile(io.BytesIO(data)) as package:
         for name in package.namelist():
             if is_analyzer(name):
                 yield name, package.read(name)
 
 
-def assemblies(path):
-    """(name, bytes) of every analyzer assembly under a path: a .dll, a .nupkg or a folder of them."""
-    if os.path.isdir(path):
-        for folder, folders, names in os.walk(path):
-            folders.sort()
-            for name in sorted(names):
-                yield from assemblies(os.path.join(folder, name))
-    elif path.endswith(".nupkg"):
-        yield from package_assemblies(path)
-    elif path.endswith(".dll") and not path.endswith(".resources.dll"):
-        with open(path, "rb") as handle:
-            yield path, handle.read()
+def folder_assemblies(folder):
+    """(path, bytes) of the assemblies in an SDK folder, resource assemblies left out."""
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        path = os.path.join(folder, name)
+        if name.endswith(".dll") and not name.endswith(".resources.dll") and os.path.isfile(path):
+            with open(path, "rb") as handle:
+                yield path, handle.read()
 
 
 def source_label(path):
@@ -404,20 +422,102 @@ def source_label(path):
     return "/".join(parts[parts.index("sdk"):]) if "sdk" in parts else os.path.basename(path)
 
 
-def record_ids(paths, out=IDS):
-    """Write the rule ids the analyzers under `paths` know, with the sources, to `out`."""
+def attribute(tag, name):
+    found = re.search(name + r'="([^"]*)"', tag)
+    return found.group(1) if found else None
+
+
+def analyzer_versions(text):
+    """{(analyzer package, version)} a `Directory.Packages.props` brings."""
+    found = set()
+    for tag in PACKAGE_VERSION.findall(text):
+        package = ANALYZER_PACKAGES.get((attribute(tag, "Include") or "").lower())
+        version = attribute(tag, "Version") or ""
+        if package and VERSION.fullmatch(version):
+            found.add((package, version))
+    return found
+
+
+def sdk_version(text):
+    """The SDK version of a `global.json`, or None."""
+    try:
+        version = json.loads(text).get("sdk", {}).get("version", "")
+    except (ValueError, AttributeError):
+        return None
+    return version if VERSION.fullmatch(version) else None
+
+
+def analyzers_in_use(clones):
+    """({(package, version)}, {SDK version}) of the consumers at origin/main."""
+    packages, sdks = set(), set()
+    for name, clone in clones.items():
+        root = clone_root(name, clone)
+        packages |= analyzer_versions(git(root, "show", f"{REF}:Directory.Packages.props")[1])
+        sdk = sdk_version(git(root, "show", f"{REF}:global.json")[1])
+        sdks |= {sdk} if sdk else set()
+    return packages, sdks
+
+
+def fetch_package(package, version):
+    """A package's bytes from nuget.org; the id comes from ANALYZER_PACKAGES and the version matched VERSION."""
+    lower = package.lower()
+    url = f"{NUGET}/{lower}/{version}/{lower}.{version}.nupkg"
+    try:
+        with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310  # nosec B310
+            return response.read()
+    except OSError as error:
+        raise NotChecked(f"{package} {version} could not be downloaded: {error}") from error
+
+
+def installed_sdks():
+    """{SDK version: its folder} of `dotnet --list-sdks`."""
+    try:
+        listing = subprocess.run(["dotnet", "--list-sdks"], capture_output=True, text=True, check=False).stdout
+    except OSError:
+        listing = ""
+    sdks = {}
+    for line in listing.splitlines():  # "11.0.100 [/usr/lib/dotnet/sdk]"
+        version, _, base = line.strip().partition(" [")
+        if VERSION.fullmatch(version) and base.endswith("]"):
+            sdks[version] = os.path.join(base[:-1], version)
+    return sdks
+
+
+def sdk_folder(wanted, installed):
+    """The installed SDK of the wanted one's feature band (`11.0.1xx`), as `rollForward: latestFeature` picks it."""
+    band = wanted.split(".")[:2] + [wanted.split(".")[2][:1]]
+    matching = [version for version in installed if version.split(".")[:2] + [version.split(".")[2][:1]] == band]
+    if not matching:
+        raise NotChecked(f"SDK {wanted} (or another of its feature band) is not installed")
+    best = max(matching, key=lambda version: [int(part) for part in re.findall(r"\d+", version)])
+    return installed[best]
+
+
+def sdk_assemblies(folder):
+    analyzers = os.path.join(folder, "Sdks", "Microsoft.NET.Sdk")
+    yield from folder_assemblies(os.path.join(analyzers, "analyzers"))
+    yield from folder_assemblies(os.path.join(analyzers, "codestyle", "cs"))
+
+
+def record_ids(clones, out=IDS, fetch=fetch_package, sdks=installed_sdks):
+    """Write the rule ids the analyzers the consumers use know, with the sources, to `out`."""
+    packages, wanted = analyzers_in_use(clones)
+    found = [(f"{package} {version}: {name}", binary) for package, version in sorted(packages)
+             for name, binary in package_assemblies(fetch(package, version))]
+    installed = sdks()
+    found += [(source_label(path), binary) for sdk in sorted(wanted) for path, binary in
+              sdk_assemblies(sdk_folder(sdk, installed))]
     known, sources = set(), []
-    for path in paths:
-        for name, binary in assemblies(path):
-            family = family_of(name)
-            if family:
-                known |= ids_in(binary, family)
-                sources.append(f"{os.path.basename(path)}: {name}" if path.endswith(".nupkg") else source_label(name))
+    for label, binary in found:
+        family = family_of(label)
+        if family:
+            known |= ids_in(binary, family)
+            sources.append(label)
     with open(out, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("# Rule ids the analyzers in use know; written by tools/dotnet-baseline.py --record-ids from:\n")
         handle.writelines(f"#   {source}\n" for source in sources)
         handle.writelines(f"{rule}\n" for rule in sorted(known))
-    print(f"{out}: {len(known)} rule ids from {len(sources)} assemblies")
+    print(f"{os.path.relpath(out, ROOT)}: {len(known)} rule ids from {len(sources)} assemblies")
 
 
 def load_ids(path=IDS):
@@ -527,15 +627,15 @@ def main(argv=None):
     parser.add_argument("--verbose", action="store_true", help="list every setting the baseline changes or adds")
     parser.add_argument("--target", action="append", default=[], metavar="OWNER/NAME=PATH",
                         help="the clone of a consumer, when it is not the folder of its name next to this repository")
-    parser.add_argument("--ref", default="origin/main", help="the ref read in every clone (default origin/main)")
-    parser.add_argument("--record-ids", nargs="+", metavar="PATH", help="write analyzer-ids.txt from these analyzers")
+    parser.add_argument("--record-ids", action="store_true",
+                        help="write analyzer-ids.txt from the analyzer packages and SDKs the consumers use")
     args = parser.parse_args(argv)
-    if args.record_ids:
-        record_ids(args.record_ids)
-        return CURRENT
+    clones = clone_paths(dotnet_consumers(), args.target)
     try:
-        configs = [read_consumer(name, clone, args.ref)
-                   for name, clone in clone_paths(dotnet_consumers(), args.target).items()]
+        if args.record_ids:
+            record_ids(clones)
+            return CURRENT
+        configs = [read_consumer(name, clone) for name, clone in clones.items()]
     except NotChecked as error:
         print(f"NOT CHECKED: {error}")
         return NOT_CHECKED

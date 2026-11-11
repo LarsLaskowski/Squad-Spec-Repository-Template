@@ -1150,3 +1150,22 @@ PlexToJellyfinSync's refresh found its only .NET-versioned packages, `Microsoft.
 `[tests/**.cs]` turns it off for test code, which would have dropped S107 for the production code that Vandox had
 enforced as an error since 2026-10-12; DockerUpdateGuard's migration section dropped S1192 the same way. Only a
 setting for every C# file is now the project's own choice.
+
+## S5869 and the overlap form of S8786 (template-check.py, `SONAR_RULES`)
+
+Found in the pull request analysis of `tools/dotnet-baseline.py` (#344): SonarQube Cloud reported python:S5869 for
+`[A-Za-z]` under `re.IGNORECASE` and python:S8786 for `(?P<id>[A-Za-z]+\d+)[^"]*"` and later `\d+\.\d+\.\d+\S* \[`, none of which
+the local checks knew. Probes with SonarSource's analyzer (`tools/sonar-local.py --offline`, sonar-python-plugin 5.32):
+
+- S8786 also reports two adjacent unbounded repetitions that can match a common character when something that can fail
+  follows them, wherever they stand and whether the regex is searched or fullmatched: `x\d+\S* \[`, `x[a-z]+\w*y`,
+  `x\d+\d*y`, `x\d*\d+y`, `x\s*.*?y`, `x\d+?\S*y`, `x\d+\S*+y`, `x(?>\d+)\S*y`, a group around the first included. It
+  leaves alone repetitions without a common character (`x[a-z]+\d+y`, `x[a-z]+[^a-z]*y`), ones with a character between
+  them (`x\w+ \w+y`), a pair with nothing after it (`x\d+\S*`) and a possessive first repetition (`x\d++\S*y`). It does
+  not report S8786 in a test file at all (`test_*.py`), so `re.sub(r"\{\{TODO:\s*(.*?)\}\}", …)` in
+  `test_config_check.py` stays clean.
+- S5869 reports every character a class names twice: `[A-Za-z]` under `re.I` or `(?i)`, `[a-fA-F0-9]` under `re.I`,
+  `[\w_]`, `[\s ]`, `[0-9\d]`, `[aab]`; not `[a-zA-Z0-9]`. Python's own parser folds a literal named twice before the
+  local check sees the class, so `[aab]` is left to the cloud analysis.
+
+The local check follows these observations on the parsed regex and flags nothing else in the template.

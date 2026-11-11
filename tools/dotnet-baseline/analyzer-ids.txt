@@ -1,20 +1,20 @@
 # Rule ids the analyzers in use know; written by tools/dotnet-baseline.py --record-ids from:
-#   reihitsu.analyzer.1.2.0.nupkg: analyzers/dotnet/cs/Reihitsu.Analyzer.CodeFixes.dll
-#   reihitsu.analyzer.1.2.0.nupkg: analyzers/dotnet/cs/Reihitsu.Analyzer.dll
-#   sonaranalyzer.csharp.10.35.0.4138.nupkg: analyzers/SonarAnalyzer.CSharp.dll
-#   sonaranalyzer.csharp.10.36.0.15337.nupkg: analyzers/SonarAnalyzer.CSharp.dll
-#   mstest.analyzers.4.5.2.nupkg: analyzers/dotnet/cs/MSTest.Analyzers.CodeFixes.dll
-#   mstest.analyzers.4.5.2.nupkg: analyzers/dotnet/cs/MSTest.Analyzers.dll
+#   MSTest.Analyzers 4.5.2: analyzers/dotnet/cs/MSTest.Analyzers.CodeFixes.dll
+#   MSTest.Analyzers 4.5.2: analyzers/dotnet/cs/MSTest.Analyzers.dll
+#   Reihitsu.Analyzer 1.2.0: analyzers/dotnet/cs/Reihitsu.Analyzer.CodeFixes.dll
+#   Reihitsu.Analyzer 1.2.0: analyzers/dotnet/cs/Reihitsu.Analyzer.dll
+#   SonarAnalyzer.CSharp 10.35.0.4138: analyzers/SonarAnalyzer.CSharp.dll
+#   SonarAnalyzer.CSharp 10.36.0.15337: analyzers/SonarAnalyzer.CSharp.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.VisualBasic.NetAnalyzers.dll
-#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
-#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll
-#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.VisualBasic.NetAnalyzers.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CSharp.CodeStyle.Fixes.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CSharp.CodeStyle.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CodeStyle.Fixes.dll
 #   sdk/10.0.404/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CodeStyle.dll
+#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
+#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll
+#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.VisualBasic.NetAnalyzers.dll
 #   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CSharp.CodeStyle.Fixes.dll
 #   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CSharp.CodeStyle.dll
 #   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/codestyle/cs/Microsoft.CodeAnalysis.CodeStyle.Fixes.dll

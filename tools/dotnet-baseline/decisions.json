@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "end_of_line": {
+      "value": "crlf",
+      "reason": "CRLF in every repository; Censio moves from LF (#338)"
+    },
+    "insert_final_newline": {
+      "value": "false",
+      "reason": "no final newline in every repository (#338)"
+    },
+    "dotnet_style_prefer_conditional_expression_over_return": {
+      "value": "true:silent",
+      "reason": "IDE0046 stays silent: rewriting an if chain into returns nests ternaries, which S3358 rejects (#338)"
+    },
+    "dotnet_diagnostic.S1125.severity": {
+      "value": "none",
+      "reason": "== false is the binding style; off in the source, since the built-in Sonar way comprehensive profile of SonarQube Cloud cannot switch it off (#338)"
+    },
+    "dotnet_diagnostic.RH3001.severity": {
+      "value": "error",
+      "reason": "RH3001 forbids the negation operator !: write == false instead (#338)"
+    },
+    "dotnet_diagnostic.RH4119.severity": {
+      "value": null,
+      "reason": "Reihitsu.Analyzer 1.2.0 has no rule RH4119 (#338)"
+    },
+    "dotnet_diagnostic.RH5515.severity": {
+      "value": null,
+      "reason": "on in every repository at the analyzer's default (#338)"
+    },
+    "dotnet_diagnostic.RH8402.severity": {
+      "value": null,
+      "reason": "on in every repository at the analyzer's default (#338)"
+    },
+    "dotnet_diagnostic.CS1591.severity": {
+      "value": null,
+      "reason": "on in every repository at the compiler's default: XML documentation on every member (#338)"
+    },
+    "dotnet_diagnostic.IDE0044.severity": {
+      "value": null,
+      "reason": "on in every repository at the analyzer's default (#338)"
+    },
+    "dotnet_diagnostic.IDE0049.severity": {
+      "value": null,
+      "reason": "on in every repository at the analyzer's default (#338)"
+    },
+    "dotnet_diagnostic.CA1822.severity": {
+      "value": null,
+      "reason": "as the majority: not set, the severity AnalysisLevel gives it (#338)"
+    },
+    "dotnet_diagnostic.CA2254.severity": {
+      "value": null,
+      "reason": "as the majority: not set, the severity AnalysisLevel gives it (#338)"
+    },
+    "dotnet_diagnostic.S1244.severity": {
+      "value": null,
+      "reason": "on in every repository: a Sonar way core rule, active by default (#338)"
+    },
+    "dotnet_diagnostic.S2325.severity": {
+      "value": null,
+      "reason": "on in every repository: the squad:sonar-rules block activates it from the SonarQube Cloud profile (#338)"
+    },
+    "dotnet_diagnostic.S6968.severity": {
+      "value": null,
+      "reason": "on in every repository: the squad:sonar-rules block activates it from the SonarQube Cloud profile (#338)"
+    }
+  },
+  "sections": {
+    "**/*.Tests/**.cs": {
+      "dotnet_diagnostic.S107.severity": {
+        "value": "none",
+        "reason": "test code: data-driven test methods and sample builders take more than seven parameters on purpose (#338)"
+      },
+      "dotnet_diagnostic.BL0016.severity": {
+        "value": "none",
+        "reason": "test code, as Vandox has it (#338)"
+      }
+    }
+  }
+}

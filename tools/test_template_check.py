@@ -258,6 +258,33 @@ class TestSonarRules(unittest.TestCase):
         both = "import re\nX = re.compile(r'(?<![\\w.])\\d[\\d_.]*')\nX.findall(t)\nX.fullmatch(t)\n"
         self.assertEqual(self.rules(both), [])
 
+    def test_adjacent_repetitions_that_share_a_character_are_reported(self):
+        # Measured with SonarSource's analyzer (tools/sonar-local.py): each of these is python:S8786.
+        for pattern in (r"x\d+\S* \[", r"x[a-z]+\w*y", r"x\d+\d*y", r"x\d*\d+y", r"x([a-z]+)\w+y",
+                        r"x(?P<id>[A-Za-z]+\d+)[^\"]*\"", r"x\s*.*?y", r"x\d*?\d+y", r"x\d+?\S*y", r"x\d+\S*+y",
+                        r"x\d+.*y", r"x(?>\d+)\S*y"):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\nX.search(t)\n"), ["python:S8786"],
+                             pattern)
+
+    def test_adjacent_repetitions_without_a_common_character_or_a_possessive_first_pass(self):
+        for pattern in (r"x\d+[a-z]*y", r"x[a-z]+[^a-z]*y", r"x\d+(?::[^\"]*)?\"", r"x[a-z]+\d+y", r"x\d+\.\d+",
+                        r"x\d+\S*", r"x\w+ \w+y", r"x\d++\S*y", r"x\s*\"[^\"]*\"\s*,\s*\""):
+            self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\nX.search(t)\n"), [], pattern)
+        self.assertEqual(self.rules("import re\nX = re.sub(r'x\\d+\\S* y', '', t)\n", path="test_tool.py"), [],
+                         "Sonar does not report it in a test file")
+
+    def test_a_character_class_that_names_a_character_twice_is_reported(self):
+        # `[aab]` is reported by Sonar too, but Python's parser folds a repeated literal before the check sees it.
+        for call in (r"re.compile(r'[A-Za-z]+', re.IGNORECASE)", r"re.compile(r'[0-9\d]')",
+                     r"re.compile(r'(?i)[A-Za-z]')", r"re.compile(r'[\w_]')", r"re.compile(r'[a-fA-F0-9]', re.I)",
+                     r"re.compile(r'[\s ]')", r"re.search(r'x[A-Za-z]', t, flags=re.M | re.I)"):
+            self.assertEqual(self.rules(f"import re\nX = {call}\n"), ["python:S5869"], call)
+
+    def test_a_character_class_without_a_duplicate_passes(self):
+        for call in (r"re.compile(r'[a-zA-Z0-9]+')", r"re.compile(r'[A-Z]+', re.IGNORECASE)", r"re.compile(r'[^\]\\]')",
+                     r"re.compile(r'[-\w.]')", r"re.compile(r'[^a]', re.I)"):
+            self.assertEqual(self.rules(f"import re\nX = {call}\n"), [], call)
+
     def test_several_spaces_in_a_regex_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])
 

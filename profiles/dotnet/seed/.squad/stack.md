@@ -6,12 +6,13 @@ profile and owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- .NET SDK of `global.json` (seeded as the newest SDK of the major, `10.0.404`; `rollForward` `latestFeature`: the newest installed
-  feature band of that major, never the next major) and target framework `{{TODO: e.g. net10.0}}`. Several majors may be installed side by side (a machine, CI); the
-  repository is built for one: every project's target framework, `global.json` and every .NET image name the same
-  major, which `dotnet_major.py` checks in the *Analyzer gate*, and a new project gets it from the SDK `global.json`
-  selects. Dependabot keeps the SDK, the packages and the images current within that major; the move to the next one
-  (target frameworks, `global.json`, the ASP.NET Core and EF Core packages, the images) is one change of its own, solution `{{TODO: Solution}}.slnx`.
+- .NET SDK of `global.json` (seeded as the newest SDK of the major, `10.0.404`; `rollForward` `latestFeature`: the
+  newest installed feature band of that major, never the next major), target framework `{{TODO: e.g. net10.0}}`,
+  solution `{{TODO: Solution}}.slnx`. Several majors may be installed side by side (a machine, CI); the repository is
+  built for one: every project's target framework, `global.json` and every .NET image name the same major, which
+  `dotnet_major.py` checks in the *Analyzer gate*, and a new project gets it from the SDK `global.json` selects.
+  Dependabot keeps the SDK, the packages and the images current within that major; the move to the next one (target
+  frameworks, `global.json`, the ASP.NET Core and EF Core packages, the images) is one change of its own.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
   pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert

@@ -30,11 +30,27 @@ updates:
       - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
         update-types: ["version-update:semver-major"]
 
+  # The SDK of global.json: patch and feature bands as they are released; the next major (10 to 11) comes with the
+  # change of the target framework, never alone.
+  - package-ecosystem: dotnet-sdk
+    directory: "/"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # The .NET images move to the next major with the target framework, as the SDK does.
+    ignore:
+      - dependency-name: "mcr.microsoft.com/dotnet/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
     groups:
       docker-images:
         patterns:

@@ -34,6 +34,20 @@ if [[ -f global.json ]]; then
   fi
 fi
 
+# The runtime of every target framework must be installed too: SDK 11 builds a net10.0 project, but its tests run on
+# the .NET 10 runtime. A warning only.
+runtimes="$(dotnet --list-runtimes 2>/dev/null || true)"
+targets="$(grep -rhoE --include='*.csproj' --include='*.props' '<TargetFrameworks?>[^<]+' . 2>/dev/null \
+  | grep -oE 'net[0-9]+\.0' | sort -u || true)"
+for target in $targets; do
+  major="${target#net}"
+  major="${major%%.*}"
+  if ! grep -q "^Microsoft.NETCore.App ${major}\." <<< "$runtimes"; then
+    echo "a project targets $target, but this session has no .NET $major runtime: install it in the environment's" \
+      "setup script (curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel ${major}.0)" >&2
+  fi
+done
+
 # Local tools of the repository's manifest: the formatter (*Format* in .squad/stack.md) and dotnet-sonarscanner
 # (*Sonar gate*), both pinned there.
 if [[ -e dotnet-tools.json || -e .config/dotnet-tools.json ]]; then

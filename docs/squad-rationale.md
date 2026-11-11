@@ -1113,3 +1113,11 @@ SonarAnalyzer.CSharp 10.35) and `coverlet.collector`'s Cobertura report behaved 
 `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.EntityFrameworkCore` 11.0.0 for `net11.0` only, while
 `Microsoft.Extensions.Logging` 11.0.0 still targets `net10.0`: only the first kind is held back from Dependabot's
 major updates.
+
+With the .NET 10 and 11 SDKs both installed, `reihitsu-format` under `"rollForward": true` still ran on the
+Microsoft.NETCore.App 10.0.15 runtime (host trace), so the roll-forward only takes effect where .NET 10 is missing.
+`actions/setup-dotnet` installs the versions of both `dotnet-version` and `global-json-file` when both are given, and
+honours `rollForward: latestFeature` (its README at the pinned v6.0.0). Vandox keeps its `global.json` current through
+Dependabot's `dotnet-sdk` ecosystem (10.0.100 → 10.0.401 → 10.0.402 → 10.0.403), while Censio, without it, still names
+10.0.100: with `latestFeature` that is only the lowest band allowed, and its CI installs the newest 10.0 SDK, but the
+file no longer says what builds.

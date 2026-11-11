@@ -33,7 +33,11 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '{{TODO: SDK version of global.json or the target framework, e.g. 11.0.x}}'
+          global-json-file: global.json
+          # Every other .NET a project targets, one per line (its tests need that runtime); 10 and 11 side by side,
+          # for example. Remove the input when every project targets the .NET of global.json.
+          dotnet-version: |
+            {{TODO: e.g. 11.0.x}}
 
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

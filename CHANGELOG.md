@@ -29,10 +29,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   exact text the orchestrator writes in (#316); the Lead's proposed no-change comment thanks no one when the issue's
   author posts it (#317); the Lead leaves the verbatim *Challenge notes* and *Security notes* alone outside a challenge
   revision (#318)
-- [Profile] The `dotnet` profile supports .NET 11: the seed tool manifest lets `reihitsu-format` roll forward to a newer
-  runtime, the seed CI takes the SDK version as a placeholder, the seed Dependabot leaves the next major of the
-  ASP.NET Core and EF Core packages to the change of the target framework, and the SessionStart hook warns when the
-  SDK `global.json` names is not installed (#322)
+- [Profile] The `dotnet` profile runs .NET 10 and 11 side by side: a seeded `global.json` fixes the SDK major (newest
+  feature band of it), the seed CI installs it with every other .NET the projects target, the seed tool manifest lets
+  `reihitsu-format` roll forward only where .NET 10 is missing, the seed Dependabot keeps the SDK (`dotnet-sdk`),
+  the packages and the .NET images current within their major and leaves the next major to the change of the target
+  framework, and the SessionStart hook warns about a missing SDK or target runtime (#322)
 
 ## v2026.11.4 — 2026-11-10
 

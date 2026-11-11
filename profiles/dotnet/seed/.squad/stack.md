@@ -6,7 +6,11 @@ profile and owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- .NET SDK `{{TODO: version, e.g. 11.0.x}}` (target framework `{{TODO: e.g. net11.0}}`), solution `{{TODO: Solution}}.slnx`.
+- .NET SDK of `global.json` (seeded as `10.0.100`, `rollForward` `latestFeature`: the newest installed
+  feature band of that major, never the next major) and target framework `{{TODO: e.g. net10.0}}`; projects may
+  target .NET 10 and 11 side by side, with every such runtime installed (CI: `dotnet-version` beside
+  `global-json-file`). Dependabot keeps the SDK and the packages current within their major; the move to the next
+  major (target framework, `global.json`, the ASP.NET Core and EF Core packages, the images) is a change of its own, solution `{{TODO: Solution}}.slnx`.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
   pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert

@@ -1145,3 +1145,8 @@ Security's diff review of Censio's v2026.11.5 refresh (#328): with a read-only o
 denylist of #315 let through. The guard now allows `git apply` only with options that write no file. The review of
 PlexToJellyfinSync's refresh found its only .NET-versioned packages, `Microsoft.Extensions.*`, at 11.0.0 with a
 `net10.0` target as well, which Dependabot's grouped NuGet update would have proposed.
+
+`sonar-rules.py` and path sections (#330): in Vandox's refresh the tool left S107 out of the block because
+`[tests/**.cs]` turns it off for test code, which would have dropped S107 for the production code that Vandox had
+enforced as an error since 2026-10-12; DockerUpdateGuard's migration section dropped S1192 the same way. Only a
+setting for every C# file is now the project's own choice.

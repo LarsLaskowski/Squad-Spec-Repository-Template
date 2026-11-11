@@ -100,12 +100,12 @@ class SonarRulesTest(unittest.TestCase):
         code, out = self.run_script()
         self.assertEqual(code, 0, out)
         self.assertIn("3 rule(s) beyond it at suggestion, 1 switched off", out)
-        self.assertIn("left out of the block: S107, S1192", out)
+        self.assertIn("left out of the block: S1192", out)
         text = self.read()
         block = text.split("[tests/**.cs]")[0]
         self.assertIn("dotnet_diagnostic.S3776.severity = suggestion\ndotnet_diagnostic.S1125.severity = none\n"
                       "# squad:sonar-rules end\n\n[tests/**.cs]", text, "inside [*.cs], before the next section")
-        self.assertNotIn("S107.severity = suggestion", block, "the test section's own setting")
+        self.assertIn("S107.severity = suggestion", block, "an override under tests/ is no choice for the rest")
         self.assertNotIn("S1192.severity = suggestion", block, "the file's own choice")
         self.assertNotIn("roslyn", text)
         self.assertEqual(self.run_script("--check")[0], 0)
@@ -118,7 +118,10 @@ class SonarRulesTest(unittest.TestCase):
         self.run_script(sonar=fake_sonar(project=PROJECT | {"S101"}), severity="error")
         text = self.read()
         self.assertEqual(text.count("# squad:sonar-rules begin"), 1)
-        self.assertIn("dotnet_diagnostic.S101.severity = error\ndotnet_diagnostic.S3776.severity = error\n", text)
+        self.assertIn("dotnet_diagnostic.S101.severity = error\ndotnet_diagnostic.S107.severity = error\n"
+                      "dotnet_diagnostic.S3776.severity = error\n", text)
+        self.assertTrue(text.endswith("[tests/**.cs]\ndotnet_diagnostic.S107.severity = none\n"),
+                        "the path's own override stays after the block, so it still wins there")
 
     def test_a_file_without_a_cs_section_gets_one_and_keeps_its_line_endings(self):
         write(".editorconfig", "root = true\r\n\r\n[*.md]\r\ntrim_trailing_whitespace = false\r\n", newline="")

@@ -15,8 +15,9 @@ otherwise learn of the difference only from the pull request's analysis. This sc
   `.squad/tools/squad_settings.py` (default `suggestion`: the *Analyzer gate* reports every severity in a changed file,
   while code the change leaves alone keeps building; `warning` or `error` make the build itself report them);
 - a rule of *Sonar way core* the project's profile does not activate gets `none`;
-- a rule the file already sets outside the block is the project's own choice: it stays out of the block and is
-  listed.
+- a rule the file already sets outside the block for every C# file is the project's own choice: it stays out of the
+  block and is listed; one set only in a section of a path (`[tests/**.cs]`) still gets its line in the block, so
+  the rest of the code keeps it.
 
 The block replaces the one between the markers. A file without them gets the block at the end of its first `[*.cs]`
 section, or a `[*.cs]` section at its end. Only `csharpsquid` rules are written; a rule's parameters (S107's
@@ -118,16 +119,30 @@ def split_block(text):
     return lines[:begin], lines[begin + 1:end], lines[end + 1:]
 
 
+def every_cs_file(line):
+    """True for a section header that applies to every C# file (`[*.cs]`, `[*.{cs,vb}]`), not to a path."""
+    match = SECTION.match(line)
+    return bool(match) and "cs" in re.split(r"[{},.*\s]+", match.group("glob")) and "/" not in match.group("glob")
+
+
 def own_rules(lines):
-    """The rules the file sets outside the block."""
-    return {match.group("rule").upper() for match in map(OWN_RULE.match, lines) if match}
+    """The rules the file sets outside the block for every C# file. A rule set in a section of a path only
+    (`[tests/**.cs]`, `[**/Migrations/*.cs]`) is no choice for the rest of the code, so the block still carries it
+    (Vandox: S107 off under `tests/**` would otherwise have left production code without S107)."""
+    found, everywhere = set(), True
+    for line in lines:
+        if SECTION.match(line):
+            everywhere = every_cs_file(line)
+            continue
+        match = OWN_RULE.match(line)
+        if match and everywhere:
+            found.add(match.group("rule").upper())
+    return found
 
 
 def insert_at(lines):
     """The index at the end of the first `[*.cs]` section (before trailing blank lines), or None without one."""
-    start = next((i for i, line in enumerate(lines) if SECTION.match(line)
-                  and "cs" in re.split(r"[{},.*\s]+", SECTION.match(line).group("glob"))
-                  and "/" not in SECTION.match(line).group("glob")), None)
+    start = next((i for i, line in enumerate(lines) if every_cs_file(line)), None)
     if start is None:
         return None
     end = next((i for i in range(start + 1, len(lines)) if SECTION.match(lines[i])), len(lines))

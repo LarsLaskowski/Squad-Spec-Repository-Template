@@ -134,7 +134,8 @@ class TestPlanSteps(NextTest):
         out = self.next()
         self.assertIn("the 2nd CHANGES_REQUIRED", out)
         self.assertIn("Launch: squad-lead, mode decide", out)
-        self.assertIn("Agent: fresh launch — the first launch of mode decide", out)
+        self.assertIn("Agent: fresh launch, a new agent (no SendMessage to an earlier one) — the first launch of mode "
+                      "decide", out)
         self.repo.log(row("3 Decide", "Lead", "RESULT: DECIDED — accept the complete fix", 20000))
         self.assertIn("Security delta confirmation", self.next(), "one confirmation of the accepted fix")
         self.repo.log(row("3 Plan security delta", "Security", "VERDICT: CHANGES_REQUIRED", 20000, continued=True))
@@ -220,7 +221,8 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("5 Tests first", "Tester", "red", 30000, "sonnet/medium"))
         out = self.next()
         self.assertIn("Launch: squad-dev, mode implement", out)
-        self.assertIn("Agent: fresh launch — the first launch of mode implement", out, "never the skeleton agent")
+        self.assertIn("Agent: fresh launch, a new agent (no SendMessage to an earlier one) — the first launch of mode "
+                      "implement", out, "never the skeleton agent")
         self.repo.log(row("6 Implement", "Dev", "green", 30000, "sonnet/medium"))
         out = self.next()
         self.assertIn("run *Test with coverage* and the *Coverage gate* from .squad/stack.md yourself", out)
@@ -859,6 +861,17 @@ class TestLaunches(NextTest):
         self.assertIn('ran on sonnet/medium, not opus/medium: never continued', out)
         self.assertEqual(run_main(self.tool, ["issue-5", "--launch", "squad-dev", "dance"])[0], 2)
         self.assertEqual(run_main(self.tool, ["issue-9"])[0], 1)
+
+    def test_a_continuation_past_the_cap_is_named_until_the_next_fresh_launch(self):
+        # Censio#146: squad-next.py named fresh launches, the orchestrator continued the Dev at 365,086 tokens.
+        self.implemented()
+        self.repo.log(row("6 Documentation", "Dev", "docs", 280000, "sonnet/medium", continued=True),
+                      row("8 Fix", "Dev", "fixed", 9000, "sonnet/medium", continued=True))
+        out = self.next("--launch", "squad-dev", "fix")
+        self.assertIn('WARNING: Dev\'s last launch, "8 Fix", continued an agent past the continuation cap', out)
+        self.assertIn("Agent: fresh launch, a new agent (no SendMessage to an earlier one)", out)
+        self.repo.log(row("8 Fix", "Dev", "fixed", 9000, "sonnet/medium"))
+        self.assertNotIn("WARNING: Dev", self.next("--launch", "squad-dev", "fix"), "a fresh launch ends the warning")
 
     def test_verdicts_are_read_from_the_logged_lines(self):
         tool, row_of = self.tool, self.tool.Row

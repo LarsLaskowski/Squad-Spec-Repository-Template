@@ -35,6 +35,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   the seed tool manifest lets `reihitsu-format` roll forward only where .NET 10 is missing; the seed Dependabot keeps
   the SDK (`dotnet-sdk`), the packages and the images current within the major; and the SessionStart hook warns about
   a missing SDK or target runtime (#322)
+- [Tools] `squad-next.py` warns in every output while a member's last launch continued an agent past the continuation
+  cap, and its fresh launch says it is a new agent, not a `SendMessage`; `squad-issue` says a launch it names fresh is
+  fresh, a fix round too (#324)
 
 ## v2026.11.4 — 2026-11-10
 

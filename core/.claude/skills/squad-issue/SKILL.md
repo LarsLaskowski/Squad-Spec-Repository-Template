@@ -33,7 +33,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
   with `--stdin` and the comment's log table): it prints the next step with its exact launch — agent, mode, model,
   fresh or continued (*Continuing a member*), hand-over and log command — or your own row, and the gates and review
   set the tier calls for. Follow it, continuing exactly the agent it names (*Continuing a member* in
-  `.squad/orchestration.md`).
+  `.squad/orchestration.md`), and launching a new agent where it says fresh, a fix round too.
 - **Scope:** a product PR touches neither the squad nor the instruction files outside their project blocks
   (*Scope of a product PR*, which `scope-check.py` enforces).
 - **One build at a time:** launch the members that build or test one after another (*Concurrency*).

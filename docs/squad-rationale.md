@@ -1128,3 +1128,12 @@ a second major is a hand edit, which `dotnet_major.py` reports in the *Analyzer 
 consumers it found .NET 10 everywhere: Vandox 1 target framework and 2 images (as `<NAME>_IMAGE` and `<NAME>_TAG`
 build arguments), DockerUpdateGuard and PlexToJellyfinSync 5 target frameworks and 2 images each (image references in
 build arguments), Censio 15 target frameworks and 2 images.
+
+## A continuation past the cap is named until the next fresh launch (squad-next.py; squad-issue, step 1)
+
+Censio#25's Dev agent reached 518,670 tokens and 8 continuations (Censio#146, #324). Its log, cut before `8 Fix (round
+1)`, `9 README fix` and `9 Durations` and replayed with v2026.11.4's `squad-next.py` and with `main`'s, gave a fresh
+launch each time (the agent was at 365,086 tokens after the documentation of G3, which at 282,582 had still been
+within the cap): the tool was right, and the orchestrator continued the agent all the same, warned only by
+`squad-log.py` when it logged the row. The warning now stands at the top of every `squad-next.py` output until the
+member's next launch is fresh.

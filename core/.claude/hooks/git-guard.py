@@ -106,8 +106,9 @@ CONFIG_READ = {"-l", "--list", "--show-origin", "--show-scope"}
 APPLY_READ = {"--check", "--stat", "--numstat", "--summary"}
 # The other `git apply` options that write no file beside a read-only one (Squad-Spec-Repository-Template#328: an
 # allowlist, so `--build-fake-ancestor=<file>`, which writes an index file, and any option Git adds later stay denied).
-APPLY_HARMLESS = {"-R", "--reverse", "-v", "--verbose", "-q", "--quiet", "-z", "--cached", "--index", "-3", "--3way",
-                  "--ours", "--theirs", "--union", "--reject", "--unidiff-zero", "--recount", "--allow-empty",
+# `-3`/`--3way` is left out: beside `--check` it still stores the merged blob in `.git/objects` (#328's review).
+APPLY_HARMLESS = {"-R", "--reverse", "-v", "--verbose", "-q", "--quiet", "-z", "--cached", "--index", "--reject",
+                  "--unidiff-zero", "--recount", "--allow-empty",
                   "--allow-binary-replacement", "--binary", "--ignore-space-change", "--ignore-whitespace",
                   "--inaccurate-eof", "--no-add"}
 # Options of `git apply` that take a value, attached (`--directory=src`) or as the next argument.

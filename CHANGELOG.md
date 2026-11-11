@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `git-guard.py` denies a member `git apply --3way` also beside `--check`, which stores the merged blob in
+  `.git/objects` (#328)
 - [Profile] `sonar-rules.py` leaves a rule out of its block only when `.editorconfig` sets it for every C# file; one
   set in a section of a path (`[tests/**.cs]`, `[**/Migrations/*.cs]`) keeps its line in the block (#330)
 

@@ -58,7 +58,8 @@ class TestCommands(unittest.TestCase):
                            "git apply --check --bu .git/index /tmp/p.patch", "git apply --check --unsafe-paths p.patch",
                            "git apply --check -N p.patch", "git apply --check --future-option p.patch")
         self.assert_allowed("git apply --check -p1 --directory src --exclude=docs/* p.patch",
-                            "git apply --check --3way --reject -R p.patch", "git apply --stat -- p.patch")
+                            "git apply --check --reject -R --index p.patch", "git apply --stat -- p.patch")
+        self.assert_denied("git apply --check --3way p.patch", "git apply --check -3 --cached p.patch")
 
     def test_git_writes_are_denied(self):
         self.assert_denied(

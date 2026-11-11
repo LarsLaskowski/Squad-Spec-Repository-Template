@@ -15,7 +15,7 @@ tool = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tool)
 
 EDITORCONFIG = """# comment
-﻿root = true
+\ufeffroot = true
 
 [*]
 end_of_line = crlf
@@ -36,7 +36,7 @@ generated_code = true
 dotnet_diagnostic.S1192.severity = none
 dotnet_style_readonly_field = true:error
 """
-RULESET = """﻿<?xml version="1.0" encoding="utf-8"?>
+RULESET = """\ufeff<?xml version="1.0" encoding="utf-8"?>
 <RuleSet Name="Rules" ToolsVersion="18.0">
   <Rules AnalyzerId="Reihitsu.Analyzer" RuleNamespace="Reihitsu.Analyzer">
     <Rule Id="RH0001" Action="Error" />

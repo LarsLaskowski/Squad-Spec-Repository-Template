@@ -44,7 +44,7 @@ import os
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree as ElementTree  # noqa: S405  (parses the consumers' own rule sets)
+import xml.etree.ElementTree as ElementTree  # noqa: S405  # nosec B405
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -198,7 +198,8 @@ def parse_editorconfig(config, text):
 
 def parse_ruleset(config, text):
     """Read a rule set's actions into the config, keeping the stricter of several."""
-    for rule in ElementTree.fromstring(text.lstrip("﻿")).iter("Rule"):  # noqa: S314  (the consumers' own files)
+    # The rule sets of the consumers' own repositories, read from their clones; the tool stays stdlib-only, so no defusedxml.
+    for rule in ElementTree.fromstring(text.lstrip("\ufeff")).iter("Rule"):  # noqa: S314  # nosec B314
         action = RULESET_ACTIONS.get(rule.get("Action", "").lower())
         if action and rule.get("Id"):
             config.set_rule(f"dotnet_diagnostic.{rule.get('Id').upper()}.severity", action, stronger=True)

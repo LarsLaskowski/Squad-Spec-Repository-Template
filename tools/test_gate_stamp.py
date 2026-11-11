@@ -356,6 +356,23 @@ class TestGateStamp(RepoTest):
         self.assertEqual(code, 1)
         self.assertIn("the last gate stamp failed", out)
 
+    def test_the_session_sees_a_summary_and_the_full_output_goes_to_a_file(self):
+        # Squad-Spec-Repository-Template#313: a long test log is not carried in the orchestrator's context.
+        noisy = "`for i in $(seq 1 200); do echo line-$i; done; false`"
+        self.repo.write(".squad/stack.md", STACK.replace("`echo test-coverage`", noisy))
+        head = self.repo.commit("noisy tests")
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL (exit 1); the last 60 of 200 lines:", out)
+        self.assertIn("line-200", out)
+        self.assertNotIn("line-100\n", out)
+        path = os.path.join(tempfile.gettempdir(), "squad-gates", f"issue-5-{head[:12]}.log")
+        self.assertIn(f"Full gate output: {path}", out)
+        with open(path, encoding="utf-8") as handle:
+            full = handle.read()
+        self.assertIn("line-1\n", full)
+        self.assertIn("$ echo format-check\nformat-check", full)
+
     def test_verify_needs_the_tier_of_the_run_and_the_base_branch_in_the_head(self):
         self.assertEqual(self.stamp()[0], 0)
         self.repo.commit("log")

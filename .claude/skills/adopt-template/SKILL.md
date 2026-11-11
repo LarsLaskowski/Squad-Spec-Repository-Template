@@ -117,6 +117,11 @@ Rules that hold throughout:
    `@vitest/coverage-v8` for `typescript`; Reihitsu or SonarAnalyzer.CSharp for `dotnet`), add it — a new dev
    dependency is part of this PR and is named in its description. If adding it would change a lot of
    unrelated code (a formatter's first run), keep the gate limited to changed files and say so in the PR.
+   With the `dotnet` profile, run `python3 .squad/tools/sonar-rules.py` on adoption and on every refresh: it writes the
+   `squad:sonar-rules` block of `.editorconfig` from the project's SonarQube Cloud C# profile (a target without the
+   markers gets them; rules the target set by hand for the same purpose move into the block, and a sentence of its
+   `stack.md` that calls such a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to
+   sonarcloud.io) is named in the PR description.
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`
    and every link updated; the profile's seed is only used when the target has no test document, and an
    existing one gets the *Code coverage* and checklist sections of the seed merged in.

@@ -6,6 +6,30 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` profile's new managed `sonar-rules.py` writes the rules of the project's SonarQube Cloud C#
+  profile beyond *Sonar way core* into a marked `.editorconfig` block (severity `SONAR_RULES_SEVERITY`), so the
+  *Analyzer gate* reports S3776, S1192, S107 and the rest locally; `adopt-template` runs it on every refresh (#312)
+- [Profile] The `dotnet` *Skeleton* names the diagnostics a skeleton raises by construction (S1144, S1172, S4487,
+  S2325, CS0067, CS0649, RH2003) for its removable pragma, and the Dev leaves a DI registration a criterion's test
+  asserts to the implementation (#306)
+- [Tools] `squad-next.py` holds the Tester's coverage pass open for the tests a step-5 row names after `Deferred:`
+  (#307), launches the Tester for its share of a plan without production or test code (#314), reads the step-9
+  approval from the Lead's `RESULT:` line and the checklist row's first words, so a fix ordered in `approve-pr` ends
+  with the checklist (#319), takes a logged or folded *Challenge notes* append as done (#318), never continues an
+  agent already continued in another mode (#320), and keeps step 12 due after a merge or close (#311)
+- [Tools] `plan-check.py --matrix` names only the files of the tests a criterion's row names, falling back to its id
+  in the row's files, and keeps the cell's code spans (#308)
+- [Tools] `gate-stamp.py` writes each gate's whole output to a file outside the repository and prints a summary with
+  the tail of a failure; `session-usage.py` prints the orchestrator's share and names its model above half (#313)
+- [Tools] `git-guard.py` allows a member `git apply --check` (and `--stat`, `--numstat`, `--summary`) for a dry-run
+  patch the orchestrator commits and reverts (*Dry-run artifacts*) (#315)
+- [Core] A merge or close of the PR ends the watching, never the run: step 12 runs at once (#311); the orchestrator
+  keeps every fresh launch's agent id and continues exactly the agent `squad-next.py` names (#320)
+- [Core] Every documentation update of a plan has a member as owner, an edit of `stack.md` or `project.md` too, whose
+  exact text the orchestrator writes in (#316); the Lead's proposed no-change comment thanks no one when the issue's
+  author posts it (#317); the Lead leaves the verbatim *Challenge notes* and *Security notes* alone outside a challenge
+  revision (#318)
+
 ## v2026.11.4 — 2026-11-10
 
 - [Profile] The `dotnet` profile's *Writing code* names the analyzer rules that refuse a planned name, S2344 and

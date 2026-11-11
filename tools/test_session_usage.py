@@ -101,6 +101,15 @@ class TestSessionUsage(unittest.TestCase):
         out = self.run_script().stdout
         self.assertIn("No subagent was launched in this session.", out)
         self.assertIn("| claude-opus-5-5 | 1 | 2 | 3 | 4 |", out)
+        self.assertIn("100 % of the total, on claude-opus-5-5.", out)
+        self.assertIn("Note: the orchestrating session carries more than 50 %", out)
+
+    def test_names_the_orchestrators_share_and_no_note_below_half(self):
+        self.write_session()
+        out = self.run_script().stdout
+        self.assertIn("Orchestrator (this session without its subagents): 2,415 weighted, 32 % of the total, on "
+                      "claude-sonnet-5-5.", out)
+        self.assertNotIn("Note: the orchestrating session", out)
 
     def test_no_transcript_is_not_provided(self):
         self.write_session()

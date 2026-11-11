@@ -268,6 +268,20 @@ class TestPlanCheck(unittest.TestCase):
         write("tests/ExportTests.cs", "func TestExport_AC1(t *testing.T) {}\nt.Run(\"AC2 header only\", f)\n")
         self.assertEqual(self.matrix(folder)[0], 0, "a name suffix or a subtest name carries the id")
 
+    def test_matrix_names_only_the_files_of_the_named_tests_and_keeps_the_code_spans(self):
+        # Censio#137 and Censio#140: an older feature's AC1 in a changed file was listed, and the cell lost a backtick.
+        plan = PLAN.replace("| AC1 | ExportWritesOneRowPerItem | tests/ExportTests.cs |",
+                            "| AC1 | `ExportWritesRows` (one row per item), `\u2026QuotesCommas` | tests/ExportTests.cs |")
+        folder = self.feature(plan=plan)
+        write("tests/ExportTests.cs", "public void ExportWritesRows() {}\npublic void ExportQuotesCommas() {}\n"
+                                      "public void ExportEmptyLibraryWritesHeader() {}\n")
+        write("tests/TrayMenuTests.cs", '[TestCategory("AC1")]\npublic void TrayMenuOpens() {}\n')
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        self.assertIn("| AC1 | unit | `ExportWritesRows` (one row per item), `\u2026QuotesCommas` | pass on `the working "
+                      "tree`: tests/ExportTests.cs |", output)
+        self.assertNotIn("TrayMenuTests", output, "a file that only shares the id of an earlier feature")
+
     def test_matrix_shows_other_verifications_and_amendments(self):
         plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",
                             "| AC2 | after merge: the PM imports the file into the target application | — |\n"

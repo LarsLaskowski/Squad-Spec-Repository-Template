@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Tools] `squad-next.py` warns in every output while a member's last launch continued an agent past the continuation
+  cap, and its fresh launch says it is a new agent, not a `SendMessage`; `squad-issue` says a launch it names fresh is
+  fresh, a fix round too (#324)
+
 - [Profile] The `dotnet` profile's new managed `sonar-rules.py` writes the rules of the project's SonarQube Cloud C#
   profile beyond *Sonar way core* into a marked `.editorconfig` block (severity `SONAR_RULES_SEVERITY`), so the
   *Analyzer gate* reports S3776, S1192, S107 and the rest locally; `adopt-template` runs it on every refresh (#312)

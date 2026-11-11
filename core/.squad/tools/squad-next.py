@@ -375,7 +375,7 @@ def launch(run, agent, mode, step, handover, rule=None, purpose=""):
     model, source = expected_model(run, agent)
     lines = [f"  Launch: {agent}, mode {mode}" + (f" — {purpose}" if purpose else ""), f"  Model: {model} ({source})"]
     if chain is None:
-        lines.append(f"  Agent: fresh launch — {why}")
+        lines.append(f"  Agent: fresh launch, a new agent (no SendMessage to an earlier one) — {why}")
         continuation = ""
     else:
         lines.append(f"  Agent: continue the agent of \"{chain['step']}\" ({chain['continuations']} continuation(s), "
@@ -1433,8 +1433,30 @@ def run_header(run):
     return line + (" · after step 10 (log from --stdin)" if run.after_pr else "")
 
 
+def cap_warnings(run):
+    """A warning for every member whose last launch row continued an agent already past the continuation cap
+    (`squad-log.py`'s *Past the continuation cap*, Censio#146), until that member's next launch is fresh."""
+    found = []
+    log = squad_log()
+    for agent, member in CELLS.items():
+        launches = [i for i, row in enumerate(run.raw) if row[2] == member and log.TRAILER.search(row[3])]
+        if agent not in MODES or not launches:
+            continue
+        rows = run.raw[launches[-1]]
+        trailer = log.TRAILER.search(rows[3])
+        if not trailer.group("continued"):
+            continue
+        chains, fresh, current = log.agent_chains(run.raw[:launches[-1]], member)
+        index = fresh.get(trailer.group("origin")) if trailer.group("origin") else current
+        if index is not None and log.at_cap(chains[index]):
+            found.append(f"WARNING: {member}'s last launch, \"{rows[1]}\", continued an agent past the continuation "
+                         "cap (.squad/orchestration.md, *Continuing a member*): its next launch is a new agent with a "
+                         "short hand-over, as the launch below says")
+    return found
+
+
 def next_step(run):
-    lines = [run_header(run)]
+    lines = [run_header(run)] + cap_warnings(run)
     for stage in STAGES:
         found = stage(run)
         if found:
@@ -1453,7 +1475,7 @@ def launch_only(run, agent, mode):
         step = "2a Spec challenge" if mode == "spec" else f"{run.plan_step} Plan challenge"
     if run.after_pr or mode == "decide":
         step = f"{'11' if run.after_pr else '<step>'} {step.split(' ', 1)[-1]}"
-    return [run_header(run), f"Launch {agent} in mode {mode}:"] + launch(
+    return [run_header(run)] + cap_warnings(run) + [f"Launch {agent} in mode {mode}:"] + launch(
         run, agent, mode, step, "only what it needs (squad-issue: the plan or task rows, the test names, the base ref, "
         "the code SHA, the gate output for the head)")
 

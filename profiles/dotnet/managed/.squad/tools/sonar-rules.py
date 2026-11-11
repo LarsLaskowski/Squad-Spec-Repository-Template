@@ -136,18 +136,20 @@ def insert_at(lines):
     return end
 
 
+def with_block(lines, body):
+    """`lines` without a block, with `body` at the end of the first `[*.cs]` section, or in a new one at the end; a
+    blank line before it."""
+    at = insert_at(lines)
+    if at is None:
+        return lines + ([""] if lines and lines[-1].strip() else []) + ["[*.cs]", *body]
+    return lines[:at] + ([""] if at and lines[at - 1].strip() else []) + body + lines[at:]
+
+
 def render(text, rules):
     """The file's text with the block holding `rules`."""
     before, block, after = split_block(text)
     body = [HEADER, *rules, END]
-    if block is not None:
-        lines = before + body + after
-    else:
-        at = insert_at(before)
-        if at is None:
-            lines = before + ([""] if before and before[-1].strip() else []) + ["[*.cs]", *body]
-        else:
-            lines = before[:at] + ([""] if at and before[at - 1].strip() else []) + body + before[at:]
+    lines = before + body + after if block is not None else with_block(before, body)
     newline = "\r\n" if "\r\n" in text else "\n"
     final = text.endswith(("\n", "\r")) or not text
     return newline.join(lines) + (newline if final else "")

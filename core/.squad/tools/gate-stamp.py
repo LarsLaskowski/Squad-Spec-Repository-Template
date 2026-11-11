@@ -503,6 +503,15 @@ def run_context(root, name, rows, after_pr):
             "records": bool(changed(root, base, RECORD_PATHSPECS))}
 
 
+def run_logged(run, root, name, sha, stream):
+    """`run_gates` with the whole output in the file `output_path` names, which it prints at the end."""
+    path = output_path(name, sha)
+    with open(path, "w", encoding="utf-8") as full:
+        results = run_gates(run, root, stream, full)
+    print(f"Full gate output: {path} (hand it to the reviewers as the stamp's gate output)", file=stream or sys.stdout)
+    return results
+
+
 def stamp_command(options, root, name, log_path, after_pr, stream=None):
     """Run the gates and append the stamp row; the exit code."""
     dirty = uncommitted(root)
@@ -523,11 +532,8 @@ def stamp_command(options, root, name, log_path, after_pr, stream=None):
             print(f"{FIGURE} (no gate)")
         return 0
     sha = head(root)
-    path = output_path(name, sha)
-    with open(path, "w", encoding="utf-8") as full:
-        results = run_gates(run, root, stream, full)
+    results = run_logged(run, root, name, sha, stream)
     hits = figure_hits(root, stream) if figure else None
-    print(f"Full gate output: {path} (hand it to the reviewers as the stamp's gate output)", file=stream or sys.stdout)
     if head(root) != sha:
         results.append(("HEAD", f"moved to {head(root)} while the gates ran"))
     verdict = "PASS" if all(status == PASSED for _, status in results) else "FAIL"

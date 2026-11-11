@@ -187,6 +187,8 @@ class TestPlanSteps(NextTest):
         self.repo.log(row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 0 major, 2 minor", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
         self.assertIn("append the minor objections verbatim to plan.md as *Challenge notes*", self.next())
+        self.repo.log(row("2 Challenge notes", "Orchestrator", "minor objections appended verbatim to plan.md"))
+        self.assertNotIn("append the minor objections", self.next(), "the logged append settles the notes")
         self.repo.log(row("2 Plan challenge", "Devil's Advocate", "objections in the report", 9000))
         out = self.next()
         self.assertIn('the row "2 Plan challenge · Devil\'s Advocate" carries no VERDICT line', out)
@@ -270,10 +272,72 @@ class TestCodeSteps(NextTest):
         out = self.next()
         self.assertIn("steps 4–5 — not applicable", out)
         self.repo.log(row("4-5 Skipped", "Orchestrator", "no production or test code"))
-        self.assertIn("the Dev's edits alone", self.next())
+        self.assertIn("the Dev's edits (no Tester's share in the plan)", self.next())
+        self.repo.log(row("6 Implement", "Dev", "done", 9000, "sonnet/medium"))
+        self.assertNotIn("Tester's share", self.next())
         self.repo.write("specs/issue-5/plan.md", plan_text("tests"))
         out = self.next()
         self.assertIn("the Tester writes the plan's tests (tier tests: no Dev)", out)
+
+    def test_a_plan_without_code_launches_the_tester_for_the_share_the_plan_names(self):
+        # Vandox#410: the plan gave the test documentation and a dry-run test to the Tester.
+        plan = plan_text("trivial", code_free=True, documentation="- docs/UNIT_TESTS.md: the Tester adds the limit")
+        self.repo.write("specs/issue-5/plan.md", plan)
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4-5 Skipped", "Orchestrator", "no production or test code"))
+        self.assertIn("the Dev's edits; then the Tester's share the plan names", self.next())
+        self.repo.log(row("6 Implement", "Dev", "done", 9000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("the Tester's share of a plan without production or test code", out)
+        self.assertIn("Launch: squad-tester, mode coverage", out)
+        self.assertIn("git apply --check", out)
+        self.repo.log(row("6 Tester share", "Tester", "done", 9000, "sonnet/medium"))
+        self.assertNotIn("Tester's share", self.next())
+
+    def test_deferred_tests_keep_the_coverage_pass_due_until_the_tester_ran(self):
+        # Censio#137: the gate passed, the orchestrator went on to step 7 with four deferred tests open.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`, `test_b`", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green", 30000, "sonnet/medium"),
+                      row("6 Coverage skipped", "Orchestrator", "the gate passes"))
+        out = self.next()
+        self.assertIn("the Tester's pass is due for the deferred tests", out)
+        self.assertIn("the deferred tests (`test_a`, `test_b`)", out)
+        self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
+        self.assertNotIn("deferred tests", self.next())
+
+    def test_no_deferred_tests_leave_the_skip_row_in_force(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: none", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green", 30000, "sonnet/medium"),
+                      row("6 Coverage skipped", "Orchestrator", "the gate passes"))
+        self.assertNotIn("Next: step 6", self.next())
+
+    def test_an_agent_continued_in_another_mode_is_never_continued_again(self):
+        # Censio#140: the Tester's coverage agent was continued for tests first of the next group.
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = "feature-7-export"
+        self.repo.folder = self.folder
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.write("specs/feature-7-export/plan.md", feature_plan())
+        self.repo.write("specs/feature-7-export/tasks.md", TASKS)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("2b Plan", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2b Challenge skipped", "Orchestrator", "challenge skipped — one option"),
+                      row("4 Skeleton (G1)", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first (G1)", "Tester", "red", 30000, "sonnet/medium"),
+                      row("6 Implement (G1)", "Dev", "green", 30000, "sonnet/medium"),
+                      row("6 Coverage (G1)", "Tester", "covered", 30000, "sonnet/medium"),
+                      row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"),
+                      row("5 Tests first (G2)", "Tester", "red", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement (G2)", "Dev", "green", 9000, "sonnet/medium", continued="6 Implement (G1)"))
+        out = self.next()
+        self.assertIn("Next: step 6 — Coverage (G2)", out)
+        self.assertIn('the agent of "6 Coverage (G1)" was continued in another mode at "5 Tests first (G2)"', out)
+        self.assertIn("short: the plan or task group", out)
 
     def test_task_groups_continue_the_agent_of_the_same_mode(self):
         self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
@@ -585,10 +649,44 @@ class TestReviewAndAfter(NextTest):
         log += self.reviewed("11 Review delta", "VERDICT: APPROVE", 9000, continued=True)
         self.assertIn("Next: step 9 — PR approval", self.next("--stdin", stdin=log), "the re-approval")
         log += row("11 PR approval", "Orchestrator", "approved by checklist")
+        out = self.next("--stdin", stdin=log)
+        self.assertIn("Step 12 is still due: a merge or close notification ends the watching, never the run", out)
+        self.assertIn("Next: step 12 — Wrap-up", self.next("--stdin", stdin=log + row("11 Merged", "Orchestrator",
+                                                                                   "merged at 10:00")),
+                      "Censio#127: a merge before the PR was marked ready still leaves step 12")
         log += row("11 Ready for review", "Orchestrator", "marked ready for review")
         self.assertIn("Next: step 12 — Wrap-up", self.next("--stdin", stdin=log))
         log += row("12 Wrap-up", "Orchestrator", "no lessons")
         self.assertIn("squad-log.py --summary --stdin until it exits 0", self.next("--stdin", stdin=log))
+
+    def test_a_fix_ordered_in_approve_pr_ends_with_the_checklist(self):
+        # Censio#140: the checklist row named the Lead's earlier NOT APPROVED, and step 9 asked for a fix again.
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.repo.commit("log")
+        self.repo.log(row("9 PR approval", "Lead", "RESULT: NOT APPROVED — FIX: (1) Dev — the region icon", 9000))
+        out = self.next()
+        self.assertIn("Next: step 9 — NOT APPROVED with a fix", out)
+        self.assertIn("Launch: squad-dev, mode fix", out)
+        self.repo.log(row("9 Fix", "Dev", "fixed", 9000, "sonnet/medium", continued=True))
+        self.repo.write("src/a.py", "x = 8\n")
+        self.repo.commit("fix")
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review delta", "VERDICT: APPROVE", 9000, continued=True))
+        self.assertIn("Next: step 9 — PR approval", self.next())
+        self.repo.log(row("9 PR approval", "Orchestrator", "approved by checklist; the Lead's NOT APPROVED fix done"))
+        self.assertIn("Next: step 10 — Pull request", self.next())
+
+    def test_not_approved_without_a_fix_goes_to_the_lead(self):
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.repo.commit("log")
+        self.repo.log(row("9 PR approval", "Lead", "RESULT: NOT APPROVED — the guarantee needs the PM", 9000))
+        out = self.next()
+        self.assertIn("NOT APPROVED without a fix", out)
+        self.assertIn("Launch: squad-lead, mode decide", out)
 
     def test_a_verbatim_fix_needs_the_light_stamp_and_no_delta_round(self):
         self.implemented()

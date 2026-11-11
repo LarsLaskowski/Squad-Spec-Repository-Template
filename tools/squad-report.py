@@ -84,6 +84,9 @@ FAILED = {"failure", "timed_out"}
 
 
 PER_PAGE = 100
+# How long after the merge a linked issue's comment still belongs to the run: step 12 can post its metrics after a
+# fast merge (*Draft until green*), and a later run on the same issue starts a branch of its own.
+AFTER_MERGE = datetime.timedelta(hours=24)
 
 
 def gh(path):
@@ -245,12 +248,20 @@ def hours(start, end):
 
 def own_issue_comments(comments, commits, merged_at):
     """The comments of a linked issue that belong to this pull request's run: posted from the branch's first
-    commit to the merge. An issue that two pull requests close (a feature, then its release) carries the working
-    record of the earlier run only, which was posted before the later branch started."""
+    commit to `AFTER_MERGE` after the merge. An issue that two pull requests close (a feature, then its release)
+    carries the working record of the earlier run only, which was posted before the later branch started; the run
+    metrics of step 12 may follow the merge by seconds (Censio#134: seven)."""
     dates = [c["commit"]["committer"]["date"] for c in commits]
     first = min(dates) if dates else None
+    last = (parse_time(merged_at) + AFTER_MERGE).strftime("%Y-%m-%dT%H:%M:%SZ") if merged_at else None
     return [c for c in comments
-            if not c.get("created_at") or ((first is None or c["created_at"] >= first) and c["created_at"] <= merged_at)]
+            if not c.get("created_at") or ((first is None or c["created_at"] >= first)
+                                           and (last is None or c["created_at"] <= last))]
+
+
+def parse_time(stamp):
+    """A GitHub timestamp (`2026-11-10T08:47:59Z`) as an aware datetime."""
+    return datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00")).astimezone(datetime.UTC)
 
 
 def pull_request_row(repo, pr, sonar_key):

@@ -90,7 +90,9 @@ decision-seeds/   the record that supersedes, on a refresh, the numbered process
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
                   squad-upstream issues), release.py (changelog and release tags), rollout-check.py (a rollout
                   rehearsed on every active consumer before the release), sonar-local.py with SonarLocal.java
-                  (SonarSource's open Python analyzer over the tools, before a release)
+                  (SonarSource's open Python analyzer over the tools, before a release), dotnet-baseline.py
+                  (the .NET rule baseline merged from the dotnet consumers, the stricter setting winning, with the
+                  owner's decisions and the analyzers' rule ids in dotnet-baseline/)
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 consumers.json    the repositories that use the template: profiles, SonarQube Cloud key, active or legacy
 CHANGELOG.md      what each release brings to them

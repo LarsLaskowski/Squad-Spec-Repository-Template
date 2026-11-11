@@ -12,7 +12,8 @@ profile and owned by this repository: keep it true when the build changes.
   built for one: every project's target framework, `global.json` and every .NET image name the same major, which
   `dotnet_major.py` checks in the *Analyzer gate*, and a new project gets it from the SDK `global.json` selects.
   Dependabot keeps the SDK, the packages and the images current within that major; the move to the next one (target
-  frameworks, `global.json`, the ASP.NET Core and EF Core packages, the images) is one change of its own.
+  frameworks, `global.json`, the Microsoft.Extensions, ASP.NET Core and EF Core packages, the images) is one change
+  of its own.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
   pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert

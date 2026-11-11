@@ -6,6 +6,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `git-guard.py` allows a member `git apply` only with `--check`, `--stat`, `--numstat` or `--summary` and
+  otherwise options that write no file, so `--build-fake-ancestor=.git/index` can no longer replace the index (#328)
+- [Profile] The `dotnet` seed Dependabot holds back the next major of `Microsoft.Extensions.*` too, whose 11.0.0 also
+  restores into a `net10.0` project (#328)
+
 ## v2026.11.5 — 2026-11-11
 
 - [Profile] The `dotnet` profile's new managed `sonar-rules.py` writes the rules of the project's SonarQube Cloud C#

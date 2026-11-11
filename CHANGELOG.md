@@ -14,6 +14,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   `.git/objects` (#328)
 - [Profile] `sonar-rules.py` leaves a rule out of its block only when `.editorconfig` sets it for every C# file; one
   set in a section of a path (`[tests/**.cs]`, `[**/Migrations/*.cs]`) keeps its line in the block (#330)
+- [Profile] `sonar-rules.py` reads a section's glob to decide whether it applies to every C# file: `[*]` sets the
+  project's own choice, `[*.g.cs]` or `[*Tests.cs]` only that of some files; it warns when such a section comes before
+  the block, whose line then wins there too (#333)
 - [Profile] The `dotnet` seed Dependabot holds back the next major of `Microsoft.Extensions.*` too, whose 11.0.0 also
   restores into a `net10.0` project (#328)
 - [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.github/dependabot.yml`, `profiles/dotnet/seed/.squad/stack.md`

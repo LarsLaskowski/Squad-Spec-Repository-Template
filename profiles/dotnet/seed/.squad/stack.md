@@ -6,7 +6,7 @@ profile and owned by this repository: keep it true when the build changes.
 
 ## Toolchain
 
-- .NET SDK `{{TODO: version, e.g. 10.0.x}}` (target framework `{{TODO: net10.0}}`), solution `{{TODO: Solution}}.slnx`.
+- .NET SDK `{{TODO: version, e.g. 11.0.x}}` (target framework `{{TODO: e.g. net11.0}}`), solution `{{TODO: Solution}}.slnx`.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
   pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
   **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert

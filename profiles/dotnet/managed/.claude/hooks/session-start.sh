@@ -23,6 +23,17 @@ if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
   } >> "$CLAUDE_ENV_FILE"
 fi
 
+# The SDK major global.json asks for must be installed here: a cloud environment set up for an older .NET installs the
+# newer one in its setup script. A warning only; the restore below then names the missing SDK itself.
+if [[ -f global.json ]]; then
+  wanted="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9]*\)\..*/\1/p' global.json | head -n 1)"
+  installed="$(dotnet --list-sdks 2>/dev/null || true)"
+  if [[ -n "$wanted" ]] && ! grep -q "^${wanted}\." <<< "$installed"; then
+    echo "global.json asks for .NET SDK ${wanted}, which this session lacks: install it in the environment's setup" \
+      "script (curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel ${wanted}.0)" >&2
+  fi
+fi
+
 # Local tools of the repository's manifest: the formatter (*Format* in .squad/stack.md) and dotnet-sonarscanner
 # (*Sonar gate*), both pinned there.
 if [[ -e dotnet-tools.json || -e .config/dotnet-tools.json ]]; then

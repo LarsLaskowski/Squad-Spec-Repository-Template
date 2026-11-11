@@ -20,6 +20,15 @@ updates:
       nuget-dependencies:
         patterns:
           - "*"
+    # The next major of these targets the next .NET only (Microsoft.AspNetCore.Mvc.Testing and
+    # Microsoft.EntityFrameworkCore 11.0.0: net11.0): it comes with the change of the target framework, not alone.
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: "/"

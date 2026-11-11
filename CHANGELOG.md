@@ -6,6 +6,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` profile supports .NET 11: the seed tool manifest lets `reihitsu-format` roll forward to a newer
+  runtime, the seed CI takes the SDK version as a placeholder, the seed Dependabot leaves the next major of the
+  ASP.NET Core and EF Core packages to the change of the target framework, and the SessionStart hook warns when the
+  SDK `global.json` names is not installed (#322)
+
 ## v2026.11.4 — 2026-11-10
 
 - [Profile] The `dotnet` profile's *Writing code* names the analyzer rules that refuse a planned name, S2344 and

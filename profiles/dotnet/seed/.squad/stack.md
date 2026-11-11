@@ -58,11 +58,20 @@ anywhere. Do not grep console build output instead: an incremental build prints 
 Easy to get wrong by hand: `#region` blocks on every type, XML documentation on every member, no
 underscores in member names, a region for an interface implementation named after the interface.
 
+The C# rules and their severities are the template's, the same in every .NET repository: `python3
+.squad/tools/dotnet-rules.py` writes its baseline (`.squad/dotnet-rules.editorconfig`, the stricter setting of the
+repositories winning) into the `squad:dotnet-rules` blocks of `.editorconfig` (`--check` reports them out of date).
+No section of every C# file sets a rule or a code-style option outside the blocks; the project's own sections of paths
+(generated code, migrations) come after them. A rule the code does not meet yet goes into `DOTNET_RULES_PENDING` in
+`squad_settings.py` with the issue that brings the code up to it: it is written as `suggestion`, which the *Analyzer
+gate* still reports in a changed file, and the entry goes once the issue is done.
+
 SonarAnalyzer.CSharp runs only the rules of *Sonar way core* by default. The rules the project's SonarQube Cloud C#
 profile adds (*Sonar way comprehensive*: S3776, S1192, S107, …), and the core rules it switches off, are set in the
 `squad:sonar-rules` block of `.editorconfig`, which `python3 .squad/tools/sonar-rules.py` writes from the two
-profiles (`--check` reports a block out of date; severity `SONAR_RULES_SEVERITY` in `squad_settings.py`): the
-*Analyzer gate* reports them in a changed file, so no rule of the profile is "one no local analyzer reports". Its
+profiles at `error` (`--check` reports a block out of date; a pending rule at `suggestion`): the
+*Analyzer gate* reports them in a changed file, so no rule of the profile is "one no local analyzer reports". A Sonar
+rule the projects keep off is switched off in the baseline, since the built-in profile cannot be changed (S1125). Its
 non-Roslyn checks (hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate*
 below reports their issues and hotspots and the quality gate, duplication included, on the draft pull request.
 

@@ -6,6 +6,15 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` profile's new managed `dotnet-rules.py` writes the template's rule baseline
+  (`.squad/dotnet-rules.editorconfig`, the stricter setting of the .NET repositories winning) into the
+  `squad:dotnet-rules` blocks of `.editorconfig`, so every .NET repository builds with the same analyzer rules; it
+  refuses a block under a section of a path, and `adopt-template` runs it on every refresh (#341)
+- [Profile] A rule the code does not meet yet goes into `DOTNET_RULES_PENDING` of `squad_settings.py` with its issue;
+  `dotnet-rules.py` and `sonar-rules.py` write it as `suggestion`, which the *Analyzer gate* still reports (#341)
+- [Profile] `sonar-rules.py` writes the rules of the project's SonarQube Cloud profile at `error`;
+  `SONAR_RULES_SEVERITY` is gone (#341)
+
 ## v2026.11.6 — 2026-11-11
 
 - [Core] `git-guard.py` allows a member `git apply` only with `--check`, `--stat`, `--numstat` or `--summary` and

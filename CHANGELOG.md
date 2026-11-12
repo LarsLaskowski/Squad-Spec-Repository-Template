@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A Security note or a minor objection of the plan challenge whose fix is an exact edit of `plan.md` or
+  `spec.md` is applied by the orchestrator when it appends the note, like a verbatim documentation fix (#350)
+
 ## v2026.11.8 — 2026-11-12
 
 - [Profile] `dotnet-rules.py` lowers a pending rule the baseline does not set as well (one on only through

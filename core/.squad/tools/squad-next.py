@@ -575,7 +575,7 @@ def spec_challenge(run, challenge):
     if minor and not major and not notes_settled(run, run.spec, {"2a"}, challenge[-1]):
         return heading("step 2a — minor spec objections") + [
             DO + "append the minor objections verbatim to spec.md as a *Challenge notes* section (the Lead answers them "
-            "while it plans); commit",
+            "while it plans) and apply each exact edit of spec.md a note states (*Plan challenge*); commit",
             orchestrator_log(run, "2a Challenge notes", "minor objections appended verbatim to spec.md")]
     return None
 
@@ -716,7 +716,8 @@ def confirmation(run, unconfirmed, verdict, challenge):
     if verdict[1] and not verdict[0] and challenge and not notes_settled(run, run.plan, later, challenge[-1]):
         return heading(f"step {run.plan_step} — minor objections only") + [
             DO + "append the minor objections verbatim to plan.md as *Challenge notes* (and Security's non-blocking "
-            "notes as *Security notes*); commit — no Lead launch",
+            "notes as *Security notes*) and apply each exact edit of plan.md a note states (*Plan challenge*); commit — "
+            "no Lead launch",
             orchestrator_log(run, f"{run.plan_step} Challenge notes", "minor objections appended verbatim to plan.md")]
     return None
 

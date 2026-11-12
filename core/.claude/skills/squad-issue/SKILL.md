@@ -18,8 +18,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
   whatever your own checks find. Besides read-only checks you write only:
   - `log.md`, through `squad-log.py` (step 1), and `tasks.md` check marks (features);
   - in `plan.md` (for a feature also `spec.md`): the *Challenge notes* and *Security notes* you append
-    verbatim (*Plan challenge*), a tier raise (*Tiers*) and an area added to *Security areas touched*
-    (*Unlisted security areas*);
+    verbatim (*Plan challenge*) and the exact edits such a note states for that document, a tier raise (*Tiers*)
+    and an area added to *Security areas touched* (*Unlisted security areas*);
   - the Lead's exact edits on tiers `docs` and `patch` (*Tiers*), a fix marked `verbatim` (*Verbatim
     documentation fixes*), *Format* on the files of the change (step 7), merge commits (*Merge conflicts*),
     and the record status of step 9 (*PR approval*);

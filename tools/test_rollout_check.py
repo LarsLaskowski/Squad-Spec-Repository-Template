@@ -114,6 +114,78 @@ class TestParsing(unittest.TestCase):
         self.assertTrue(any("sonar-rules.py NOT CHECKED" in note for note in notes))
         self.assertIn("the refresh fixes by hand: Directory.Build.props: no <TargetFramework>", notes)
 
+    def build_target(self, target, rules=0):
+        os.makedirs(os.path.join(target, ".squad", "tools"))
+        with open(os.path.join(target, tool.SETTINGS), "w", encoding="utf-8") as handle:
+            handle.write('SOLUTION = "App.slnx"\n')
+        for name, text in (("App.slnx", "<Solution />"), (".editorconfig", "dotnet_diagnostic.S1.severity = error\n")):
+            with open(os.path.join(target, name), "w", encoding="utf-8") as handle:
+                handle.write(text)
+        os.makedirs(os.path.join(target, "App", "obj"))
+        with open(os.path.join(target, "App", "obj", tool.SARIF_NAME), "w", encoding="utf-8") as handle:
+            json.dump({"runs": [{"results": [{"ruleId": f"S{n}"} for n in range(rules)]}]}, handle)
+
+    def build_with(self, target, codes):
+        original = tool.run
+        tool.run = lambda args, cwd=None, timeout=None: (codes.get(args[1], 0), f"{args[1]} output")
+        try:
+            return tool.build_rehearsal(target)
+        finally:
+            tool.run = original
+
+    def test_the_build_rehearsal_lists_the_rules_and_reports_what_stops_it(self):
+        with tempfile.TemporaryDirectory() as target:
+            self.assertIn("no solution to build", tool.build_rehearsal(target)[0][0])
+            self.build_target(target, rules=tool.TOP_RULES + 2)
+            findings, notes = self.build_with(target, {})
+            self.assertEqual(findings, [])
+            self.assertIn(f"reports {tool.TOP_RULES + 2} diagnostic(s) of {tool.TOP_RULES + 2} rule(s)", notes[0])
+            self.assertEqual(notes[-1], "  … and 2 more rule(s)")
+            with open(os.path.join(target, ".editorconfig"), encoding="utf-8") as handle:
+                self.assertIn("= warning", handle.read(), "every rule lowered for the build")
+            self.assertIn("dotnet restore failed", self.build_with(target, {"restore": 1})[0][0])
+            self.assertIn("dotnet build failed", self.build_with(target, {"build": 1})[0][0])
+
+    def test_the_dotnet_steps_build_only_when_asked_and_nothing_refused(self):
+        original_run, original_build = tool.run, tool.build_rehearsal
+        tool.run = lambda args, cwd=None, timeout=None: (0, "")
+        tool.build_rehearsal = lambda target: ([], ["built"])
+        try:
+            self.assertEqual(tool.dotnet_rehearsal("t", build=False), ([], []))
+            self.assertEqual(tool.dotnet_rehearsal("t", build=True), ([], ["built"]))
+            tool.run = lambda args, cwd=None, timeout=None: (1, "boom") if args[1] == tool.SONAR_RULES else (0, "")
+            findings, _ = tool.dotnet_rehearsal("t", build=True)
+            self.assertIn("sonar-rules.py failed", findings[0])
+        finally:
+            tool.run, tool.build_rehearsal = original_run, original_build
+
+    def test_a_dotnet_consumer_gets_the_dotnet_steps_after_the_apply_step(self):
+        head = subprocess.run(["git", "-C", tool.ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
+                              check=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as target:
+            os.makedirs(os.path.join(target, ".squad"))
+            os.makedirs(os.path.join(target, ".github"))
+            with open(os.path.join(target, tool.TEMPLATE_JSON), "w", encoding="utf-8") as handle:
+                json.dump({"commit": head, "profiles": ["dotnet"]}, handle)
+            with open(os.path.join(target, tool.RELEASE_YML), "w", encoding="utf-8") as handle:
+                handle.write("changelog:\n  exclude:\n    labels:\n      - ignore-for-release\n")
+            original_run, original_steps = tool.run, tool.dotnet_rehearsal
+            tool.run = lambda args, cwd=None, timeout=None: (0, "")
+            tool.dotnet_rehearsal = lambda copy, build: (["a dotnet finding"], [f"build={build}"])
+            try:
+                findings, notes = tool.rehearse(target, build=True)
+            finally:
+                tool.run, tool.dotnet_rehearsal = original_run, original_steps
+            self.assertEqual(findings, ["a dotnet finding"])
+            self.assertIn("build=True", notes)
+
+    def test_a_broken_sarif_log_is_skipped(self):
+        with tempfile.TemporaryDirectory() as target:
+            os.makedirs(os.path.join(target, "obj"))
+            with open(os.path.join(target, "obj", tool.SARIF_NAME), "w", encoding="utf-8") as handle:
+                handle.write("{not json")
+            self.assertEqual(tool.sarif_counts(target), {})
+
     def test_an_unknown_template_commit_is_no_seed_list(self):
         self.assertIsNone(tool.changed_seeds("0" * 40, ["dotnet"]))
         self.assertIsNone(tool.changed_seeds(None, ["dotnet"]))

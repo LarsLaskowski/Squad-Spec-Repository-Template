@@ -131,7 +131,9 @@ class DotnetRulesTest(unittest.TestCase):
         self.assertIn("# pending: o/r#3 (DOTNET_RULES_PENDING)\ncsharp_style_namespace_declarations = file_scoped:suggestion\n",
                       text)
         self.assertIn("dotnet_diagnostic.S107.severity = none\n", text, "a pending rule that is off stays off")
-        self.assertIn("Pending: S2325 at suggestion until #9 (not in the baseline", out)
+        self.assertIn("# pending: #9 (DOTNET_RULES_PENDING)\ndotnet_diagnostic.S2325.severity = suggestion\n", text,
+                      "a rule the baseline does not set is lowered too (CA1848 is on only through AnalysisLevel)")
+        self.assertLess(text.index("S2325.severity = suggestion"), text.index("# squad:dotnet-rules end"))
         self.assertEqual(self.run_script("--check")[0], 1, "once it is fixed and out of the list, the block is outdated")
 
     def test_a_pending_entry_without_an_issue_is_refused(self):

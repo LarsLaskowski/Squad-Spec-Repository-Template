@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] `dotnet-rules.py` lowers a pending rule the baseline does not set as well (one on only through
+  `AnalysisLevel`, CA1848), so `TreatWarningsAsErrors` no longer fails on it; the seeded `stack.md` says that S1125
+  still fires in `.razor` markup, which the blocks do not reach (#337)
 ## v2026.11.7 — 2026-11-12
 
 - [Profile] `sonar-rules.py` puts a new block right after the dotnet-rules block, never into the paths block, and names

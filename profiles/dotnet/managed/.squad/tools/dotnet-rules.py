@@ -241,12 +241,17 @@ def wanted(baseline, pending):
 
 def switched_off(baseline, pending):
     """A pending entry for a rule the baseline switches off makes no sense: S1125 stays off."""
-    general = dict(line.split("=", 1) for line in next((lines for glob, lines in baseline_sections(baseline)
-                                                       if glob == "*.cs"), []) if "=" in line and line[0] not in "#;")
-    values = {key.strip().lower(): value.strip().lower() for key, value in general.items()}
+    general = next((lines for glob, lines in baseline_sections(baseline) if glob == "*.cs"), [])
+    values = {key.strip().lower(): value.strip().lower()
+              for key, equals, value in (line.partition("=") for line in general)
+              if equals and not line_is_comment(key)}
     return [f"DOTNET_RULES_PENDING: {name} is off in the baseline ({values[setting_key(name).lower()]}); remove the entry"
             for name in pending if isinstance(name, str)
             and values.get(setting_key(name).lower()) in ("none", "silent")]
+
+
+def line_is_comment(text):
+    return text.lstrip().startswith(("#", ";"))
 
 
 def refusals(text, baseline, pending):

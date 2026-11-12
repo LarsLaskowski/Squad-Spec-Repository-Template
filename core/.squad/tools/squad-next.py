@@ -148,6 +148,7 @@ CONTINUATION_CAP = 5
 CONTINUATION_TOKENS = 300_000
 SPEC_APPROVAL = getattr(settings, "SPEC_APPROVAL", "lead")
 LOG_TOOL = "python3 .squad/tools/squad-log.py"
+NOTES_TOOL = ".squad/tools/squad-notes.py"
 STDIN = " --stdin < log.md > log-updated.md"
 ISSUE_HANDOVER = "the issue text and the work folder"
 STAMP_TOOL = "python3 .squad/tools/gate-stamp.py"
@@ -582,7 +583,8 @@ def spec_challenge(run, challenge):
     if minor and not major and not notes_settled(run, run.spec, {"2a"}, challenge[-1]):
         return heading("step 2a — minor spec objections") + [
             DO + "append the minor objections verbatim to spec.md as a *Challenge notes* section (the Lead answers them "
-            "while it plans) and apply each exact edit of spec.md a note states (*Plan challenge*); commit",
+            f"while it plans) with `python3 {NOTES_TOOL} {run.name} challenge --spec --agent-id <the Devil's Advocate's "
+            "id>`, and apply each exact edit of spec.md a note states (*Plan challenge*); commit",
             orchestrator_log(run, "2a Challenge notes", "minor objections appended verbatim to spec.md")]
     return None
 
@@ -689,7 +691,8 @@ def revision(run, challenge, reviews, security_due):
         missing = challenge[-1] if verdict is None else reviews[security.index(None)]
         return heading("steps 2–3 — route the verdicts") + no_verdict(missing) + [
             "  a major objection or CHANGES_REQUIRED: the Lead (mode revise) with all of them; minor objections only: "
-            "append them verbatim as *Challenge notes*; APPROVED with notes: append them as *Security notes*"]
+            "append them verbatim as *Challenge notes*; APPROVED with notes: append them as *Security notes* (both with "
+            f"{NOTES_TOOL})"]
     revisions = [row for row in run.of(LEAD, {run.plan_step, "2", "3"}) if re.search(r"revise|decide", row.step, re.I)
                  and not re.search("plan-check", row.step, re.I)]
     answered = [row for row in revisions if reviews and row.index > reviews[-1].index]
@@ -723,8 +726,9 @@ def confirmation(run, unconfirmed, verdict, challenge):
     if verdict[1] and not verdict[0] and challenge and not notes_settled(run, run.plan, later, challenge[-1]):
         return heading(f"step {run.plan_step} — minor objections only") + [
             DO + "append the minor objections verbatim to plan.md as *Challenge notes* (and Security's non-blocking "
-            "notes as *Security notes*) and apply each exact edit of plan.md a note states (*Plan challenge*); commit — "
-            "no Lead launch",
+            f"notes as *Security notes*) with `python3 {NOTES_TOOL} {run.name} challenge|security --agent-id <the "
+            "member's id>`, and apply each exact edit of plan.md a note states (*Plan challenge*); commit — no Lead "
+            "launch",
             orchestrator_log(run, f"{run.plan_step} Challenge notes", "minor objections appended verbatim to plan.md")]
     return None
 

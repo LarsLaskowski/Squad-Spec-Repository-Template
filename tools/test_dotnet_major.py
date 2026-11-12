@@ -94,9 +94,11 @@ class DotnetMajorTest(unittest.TestCase):
                                                   'tag="v10.0.0"  # a version tag, no moniker\n')
         write(".github/workflows/release.yml", "      - run: ls out/net11.0-windows/\n      - run: echo dotnet10.0\n")
         write("tools/pack.ps1", "$out = 'publish/net10.0'\n")
+        write(".claude/hooks/session-start.sh", "# SDK 11 builds a net10.0 project\nls bin  # not net10.0 either\n")
         write("docs/build.md", "Built for net10.0.\n")
         ok, out = self.check("global.json", "a.csproj", ".github/scripts/release-check.sh",
-                             ".github/workflows/release.yml", "tools/pack.ps1", "docs/build.md")
+                             ".github/workflows/release.yml", "tools/pack.ps1", "docs/build.md",
+                             ".claude/hooks/session-start.sh")
         self.assertFalse(ok)
         self.assertIn(".github/scripts/release-check.sh:1: net10.0-windows is .NET 10, but global.json (SDK 11) names "
                       ".NET 11", out)
@@ -104,6 +106,7 @@ class DotnetMajorTest(unittest.TestCase):
         self.assertNotIn("release.yml", out, "the workflow names the repository's major")
         self.assertNotIn(":2:", out, "a version tag and a longer word are no monikers")
         self.assertNotIn("build.md", out, "documentation is not read")
+        self.assertNotIn("session-start.sh", out, "a comment names no target")
 
     def test_properties_build_arguments_and_other_images_are_not_read(self):
         write("a.csproj", project("$(AppTargetFramework)") + project("net48"))

@@ -35,6 +35,8 @@ PROJECT_FILES = (".csproj", ".props", ".targets")
 SCRIPT_FILES = (".sh", ".bash", ".ps1")
 WORKFLOW_DIR = ".github/workflows/"
 # A target-framework moniker in running text: `net10.0`, `net10.0-windows`; not part of a longer word or version.
+# A comment of a shell or PowerShell script or a workflow: from a `#` at the start of a line or after a blank.
+SCRIPT_COMMENT = re.compile(r"(?:^|\s)#.*$")
 SCRIPT_MONIKER = re.compile(r"(?<![\w.-])net(\d+)\.\d+(?:-[a-z][\w.]*)?(?![\w.])", re.I)
 GLOBAL_JSON = "global.json"
 LINE_COMMENT = re.compile(r"^\s*//.*$", re.M)
@@ -71,10 +73,11 @@ def target_majors(path, text):
 
 
 def script_majors(path, text):
-    """[(path, line, major, what)] of the target-framework monikers a script or workflow names (an output path)."""
+    """[(path, line, major, what)] of the target-framework monikers a script or workflow names (an output path); a
+    comment is left out (`# SDK 11 builds a net10.0 project` in the managed session-start hook)."""
     found = []
     for number, line in enumerate(text.splitlines(), 1):
-        for match in SCRIPT_MONIKER.finditer(line):
+        for match in SCRIPT_MONIKER.finditer(SCRIPT_COMMENT.sub("", line)):
             if int(match.group(1)) >= 5:
                 found.append((path, number, int(match.group(1)), match.group(0)))
     return found

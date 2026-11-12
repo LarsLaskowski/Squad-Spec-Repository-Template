@@ -189,6 +189,8 @@ class TestPlanSteps(NextTest):
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
         printed = self.next()
         self.assertIn("append the minor objections verbatim to plan.md as *Challenge notes*", printed)
+        self.assertIn("with `python3 .squad/tools/squad-notes.py issue-5 challenge|security --agent-id", printed,
+                      "the notes are copied by the tool, never retyped")
         self.assertIn("apply each exact edit of plan.md a note states", printed)
         self.repo.log(row("2 Challenge notes", "Orchestrator", "minor objections appended verbatim to plan.md"))
         self.assertNotIn("append the minor objections", self.next(), "the logged append settles the notes")

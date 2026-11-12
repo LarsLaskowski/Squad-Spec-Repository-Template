@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Skill] `adopt-template` splits a seeded process record the project extended in place: a new record keeps the
+  project's own rules, the seeded one is retired; `apply-template.py` marks such a record "also names …" (#356)
 - [Core] `plan-check.py --matrix` takes a test's name only from the listed code spans of its cell, not from the
   description after it; `squad-issue` checks a pull request that waits while another run works in the same clone
   from a worktree of its branch (#351)

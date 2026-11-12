@@ -179,7 +179,10 @@ Rules that hold throughout:
      amend one, all still in force) and, on a first adoption, a record of the target's own that only states what
      `process.md` now decides (what a product PR may touch, where squad lessons go, how pull requests merge). A
      listed record marked "supersedes or amends" that states a rule of the project's own stays, and so does every
-     record its *Supersedes* names. Of the others, an unreleased one (no release tag contains it) is deleted with
+     record its *Supersedes* names. A listed record marked "also names …" (the project extended a seeded record in
+     place, its source names an issue next to the template) is split first: a new record (next free number) carries
+     the project's own rules with that issue as its source and the seeded record under *Supersedes*, and the seeded
+     record is then retired with the others. Of the others, an unreleased one (no release tag contains it) is deleted with
      its index row, together with every unreleased record it supersedes (a chain from before the first release),
      and every link to them points at `process.md`. When a released one is among them, or a released
      record's `Superseded by` names a deleted one, one record from `decision-seeds/process-decisions-moved.md`

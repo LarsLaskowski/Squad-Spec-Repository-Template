@@ -297,6 +297,13 @@ class TestProcessRecords(unittest.TestCase):
             write(path, text.replace("- **Status:** Accepted", "- **Status:** Superseded by 0050"))
         self.assertEqual(self.script.process_records(self.target), [], "retired once by the record that moved them")
 
+    def test_a_seeded_record_the_project_extended_is_marked_for_a_split(self):
+        source = "Squad adopted from Squad-Spec-Repository-Template; Issue #3 (format check in CI, pinned tools)"
+        self.record("0001-gates.md", process_record("0001", "Quality gates before the pull request", source=source))
+        self.assertEqual(self.script.process_records(self.target), [
+            ("docs/decisions/0001-gates.md", "Accepted",
+             "also names Issue #3 (format check in CI, pinned tools): split it")])
+
     def test_the_report_names_them(self):
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):

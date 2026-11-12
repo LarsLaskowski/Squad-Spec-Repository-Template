@@ -554,6 +554,14 @@ def is_seeded_process_record(text, titles):
     return record_field(text, "Source").casefold().startswith(seeded) or record_title(text) in titles
 
 
+def project_source(text):
+    """What a seeded record's source names besides the template ("Issue #3 (format check in CI)"), or "": a project
+    that extended the record in place (Censio 0001) keeps a rule of its own in it."""
+    source = record_field(text, "Source")
+    rest = re.sub(rf"^squad (?:adopted|refreshed) from {re.escape(TEMPLATE_NAME)}", "", source, flags=re.I)
+    return rest.strip(" ;,.-\u2014") if rest != source else ""
+
+
 def is_move_record(text, moved):
     """The record that moved the process decisions to process.md: the seed's title, or a link to the file."""
     return record_title(text) == moved or "](process.md)" in text
@@ -572,15 +580,18 @@ def successors(records, found):
 
 def process_records(target):
     """[(rel, status, note)] of the target's records that still carry a process decision of an older template version,
-    not superseded themselves: seeded ones (note "") and every record that supersedes or amends one (note "supersedes
-    or amends NNNN": possibly a rule of the project's own). The record that moved them to process.md is left out, so
+    not superseded themselves: seeded ones (note "", or "also names …: split it" when the source names more than the
+    template) and every record that supersedes or amends one (note "supersedes or amends NNNN": possibly a rule of the
+    project's own). The record that moved them to process.md is left out, so
     the list is empty once they are retired."""
     titles = {title_key(title) for title in re.findall(r"^## (.+)$", read(os.path.join(ROOT, "core", PROCESS_FILE)), re.M)}
     moved = record_title(read(MOVED_SEED))
     records = {number: entry for number, entry in decision_records(target).items() if not is_move_record(entry[1], moved)}
     seeded = {number for number, (_, text) in records.items() if is_seeded_process_record(text, titles)}
     later = successors(records, seeded)
-    notes = dict.fromkeys(seeded, "") | {number: f"supersedes or amends {older}" for number, older in later.items()}
+    notes = {number: (f"also names {project_source(records[number][1])}: split it"
+                      if project_source(records[number][1]) else "") for number in seeded}
+    notes |= {number: f"supersedes or amends {older}" for number, older in later.items()}
     return [(records[number][0], record_field(records[number][1], "Status"), note)
             for number, note in sorted(notes.items())
             if not record_field(records[number][1], "Status").startswith("Superseded")]

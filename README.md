@@ -83,7 +83,7 @@ core/             stack-neutral files; template-managed, except the "marked" fil
 profiles/<stack>/
   instructions.md the stack blocks of AGENTS.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook; dotnet: sonar-rules.py,
-                  dotnet-rules.py with the rule baseline .squad/dotnet-rules.editorconfig)
+                  dotnet-rules.py with the rule baseline .squad/dotnet-rules.editorconfig, dotnet_config.py)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md

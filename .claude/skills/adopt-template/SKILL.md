@@ -126,7 +126,9 @@ Rules that hold throughout:
    `stack.md` that calls such a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to
    sonarcloud.io) is named in the PR description. Then run *Format*, *Build* and the *Analyzer gate* over the whole
    code: findings the refresh can fix mechanically are fixed in its PR, every other rule gets an issue in the target
-   and a `DOTNET_RULES_PENDING` entry, both named in the PR description.
+   and a `DOTNET_RULES_PENDING` entry, both named in the PR description. What `dotnet_config.py` reports in the gate
+   (the build structure: the target framework and the required switches in `Directory.Build.props` only, no rule set,
+   no rule in `NoWarn`, no assembly-wide suppression) is fixed in the refresh PR as well; it changes no value.
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`
    and every link updated; the profile's seed is only used when the target has no test document, and an
    existing one gets the *Code coverage* and checklist sections of the seed merged in.

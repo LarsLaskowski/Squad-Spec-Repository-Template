@@ -806,20 +806,25 @@ def git_output(*args):
     return result.stdout if result.returncode == 0 else ""
 
 
-LISTED = re.compile(r"\s*(?:[,;/]|\band\b|\bor\b)?\s*", re.I)
+LISTED = re.compile(r"\s*(?:(?:[,;/]|<br\s*/?>|\band\b|\bor\b)\s*)*", re.I)
+SPAN = re.compile(r"`([^`\n]+)`")
 
 
 def listed_spans(text):
-    """The code spans of a cell that name tests: the first one and each one a list separator (`,`, `;`, "and", "or")
-    leads to, a parenthesised remark in between left aside; a span the description mentions (`hold `WebPort` with a
-    listener`) names no test (Vandox#414)."""
-    spans, end = [], None
-    for match in re.finditer(r"`([^`\n]+)`", text):
-        between = re.sub(r"\([^()]*\)", "", text[end:match.start()]) if end is not None else ""
-        if end is None or LISTED.fullmatch(between):
-            spans.append(match.group(1))
+    """The code spans of a cell that name tests: the first one and each one a list separator (`,`, `;`, `/`, `<br>`,
+    "and", "or") leads to, a parenthesised remark and the spans in it left aside; a span the description mentions
+    (hold ``WebPort`` with a listener) names no test (Vandox#414). When every span sits in a remark, the first one."""
+    spans = SPAN.findall(text)
+    numbers = iter(range(len(spans)))
+    masked = SPAN.sub(lambda _: f"\0{next(numbers)}\0", text)
+    while (stripped := re.sub(r"\([^()]*\)", "", masked)) != masked:
+        masked = stripped
+    listed, end = [], None
+    for match in re.finditer(r"\0(\d+)\0", masked):
+        if end is None or LISTED.fullmatch(masked[end:match.start()]):
+            listed.append(spans[int(match.group(1))])
         end = match.end()
-    return spans
+    return listed or spans[:1]
 
 
 def test_names(text):

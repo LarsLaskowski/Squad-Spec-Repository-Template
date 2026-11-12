@@ -298,6 +298,9 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("tree`: tests/ExportTests.cs |", output)
         self.assertNotIn("ServerTests", output, "a code span of the description names no test")
         self.assertEqual(self.script.test_names("`A`, `B` (slow); `C` and `D`, then `E`"), ["A", "B", "C", "D"])
+        self.assertEqual(self.script.test_names("`A` (covers `X`), `B`"), ["A", "B"], "a span in a remark")
+        self.assertEqual(self.script.test_names("`A`<br>`B`, and `C`"), ["A", "B", "C"], "line breaks, Oxford comma")
+        self.assertEqual(self.script.test_names("(only `X`)"), ["X"], "every span in a remark: the first one")
 
     def test_matrix_shows_other_verifications_and_amendments(self):
         plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",

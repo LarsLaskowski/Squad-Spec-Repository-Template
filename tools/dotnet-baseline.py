@@ -557,7 +557,7 @@ def section_lines(settings, reasons, scope=None):
         reason = reasons.get((scope, key) if scope else key)
         if reason:
             lines.append(f"# {reason}")
-        lines.append(f"{key} = {settings[key]}")
+        lines.append(f"{key} = {settings[key]}".rstrip())
     return lines
 
 

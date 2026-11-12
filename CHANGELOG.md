@@ -6,6 +6,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] `sonar-rules.py` puts a new block right after the dotnet-rules block, never into the paths block, and names
+  a leftover `SONAR_RULES_SEVERITY`; `dotnet-rules.py` refuses a pending entry for a rule the baseline switches off or
+  a lower-case rule id; `dotnet_config.py` reads every form of an assembly-wide suppression and the build files below
+  the root, and no longer reports a `[*]` value the dotnet-rules block overrides for C# files; the baseline has no
+  trailing whitespace (#337)
 - [Profile] The rule baseline keeps CA2007 (`ConfigureAwait`) at `warning` for production code and turns it off for
   test code, where MSTest runs without a synchronization context (#337)
 - [Skill] `adopt-template` brings a `dotnet` target onto the shared baseline on its first refresh to it: the target

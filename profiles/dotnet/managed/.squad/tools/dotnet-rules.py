@@ -67,6 +67,7 @@ PENDING_SEVERITY = "suggestion"
 SEVERITIES = ("none", "silent", "suggestion", "warning", "error")
 RULE = re.compile(r"[A-Z]+\d+")
 OPTION = re.compile(r"[a-z][a-z0-9_.]*")
+LOWER_RULE = re.compile(r"[a-z]+\d+")
 ISSUE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 
 
@@ -124,6 +125,7 @@ def pending_errors(pending):
     return [f"DOTNET_RULES_PENDING: {name!r} -> {issue!r} needs a rule id (S3776) or option and an issue (#123)"
             for name, issue in pending.items()
             if not (isinstance(name, str) and (RULE.fullmatch(name) or OPTION.fullmatch(name)))
+            or (isinstance(name, str) and LOWER_RULE.fullmatch(name))
             or not (isinstance(issue, str) and ISSUE.fullmatch(issue.strip()))]
 
 
@@ -237,9 +239,20 @@ def wanted(baseline, pending):
     return general, paths, unused
 
 
+def switched_off(baseline, pending):
+    """A pending entry for a rule the baseline switches off makes no sense: S1125 stays off."""
+    general = dict(line.split("=", 1) for line in next((lines for glob, lines in baseline_sections(baseline)
+                                                       if glob == "*.cs"), []) if "=" in line and line[0] not in "#;")
+    values = {key.strip().lower(): value.strip().lower() for key, value in general.items()}
+    return [f"DOTNET_RULES_PENDING: {name} is off in the baseline ({values[setting_key(name).lower()]}); remove the entry"
+            for name in pending if isinstance(name, str)
+            and values.get(setting_key(name).lower()) in ("none", "silent")]
+
+
 def refusals(text, baseline, pending):
     """Every reason to write nothing."""
     errors = pending_errors(pending)
+    errors += switched_off(baseline, pending) if not errors else []
     if not baseline_sections(baseline):
         errors.append(f"{os.path.relpath(BASELINE)} is missing or holds no section: refresh the template")
     return errors + layout_errors(text.splitlines())

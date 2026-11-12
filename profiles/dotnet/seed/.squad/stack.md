@@ -78,7 +78,8 @@ gate* still reports in a changed file, and the entry goes once the issue is done
 SonarAnalyzer.CSharp runs only the rules of *Sonar way core* by default. The rules the project's SonarQube Cloud C#
 profile adds (*Sonar way comprehensive*: S3776, S1192, S107, …), and the core rules it switches off, are set in the
 `squad:sonar-rules` block of `.editorconfig`, which `python3 .squad/tools/sonar-rules.py` writes from the two
-profiles at `error` (`--check` reports a block out of date; a pending rule at `suggestion`): the
+profiles at `error` (`--check` reports a block out of date; a pending rule at `suggestion`), except the rules the
+dotnet-rules baseline already sets, which keep the baseline's severity: the
 *Analyzer gate* reports them in a changed file, so no rule of the profile is "one no local analyzer reports". A Sonar
 rule the projects keep off is switched off in the baseline, since the built-in profile cannot be changed (S1125). Its
 non-Roslyn checks (hotspots, taint analysis, duplication) have no local equivalent: the *Sonar gate*

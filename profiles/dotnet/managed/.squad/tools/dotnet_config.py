@@ -50,7 +50,9 @@ SUPPRESSIONS = re.compile(r"<(NoWarn|WarningsNotAsErrors)\b[^>]*>([^<]*)</(?:NoW
 # Warnings of the build itself (NuGet, MSBuild, the SDK) are no analyzer rules.
 NOT_RULES = ("NU", "MSB", "NETSDK")
 RULE = re.compile(r"[A-Z]+\d+")
-ASSEMBLY_SUPPRESSION = re.compile(r"\[assembly:\s*SuppressMessage\((?P<args>[^\]]*)\]")
+ASSEMBLY_SUPPRESSION = re.compile(r"\[(?:assembly|module):\s*(?:System\.Diagnostics\.CodeAnalysis\.)?SuppressMessage"
+                                  r"(?:Attribute)?\((?P<args>[^\]]*)\]")
+TARGET_ARGUMENT = re.compile(r"\bTarget\s*=")
 OPTION_PREFIXES = ("csharp_", "dotnet_")
 
 
@@ -175,7 +177,7 @@ def rule_set_findings(files, texts):
         elif path.endswith(".cs"):
             findings += [f"{path}: an assembly-wide SuppressMessage; suppress one member or type with a Target, or put "
                          "the rule on DOTNET_RULES_PENDING" for found in ASSEMBLY_SUPPRESSION.finditer(text)
-                         if "Target" not in found.group("args")]
+                         if not TARGET_ARGUMENT.search(found.group("args"))]
     return findings
 
 
@@ -215,29 +217,24 @@ def outside_blocks(rules, lines):
 
 
 def editorconfig_findings(rules):
-    """A section of every C# file sets no rule or code-style option outside the blocks, and no other setting of the
-    baseline with another value."""
+    """A section of every C# file sets no rule or code-style option outside the blocks, and after the dotnet-rules
+    block, which it would override, no other setting of the baseline with another value (one before it, such as
+    `[*] end_of_line = lf` for the other files, the block overrides for C# files)."""
     baseline = baseline_values(rules)
+    lines = read(EDITORCONFIG).splitlines()
+    block = rules.find(lines, rules.BEGIN, rules.END)
+    after = block[1] + 1 if block else 0
     findings = []
-    for number, section, key, value in outside_blocks(rules, read(EDITORCONFIG).splitlines()):
+    for number, section, key, value in outside_blocks(rules, lines):
         if section is None or not rules.SECTIONS.every_cs_file(section):
             continue
         if key.lower().startswith(OPTION_PREFIXES):
             findings.append(f"{EDITORCONFIG}:{number}: {section} sets {key} outside the dotnet-rules block; the "
                             "baseline's block holds the rules (a section of a path after the blocks may)")
-        elif key.lower() in baseline and value.lower() != baseline[key.lower()].lower():
+        elif number > after and key.lower() in baseline and value.lower() != baseline[key.lower()].lower():
             findings.append(f"{EDITORCONFIG}:{number}: {section} sets {key} = {value}, the baseline "
                             f"{baseline[key.lower()]}")
     return findings
-
-
-def pending_findings(rules):
-    """A pending entry for a rule the baseline switches off makes no sense: S1125 stays off."""
-    baseline = baseline_values(rules)
-    pending = rules.PENDING if isinstance(rules.PENDING, dict) else {}
-    return [f"DOTNET_RULES_PENDING: {name} is off in the baseline ({baseline[rules.setting_key(name).lower()]}); "
-            "remove the entry" for name in pending
-            if baseline.get(rules.setting_key(name).lower(), "").lower() in ("none", "silent")]
 
 
 def blocks_findings(rules):
@@ -255,13 +252,13 @@ def blocks_findings(rules):
 def findings(files=None):
     files = tracked_files() if files is None else files
     texts = [(path, read(path)) for path in files if path.endswith((*BUILD_FILES, ".cs"))]
-    projects = [(path, text) for path, text in texts if path.endswith(PROJECT)]
+    # every project file and every build file below the root's Directory.Build.props, which may set them once
+    projects = [(path, text) for path, text in texts if path.endswith(BUILD_FILES) and path != BUILD_PROPS]
     props, packages = read(BUILD_PROPS), read(PACKAGES_PROPS)
     rules = dotnet_rules()
     found = target_framework_findings(projects, props) + required_findings(projects, props) \
         + package_findings(projects, packages) + tool_findings(files, packages) + line_ending_findings() \
-        + rule_set_findings(files, texts) + blocks_findings(rules) + editorconfig_findings(rules) \
-        + pending_findings(rules)
+        + rule_set_findings(files, texts) + blocks_findings(rules) + editorconfig_findings(rules)
     return found
 
 

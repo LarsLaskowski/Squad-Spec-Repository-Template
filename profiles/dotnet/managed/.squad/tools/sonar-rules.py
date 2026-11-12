@@ -15,10 +15,11 @@ otherwise learn of the difference only from the pull request's analysis. This sc
   the template uses; one in `DOTNET_RULES_PENDING` of `.squad/tools/squad_settings.py` (a rule the code does not meet
   yet, with its issue, `dotnet-rules.py`) gets `suggestion`, which the *Analyzer gate* still reports in a changed file;
 - a rule of *Sonar way core* the project's profile does not activate gets `none`;
-- a rule the file already sets outside the block for every C# file (`[*]`, `[*.cs]`, `[*.{cs,vb}]`) is the project's
-  own choice: it stays out of the block and is listed; one set only in a section of a path or of some file names
-  (`[tests/**.cs]`, `[*.g.cs]`) still gets its line in the block, so the rest of the code keeps it. Such a section
-  belongs after the block, or the block's line wins there too; the script warns about one before it.
+- a rule the file already sets outside the block for every C# file (`[*]`, `[*.cs]`, `[*.{cs,vb}]`), which is the
+  dotnet-rules block's (`dotnet_config.py` refuses any other place), stays out of the block and is listed; one set
+  only in a section of a path or of some file names (`[tests/**.cs]`, `[*.g.cs]`) still gets its line in the block, so
+  the rest of the code keeps it. Such a section belongs after the block, or the block's line wins there too; the
+  script warns about one before it.
 
 The block replaces the one between the markers. A file without them gets the block at the end of its first section of
 the C# files alone (`[*.cs]`), or a `[*.cs]` section at its end. Only `csharpsquid` rules are written; a rule's
@@ -226,10 +227,15 @@ def insert_at(lines):
     return end
 
 
+DOTNET_RULES_END = "# squad:dotnet-rules end"
+
+
 def with_block(lines, body):
-    """`lines` without a block, with `body` at the end of the first `[*.cs]` section, or in a new one at the end; a
+    """`lines` without a block, with `body` right after the dotnet-rules block where there is one (never inside the
+    dotnet-rules-paths block after it), else at the end of the first `[*.cs]` section, or in a new one at the end; a
     blank line before it."""
-    at = insert_at(lines)
+    dotnet_end = next((i for i, line in enumerate(lines) if line.startswith(DOTNET_RULES_END)), None)
+    at = dotnet_end + 1 if dotnet_end is not None else insert_at(lines)
     if at is None:
         return lines + ([""] if lines and lines[-1].strip() else []) + ["[*.cs]", *body]
     return lines[:at] + ([""] if at and lines[at - 1].strip() else []) + body + lines[at:]
@@ -276,6 +282,9 @@ def main(argv=None):
     parser = Usage(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="report a missing or outdated block, write nothing")
     options = parser.parse_args(argv)
+    if hasattr(settings, "SONAR_RULES_SEVERITY"):
+        print("NOTE: SONAR_RULES_SEVERITY is no longer read (the block is at error; DOTNET_RULES_PENDING holds a rule the "
+              "code does not meet yet): remove it from squad_settings.py and the sentence of stack.md that names it")
     sonar = sonar_check()
     key = sonar.project_key()
     if key is None:

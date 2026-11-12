@@ -158,6 +158,16 @@ class SonarRulesTest(unittest.TestCase):
         self.assertTrue(text.endswith("[tests/**.cs]\ndotnet_diagnostic.S107.severity = none\n"),
                         "the path's own override stays after the block, so it still wins there")
 
+    def test_a_leftover_severity_setting_is_named(self):
+        write(".editorconfig", EDITORCONFIG)
+        module = load()
+        module.sonar_check = lambda: fake_sonar()
+        module.settings.SONAR_RULES_SEVERITY = "suggestion"
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            module.main([])
+        self.assertIn("SONAR_RULES_SEVERITY is no longer read", output.getvalue())
+
     def test_a_pending_rule_is_written_as_a_suggestion(self):
         write(".editorconfig", EDITORCONFIG)
         code, out = self.run_script(pending={"S3776": "#123"})

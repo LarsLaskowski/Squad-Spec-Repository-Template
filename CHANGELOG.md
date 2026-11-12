@@ -9,7 +9,6 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Core] `plan-check.py --matrix` takes a test's name only from the listed code spans of its cell, not from the
   description after it; `squad-issue` checks a pull request that waits while another run works in the same clone
   from a worktree of its branch (#351)
-
 - [Core] A Security note or a minor objection of the plan challenge whose fix is an exact edit of `plan.md` or
   `spec.md` is applied by the orchestrator when it appends the note, like a verbatim documentation fix (#350)
 

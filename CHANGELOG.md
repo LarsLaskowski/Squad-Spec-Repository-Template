@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The rule baseline keeps CA2007 (`ConfigureAwait`) at `warning` for production code and turns it off for
+  test code, where MSTest runs without a synchronization context (#337)
 - [Skill] `adopt-template` brings a `dotnet` target onto the shared baseline on its first refresh to it: the target
   framework and the required switches into `Directory.Build.props`, versions into `Directory.Packages.props`, the
   rules out of `.editorconfig`, rule sets, `NoWarn` and assembly-wide suppressions, the tool manifest under `.config/`,

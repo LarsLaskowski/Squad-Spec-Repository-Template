@@ -63,6 +63,10 @@
     "dotnet_diagnostic.S6968.severity": {
       "value": null,
       "reason": "on in every repository: the squad:sonar-rules block activates it from the SonarQube Cloud profile (#338)"
+    },
+    "dotnet_diagnostic.CA2007.severity": {
+      "value": "warning",
+      "reason": "ConfigureAwait(false) on every await of production code, the house style for library and service code (#338)"
     }
   },
   "sections": {
@@ -74,6 +78,10 @@
       "dotnet_diagnostic.BL0016.severity": {
         "value": "none",
         "reason": "test code, as Vandox has it (#338)"
+      },
+      "dotnet_diagnostic.CA2007.severity": {
+        "value": "none",
+        "reason": "test code: MSTest runs without a synchronization context, so ConfigureAwait(false) changes nothing there; production code keeps CA2007 (#338)"
       }
     }
   }

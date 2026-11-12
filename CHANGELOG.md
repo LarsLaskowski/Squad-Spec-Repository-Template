@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Skill] `adopt-template` brings a `dotnet` target onto the shared baseline on its first refresh to it: the target
+  framework and the required switches into `Directory.Build.props`, versions into `Directory.Packages.props`, the
+  rules out of `.editorconfig`, rule sets, `NoWarn` and assembly-wide suppressions, the tool manifest under `.config/`,
+  CRLF for C# files; values stay the target's (#343)
 - [Skill] `adopt-template` opens the target's pull request labelled `ignore-for-release`, creating the label where it
   is missing, so a squad update no longer reaches the target's release notes; `rollout-check.py` fails when a
   target's `.github/release.yml` does not exclude the label (#336)

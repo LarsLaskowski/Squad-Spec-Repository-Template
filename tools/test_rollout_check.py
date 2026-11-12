@@ -2,6 +2,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 import os
 import subprocess
 import sys
@@ -67,6 +68,51 @@ class TestParsing(unittest.TestCase):
             with open(os.path.join(target, tool.RELEASE_YML), "w", encoding="utf-8") as handle:
                 handle.write(seeded)
             self.assertEqual(tool.release_notes_findings(target), [])
+
+    def test_the_dotnet_config_findings_are_folded_for_the_report(self):
+        output = (".NET config: dotnet-tools.json: move it to .config/dotnet-tools.json\n"
+                  ".NET config: .editorconfig:43: [*.cs] sets csharp_prefer_braces outside the dotnet-rules block; x\n"
+                  ".NET config: .editorconfig:44: [*.cs] sets csharp_style_var_elsewhere outside the dotnet-rules block; x\n"
+                  "FAIL\n")
+        drift = tool.config_drift(output)
+        self.assertEqual(drift[0], "dotnet-tools.json: move it to .config/dotnet-tools.json")
+        self.assertIn("2 rule(s) or code-style option(s) for every C# file outside the dotnet-rules block (lines 43, 44)",
+                      drift[1])
+
+    def test_the_build_rehearsal_reads_the_solution_lowers_errors_and_counts_rules(self):
+        with tempfile.TemporaryDirectory() as target:
+            os.makedirs(os.path.join(target, ".squad", "tools"))
+            with open(os.path.join(target, tool.SETTINGS), "w", encoding="utf-8") as handle:
+                handle.write('BASE_REF = "origin/main"\nSOLUTION = "App.slnx"\n')
+            self.assertEqual(tool.solution_of(target), "App.slnx")
+            with open(os.path.join(target, ".editorconfig"), "w", encoding="utf-8", newline="") as handle:
+                handle.write("dotnet_diagnostic.S1.severity = error\r\ncsharp_prefer_braces = true:error\r\n"
+                             "dotnet_diagnostic.S2.severity = none\r\n")
+            tool.lower_errors(target)
+            with open(os.path.join(target, ".editorconfig"), encoding="utf-8", newline="") as handle:
+                self.assertEqual(handle.read(), "dotnet_diagnostic.S1.severity = warning\r\n"
+                                 "csharp_prefer_braces = true:warning\r\ndotnet_diagnostic.S2.severity = none\r\n")
+            for project, results in (("A", [{"ruleId": "S1"}, {"ruleId": "RH1"}]),
+                                     ("B", [{"ruleId": "S1"}, {"ruleId": "S1", "suppressions": [{"kind": "inSource"}]}])):
+                os.makedirs(os.path.join(target, project, "obj"))
+                with open(os.path.join(target, project, "obj", tool.SARIF_NAME), "w", encoding="utf-8") as handle:
+                    json.dump({"runs": [{"results": results}]}, handle)
+            self.assertEqual(tool.sarif_counts(target), {"S1": 2, "RH1": 1}, "a suppressed result is not counted")
+
+    def test_the_dotnet_steps_report_a_refusal_as_a_finding_and_no_sonar_access_as_a_note(self):
+        outputs = {tool.DOTNET_RULES: (1, "REFUSED: the dotnet-rules block stands under [x]"),
+                   tool.SONAR_RULES: (2, "NOT CHECKED: no SonarQube project key"),
+                   tool.DOTNET_CONFIG: (1, ".NET config: Directory.Build.props: no <TargetFramework>\nFAIL\n")}
+        original = tool.run
+        tool.run = lambda args, cwd=None, timeout=None: outputs[args[1]]
+        try:
+            findings, notes = tool.dotnet_rehearsal("target", build=True)
+        finally:
+            tool.run = original
+        self.assertEqual(len(findings), 1, "a refusal stops the build rehearsal")
+        self.assertIn("dotnet-rules.py refuses the target", findings[0])
+        self.assertTrue(any("sonar-rules.py NOT CHECKED" in note for note in notes))
+        self.assertIn("the refresh fixes by hand: Directory.Build.props: no <TargetFramework>", notes)
 
     def test_an_unknown_template_commit_is_no_seed_list(self):
         self.assertIsNone(tool.changed_seeds("0" * 40, ["dotnet"]))

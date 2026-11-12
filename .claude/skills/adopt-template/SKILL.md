@@ -122,18 +122,32 @@ Rules that hold throughout:
    `@vitest/coverage-v8` for `typescript`; Reihitsu or SonarAnalyzer.CSharp for `dotnet`), add it — a new dev
    dependency is part of this PR and is named in its description. If adding it would change a lot of
    unrelated code (a formatter's first run), keep the gate limited to changed files and say so in the PR.
-   With the `dotnet` profile, run `python3 .squad/tools/dotnet-rules.py` on adoption and on every refresh: it writes
-   the template's rule baseline into the `squad:dotnet-rules` blocks of `.editorconfig`. Settings for every C# file the
-   target made outside the blocks go (the baseline holds the stricter of them); its sections of paths move after the
-   paths block. Then run `python3 .squad/tools/sonar-rules.py`: it writes the
-   `squad:sonar-rules` block of `.editorconfig` from the project's SonarQube Cloud C# profile (a target without the
-   markers gets them; rules the target set by hand for the same purpose move into the block, and a sentence of its
-   `stack.md` that calls such a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to
-   sonarcloud.io) is named in the PR description. Then run *Format*, *Build* and the *Analyzer gate* over the whole
-   code: findings the refresh can fix mechanically are fixed in its PR, every other rule gets an issue in the target
-   and a `DOTNET_RULES_PENDING` entry, both named in the PR description. What `dotnet_config.py` reports in the gate
-   (the build structure: the target framework and the required switches in `Directory.Build.props` only, no rule set,
-   no rule in `NoWarn`, no assembly-wide suppression) is fixed in the refresh PR as well; it changes no value.
+   With the `dotnet` profile, every .NET repository builds with the template's rules and one build structure. On
+   adoption and on every refresh:
+   - `python3 .squad/tools/dotnet-rules.py` writes the rule baseline into the `squad:dotnet-rules` blocks of
+     `.editorconfig`; then `python3 .squad/tools/sonar-rules.py` writes the `squad:sonar-rules` block from the
+     project's SonarQube Cloud C# profile (a target without the markers gets them; a sentence of its `stack.md` that
+     calls a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to sonarcloud.io) is named in
+     the PR description.
+   - *Format*, *Build* and the *Analyzer gate* run over the whole code: findings the refresh can fix mechanically are
+     fixed in its PR, every other rule gets an issue in the target and a `DOTNET_RULES_PENDING` entry, both named in
+     the PR description (`tools/rollout-check.py --build` lists them per rule before the release).
+
+   The first refresh to the shared baseline (no `squad:dotnet-rules` block yet) first brings the target onto the
+   structure `dotnet_config.py` checks in the gate, before that gate runs; it changes no value of the target framework,
+   the SDK or a package:
+   1. `Directory.Build.props` and `Directory.Packages.props` take the form of the seeds (`profiles/dotnet/seed/`): the
+      target framework the projects use and the required switches move into `Directory.Build.props` and out of every
+      project file (a platform such as `net11.0-windows` stays in its project), a `Version` on a `PackageReference`
+      moves into `Directory.Packages.props`; the project's own properties and packages stay, with their comments.
+   2. `.editorconfig` loses every rule and code-style option it set for every C# file outside the blocks (the baseline
+      holds the stricter of them); its sections of paths (generated code, migrations) move after the paths block. Rule
+      sets and their `CodeAnalysisRuleSet`, rules in `NoWarn` and assembly-wide `SuppressMessage` go; a rule they kept
+      off is fixed or becomes pending, an S1125 entry simply goes.
+   3. The tool manifest moves to `.config/dotnet-tools.json` with `reihitsu.cli` at the version of Reihitsu.Analyzer,
+      and `.gitattributes` checks C# files out with CRLF, renormalised in a commit of its own (`git add --renormalize .`).
+   4. The project blocks of `AGENTS.md` (*configuration*, *code-style*) and the target's `stack.md` describe the new
+      setup; a decision record that states a rule the baseline changes is superseded (or edited, if unreleased).
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`
    and every link updated; the profile's seed is only used when the target has no test document, and an
    existing one gets the *Code coverage* and checklist sections of the seed merged in.

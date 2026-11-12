@@ -221,7 +221,9 @@ is merged here, the product repository adopts it with `adopt-template`.
    profile request). Then `python3 tools/rollout-check.py` rehearses the rollout: it applies this checkout to a
    scratch copy of every `active` consumer's `main` (clones next to this repository, fetched and unshallowed), runs
    the target's `config-check.py` on the result, and fails on a check that fails, a seed conflict or a reference to
-   a removed file; it lists the seeded files changed since each target's recorded commit. One `squad-reviewer` pass
+   a removed file; it lists the seeded files changed since each target's recorded commit. For a `dotnet` consumer it
+   also writes the rule blocks and lists what the refresh fixes by hand in the build structure, and with `--build` the
+   diagnostics per rule the baseline brings, the pending list of each target's refresh. One `squad-reviewer` pass
    reviews the release diff since the last tag. A release pull request (`python3 tools/release.py prepare`) turns
    *Unreleased* into the next version, with a `[Seed]` line naming the changed seeded files, and after its merge the
    owner creates the release on GitHub with the tag `vYYYY.MM.N` on that merge commit (or, with Python, `python3

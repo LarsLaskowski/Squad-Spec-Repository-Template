@@ -203,6 +203,10 @@ Rules that hold throughout:
     `[Docs] Update the squad from Squad-Spec-Repository-Template`), a description naming the release (its
     `CHANGELOG.md` section) and what was added, replaced,
     moved and deleted, the profile, new dev dependencies, and any gate that fails for reasons outside this PR.
+    Label it `ignore-for-release` (`issue_write`, `labels`): it changes the squad and the agent rules, not the product,
+    so the target's generated release notes leave it out (its seeded `.github/release.yml` excludes the label). A target
+    without the label gets it first, under that name. The same label goes on every other pull request this skill opens
+    or asks for in the target.
     Subscribe to the PR's activity and stay with it until it merges cleanly, CI is green and the code
     analysis lists no new issue, then mark it ready for review (the target's `.squad/orchestration.md`, *Draft
     until green*). Read its mergeability on every look at the PR: a conflict with the target's base branch

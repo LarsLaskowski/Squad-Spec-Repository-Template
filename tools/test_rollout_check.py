@@ -49,6 +49,25 @@ class TestParsing(unittest.TestCase):
         self.assertIn("LarsLaskowski/Vandox", consumers)
         self.assertNotIn("LarsLaskowski/F1-Telemetry", consumers, "legacy consumers stay out of the rollout")
 
+    def test_the_release_notes_must_leave_the_squads_pull_requests_out(self):
+        seeded = "changelog:\n  exclude:\n    labels:\n      - ignore-for-release\n  categories:\n    - title: Bugs\n"
+        self.assertTrue(tool.excludes_release_label(seeded))
+        self.assertTrue(tool.excludes_release_label("changelog:\n  exclude:\n    labels: [ignore-for-release]\n"))
+        self.assertTrue(tool.excludes_release_label("changelog:\n  exclude:\n    labels:\n      - \"ignore-for-release\""
+                                                    "  # squad\n"))
+        self.assertFalse(tool.excludes_release_label("changelog:\n  categories:\n    - title: Other\n      labels:\n"
+                                                     "        - ignore-for-release\n"), "a category is no exclusion")
+        self.assertFalse(tool.excludes_release_label("changelog:\n  exclude:\n    labels:\n      - skip\n"))
+        with tempfile.TemporaryDirectory() as target:
+            self.assertIn("no .github/release.yml", tool.release_notes_findings(target)[0])
+            os.makedirs(os.path.join(target, ".github"))
+            with open(os.path.join(target, tool.RELEASE_YML), "w", encoding="utf-8") as handle:
+                handle.write("changelog:\n  exclude:\n    labels:\n      - skip\n")
+            self.assertIn("does not exclude the label ignore-for-release", tool.release_notes_findings(target)[0])
+            with open(os.path.join(target, tool.RELEASE_YML), "w", encoding="utf-8") as handle:
+                handle.write(seeded)
+            self.assertEqual(tool.release_notes_findings(target), [])
+
     def test_an_unknown_template_commit_is_no_seed_list(self):
         self.assertIsNone(tool.changed_seeds("0" * 40, ["dotnet"]))
         self.assertIsNone(tool.changed_seeds(None, ["dotnet"]))

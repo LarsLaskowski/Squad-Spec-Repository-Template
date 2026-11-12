@@ -15,9 +15,10 @@ consumer of `consumers.json` it:
 3. runs `tools/apply-template.py --target <copy>` from this checkout, then the target's
    `.squad/tools/config-check.py` (which runs `decision-check.py`) on the result;
 4. reports as findings: a failing apply step or `config-check.py`, a `conflict` seed, a line that still refers to a
-   removed file; and lists, without failing, the files in template-owned folders the template does not know and the
-   seeded files this checkout changed since the recorded commit — the target keeps its own copy of those, so the
-   refresh carries the change over by hand (`adopt-template` step 1).
+   removed file, a `.github/release.yml` that does not leave the label `ignore-for-release` (which the refresh's pull
+   request carries) out of the release notes; and lists, without failing, the files in template-owned folders the
+   template does not know and the seeded files this checkout changed since the recorded commit — the target keeps its
+   own copy of those, so the refresh carries the change over by hand (`adopt-template` step 1).
 
 The scratch copy is removed afterwards. Nothing is committed, pushed or posted.
 
@@ -47,6 +48,8 @@ UNKNOWN = "Not part of the template"
 SECTION_END = re.compile(r"^\S")
 TAIL_LINES = 15
 COMMAND_TIMEOUT = 600
+RELEASE_YML = os.path.join(".github", "release.yml")
+RELEASE_LABEL = "ignore-for-release"
 
 
 def run(args, cwd=None, timeout=COMMAND_TIMEOUT):
@@ -130,6 +133,36 @@ def changed_seeds(commit, profiles):
     return sorted(line for line in out.splitlines() if line) if code == 0 else None
 
 
+def excludes_release_label(text):
+    """Whether a `release.yml` leaves pull requests labelled RELEASE_LABEL out of the generated release notes."""
+    in_exclude = in_labels = False
+    for line in text.splitlines():
+        stripped = line.split("#", 1)[0].strip()
+        if stripped.startswith("exclude:"):
+            in_exclude, in_labels = True, False
+        elif in_exclude and stripped.startswith("labels:"):
+            in_labels = True
+            if RELEASE_LABEL in stripped:
+                return True
+        elif in_labels and stripped.startswith("- "):
+            if stripped[2:].strip().strip("\"'") == RELEASE_LABEL:
+                return True
+        elif stripped:
+            in_exclude = in_labels = False
+    return False
+
+
+def release_notes_findings(target):
+    """The squad's own pull requests (labelled RELEASE_LABEL by adopt-template) stay out of the target's release notes."""
+    path = os.path.join(target, RELEASE_YML)
+    if not os.path.isfile(path):
+        return [f"no {RELEASE_YML}: the seed was skipped, so the refresh's pull request would reach the release notes"]
+    with open(path, encoding="utf-8-sig") as handle:
+        excluded = excludes_release_label(handle.read())
+    return [] if excluded else [f"{RELEASE_YML} does not exclude the label {RELEASE_LABEL} the refresh's pull request "
+                                "carries: add it under changelog.exclude.labels"]
+
+
 def rehearse(target):
     """(findings, notes) of applying this checkout to the scratch copy and checking the result."""
     findings, notes = [], []
@@ -146,6 +179,7 @@ def rehearse(target):
     code, check = run([sys.executable, CONFIG_CHECK], cwd=target)
     if code != 0:
         findings.append(f"config-check.py fails after the apply step: {tail(check)}")
+    findings += release_notes_findings(target)
     seeds = changed_seeds(commit, profiles)
     if seeds is None:
         findings.append(f"the recorded template commit {commit[:12]} is not in this checkout: git fetch origin "

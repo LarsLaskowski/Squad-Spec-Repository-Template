@@ -6,6 +6,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Skill] `adopt-template` opens the target's pull request labelled `ignore-for-release`, creating the label where it
+  is missing, so a squad update no longer reaches the target's release notes; `rollout-check.py` fails when a
+  target's `.github/release.yml` does not exclude the label (#336)
+- [Core] `create-pr` labels a change of the squad alone (`.squad/`, `.claude/`, the instruction files)
+  `ignore-for-release` (#336)
 - [Skill] `adopt-template` keeps the seed's Dependabot `docker` entry only for a Dockerfile whose `FROM` lines name
   the image itself, which is all Dependabot reads; the seeded `stack.md` says how images named through a build
   argument stay current instead (#335)

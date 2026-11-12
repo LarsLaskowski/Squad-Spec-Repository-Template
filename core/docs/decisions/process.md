@@ -68,7 +68,7 @@ outside the squad.
    push (`.squad/stack.md`); CI keeps the build, the tests and the code analysis.
 
 **Decision.** Option 3. Before a push: *Format*, the *Analyzer gate* (no diagnostic of any severity in a changed
-file) and the *Coverage gate* (lines and branch conditions on new or changed production code, line coverage overall,
+file) and the *Coverage gate* (new or changed production code with the branch conditions its report records, line coverage overall,
 at least the thresholds
 in `.squad/tools/squad_settings.py`) from `.squad/stack.md` pass. CI still builds, tests and runs the code analysis
 (e.g. SonarQube Cloud), which stays the system of record for the quality gate. Squad and agent tooling (`.squad/**`,

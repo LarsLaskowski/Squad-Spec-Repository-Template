@@ -62,21 +62,36 @@ class TestSquadNotes(unittest.TestCase):
         self.assertNotIn("Reading first", self.text(), "an earlier message of the round is no report")
         self.assertNotIn("VERDICT", self.text())
 
+    def test_a_report_handed_back_through_the_tool_call_wins_over_the_narration(self):
+        # A subagent of a cloud session hands its report back with SubagentHandback; its last text is narration.
+        transcript = os.path.join(self.session, "subagents", "agent-sec1.jsonl")
+        call = said("m2", "Let me look at the tool diffs first.")
+        call["message"]["content"].append({"type": "tool_use", "id": "h1", "name": "SubagentHandback",
+                                           "input": {"message": "1. a note\n\nVERDICT: APPROVED\n"}})
+        write_jsonl(transcript, [prompt("2026-01-02T10:00:00Z"), call, said("m3", "Done.")])
+        done = self.run_notes("issue-5", "security", "--agent-id", "sec1")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertTrue(self.text().endswith("## Security notes\n\n1. a note\n"), self.text())
+
     def test_an_existing_section_gets_the_notes_below_its_last_line_and_crlf_is_kept(self):
         write(self.plan, PLAN + "\n## Security notes\n\n1. earlier note\n\n## Later\n\ntext\n", newline="\r\n")
-        done = self.run_notes("issue-5", "security", "--stdin", stdin="2. a second note\nVERDICT: APPROVED\n")
+        done = self.run_notes("issue-5", "security", "--stdin", stdin="2. a second note\n\nVERDICT: APPROVED\n")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("## Security notes\r\n\r\n1. earlier note\r\n\r\n2. a second note\r\n\r\n## Later\r\n", self.text())
         self.assertNotIn("\n\n", self.text().replace("\r\n", ""), "no bare line feed")
 
     def test_spec_folder_and_empty_reports_are_checked(self):
         write(os.path.join(self.root, "specs", "feature-7", "spec.md"), "# Spec\n")
-        done = self.run_notes("feature-7", "challenge", "--stdin", "--spec", stdin="- minor: a scenario\n")
+        done = self.run_notes("feature-7", "challenge", "--stdin", "--spec",
+                              stdin="- minor: a scenario\nVERDICT: OBJECTIONS 0 major, 1 minor\n")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertTrue(self.text(os.path.join(self.root, "specs", "feature-7", "spec.md")).endswith(
             "## Challenge notes\n\n- minor: a scenario\n"))
         self.assertEqual(self.run_notes("../etc", "challenge", "--stdin", stdin="x").returncode, 1)
         self.assertEqual(self.run_notes("issue-5", "challenge", "--stdin", stdin="VERDICT: NO OBJECTIONS\n").returncode, 1)
+        narration = self.run_notes("issue-5", "challenge", "--stdin", stdin="Let me look at the tool diffs first.\n")
+        self.assertEqual(narration.returncode, 1)
+        self.assertIn("carries no VERDICT line", narration.stdout)
         missing = self.run_notes("issue-5", "challenge", "--agent-id", "nobody")
         self.assertNotEqual(missing.returncode, 0)
         self.assertIn("pipe the report in with --stdin", missing.stderr)

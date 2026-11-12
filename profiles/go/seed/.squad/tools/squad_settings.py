@@ -20,8 +20,7 @@ SPEC_WORDS_PER_CRITERION = 200
 SPEC_MAX_WORDS = 2500
 SMALL_FEATURE_CRITERIA = 3
 
-# Coverage gate (.squad/tools/coverage-check.py): lines and branch conditions on new/changed production lines
-# (COVERAGE_CONDITIONS = False: lines only), and line coverage overall.
+# Coverage gate (.squad/tools/coverage-check.py): line coverage on new/changed production lines, and overall.
 # COVERAGE_OVERALL_THRESHOLD may start below COVERAGE_THRESHOLD in a repository adopted with a coverage debt;
 # it is never lowered and is raised towards COVERAGE_THRESHOLD as coverage improves.
 COVERAGE_THRESHOLD = 80

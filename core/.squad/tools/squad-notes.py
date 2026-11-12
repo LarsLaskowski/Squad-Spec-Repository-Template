@@ -4,11 +4,12 @@ notes* (`.squad/routing.md`, *Plan challenge*), so the orchestrator never retype
 the way (PlexToJellyfinSync#298: a retyped replacement string carried the new text on both sides).
 
 The report comes from the member's transcript in Claude Code: `--agent-id <id>` (the agent id the Agent tool returned)
-reads the last message of the agent's latest round from `<session>/subagents/agent-<id>.jsonl` of the session
-`CLAUDE_CODE_SESSION_ID` (or `--session`), as `squad-log.py --agent-id` reads its usage. Outside Claude Code the report
-is piped in with `--stdin`. The report's closing `VERDICT:` line stays out (the log row carries it); everything else is
-written as the member wrote it, under `## Challenge notes` or `## Security notes` at the end of the document, or below
-that section's last line when the document has it already. The line ending follows the file.
+reads the report of the agent's latest round — the message of its `SubagentHandback` call, else its last message —
+from `<session>/subagents/agent-<id>.jsonl` of the session `CLAUDE_CODE_SESSION_ID` (or `--session`), as `squad-log.py
+--agent-id` reads its usage. Outside Claude Code the report is piped in with `--stdin`. A report without a `VERDICT:`
+line is refused: it is narration, not the report. Its closing `VERDICT:` line stays out (the log row carries it);
+everything else is written as the member wrote it, under `## Challenge notes` or `## Security notes` at the end of the
+document, or below that section's last line when the document has it already. The line ending follows the file.
 
 Usage, from the repository root:
     python3 .squad/tools/squad-notes.py <folder> challenge|security --agent-id <id> [--spec]
@@ -26,6 +27,7 @@ import sys
 
 HEADINGS = {"challenge": "## Challenge notes", "security": "## Security notes"}
 VERDICT_LINE = re.compile(r"^\s*\**VERDICT:.*$")
+HANDBACK = "SubagentHandback"
 SPECS_PREFIX = "specs/"
 _TRANSCRIPTS = []
 
@@ -62,22 +64,41 @@ def text_blocks(message):
     return [block.get("text") or "" for block in content or [] if isinstance(block, dict) and block.get("type") == "text"]
 
 
-def last_report(path):
-    """The text of the last message of the agent's latest round; a message whose text blocks span several records
-    is joined block by block, a blank line between two blocks."""
+def handback(message):
+    """The report a `SubagentHandback` tool call of the message carries (how a subagent of a cloud session hands its
+    report back; its plain text is narration then), or None."""
+    content = message.get("content")
+    for block in content if isinstance(content, list) else []:
+        if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == HANDBACK:
+            report = (block.get("input") or {}).get("message")
+            return report if isinstance(report, str) else None
+    return None
+
+
+def latest_round(path):
+    """The assistant messages of the agent's latest round, oldest first (one record per content block)."""
     reader = transcripts()
-    texts, last_id = [], None
+    messages = []
     for record in reader.records(path):
         if reader.is_message_to_agent(record):
-            texts, last_id = [], None
-            continue
-        message = record.get("message")
-        if record.get("type") != "assistant" or not isinstance(message, dict):
-            continue
+            messages = []
+        elif record.get("type") == "assistant" and isinstance(record.get("message"), dict):
+            messages.append(record["message"])
+    return messages
+
+
+def last_report(path):
+    """The report of the agent's latest round: the message of its last `SubagentHandback` call, else the text of its
+    last message (a message whose text blocks span several records is joined block by block, a blank line between
+    two blocks)."""
+    messages = latest_round(path)
+    handed = [report for report in map(handback, messages) if report]
+    if handed:
+        return handed[-1].strip()
+    texts, last_id = [], None
+    for message in messages:
         blocks = [text for text in text_blocks(message) if text.strip()]
-        if not blocks:
-            continue
-        if message.get("id") != last_id:
+        if blocks and message.get("id") != last_id:
             texts, last_id = [], message.get("id")
         texts += blocks
     return "\n\n".join(text.strip() for text in texts)
@@ -137,6 +158,10 @@ def main(argv=None):
         print(f"No {name} in specs/{args.folder}")
         return 1
     report = sys.stdin.read() if args.stdin else transcript_report(args.agent_id, args.session)
+    if not any(VERDICT_LINE.match(line) for line in report.splitlines()):
+        print("The report carries no VERDICT line: it is not the member's report (the Devil's Advocate and Security "
+              "end theirs with one); nothing written")
+        return 1
     body = notes(report)
     if not body:
         print("The report holds no notes besides its VERDICT line: nothing written")

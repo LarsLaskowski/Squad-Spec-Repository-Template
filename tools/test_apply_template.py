@@ -303,6 +303,10 @@ class TestProcessRecords(unittest.TestCase):
         self.assertEqual(self.script.process_records(self.target), [
             ("docs/decisions/0001-gates.md", "Accepted",
              "also names Issue #3 (format check in CI, pinned tools): split it")])
+        for source, expected in (("Squad refreshed from Squad-Spec-Repository-Template (v1.0.0)", ""),
+                                 ("Squad adopted from Squad-Spec-Repository-Template: Issue #3", "Issue #3"),
+                                 ("squad ADOPTED FROM squad-spec-repository-template.", "")):
+            self.assertEqual(self.script.project_source(f"- **Source:** {source}\n"), expected, source)
 
     def test_the_report_names_them(self):
         printed = io.StringIO()

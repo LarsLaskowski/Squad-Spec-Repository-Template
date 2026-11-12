@@ -558,8 +558,9 @@ def project_source(text):
     """What a seeded record's source names besides the template ("Issue #3 (format check in CI)"), or "": a project
     that extended the record in place (Censio 0001) keeps a rule of its own in it."""
     source = record_field(text, "Source")
-    rest = re.sub(rf"^squad (?:adopted|refreshed) from {re.escape(TEMPLATE_NAME)}", "", source, flags=re.I)
-    return rest.strip(" ;,.-\u2014") if rest != source else ""
+    rest = re.sub(rf"^squad (?:adopted|refreshed) from {re.escape(TEMPLATE_NAME)}(?:\s*\(v[\d.]+\))?", "", source,
+                  flags=re.I)
+    return rest.strip(" ;:,.-\u2014") if rest != source else ""
 
 
 def is_move_record(text, moved):

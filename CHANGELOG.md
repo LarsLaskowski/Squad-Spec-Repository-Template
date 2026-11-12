@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.8 — 2026-11-12
+
 - [Profile] `dotnet-rules.py` lowers a pending rule the baseline does not set as well (one on only through
   `AnalysisLevel`, CA1848, or one it sets only for test code, BL0016), so `TreatWarningsAsErrors` no longer fails on it (#337)
 - [Profile] The managed global analyzer config `.squad/dotnet-rules.globalconfig` switches the baseline's switched-off
@@ -17,6 +19,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   Git stores with LF) and carries over build-file items the seeds gained (#337)
 - [Tools] `apply-template.py` lists a decision record as an old process record only when its source is the seeds'
   "Squad adopted/refreshed from" line, not when it merely cites the template (#337)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.squad/stack.md`, `profiles/dotnet/seed/Directory.Build.props`
+
 ## v2026.11.7 — 2026-11-12
 
 - [Profile] `sonar-rules.py` puts a new block right after the dotnet-rules block, never into the paths block, and names

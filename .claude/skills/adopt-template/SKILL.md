@@ -129,6 +129,8 @@ Rules that hold throughout:
      project's SonarQube Cloud C# profile (a target without the markers gets them; a sentence of its `stack.md` that
      calls a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to sonarcloud.io) is named in
      the PR description.
+   - A build file the seeds gained since the recorded tag is carried over the same way as the other seeds (step 1):
+     the `GlobalAnalyzerConfigFiles` item of `Directory.Build.props`, which `dotnet_config.py` asks for, is one.
    - *Format*, *Build* and the *Analyzer gate* run over the whole code: findings the refresh can fix mechanically are
      fixed in its PR, every other rule gets an issue in the target and a `DOTNET_RULES_PENDING` entry, both named in
      the PR description (`tools/rollout-check.py --build` lists them per rule before the release).
@@ -145,7 +147,9 @@ Rules that hold throughout:
       sets and their `CodeAnalysisRuleSet`, rules in `NoWarn` and assembly-wide `SuppressMessage` go; a rule they kept
       off is fixed or becomes pending, an S1125 entry simply goes.
    3. The tool manifest moves to `.config/dotnet-tools.json` with `reihitsu.cli` at the version of Reihitsu.Analyzer,
-      and `.gitattributes` checks C# files out with CRLF, renormalised in a commit of its own (`git add --renormalize .`).
+      and `.gitattributes` checks C# files out with CRLF. Git stores them with LF either way, so the files already
+      checked out get CRLF by a fresh checkout (`git rm -rq --cached . && git reset -q --hard`, with nothing
+      uncommitted); only files committed with CRLF change in the index, in a commit of its own (`git add --renormalize .`).
    4. The project blocks of `AGENTS.md` (*configuration*, *code-style*) and the target's `stack.md` describe the new
       setup; a decision record that states a rule the baseline changes is superseded (or edited, if unreleased).
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`

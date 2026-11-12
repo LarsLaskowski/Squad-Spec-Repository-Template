@@ -57,6 +57,13 @@ DATA = os.path.join(ROOT, "tools", "dotnet-baseline")
 DECISIONS = os.path.join(DATA, "decisions.json")
 IDS = os.path.join(DATA, "analyzer-ids.txt")
 BASELINE = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.editorconfig")
+GLOBAL_CONFIG = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.globalconfig")
+GLOBAL_HEADER = """# The rules the .NET rule baseline switches off for every C# file, as a global analyzer config:
+# an .editorconfig section reaches no generated code (Razor components), this file reaches every syntax tree of the
+# compilation. Directory.Build.props names it in GlobalAnalyzerConfigFiles (dotnet_config.py checks it). Written by
+# the template's tools/dotnet-baseline.py from dotnet-rules.editorconfig; never edit it in a repository.
+is_global = true
+"""
 CURRENT, FAILED, NOT_CHECKED, USAGE = 0, 1, 2, 4
 PROFILE = "dotnet"
 REF = "origin/main"
@@ -568,6 +575,14 @@ def render(merged):
     return "\n".join(lines) + "\n"
 
 
+def render_global(merged):
+    """The global analyzer config: every rule the baseline switches off for every C# file."""
+    off = sorted((key for key, value in merged.general.items() if rule_id(key) and value.strip().lower() == "none"),
+                 key=sort_key)
+    return GLOBAL_HEADER + "".join(f"\n# {merged.reasons[key]}\n{key} = none\n" if merged.reasons.get(key)
+                                   else f"\n{key} = none\n" for key in off)
+
+
 def changes(config, merged):
     """(tightened, added) settings of one repository: a value the baseline changes, a setting it adds."""
     tightened, added = [], []
@@ -646,6 +661,7 @@ def main(argv=None):
     drop_unknown(merged, load_ids())
     report(configs, merged, args.verbose)
     current = write_or_check(render(merged), args.check)
+    current = write_or_check(render_global(merged), args.check, GLOBAL_CONFIG) and current
     return FAILED if merged.conflicts or not current else CURRENT
 
 

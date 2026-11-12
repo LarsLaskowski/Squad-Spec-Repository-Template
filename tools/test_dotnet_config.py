@@ -27,6 +27,7 @@ BUILD_PROPS = """<Project>
   <ItemGroup>
     <PackageReference Include="Reihitsu.Analyzer" PrivateAssets="all" />
     <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory).squad/dotnet-rules.globalconfig" />
   </ItemGroup>
 </Project>
 """
@@ -135,6 +136,10 @@ class DotnetConfigTest(unittest.TestCase):
         write("Directory.Build.props", BUILD_PROPS.replace('<PackageReference Include="SonarAnalyzer.CSharp" '
                                                            'PrivateAssets="all" />', ""))
         self.assertFinds('no <PackageReference Include="SonarAnalyzer.CSharp">')
+
+    def test_a_missing_global_analyzer_config_is_reported(self):
+        write("Directory.Build.props", BUILD_PROPS.replace(".squad/dotnet-rules.globalconfig", "other.globalconfig"))
+        self.assertFinds("no <GlobalAnalyzerConfigFiles")
 
     def test_a_version_outside_central_package_management_is_reported(self):
         write("src/App/App.csproj", APP.replace('<PackageReference Include="NodaTime" />',

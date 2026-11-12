@@ -67,6 +67,14 @@
     "dotnet_diagnostic.CA2007.severity": {
       "value": "warning",
       "reason": "ConfigureAwait(false) on every await of production code, the house style for library and service code (#338)"
+    },
+    "csharp_style_expression_bodied_local_functions": {
+      "value": "false:silent",
+      "reason": "local functions are block-bodied like methods: reihitsu-format writes expression bodies back into blocks, so IDE0061 could never be met (#337)"
+    },
+    "dotnet_style_prefer_conditional_expression_over_assignment": {
+      "value": "true:silent",
+      "reason": "IDE0045 stays silent: rewriting an if chain into an assignment nests ternaries, which S3358 rejects (#337)"
     }
   },
   "sections": {

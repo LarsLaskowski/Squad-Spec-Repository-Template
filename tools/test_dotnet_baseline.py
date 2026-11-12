@@ -323,6 +323,22 @@ class TestOutput(unittest.TestCase):
         self.assertLess(body.index("[*.cs]"), body.index("[**/*.Tests/**.cs]"))
         self.assertEqual(text, tool.render(self.merged()), "the output is reproducible")
 
+    def test_the_global_config_holds_only_the_rules_switched_off_for_every_csharp_file(self):
+        text = tool.render_global(self.merged())
+        self.assertTrue(text.startswith(tool.GLOBAL_HEADER))
+        self.assertIn("is_global = true\n", text)
+        self.assertIn("\n# why\ndotnet_diagnostic.S1125.severity = none\n", text)
+        self.assertNotIn("S107", text, "a rule off only in a section of paths stays out")
+        self.assertNotIn("RH0010", text, "a rule that is on stays out")
+
+    def test_the_template_global_config_is_current(self):
+        with open(tool.BASELINE, encoding="utf-8") as handle:
+            off = {line.split(" = ")[0] for line in handle.read().split("\n[")[1].splitlines()
+                   if line.startswith("dotnet_diagnostic.") and line.endswith("= none")}
+        with open(tool.GLOBAL_CONFIG, encoding="utf-8") as handle:
+            written = {line.split(" = ")[0] for line in handle if line.startswith("dotnet_diagnostic.")}
+        self.assertEqual(written, off, "the global config and the baseline's [*.cs] section switch off the same rules")
+
     def test_check_reports_an_outdated_file_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as root:
             path = os.path.join(root, "baseline.editorconfig")

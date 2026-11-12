@@ -50,7 +50,8 @@ class DotnetMajorTest(unittest.TestCase):
                             "FROM ${BASE_SDK} AS build\nFROM mcr.microsoft.com/dotnet/aspnet:10.0.14-alpine@sha256:ab\n")
         ok, out = self.check("global.json", "src/App/App.csproj", "src/Win/Win.csproj", "Dockerfile")
         self.assertTrue(ok, out)
-        self.assertIn(".NET major: 10 everywhere (4 target framework(s) and image(s); global.json (SDK 10) names it)", out)
+        self.assertIn(".NET major: 10 everywhere (4 target framework(s), image(s) and script path(s); global.json "
+                      "(SDK 10) names it)", out)
 
     def test_a_new_project_on_the_next_major_fails(self):
         write("global.json", GLOBAL_JSON)
@@ -84,6 +85,25 @@ class DotnetMajorTest(unittest.TestCase):
         ok, out = self.check("global.json", "a.csproj")
         self.assertFalse(ok)
         self.assertIn("a.csproj:3: net10.0 is .NET 10, but global.json (SDK 11) names .NET 11", out)
+
+    def test_a_script_or_workflow_on_another_major_fails(self):
+        # Censio#158: release-check.sh kept `net10.0-windows` after the projects moved on.
+        write("global.json", GLOBAL_JSON.replace("10.0.100", "11.0.100"))
+        write("a.csproj", project("net11.0-windows"))
+        write(".github/scripts/release-check.sh", 'exe="bin/Release/net10.0-windows/App.exe"\n'
+                                                  'tag="v10.0.0"  # a version tag, no moniker\n')
+        write(".github/workflows/release.yml", "      - run: ls out/net11.0-windows/\n      - run: echo dotnet10.0\n")
+        write("tools/pack.ps1", "$out = 'publish/net10.0'\n")
+        write("docs/build.md", "Built for net10.0.\n")
+        ok, out = self.check("global.json", "a.csproj", ".github/scripts/release-check.sh",
+                             ".github/workflows/release.yml", "tools/pack.ps1", "docs/build.md")
+        self.assertFalse(ok)
+        self.assertIn(".github/scripts/release-check.sh:1: net10.0-windows is .NET 10, but global.json (SDK 11) names "
+                      ".NET 11", out)
+        self.assertIn("tools/pack.ps1:1: net10.0 is .NET 10", out)
+        self.assertNotIn("release.yml", out, "the workflow names the repository's major")
+        self.assertNotIn(":2:", out, "a version tag and a longer word are no monikers")
+        self.assertNotIn("build.md", out, "documentation is not read")
 
     def test_properties_build_arguments_and_other_images_are_not_read(self):
         write("a.csproj", project("$(AppTargetFramework)") + project("net48"))

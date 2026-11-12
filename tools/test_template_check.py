@@ -116,6 +116,33 @@ class TestRuleFiles(unittest.TestCase):
         self.assertIn("no merge base", info[0])
 
 
+class TestWorkflowHardening(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+
+    def test_a_checkout_that_keeps_its_credentials_is_reported(self):
+        parsed = {"jobs": {"build": {"steps": [{"uses": self.CHECKOUT, "with": {"fetch-depth": 0}}]}}}
+        problems = self.script.workflow_hardening("ci.yml", parsed)
+        self.assertEqual(problems, ["ci.yml: the checkout of job build lacks `persist-credentials: false`"])
+
+    def test_a_codeql_workflow_without_empty_workflow_permissions_is_reported(self):
+        steps = [{"uses": self.CHECKOUT, "with": {"persist-credentials": False}}]
+        problems = self.script.workflow_hardening("codeql.yml", {"jobs": {"analyze": {"steps": steps}}})
+        self.assertEqual(problems, ["codeql.yml: no workflow-level `permissions: {}`"])
+
+    def test_a_hardened_workflow_passes(self):
+        steps = [{"uses": self.CHECKOUT, "with": {"persist-credentials": False}}, {"run": "make"}]
+        self.assertEqual(self.script.workflow_hardening("codeql.yml", {"permissions": {},
+                                                                       "jobs": {"analyze": {"steps": steps}}}), [])
+
+    def test_the_seeded_workflows_are_hardened(self):
+        errors = []
+        self.script.check_seed_workflows(errors)
+        self.assertEqual(errors, [])
+
+
 class TestRepeatedRules(unittest.TestCase):
     RULE = " ".join(f"word{i}" for i in range(25))
 
@@ -171,6 +198,13 @@ class TestSonarRules(unittest.TestCase):
 
     def rules(self, source, path="tool.py"):
         return [rule for _, rule, _ in self.script.sonar_findings(path, source)]
+
+    def test_a_parameter_that_is_only_augmented_is_reported(self):
+        source = ("def collect(errors, paths):\n    for path in paths:\n        errors += [path]\n\n\n"
+                  "def kept(errors, more):\n    errors.append(1)\n    errors += more\n\n\n"
+                  "def local():\n    total = 0\n    total += 1\n    return total\n")
+        found = [(line, rule) for line, rule, _ in self.script.sonar_findings("x.py", source) if rule == "python:S1481"]
+        self.assertEqual(found, [(3, "python:S1481")], "only a parameter that is never read")
 
     def test_a_nested_conditional_expression_is_reported(self):
         self.assertEqual(self.rules("x = a if b else (c if d else e)\n"), ["python:S3358"])

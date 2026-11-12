@@ -1,5 +1,8 @@
 """Unit tests for core/.squad/tools/coverage-check.py: run `python3 -m unittest discover tools`."""
+import contextlib
+import glob
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -184,6 +187,48 @@ class TestSeveralReports(unittest.TestCase):
         self.script.settings.COVERAGE_REPORTS = [("jacoco", "x.xml")]
         with self.assertRaises(SystemExit):
             self.script.report_sources()
+
+
+class TestConditions(unittest.TestCase):
+    """Branch conditions count on changed lines as SonarQube counts them (DockerUpdateGuard#430)."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.previous = os.getcwd()
+        self.dir = tempfile.TemporaryDirectory()
+        os.chdir(self.dir.name)
+        with open("coverage.cobertura.xml", "w") as handle:
+            handle.write('<coverage><sources><source>.</source></sources><packages><package><classes>'
+                         '<class filename="src/Map.cs"><lines>'
+                         '<line number="1" hits="1" branch="False" />'
+                         '<line number="2" hits="1" branch="True" condition-coverage="25% (1/4)" />'
+                         '<line number="3" hits="0" branch="False" />'
+                         '</lines></class></classes></package></packages></coverage>')
+        with open("lcov.info", "w") as handle:
+            handle.write("SF:web/app.js\nDA:1,1\nBRDA:1,0,0,1\nBRDA:1,0,1,0\nBRDA:1,0,2,-\nend_of_record\n")
+
+    def tearDown(self):
+        os.chdir(self.previous)
+        self.dir.cleanup()
+
+    def test_conditions_are_read_from_cobertura_and_lcov(self):
+        self.script.settings.COVERAGE_REPORTS = [("cobertura", "*.xml"), ("lcov", "lcov.info"), ("go", "none.out")]
+        self.script.run_reports = lambda pattern: [] if pattern == "none.out" else sorted(glob.glob(pattern))
+        self.assertEqual(self.script.merged_conditions(), {"src/Map.cs": {2: (1, 4)}, "web/app.js": {1: (1, 3)}})
+        self.script.settings.COVERAGE_CONDITIONS = False
+        self.assertEqual(self.script.merged_conditions(), {})
+
+    def test_new_code_counts_lines_and_conditions_together(self):
+        self.script.changed_lines = lambda: {"src/Map.cs": {1, 2, 3}}
+        hits = {"src/Map.cs": {1: 1, 2: 1, 3: 0}}
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            lines_only = self.script.new_code_coverage(hits)
+            both = self.script.new_code_coverage(hits, {"src/Map.cs": {2: (1, 4)}})
+        self.assertEqual(lines_only, (2 / 3 * 100, 2, 3, 0, 0))
+        self.assertEqual(both, (3 / 7 * 100, 2, 3, 1, 4), "2 of 3 lines and 1 of 4 conditions: 3 of 7")
+        self.assertIn("2/3 + 1/4 conditions  src/Map.cs  uncovered: [3]  conditions not covered: [2]",
+                      output.getvalue())
 
 
 if __name__ == "__main__":

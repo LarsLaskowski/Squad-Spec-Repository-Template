@@ -302,6 +302,24 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual(self.script.test_names("`A`<br>`B`, and `C`"), ["A", "B", "C"], "line breaks, Oxford comma")
         self.assertEqual(self.script.test_names("(only `X`)"), ["X"], "every span in a remark: the first one")
 
+    def test_matrix_reads_a_file_name_and_a_call_without_widening_to_every_file(self):
+        # Censio#164: `ReaderTests.cs` became the name `cs`, `(...)` the name `()`: both are in every C# file.
+        git("init", "-q", "-b", "main")
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["tests/*"])
+        plan = PLAN.replace("| AC1 | ExportWritesOneRowPerItem | tests/ExportTests.cs |",
+                            "| AC1 | reader and writer tests (`ExportTests.cs`) | \u2014 |").replace(
+            "| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",
+            "| AC2 | `ExportQuotesCommas(...)`, `(...)` rows | \u2014 |")
+        folder = self.feature(plan=plan)
+        write("tests/ExportTests.cs", "public void ExportQuotesCommas(string value) { Run(); }\n")
+        write("tests/ServerTests.cs", "public void Listens() { Start(); }\n")
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        self.assertEqual(output.count("tree`: tests/ExportTests.cs |"), 2, output)
+        self.assertNotIn("ServerTests", output, "neither the extension nor an argument list names a test")
+        self.assertEqual(self.script.test_names("`Read(...)`, `Write()`, `(...)`"), ["Read", "Write"])
+        self.assertEqual(self.script.test_names("(`internal/parse_test.go`)"), ["internal/parse_test.go"])
+
     def test_matrix_shows_other_verifications_and_amendments(self):
         plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",
                             "| AC2 | after merge: the PM imports the file into the target application | — |\n"
@@ -501,6 +519,11 @@ class TestPlanCheck(unittest.TestCase):
         self.assertFalse(any("words" in e for e in errors), "the appended notes are not counted")
         errors, _ = self.script.check(self.feature(plan=PLAN + notes + "\n## Later\n\n" + "filler " * 5000))
         self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "a section after the notes is counted")
+        answers = "\n## Challenge\n\n" + "answer " * 5000 + "\n\n## Security review\n\n" + "answer " * 5000 + "\n"
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\nfiller " * 2000 + answers))
+        self.assertFalse(any("words" in e for e in errors), "the Lead's answers to the notes are not counted (Censio#156)")
+        errors, _ = self.script.check(self.feature(plan=PLAN + "\n## Security considerations\n\n" + "filler " * 5000))
+        self.assertTrue(any("PLAN_MAX_WORDS" in e for e in errors), "Security considerations is the Lead's plan text")
 
     def test_justified_plan_size_is_a_warning_up_to_the_hard_limit(self):
         justified = PLAN.replace("\n## ", "\nPlan size: eleven task groups across agent and backend\n\n## ", 1)

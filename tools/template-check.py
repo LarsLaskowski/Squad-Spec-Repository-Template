@@ -102,6 +102,8 @@ INSTRUCTIONS_MD = "instructions.md"
 CONFIG_CHECK = "config-check.py"
 DECISION_CHECK = "decision-check.py"
 DEPENDABOT_YML = "dependabot.yml"
+CODEQL_YML = "codeql.yml"
+YML_FILES = "*.yml"
 # Values the decision-check tests repeat.
 STORAGE_MD = "storage.md"
 STORAGE_AREA = "[Storage](storage.md)"
@@ -139,11 +141,13 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S1940", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
-               "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786", "python:S8997",
-               "python:S9081"]
+SONAR_RULES = ["python:S1192", "python:S1481", "python:S1940", "python:S3358", "python:S3516", "python:S5843",
+               "python:S5850", "python:S5906", "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632",
+               "python:S8786", "python:S8997", "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
+# python:S1481: a parameter a function only ever augments (`errors += found`) and never reads: Sonar takes the
+# rebinding for an unused local variable; `errors.extend(found)` says what happens.
 # python:S1940: `not` of a single comparison, which the opposite operator states directly (for sets, where `not a <= b`
 # is no `a > b`, a difference or another form).
 INVERTED_COMPARISONS = (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
@@ -573,7 +577,7 @@ def check_multi(names, target, errors):
         if not os.path.isfile(os.path.join(target, rel)):
             errors.append(f"profile {label}: {rel} (dispatcher) missing")
     check_gate_commands(label, read(os.path.join(target, SQUAD_DIR, "stack.md")), errors)
-    for path in glob.glob(os.path.join(target, GITHUB_DIR, "**", "*.yml"), recursive=True):
+    for path in glob.glob(os.path.join(target, GITHUB_DIR, "**", YML_FILES), recursive=True):
         check_merged_yaml(label, names, target, path, errors)
     os.remove(os.path.join(target, SQUAD_DIR, "tools", f"analyzer-check-{names[-1]}.py"))
     if run_config_check(target).returncode == 0:
@@ -589,16 +593,43 @@ def check_merged_yaml(label, names, target, path, errors):
         errors.append(f"profile {label}: {os.path.relpath(path, target)} is not valid YAML: "
                       f"{str(error).splitlines()[0]}")
         return
-    checks = {"codeql.yml": check_merged_codeql, DEPENDABOT_YML: check_merged_dependabot, "ci.yml": check_merged_ci}
+    checks = {CODEQL_YML: check_merged_codeql, DEPENDABOT_YML: check_merged_dependabot, "ci.yml": check_merged_ci}
     check = checks.get(os.path.basename(path))
     if check:
         check(label, names, parsed, errors)
+    if os.path.basename(os.path.dirname(path)) == "workflows":
+        errors += [f"profile {label}: merged {problem}" for problem in
+                   workflow_hardening(os.path.relpath(path, target).replace(os.sep, "/"), parsed)]
+
+
+def workflow_hardening(rel, parsed):
+    """The token settings a seeded workflow lacks: every `actions/checkout` step keeps no credentials in `.git/config`
+    (`persist-credentials: false`), and a CodeQL workflow grants nothing at the workflow level (`permissions: {}`), so a
+    job added later does not inherit the repository's default token (#360, #372)."""
+    problems = []
+    if os.path.basename(rel) == CODEQL_YML and parsed.get("permissions") != {}:
+        problems.append(f"{rel}: no workflow-level `permissions: {{}}`")
+    for job_id, job in (parsed.get("jobs") or {}).items():
+        for step in job.get("steps") or []:
+            if str(step.get("uses", "")).startswith("actions/checkout@") and \
+                    (step.get("with") or {}).get("persist-credentials") is not False:
+                problems.append(f"{rel}: the checkout of job {job_id} lacks `persist-credentials: false`")
+    return problems
+
+
+def check_seed_workflows(errors):
+    """Every seeded workflow of the core and the profiles carries the token settings of workflow_hardening(); a
+    `{{TODO: …}}` placeholder, which a target fills in, is read as a plain word."""
+    for path in sorted(glob.glob(os.path.join(ROOT, "seed", GITHUB_DIR, "workflows", YML_FILES)) +
+                       glob.glob(os.path.join(ROOT, "profiles", "*", "seed", GITHUB_DIR, "workflows", YML_FILES))):
+        text = PLACEHOLDER.sub("placeholder", read(path))
+        errors.extend(workflow_hardening(os.path.relpath(path, ROOT).replace(os.sep, "/"), yaml.safe_load(text)))
 
 
 def check_merged_codeql(label, names, parsed, errors):
     languages = [entry["language"] for entry in parsed["jobs"]["analyze"]["strategy"]["matrix"]["include"]]
     expected = list(dict.fromkeys(language for n in names
-                                  for language in re.findall(r"- language: (\S+)", profile_file(n, "codeql.yml"))))
+                                  for language in re.findall(r"- language: (\S+)", profile_file(n, CODEQL_YML))))
     if languages != expected:
         errors.append(f"profile {label}: codeql.yml languages {languages}, expected {expected}")
 
@@ -1904,13 +1935,28 @@ def patched_globals(tree):
     return found
 
 
+def augmented_parameters(tree):
+    """python:S1481: a parameter whose only use in its function is the target of an augmented assignment (`errors +=
+    found`, never `errors.append` or another read): Sonar reports it as an unused local variable."""
+    found = []
+    for function in (node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        parameters = {arg.arg for arg in function.args.args + function.args.posonlyargs + function.args.kwonlyargs}
+        read = {node.id for node in ast.walk(function) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)}
+        found += [(node.lineno, "python:S1481", f"parameter `{node.target.id}` is only augmented, never read: use "
+                   "extend() or another call on it") for node in ast.walk(function)
+                  if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name)
+                  and node.target.id in parameters - read]
+    return found
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
         + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree) \
-        + inverted_comparisons(tree) + overlap_findings(tree, os.path.basename(path).startswith("test"))
+        + inverted_comparisons(tree) + augmented_parameters(tree) \
+        + overlap_findings(tree, os.path.basename(path).startswith("test"))
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     else:
@@ -1985,6 +2031,7 @@ def main():
     check_repeated_rules(warnings)
     info += words_per_launch()
     profiles = check_profiles(errors)
+    check_seed_workflows(errors)
     check_consumers(errors, profiles)
     check_changelog(errors, info)
     smoke_test(profiles, errors)

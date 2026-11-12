@@ -428,6 +428,21 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("5 Tests first (G2)", "Orchestrator", "skipped — G2 adds no production behaviour"))
         self.assertIn("Next: step 6 — Implement (G2)", self.next(), "an orchestrator skip row of step 5 ends it")
 
+    def test_an_orchestrator_skip_row_ends_the_implementation_of_the_group_it_names(self):
+        # PlexToJellyfinSync#292: the skeleton was the whole change, nothing was left to implement.
+        self.feature(TASKS)
+        self.repo.log(row("4 Skeleton (G1)", "Dev", "the whole framework move", 30000, "sonnet/medium"),
+                      row("5 Tests first (G1)", "Tester", "tests adapted", 30000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("Next: step 6 — Implement (G1)", out)
+        self.assertIn('"6 Implement skipped (G1)" Orchestrator', out, "the skip row is offered")
+        self.repo.log(row("6 Implement skipped", "Orchestrator", "skipped — nothing left"))
+        self.assertIn("Next: step 6 — Implement (G1)", self.next(), "a feature's skip row names its group")
+        self.repo.log(row("6 Implement skipped (G1)", "Orchestrator", "skipped — the skeleton was the whole change"))
+        out = self.next()
+        self.assertNotIn("Implement (G1)", out)
+        self.assertIn("Coverage (G1)", out, "the coverage pass of the group still runs")
+
     def test_a_skip_row_of_step_5_without_a_group_ends_it_for_every_group(self):
         self.feature(TASKS)
         self.repo.log(row("4 Skeleton skipped", "Orchestrator", "the plan adds no API"),
@@ -767,6 +782,20 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
         self.assertIn("Verdict line: quote it in the prompt, exactly as here; it ends the report", out)
         self.assertIn("`FIX:` in capitals whenever it orders a change", out)
+
+    def test_a_finding_the_plan_already_orders_goes_to_its_owner_without_a_lead_decision(self):
+        # PlexToJellyfinSync#292: the finding only asked for the deletion the plan's Approach ordered.
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 2 (1 plan)", 60000))
+        out = self.next()
+        self.assertIn("non-blocking findings (*Non-blocking findings*)", out, "the other one still goes to the Lead")
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 1 (1 plan)", 60000))
+        out = self.next()
+        self.assertNotIn("mode decide", out)
+        self.assertIn("Next: step 8 — blocking findings to their owner, then steps 6–7 and a mandatory delta round",
+                      out)
+        self.assertIn("the plan already orders", out)
 
     def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
         self.implemented()

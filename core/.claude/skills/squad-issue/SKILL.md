@@ -68,7 +68,10 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    user did not ask for one pull request, the others go back to runs of their own. A shared run's pull request
    carries one `Closes #<number>` per issue, and the working record goes to the first issue with a one-line pointer
    on each other. When the session prescribes a single branch but the issues
-   need separate pull requests, ask the user before step 2 of the second issue.
+   need separate pull requests, ask the user before step 2 of the second issue. `sonar-check.py pr`,
+   `gate-stamp.py --verify` and `squad-log.py` read the checked-out branch: while one run waits on its pull request and
+   the next works on another branch in the same clone, run the waiting one's checks in a worktree of its branch
+   (`git worktree add ../<repository>-<number> <branch>`), and remove it once that pull request is merged.
 
    **Logging.** Only you write `log.md`, one row per step and per launch, always with
    `python3 .squad/tools/squad-log.py issue-<number> "<step>" "<member>" "<result>"` — never by hand.

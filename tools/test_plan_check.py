@@ -282,6 +282,23 @@ class TestPlanCheck(unittest.TestCase):
                       "tree`: tests/ExportTests.cs |", output)
         self.assertNotIn("TrayMenuTests", output, "a file that only shares the id of an earlier feature")
 
+    def test_matrix_takes_no_name_from_the_description_of_a_test(self):
+        # Vandox#414: the description's `WebPort` matched every file that mentions the port.
+        git("init", "-q", "-b", "main")
+        self.script.settings = types.SimpleNamespace(COVERAGE_TEST_PATHSPECS=["tests/*"])
+        plan = PLAN.replace("| AC1 | ExportWritesOneRowPerItem | tests/ExportTests.cs |",
+                            "| AC1 | `ExportStartsAgain`: hold `WebPort` with a listener, then `Start` | "
+                            "tests/ExportTests.cs |")
+        folder = self.feature(plan=plan)
+        write("tests/ExportTests.cs", "public void ExportStartsAgain() { var p = WebPort; }\n"
+                                      "public void ExportEmptyLibraryWritesHeader() {}\npublic void ExportQuotesCommas() {}\n")
+        write("tests/ServerTests.cs", "public void Listens() { var p = WebPort; Start(); }\n")
+        code, output = self.matrix(folder)
+        self.assertEqual(code, 0, output)
+        self.assertIn("tree`: tests/ExportTests.cs |", output)
+        self.assertNotIn("ServerTests", output, "a code span of the description names no test")
+        self.assertEqual(self.script.test_names("`A`, `B` (slow); `C` and `D`, then `E`"), ["A", "B", "C", "D"])
+
     def test_matrix_shows_other_verifications_and_amendments(self):
         plan = PLAN.replace("| AC2 | ExportEmptyLibraryWritesHeader, ExportQuotesCommas | tests/ExportTests.cs |",
                             "| AC2 | after merge: the PM imports the file into the target application | — |\n"

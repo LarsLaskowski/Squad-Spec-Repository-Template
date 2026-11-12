@@ -806,11 +806,27 @@ def git_output(*args):
     return result.stdout if result.returncode == 0 else ""
 
 
+LISTED = re.compile(r"\s*(?:[,;/]|\band\b|\bor\b)?\s*", re.I)
+
+
+def listed_spans(text):
+    """The code spans of a cell that name tests: the first one and each one a list separator (`,`, `;`, "and", "or")
+    leads to, a parenthesised remark in between left aside; a span the description mentions (`hold `WebPort` with a
+    listener`) names no test (Vandox#414)."""
+    spans, end = [], None
+    for match in re.finditer(r"`([^`\n]+)`", text):
+        between = re.sub(r"\([^()]*\)", "", text[end:match.start()]) if end is not None else ""
+        if end is None or LISTED.fullmatch(between):
+            spans.append(match.group(1))
+        end = match.end()
+    return spans
+
+
 def test_names(text):
-    """The test names of a *Test(s)* cell: its code spans when it has any (prose around them is no name), else its
-    comma-separated parts; a qualified name (`ExportTests.Writes`, a Go subtest `TestParse/empty`) by the name a test
-    file declares, and a shortened one (`…ArchiveUsed`, `ReaderLoad...`) by the part that is written out."""
-    spans = re.findall(r"`([^`\n]+)`", text)
+    """The test names of a *Test(s)* cell: its listed code spans when it has any (prose around them is no name), else
+    its comma-separated parts; a qualified name (`ExportTests.Writes`, a Go subtest `TestParse/empty`) by the name a
+    test file declares, and a shortened one (`…ArchiveUsed`, `ReaderLoad...`) by the part that is written out."""
+    spans = listed_spans(text)
     parts = spans if spans else re.split(r"[,;]", text)
     names = []
     for part in parts:

@@ -76,6 +76,7 @@ import sys
 
 # Where the targets' squad-upstream lessons are moved and fixed; recorded in every target's .squad/template.json.
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
+TEMPLATE_NAME = TEMPLATE_REPOSITORY.split("/")[-1].casefold()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILES = sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "profiles", "*")) if os.path.isdir(p))
 # The instruction file every agent reads (marked) and the one Claude Code reads, which only imports it (managed).
@@ -547,10 +548,10 @@ def decision_records(target):
 
 
 def is_seeded_process_record(text, titles):
-    """A record an older template version numbered in: its source names the template, or it bears the title of one
-    of the process decisions."""
-    return TEMPLATE_REPOSITORY.split("/")[-1].casefold() in record_field(text, "Source").casefold() \
-        or record_title(text) in titles
+    """A record an older template version numbered in: its source is the seeds' "Squad adopted/refreshed from" the
+    template (a project record that only cites the template is not one), or it bears the title of a process decision."""
+    seeded = f"squad adopted from {TEMPLATE_NAME}", f"squad refreshed from {TEMPLATE_NAME}"
+    return record_field(text, "Source").casefold().startswith(seeded) or record_title(text) in titles
 
 
 def is_move_record(text, moved):

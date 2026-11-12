@@ -279,6 +279,8 @@ class TestProcessRecords(unittest.TestCase):
                                                        supersedes="[0037](0037-off-main.md) (amends it)"))
         self.record("0045-squash.md", process_record("0045", "squash-merge pull requests"))
         self.record("0046-product.md", process_record("0046", "Cache entries expire", supersedes="0001"))
+        self.record("0047-style.md", process_record("0047", "== false is the house style",
+                                                    source="Issue #421, rolling out Squad-Spec-Repository-Template v2026.11.7"))
         self.record("README.md", "# Decision records\n")
         self.record("process.md", "# Process decisions\n")
         self.assertEqual(self.script.process_records(self.target), [

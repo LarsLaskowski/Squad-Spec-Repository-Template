@@ -6,6 +6,22 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Skill] `adopt-template` brings a `dotnet` target onto the shared baseline on its first refresh to it: the target
+  framework and the required switches into `Directory.Build.props`, versions into `Directory.Packages.props`, the
+  rules out of `.editorconfig`, rule sets, `NoWarn` and assembly-wide suppressions, the tool manifest under `.config/`,
+  CRLF for C# files; values stay the target's (#343)
+- [Skill] `adopt-template` opens the target's pull request labelled `ignore-for-release`, creating the label where it
+  is missing, so a squad update no longer reaches the target's release notes; `rollout-check.py` fails when a
+  target's `.github/release.yml` does not exclude the label (#336)
+- [Core] `create-pr` labels a change of the squad alone (`.squad/`, `.claude/`, the instruction files)
+  `ignore-for-release` (#336)
+- [Skill] `adopt-template` keeps the seed's Dependabot `docker` entry only for a Dockerfile whose `FROM` lines name
+  the image itself, which is all Dependabot reads; the seeded `stack.md` says how images named through a build
+  argument stay current instead (#335)
+- [Profile] The `dotnet` profile seeds `Directory.Build.props` (the target framework and the required switches once,
+  the analyzers for every project, MSTest and coverage for every `*.Tests` project) and `Directory.Packages.props`
+  (central versions), the structure `dotnet_config.py` checks; the seeded tool manifest names `reihitsu.cli` 1.2.0,
+  the version of Reihitsu.Analyzer (#340)
 - [Profile] The `dotnet` *Analyzer gate* runs the new managed `dotnet_config.py`: the target framework and the
   required build switches only in `Directory.Build.props`, central package versions, the tool manifest under
   `.config/` at the analyzer's Reihitsu version, CRLF for C# files, no rule set, no rule in `NoWarn`, no assembly-wide

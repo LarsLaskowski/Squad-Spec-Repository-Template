@@ -1169,3 +1169,13 @@ the local checks knew. Probes with SonarSource's analyzer (`tools/sonar-local.py
   local check sees the class, so `[aab]` is left to the cloud analysis.
 
 The local check follows these observations on the parsed regex and flags nothing else in the template.
+
+## S8997 in test files (template-check.py, `SONAR_RULES`)
+
+Found in the pull request analysis of #347: SonarQube Cloud reported python:S8997 eleven times in
+`tools/test_rollout_check.py`, for `tool.run = …` and `tool.run, tool.build_rehearsal = original, …` in test functions,
+where `tool` is the module the test file loads at its top level. It left alone the same assignment in a helper method
+that is no test (`build_with`), `sys.stdin = …` in `test_gate_stamp.py` and `test_git_guard.py` on `main`, and
+`module.sonar_check = …` on a module a test loads itself (`test_sonar_rules.py`). `tools/sonar-local.py` has no check
+for the rule. The local check follows exactly these observations and reports the eleven lines and nothing else in the
+template; the tests now use `mock.patch.object`.

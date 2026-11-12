@@ -99,6 +99,15 @@ class DotnetConfigTest(unittest.TestCase):
             self.assertTrue(load().check())
         self.assertIn("one build structure and the template's rules", output.getvalue())
 
+    def test_a_repository_from_the_seeds_passes_once_its_target_framework_is_filled(self):
+        seed = os.path.dirname(SEED)
+        for rel, target in (("Directory.Build.props", "Directory.Build.props"),
+                            ("Directory.Packages.props", "Directory.Packages.props"),
+                            (".config/dotnet-tools.json", ".config/dotnet-tools.json"), ("gitattributes", ".gitattributes")):
+            with open(os.path.join(seed, rel), encoding="utf-8") as handle:
+                write(target, handle.read().replace("{{TODO: target framework, e.g. net10.0}}", "net11.0"))
+        self.assertEqual(self.findings(), [], "the seeds and dotnet_config.py name the same structure")
+
     def test_a_target_framework_in_a_project_file_is_reported(self):
         write("src/App/App.csproj", APP.replace("<ItemGroup>", "<PropertyGroup><TargetFramework>net11.0</TargetFramework>"
                                                 "</PropertyGroup>\n  <ItemGroup>"))

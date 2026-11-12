@@ -11,7 +11,9 @@ profile and owned by this repository: keep it true when the build changes.
   (set once in `Directory.Build.props`), solution `{{TODO: Solution}}.slnx`. Several majors may be installed side by side (a machine, CI); the repository is
   built for one: every project's target framework, `global.json` and every .NET image name the same major, which
   `dotnet_major.py` checks in the *Analyzer gate*, and a new project gets it from the SDK `global.json` selects.
-  Dependabot keeps the SDK, the packages and the images current within that major; the move to the next one (target
+  Dependabot keeps the SDK, the packages and the images a `FROM` line names itself current within that major (an image
+  named through a build argument, `FROM ${BASE_SDK}`, it does not read: those stay current by a floating tag or by
+  digests refreshed by hand, as this file names for each Dockerfile); the move to the next one (target
   frameworks, `global.json`, the Microsoft.Extensions, ASP.NET Core and EF Core packages, the images) is one change
   of its own.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,

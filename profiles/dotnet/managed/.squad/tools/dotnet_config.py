@@ -8,7 +8,9 @@
   `Directory.Build.props` sets REQUIRED with these values, references the analyzers of ANALYZERS and names
   `.squad/dotnet-rules.globalconfig` in `GlobalAnalyzerConfigFiles`, and no project file sets one of them again; the
   tool manifest is `.config/dotnet-tools.json` and its `reihitsu.cli` is the version of `Reihitsu.Analyzer`;
-  Git checks C# files out with CRLF;
+  Git checks C# files out with CRLF; a Dockerfile that builds .NET code brings `.squad/dotnet-rules.globalconfig` into
+  its build (by `COPY . .` or by name), and `.dockerignore` does not leave it out (MSBuild skips a missing global
+  config silently, so the image would build `.razor` code without the switched-off rules);
 - **rules**: no rule set (`*.ruleset`, `CodeAnalysisRuleSet`), no `.globalconfig`, no `NoWarn` or
   `WarningsNotAsErrors` that names a rule, no assembly-wide `SuppressMessage` (one without a `Target`); the blocks of
   `dotnet-rules.py` are current; and outside the blocks, a section of every C# file sets no rule or code-style option,
@@ -254,6 +256,32 @@ def blocks_findings(rules):
     return [f"{EDITORCONFIG}: the dotnet-rules blocks are missing or out of date; run python3 .squad/tools/dotnet-rules.py"]
 
 
+GLOBAL_CONFIG_PATH = ".squad/dotnet-rules.globalconfig"
+COPY_ALL = re.compile(r"^\s*(?:COPY|ADD)\b(?:\s+--\S+)*\s+\.\s+\S+\s*$", re.I | re.M)
+DOTNET_BUILD = re.compile(r"\bdotnet\s+(?:publish|build)\b")
+IGNORES_SQUAD = (".squad", ".squad/", ".squad/*", ".squad/**", "*", "**")
+KEEPS_CONFIG = ("!.squad", "!.squad/", "!.squad/**", "!" + GLOBAL_CONFIG_PATH)
+
+
+def docker_findings(files):
+    """A Dockerfile that builds .NET code without `.squad/dotnet-rules.globalconfig` in its build context or stage."""
+    dockerfiles = [path for path in files if os.path.basename(path).lower().startswith("dockerfile")
+                   and DOTNET_BUILD.search(read(path))]
+    if not dockerfiles:
+        return []
+    found = [f"{path}: copies no {GLOBAL_CONFIG_PATH} into the build (COPY . . or COPY {GLOBAL_CONFIG_PATH} .squad/)"
+             for path in dockerfiles
+             if COPY_ALL.search(read(path)) is None and GLOBAL_CONFIG_PATH not in read(path)]
+    patterns = [line.strip() for line in read(".dockerignore").splitlines()
+                if line.strip() and not line.strip().startswith("#")]
+    last_ignore = max((index for index, line in enumerate(patterns) if line in IGNORES_SQUAD), default=-1)
+    last_keep = max((index for index, line in enumerate(patterns) if line in KEEPS_CONFIG), default=-1)
+    if last_ignore > last_keep:
+        found.append(f".dockerignore: leaves out {GLOBAL_CONFIG_PATH} ({patterns[last_ignore]}); add "
+                     f"!{GLOBAL_CONFIG_PATH} after it")
+    return found
+
+
 def findings(files=None):
     files = tracked_files() if files is None else files
     texts = [(path, read(path)) for path in files if path.endswith((*BUILD_FILES, ".cs"))]
@@ -263,7 +291,8 @@ def findings(files=None):
     rules = dotnet_rules()
     found = target_framework_findings(projects, props) + required_findings(projects, props) \
         + package_findings(projects, packages) + tool_findings(files, packages) + line_ending_findings() \
-        + rule_set_findings(files, texts) + blocks_findings(rules) + editorconfig_findings(rules)
+        + rule_set_findings(files, texts) + blocks_findings(rules) + editorconfig_findings(rules) \
+        + docker_findings(files)
     return found
 
 

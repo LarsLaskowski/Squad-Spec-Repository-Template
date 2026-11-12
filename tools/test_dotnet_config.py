@@ -93,6 +93,23 @@ class DotnetConfigTest(unittest.TestCase):
         found = self.findings(pending)
         self.assertTrue(any(part in finding for finding in found), f"{part!r} not in {found}")
 
+    def test_an_image_build_without_the_global_config_is_reported(self):
+        named = "FROM sdk AS build\nCOPY Directory.Build.props ./\nCOPY src/ src/\nRUN dotnet publish src/App -c Release\n"
+        write("src/App/Dockerfile", named)
+        self.assertFinds("src/App/Dockerfile: copies no .squad/dotnet-rules.globalconfig")
+        write("src/App/Dockerfile",
+              named.replace("COPY src/ src/", "COPY src/ src/\nCOPY .squad/dotnet-rules.globalconfig .squad/"))
+        self.assertEqual(self.findings(), [], "copied by name")
+        write(".dockerignore", "**/bin/\n.squad/\n")
+        self.assertFinds(".dockerignore: leaves out .squad/dotnet-rules.globalconfig (.squad/)")
+        write(".dockerignore", "*\n!src/\n# the analyzer config\n!.squad/dotnet-rules.globalconfig\n")
+        self.assertEqual(self.findings(), [], "an allow-list that lets it in")
+        write("src/App/Dockerfile", "FROM sdk\nCOPY --chown=app . .\nRUN dotnet build\n")
+        write(".dockerignore", "**/obj/\n")
+        self.assertEqual(self.findings(), [], "COPY . . brings the whole context")
+        write("tools/Dockerfile", "FROM alpine\nCOPY run.sh /\n")
+        self.assertEqual(self.findings(), [], "a Dockerfile that builds no .NET code")
+
     def test_a_repository_on_the_shared_structure_and_rules_passes(self):
         self.assertEqual(self.findings(), [])
         output = io.StringIO()

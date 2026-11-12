@@ -129,6 +129,10 @@ Rules that hold throughout:
      project's SonarQube Cloud C# profile (a target without the markers gets them; a sentence of its `stack.md` that
      calls a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to sonarcloud.io) is named in
      the PR description.
+   - The image build sees `.squad/dotnet-rules.globalconfig`: a Dockerfile that copies files by name copies it into
+     the build stage, a `.dockerignore` that leaves out `.squad/` lets that file in (`!.squad/dotnet-rules.globalconfig`),
+     and the target's *Image build check* reproduction copies it too; `dotnet_config.py` reports a Dockerfile or
+     `.dockerignore` that keeps it out.
    - A build-file item the seeds gained since the recorded tag is carried over the same way as the other seeds (step 1):
      the `GlobalAnalyzerConfigFiles` item of `Directory.Build.props`, which `dotnet_config.py` asks for, is one.
    - *Format*, *Build* and the *Analyzer gate* run over the whole code: findings the refresh can fix mechanically are

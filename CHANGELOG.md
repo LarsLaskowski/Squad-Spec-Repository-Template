@@ -27,7 +27,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   branch with every `Closes` on the last) (#367)
 - [Core] A manual check on an artifact the Product Manager builds names the fallback; `orchestration.md` holds the
   recipe for a Docker image built in a cloud session (#366)
-- [Profile] `dotnet_major.py` also checks the `net<N>.0` monikers of shell and PowerShell scripts and workflows (#374)
+- [Profile] `dotnet_major.py` also checks the `net<N>.0` monikers of shell and PowerShell scripts and workflows, their
+  comments left out (#374)
 - [Profile] `dotnet_config.py` reports a Dockerfile building .NET code that does not bring
   `.squad/dotnet-rules.globalconfig` into its build, and a `.dockerignore` that leaves it out; `adopt-template` and
   the seeded `stack.md` say so (#357)

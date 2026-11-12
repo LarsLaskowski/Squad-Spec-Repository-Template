@@ -107,6 +107,20 @@ class DotnetConfigTest(unittest.TestCase):
         write("src/App/Dockerfile", "FROM sdk\nCOPY --chown=app . .\nRUN dotnet build\n")
         write(".dockerignore", "**/obj/\n")
         self.assertEqual(self.findings(), [], "COPY . . brings the whole context")
+        for copy in ("COPY ./ ./", "COPY .squad/ .squad/", "ADD . /src"):
+            write("src/App/Dockerfile", f"FROM sdk\n{copy}\nRUN dotnet publish\n")
+            self.assertEqual(self.findings(), [], copy)
+        write("src/App/Dockerfile", "FROM sdk AS build\nCOPY src/ src/\nRUN dotnet publish\nFROM rt\nCOPY --from=build . .\n")
+        self.assertFinds("src/App/Dockerfile: copies no")
+        write("src/App/Dockerfile", "FROM sdk\nCOPY . .\nRUN dotnet build\n")
+        write("src/Server.Dockerfile", "FROM sdk\nCOPY src/ src/\nRUN dotnet publish\n")
+        self.assertFinds("src/Server.Dockerfile: copies no")
+        write("src/Server.Dockerfile", "FROM alpine\n")
+        for ignore, kept in (("**/.squad\n", False), (".*\n", False), ("*\n!/.squad/dotnet-rules.globalconfig\n", True),
+                             ("*\n!.squad/*.globalconfig\n", True)):
+            write(".dockerignore", ignore)
+            self.assertEqual(self.findings() == [], kept, ignore)
+        write(".dockerignore", "**/obj/\n")
         write("tools/Dockerfile", "FROM alpine\nCOPY run.sh /\n")
         self.assertEqual(self.findings(), [], "a Dockerfile that builds no .NET code")
 

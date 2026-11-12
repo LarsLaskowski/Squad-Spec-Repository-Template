@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.9 — 2026-11-12
+
 - [Profile] The seeded `codeql.yml` grants nothing at the workflow level (`permissions: {}`) and, like the seeded
   `ci.yml`, checks out with `persist-credentials: false` (#360, #372)
 - [Core] The generated release notes leave out Dependabot's GitHub Actions updates (label `github_actions`) (#363)
@@ -41,6 +43,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   from a worktree of its branch (#351)
 - [Core] A Security note or a minor objection of the plan challenge whose fix is an exact edit of `plan.md` or
   `spec.md` is applied by the orchestrator when it appends the note, like a verbatim documentation fix (#350)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.github/workflows/ci.yml`, `profiles/dotnet/seed/.github/workflows/codeql.yml`, `profiles/dotnet/seed/.squad/stack.md`, `profiles/dotnet/seed/.squad/tools/squad_settings.py`, `profiles/dotnet/seed/docs/UNIT_TESTS.md`, `profiles/go/seed/.github/workflows/ci.yml`, `profiles/go/seed/.github/workflows/codeql.yml`, `profiles/node/seed/.github/workflows/ci.yml`, `profiles/node/seed/.github/workflows/codeql.yml`, `profiles/node/seed/.squad/tools/squad_settings.py`, `profiles/node/seed/docs/UNIT_TESTS.md`, `profiles/typescript/seed/.github/workflows/ci.yml`, `profiles/typescript/seed/.github/workflows/codeql.yml`, `profiles/typescript/seed/.squad/tools/squad_settings.py`, `profiles/typescript/seed/docs/UNIT_TESTS.md`, `seed/.github/release.yml`
 
 ## v2026.11.8 — 2026-11-12
 

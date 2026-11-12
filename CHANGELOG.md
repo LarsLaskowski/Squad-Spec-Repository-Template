@@ -8,6 +8,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 - [Skill] `adopt-template` asks for the *Fork scope* repository settings only in the pull request that adds
   `fork-scope.yml`, not on every refresh
+
 ## v2026.11.9 — 2026-11-12
 
 - [Profile] The seeded `codeql.yml` grants nothing at the workflow level (`permissions: {}`) and, like the seeded

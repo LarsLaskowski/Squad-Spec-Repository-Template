@@ -16,8 +16,10 @@ for more than 25 files and, without a terminal, formats nothing). The formatter 
 manifest (`.config/dotnet-tools.json`) with `dotnet tool restore` and run as `dotnet tool run reihitsu-format`.
 <!-- stack:end commands -->
 <!-- stack:begin configuration -->
-- **Target framework** as set in the project files (see `.squad/stack.md`); **nullable reference types**, **implicit usings**, and
-  **documentation XML** generation are all enabled.
+- **Target framework** set once in `Directory.Build.props` (a project file names only a platform of the same major,
+  `net11.0-windows`), with **nullable reference types**, **implicit usings**, **documentation XML**,
+  `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild` and `AnalysisLevel` `latest-recommended` for every project;
+  `dotnet_config.py` checks the build structure in the *Analyzer gate* (`.squad/stack.md`).
 - **Central Package Management** via `Directory.Packages.props`; never put versions in individual
   `.csproj` files.
 - **Reihitsu.Analyzer** and **SonarAnalyzer.CSharp** are dev dependencies in every project (via

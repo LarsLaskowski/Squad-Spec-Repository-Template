@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` *Analyzer gate* runs the new managed `dotnet_config.py`: the target framework and the
+  required build switches only in `Directory.Build.props`, central package versions, the tool manifest under
+  `.config/` at the analyzer's Reihitsu version, CRLF for C# files, no rule set, no rule in `NoWarn`, no assembly-wide
+  `SuppressMessage`, the dotnet-rules blocks current and no rule set outside them; a refresh fixes what it reports (#342)
 - [Profile] The `dotnet` profile's new managed `dotnet-rules.py` writes the template's rule baseline
   (`.squad/dotnet-rules.editorconfig`, the stricter setting of the .NET repositories winning) into the
   `squad:dotnet-rules` blocks of `.editorconfig`, so every .NET repository builds with the same analyzer rules; it

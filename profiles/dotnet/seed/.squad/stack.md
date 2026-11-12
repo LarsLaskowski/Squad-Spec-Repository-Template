@@ -7,19 +7,26 @@ profile and owned by this repository: keep it true when the build changes.
 ## Toolchain
 
 - .NET SDK of `global.json` (seeded as the newest SDK of the major, `10.0.404`; `rollForward` `latestFeature`: the
-  newest installed feature band of that major, never the next major), target framework `{{TODO: e.g. net10.0}}`,
-  solution `{{TODO: Solution}}.slnx`. Several majors may be installed side by side (a machine, CI); the repository is
+  newest installed feature band of that major, never the next major), target framework `{{TODO: e.g. net10.0}}`
+  (set once in `Directory.Build.props`), solution `{{TODO: Solution}}.slnx`. Several majors may be installed side by side (a machine, CI); the repository is
   built for one: every project's target framework, `global.json` and every .NET image name the same major, which
   `dotnet_major.py` checks in the *Analyzer gate*, and a new project gets it from the SDK `global.json` selects.
   Dependabot keeps the SDK, the packages and the images current within that major; the move to the next one (target
   frameworks, `global.json`, the Microsoft.Extensions, ASP.NET Core and EF Core packages, the images) is one change
   of its own.
 - Formatter: `reihitsu-format`, restored from the tool manifest `.config/dotnet-tools.json` (`dotnet tool restore`,
-  pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), on the same release line as the
-  **Reihitsu.Analyzer** version pinned in `Directory.Packages.props`; otherwise the formatter can revert
+  pinned there next to `dotnet-sonarscanner` so Dependabot raises them with the analyzer), at the same version as the
+  **Reihitsu.Analyzer** pinned in `Directory.Packages.props`; otherwise the formatter can revert
   code the analyzer considers correct.
 - Analyzers in every project via `Directory.Build.props`: **Reihitsu.Analyzer**, **SonarAnalyzer.CSharp**
   (the Sonar C# rules locally, so SonarQube issues surface before the push) and the MSTest analyzers.
+- One build structure in every .NET repository of the template: `Directory.Build.props` sets the target framework
+  and `Nullable`, `ImplicitUsings`, `GenerateDocumentationFile`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`
+  and `AnalysisLevel` `latest-recommended` for every project, and no project file sets one again (only a platform of
+  the same major, `net11.0-windows`) or gives a package a version; there is no rule set, no rule in `NoWarn` and no
+  assembly-wide `SuppressMessage`, and C# files are checked out with CRLF. `dotnet_config.py` checks all of it in the
+  *Analyzer gate*, also with `--lint-only`; the values of the target framework, the SDK and the packages are the
+  project's.
 - The SessionStart hook `.claude/hooks/session-start.sh` installs the formatter, sets `DOTNET_ROOT` and
   restores the solution in remote sessions.
 

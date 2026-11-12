@@ -58,10 +58,10 @@ DECISIONS = os.path.join(DATA, "decisions.json")
 IDS = os.path.join(DATA, "analyzer-ids.txt")
 BASELINE = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.editorconfig")
 GLOBAL_CONFIG = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.globalconfig")
-GLOBAL_HEADER = """# The rules the .NET rule baseline switches off for every C# file, as a global analyzer config: an .editorconfig
-# section reaches no generated code (Razor components), this file reaches every syntax tree of the compilation.
-# Directory.Build.props names it in GlobalAnalyzerConfigFiles (dotnet_config.py checks it). Written by the
-# template's tools/dotnet-baseline.py from dotnet-rules.editorconfig; never edit it in a repository.
+GLOBAL_HEADER = """# The rules the .NET rule baseline switches off for every C# file, as a global analyzer config:
+# an .editorconfig section reaches no generated code (Razor components), this file reaches every syntax tree of the
+# compilation. Directory.Build.props names it in GlobalAnalyzerConfigFiles (dotnet_config.py checks it). Written by
+# the template's tools/dotnet-baseline.py from dotnet-rules.editorconfig; never edit it in a repository.
 is_global = true
 """
 CURRENT, FAILED, NOT_CHECKED, USAGE = 0, 1, 2, 4

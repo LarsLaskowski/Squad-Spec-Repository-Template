@@ -29,7 +29,8 @@ analyzers from the installed SDK of that feature band (`dotnet --list-sdks`). A 
 `CA`, `IDE`, `MSTEST`) the analyzers do not know is never written; it is listed. `CS` and other families are not checked.
 
 The result is `profiles/dotnet/managed/.squad/dotnet-rules.editorconfig`, which every target receives and its
-`.squad/tools/dotnet-rules.py` writes into the marked blocks of `.editorconfig`. The report lists the
+`.squad/tools/dotnet-rules.py` writes into the marked blocks of `.editorconfig`, and from its `[*.cs]` rules at
+`none` the global analyzer config `profiles/dotnet/managed/.squad/dotnet-rules.globalconfig`. The report lists the
 open conflicts, the rules switched off in one repository only, the rules dropped as unknown, the project exceptions
 and, per repository, how many settings the baseline tightens or adds (`--verbose`: each of them).
 
@@ -640,7 +641,8 @@ def write_or_check(text, check, path=BASELINE):
 
 def main(argv=None):
     parser = Usage(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--check", action="store_true", help="only report whether the baseline file is current")
+    parser.add_argument("--check", action="store_true",
+                        help="only report whether the baseline file and the global config are current")
     parser.add_argument("--verbose", action="store_true", help="list every setting the baseline changes or adds")
     parser.add_argument("--target", action="append", default=[], metavar="OWNER/NAME=PATH",
                         help="the clone of a consumer, when it is not the folder of its name next to this repository")

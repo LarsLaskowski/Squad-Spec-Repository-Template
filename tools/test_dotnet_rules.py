@@ -134,6 +134,9 @@ class DotnetRulesTest(unittest.TestCase):
         self.assertIn("# pending: #9 (DOTNET_RULES_PENDING)\ndotnet_diagnostic.S2325.severity = suggestion\n", text,
                       "a rule the baseline does not set is lowered too (CA1848 is on only through AnalysisLevel)")
         self.assertLess(text.index("S2325.severity = suggestion"), text.index("# squad:dotnet-rules end"))
+        general = text.split("# squad:dotnet-rules end")[0]
+        self.assertIn("# pending: #7 (DOTNET_RULES_PENDING)\ndotnet_diagnostic.S107.severity = suggestion\n", general,
+                      "a rule only a section of paths sets is lowered for the other C# files")
         self.assertEqual(self.run_script("--check")[0], 1, "once it is fixed and out of the list, the block is outdated")
 
     def test_a_pending_entry_without_an_issue_is_refused(self):

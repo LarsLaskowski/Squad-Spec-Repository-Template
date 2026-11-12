@@ -1,5 +1,6 @@
-# The .NET rule baseline: written by tools/dotnet-baseline.py from the active dotnet consumers of consumers.json
-# and tools/dotnet-baseline/decisions.json; never edited by hand. The stricter setting wins (#337, #338).
+# The .NET rule baseline of Squad-Spec-Repository-Template, the stricter setting of its .NET repositories winning:
+# written there by tools/dotnet-baseline.py, written into .editorconfig by .squad/tools/dotnet-rules.py; never
+# edited by hand.
 
 [*.cs]
 

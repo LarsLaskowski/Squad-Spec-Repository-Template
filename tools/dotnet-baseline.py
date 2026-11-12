@@ -28,7 +28,8 @@ reads the versions of Reihitsu.Analyzer, SonarAnalyzer.CSharp and MSTest(.Analyz
 analyzers from the installed SDK of that feature band (`dotnet --list-sdks`). A rule of a recorded family (`RH`, `S`,
 `CA`, `IDE`, `MSTEST`) the analyzers do not know is never written; it is listed. `CS` and other families are not checked.
 
-The result is `tools/dotnet-baseline/baseline.editorconfig`, the input of the rules block (#341). The report lists the
+The result is `profiles/dotnet/managed/.squad/dotnet-rules.editorconfig`, which every target receives and its
+`.squad/tools/dotnet-rules.py` writes into the marked blocks of `.editorconfig`. The report lists the
 open conflicts, the rules switched off in one repository only, the rules dropped as unknown, the project exceptions
 and, per repository, how many settings the baseline tightens or adds (`--verbose`: each of them).
 
@@ -55,7 +56,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "tools", "dotnet-baseline")
 DECISIONS = os.path.join(DATA, "decisions.json")
 IDS = os.path.join(DATA, "analyzer-ids.txt")
-BASELINE = os.path.join(DATA, "baseline.editorconfig")
+BASELINE = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.editorconfig")
 CURRENT, FAILED, NOT_CHECKED, USAGE = 0, 1, 2, 4
 PROFILE = "dotnet"
 REF = "origin/main"
@@ -88,8 +89,9 @@ GROUPS = (("Files", ("charset", "end_of_line", "insert_final_newline", "trim_tra
           ("Formatting", ("csharp_new_line", "csharp_indent", "csharp_space", "csharp_preserve")),
           ("Naming", ("dotnet_naming_",)),
           ("Code style", ("csharp_", "dotnet_")))
-HEADER = ("# The .NET rule baseline: written by tools/dotnet-baseline.py from the active dotnet consumers of consumers.json\n"
-          "# and tools/dotnet-baseline/decisions.json; never edited by hand. The stricter setting wins (#337, #338).\n")
+HEADER = ("# The .NET rule baseline of Squad-Spec-Repository-Template, the stricter setting of its .NET repositories winning:\n"
+          "# written there by tools/dotnet-baseline.py, written into .editorconfig by .squad/tools/dotnet-rules.py; never\n"
+          "# edited by hand.\n")
 
 
 class NotChecked(Exception):

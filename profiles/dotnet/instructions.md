@@ -22,6 +22,10 @@ manifest (`.config/dotnet-tools.json`) with `dotnet tool restore` and run as `do
   `.csproj` files.
 - **Reihitsu.Analyzer** and **SonarAnalyzer.CSharp** are dev dependencies in every project (via
   `Directory.Build.props`).
+- **Analyzer rules** and their severities come from the template, the same in every .NET repository: the
+  `squad:dotnet-rules` and `squad:sonar-rules` blocks of `.editorconfig`, written by `.squad/tools/dotnet-rules.py`
+  and `sonar-rules.py`; never set them outside the blocks (a rule the code does not meet yet: `DOTNET_RULES_PENDING`,
+  `.squad/stack.md`, *Analyzer gate*).
 - **Solution format** is `.slnx` (XML-based) at the repository root.
 <!-- stack:end configuration -->
 <!-- stack:begin code-style -->

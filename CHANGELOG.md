@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.7 — 2026-11-12
+
 - [Profile] `sonar-rules.py` puts a new block right after the dotnet-rules block, never into the paths block, and names
   a leftover `SONAR_RULES_SEVERITY`; `dotnet-rules.py` refuses a pending entry for a rule the baseline switches off or
   a lower-case rule id; `dotnet_config.py` reads every form of an assembly-wide suppression and the build files below
@@ -41,6 +43,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   `dotnet-rules.py` and `sonar-rules.py` write it as `suggestion`, which the *Analyzer gate* still reports (#341)
 - [Profile] `sonar-rules.py` writes the rules of the project's SonarQube Cloud profile at `error`;
   `SONAR_RULES_SEVERITY` is gone (#341)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.config/dotnet-tools.json`, `profiles/dotnet/seed/.editorconfig`, `profiles/dotnet/seed/.github/dependabot.yml`, `profiles/dotnet/seed/.squad/stack.md`, `profiles/dotnet/seed/.squad/tools/squad_settings.py`, `profiles/dotnet/seed/Directory.Build.props`, `profiles/dotnet/seed/Directory.Packages.props`
 
 ## v2026.11.6 — 2026-11-11
 

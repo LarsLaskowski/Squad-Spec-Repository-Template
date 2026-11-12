@@ -56,8 +56,7 @@
       "repository": "LarsLaskowski/PiMonitor",
       "profiles": ["go"],
       "sonar": "LarsLaskowski_PiMonitor",
-      "status": "legacy",
-      "note": "no .squad/ on main, an older template version with .agents/; refresh or drop is still to be decided"
+      "status": "active"
     }
   ]
 }

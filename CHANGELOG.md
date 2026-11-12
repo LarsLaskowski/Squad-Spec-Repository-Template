@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The `dotnet` profile seeds `Directory.Build.props` (the target framework and the required switches once,
+  the analyzers for every project, MSTest and coverage for every `*.Tests` project) and `Directory.Packages.props`
+  (central versions), the structure `dotnet_config.py` checks; the seeded tool manifest names `reihitsu.cli` 1.2.0,
+  the version of Reihitsu.Analyzer (#340)
 - [Profile] The `dotnet` *Analyzer gate* runs the new managed `dotnet_config.py`: the target framework and the
   required build switches only in `Directory.Build.props`, central package versions, the tool manifest under
   `.config/` at the analyzer's Reihitsu version, CRLF for C# files, no rule set, no rule in `NoWarn`, no assembly-wide

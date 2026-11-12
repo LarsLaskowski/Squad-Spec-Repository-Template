@@ -129,7 +129,7 @@ Rules that hold throughout:
      project's SonarQube Cloud C# profile (a target without the markers gets them; a sentence of its `stack.md` that
      calls a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to sonarcloud.io) is named in
      the PR description.
-   - A build file the seeds gained since the recorded tag is carried over the same way as the other seeds (step 1):
+   - A build-file item the seeds gained since the recorded tag is carried over the same way as the other seeds (step 1):
      the `GlobalAnalyzerConfigFiles` item of `Directory.Build.props`, which `dotnet_config.py` asks for, is one.
    - *Format*, *Build* and the *Analyzer gate* run over the whole code: findings the refresh can fix mechanically are
      fixed in its PR, every other rule gets an issue in the target and a `DOTNET_RULES_PENDING` entry, both named in

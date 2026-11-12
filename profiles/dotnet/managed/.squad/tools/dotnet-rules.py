@@ -242,14 +242,17 @@ def wanted(baseline, pending):
     which have nothing to lower)."""
     sections = baseline_sections(baseline)
     general = next((lines for glob, lines in sections if glob == "*.cs"), [])
-    general, unused = with_pending(general, pending)
+    general, unset = with_pending(general, pending)
+    unused = unset
     paths = []
     for glob, lines in sections:
         if glob != "*.cs":
             lowered_lines, rest = with_pending(lines, pending)
             paths.append((glob, lowered_lines))
             unused = sorted(set(unused) & set(rest))
-    general += unset_rules(unused, pending)
+    # A rule only a section of paths sets (BL0016 for tests) is lowered for every other C# file too; the section,
+    # later in the file, keeps its own value for its paths.
+    general += unset_rules(unset, pending)
     return general, paths, [name for name in unused if not RULE.fullmatch(name)]
 
 

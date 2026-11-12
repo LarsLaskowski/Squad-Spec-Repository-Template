@@ -7,11 +7,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 ## Unreleased
 
 - [Profile] `dotnet-rules.py` lowers a pending rule the baseline does not set as well (one on only through
-  `AnalysisLevel`, CA1848), so `TreatWarningsAsErrors` no longer fails on it (#337)
+  `AnalysisLevel`, CA1848, or one it sets only for test code, BL0016), so `TreatWarningsAsErrors` no longer fails on it (#337)
 - [Profile] The managed global analyzer config `.squad/dotnet-rules.globalconfig` switches the baseline's switched-off
   rules off in generated code too (S1125 in `.razor` markup, which `.editorconfig` does not reach); the seeded
   `Directory.Build.props` names it in `GlobalAnalyzerConfigFiles` and `dotnet_config.py` asks for it (#337)
-- [Profile] The baseline keeps IDE0061 (expression-bodied local functions) and IDE0045 (conditional assignment)
+- [Profile] The baseline turns IDE0061 (expression-bodied local functions) and IDE0045 (conditional assignment)
   silent: `reihitsu-format` writes local functions with block bodies, and IDE0045 nests ternaries S3358 rejects (#337)
 - [Skill] `adopt-template` turns C# files to CRLF by a fresh checkout (`git add --renormalize .` alone changes no file
   Git stores with LF) and carries over build-file items the seeds gained (#337)

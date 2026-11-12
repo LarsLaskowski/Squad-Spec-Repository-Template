@@ -1220,3 +1220,11 @@ Censio#156: the Lead measured `.squad/project.md` with `wc -w` at 1481 words, `c
 stand-alone em dash is a word for `str.split`), so the first edit missed `PROJECT_MAX_WORDS`. In Censio#148 the Lead
 shortened unrelated sections because `plan-check.py` counted the *Security review* section the Lead's instructions
 exempt.
+
+## S1481 for a parameter that is only augmented (template-check.py, `SONAR_RULES`)
+
+Found in the pull request analysis of #376: SonarQube Cloud reported python:S1481 ("Remove the unused local variable
+`errors`") for `errors += workflow_hardening(…)` in `check_seed_workflows`, where the parameter `errors` is the target
+of the augmented assignment and read nowhere in the function. It left alone `errors += […]` in `check_merged_yaml`,
+whose `errors` is also read (`errors.append`), and `errors += release.check(text)` in `check_changelog`. The local
+check reports a parameter whose only use is such an assignment, which is that one line; the code now calls `extend`.

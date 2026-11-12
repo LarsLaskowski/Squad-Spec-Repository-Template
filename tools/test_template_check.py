@@ -199,6 +199,13 @@ class TestSonarRules(unittest.TestCase):
     def rules(self, source, path="tool.py"):
         return [rule for _, rule, _ in self.script.sonar_findings(path, source)]
 
+    def test_a_parameter_that_is_only_augmented_is_reported(self):
+        source = ("def collect(errors, paths):\n    for path in paths:\n        errors += [path]\n\n\n"
+                  "def kept(errors, more):\n    errors.append(1)\n    errors += more\n\n\n"
+                  "def local():\n    total = 0\n    total += 1\n    return total\n")
+        found = [(line, rule) for line, rule, _ in self.script.sonar_findings("x.py", source) if rule == "python:S1481"]
+        self.assertEqual(found, [(3, "python:S1481")], "only a parameter that is never read")
+
     def test_a_nested_conditional_expression_is_reported(self):
         self.assertEqual(self.rules("x = a if b else (c if d else e)\n"), ["python:S3358"])
 

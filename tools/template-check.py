@@ -141,11 +141,13 @@ DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
-SONAR_RULES = ["python:S1192", "python:S1940", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
-               "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786", "python:S8997",
-               "python:S9081"]
+SONAR_RULES = ["python:S1192", "python:S1481", "python:S1940", "python:S3358", "python:S3516", "python:S5843",
+               "python:S5850", "python:S5906", "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632",
+               "python:S8786", "python:S8997", "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
+# python:S1481: a parameter a function only ever augments (`errors += found`) and never reads: Sonar takes the
+# rebinding for an unused local variable; `errors.extend(found)` says what happens.
 # python:S1940: `not` of a single comparison, which the opposite operator states directly (for sets, where `not a <= b`
 # is no `a > b`, a difference or another form).
 INVERTED_COMPARISONS = (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
@@ -621,7 +623,7 @@ def check_seed_workflows(errors):
     for path in sorted(glob.glob(os.path.join(ROOT, "seed", GITHUB_DIR, "workflows", YML_FILES)) +
                        glob.glob(os.path.join(ROOT, "profiles", "*", "seed", GITHUB_DIR, "workflows", YML_FILES))):
         text = PLACEHOLDER.sub("placeholder", read(path))
-        errors += workflow_hardening(os.path.relpath(path, ROOT).replace(os.sep, "/"), yaml.safe_load(text))
+        errors.extend(workflow_hardening(os.path.relpath(path, ROOT).replace(os.sep, "/"), yaml.safe_load(text)))
 
 
 def check_merged_codeql(label, names, parsed, errors):
@@ -1933,13 +1935,28 @@ def patched_globals(tree):
     return found
 
 
+def augmented_parameters(tree):
+    """python:S1481: a parameter whose only use in its function is the target of an augmented assignment (`errors +=
+    found`, never `errors.append` or another read): Sonar reports it as an unused local variable."""
+    found = []
+    for function in (node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        parameters = {arg.arg for arg in function.args.args + function.args.posonlyargs + function.args.kwonlyargs}
+        read = {node.id for node in ast.walk(function) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)}
+        found += [(node.lineno, "python:S1481", f"parameter `{node.target.id}` is only augmented, never read: use "
+                   "extend() or another call on it") for node in ast.walk(function)
+                  if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name)
+                  and node.target.id in parameters - read]
+    return found
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
     findings = nested_conditionals(tree) + anchor_precedence(tree) + multiple_spaces(tree) + invariant_returns(tree) \
         + mock_lambdas(tree) + specific_assertions(tree) + lazy_quantifiers(tree) + suppression_comments(source) \
         + super_linear_regexes(tree) + complex_regexes(source, tree) + unwrapped_groups(tree) \
-        + inverted_comparisons(tree) + overlap_findings(tree, os.path.basename(path).startswith("test"))
+        + inverted_comparisons(tree) + augmented_parameters(tree) \
+        + overlap_findings(tree, os.path.basename(path).startswith("test"))
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
     else:

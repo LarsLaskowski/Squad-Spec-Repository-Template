@@ -179,7 +179,9 @@ class DotnetConfigTest(unittest.TestCase):
                                             "dotnet_diagnostic.S3776.severity = none\n# squad:sonar-rules begin"))
         self.assertFinds("[*.cs] sets dotnet_diagnostic.S3776.severity outside the dotnet-rules block")
         write(".editorconfig", text.replace("charset = utf-8", "charset = latin1", 1))
-        self.assertFinds("[*] sets charset = latin1, the baseline utf-8")
+        self.assertEqual(self.findings(), [], "[*] before the block: the block overrides it for C# files")
+        write(".editorconfig", text + "\n[*.cs]\ncharset = latin1\n")
+        self.assertFinds("[*.cs] sets charset = latin1, the baseline utf-8")
         write(".editorconfig", text.replace("S1125.severity = none", "S1125.severity = error"))
         self.assertFinds("the dotnet-rules blocks are missing or out of date")
 
@@ -190,8 +192,20 @@ class DotnetConfigTest(unittest.TestCase):
         self.assertEqual(self.findings(), [])
 
     def test_a_pending_entry_for_a_rule_the_baseline_switches_off_is_refused(self):
-        self.write_blocks(pending={"S1125": "#1"})
         self.assertFinds("DOTNET_RULES_PENDING: S1125 is off in the baseline", pending={"S1125": "#1"})
+        found = self.findings(pending={"S1125": "#1"})
+        self.assertEqual(sum("S1125 is off" in finding for finding in found), 1, "reported once")
+
+    def test_every_form_of_an_assembly_wide_suppression_and_a_nested_build_file_are_reported(self):
+        write("src/App/G.cs", '[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("C", "S1:X", Scope = "module")]\n'
+              '[assembly: SuppressMessage("C", "S2:X", Justification = "Targets every file", Scope = "module")]\n'
+              '[module: SuppressMessageAttribute("C", "S3:X")]\n'
+              '[assembly: SuppressMessage("C", "S4:X", Scope = "member", Target = "~M:A.B")]\n')
+        write("tests/Directory.Build.props", "<Project><PropertyGroup><TreatWarningsAsErrors>false</TreatWarningsAsErrors>"
+              "</PropertyGroup></Project>")
+        found = self.findings()
+        self.assertEqual(sum("assembly-wide SuppressMessage" in finding for finding in found), 3)
+        self.assertIn("tests/Directory.Build.props: <TreatWarningsAsErrors> is set once in Directory.Build.props", found)
 
     def test_a_pending_entry_without_an_issue_is_reported(self):
         self.assertFinds("DOTNET_RULES_PENDING", pending={"S3776": "soon"})

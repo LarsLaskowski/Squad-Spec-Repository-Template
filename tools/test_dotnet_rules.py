@@ -136,7 +136,7 @@ class DotnetRulesTest(unittest.TestCase):
 
     def test_a_pending_entry_without_an_issue_is_refused(self):
         write(".editorconfig", EDITORCONFIG)
-        for pending in ({"S3776": "later"}, {"S3776": ""}, {"not a rule": "#1"}, ["S3776"]):
+        for pending in ({"S3776": "later"}, {"S3776": ""}, {"not a rule": "#1"}, ["S3776"], {"s1192": "#14"}):
             code, out = self.run_script(pending=pending)
             self.assertEqual(code, 1, pending)
             self.assertIn("REFUSED: DOTNET_RULES_PENDING", out, pending)
@@ -158,6 +158,30 @@ class DotnetRulesTest(unittest.TestCase):
         code, out = self.run_script()
         self.assertEqual(code, 1)
         self.assertIn("the dotnet-rules-paths block comes before the sonar-rules block", out)
+
+    def test_a_pending_entry_for_a_rule_the_baseline_switches_off_is_refused(self):
+        write(".editorconfig", EDITORCONFIG)
+        code, out = self.run_script(pending={"S1125": "#15"})
+        self.assertEqual(code, 1)
+        self.assertIn("REFUSED: DOTNET_RULES_PENDING: S1125 is off in the baseline (none)", out)
+        self.assertEqual(self.read(), EDITORCONFIG)
+
+    def test_the_sonar_block_lands_after_the_dotnet_rules_block_not_in_the_paths_block(self):
+        write(".editorconfig", "root = true\n\n[*]\nindent_style = space\n")
+        self.assertEqual(self.run_script()[0], 0)
+        with open(".editorconfig", encoding="utf-8") as handle:
+            text = handle.read()
+        rules = load()
+        updated = rules.SECTIONS.render(text, ["dotnet_diagnostic.S1192.severity = error"])
+        self.assertLess(updated.index("# squad:dotnet-rules end"), updated.index("# squad:sonar-rules begin"))
+        self.assertLess(updated.index("# squad:sonar-rules end"), updated.index("# squad:dotnet-rules-paths begin"))
+        write(".editorconfig", updated)
+        self.assertEqual(self.run_script("--check")[0], 0, "dotnet-rules.py accepts the layout")
+
+    def test_the_template_baseline_has_no_trailing_whitespace(self):
+        with open(load().BASELINE, encoding="utf-8") as handle:
+            self.assertEqual([line for line in handle.read().splitlines() if line != line.rstrip()], [],
+                             "an editor that trims it would make the blocks look outdated")
 
     def test_a_missing_baseline_is_refused(self):
         write(".editorconfig", EDITORCONFIG)

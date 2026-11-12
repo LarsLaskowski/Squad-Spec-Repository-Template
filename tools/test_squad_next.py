@@ -187,7 +187,9 @@ class TestPlanSteps(NextTest):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication"))
         self.repo.log(row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 0 major, 2 minor", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
-        self.assertIn("append the minor objections verbatim to plan.md as *Challenge notes*", self.next())
+        printed = self.next()
+        self.assertIn("append the minor objections verbatim to plan.md as *Challenge notes*", printed)
+        self.assertIn("apply each exact edit of plan.md a note states", printed)
         self.repo.log(row("2 Challenge notes", "Orchestrator", "minor objections appended verbatim to plan.md"))
         self.assertNotIn("append the minor objections", self.next(), "the logged append settles the notes")
         self.repo.log(row("2 Plan challenge", "Devil's Advocate", "objections in the report", 9000))

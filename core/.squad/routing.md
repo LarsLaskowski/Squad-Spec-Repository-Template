@@ -276,7 +276,8 @@ again. Each objection is ranked `major` (the plan would build the wrong thing or
 - **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`,
   `spec.md`: the sentence as it stands and as it should read) is applied by the orchestrator when it appends the
   note, the way of *Verbatim documentation fixes* (`orchestration.md`; `specs/` only, logged, no launch): Dev and
-  Tester may not edit those documents, so nobody else would. A fix that needs judgment goes to the Lead as above.
+  Tester may not edit those documents, so nobody else would. A fix that needs judgment, or one that changes an
+  acceptance criterion, is routed as above.
 - **A major objection:** the Lead, in mode `revise` with all objections, answers each one in the plan's
   *Challenge* section, the minor ones included.
 

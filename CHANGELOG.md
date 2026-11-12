@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Skill] `adopt-template` keeps the seed's Dependabot `docker` entry only for a Dockerfile whose `FROM` lines name
+  the image itself, which is all Dependabot reads; the seeded `stack.md` says how images named through a build
+  argument stay current instead (#335)
 - [Profile] The `dotnet` profile seeds `Directory.Build.props` (the target framework and the required switches once,
   the analyzers for every project, MSTest and coverage for every `*.Tests` project) and `Directory.Packages.props`
   (central versions), the structure `dotnet_config.py` checks; the seeded tool manifest names `reihitsu.cli` 1.2.0,

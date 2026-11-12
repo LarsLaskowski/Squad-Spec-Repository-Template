@@ -49,6 +49,11 @@ Rules that hold throughout:
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
    other change to the seed's hooks is carried over by hand.
+   A `docker` entry of the seed's `.github/dependabot.yml`, seeded or carried over, is kept only for a Dockerfile whose
+   `FROM` lines name the image itself: Dependabot does not read an image named through a build argument (`FROM
+   ${BASE_SDK}` with the image in an `ARG` default), so for such a Dockerfile the entry goes and the target's
+   `.squad/stack.md` (*Toolchain*) says how those images stay current: a floating tag (`10.0-…`) or digests refreshed
+   by hand.
 2. **Profile.** Detect the stack: `*.slnx`/`*.sln`/`*.csproj` → `dotnet`, `go.mod` → `go`,
    `tsconfig.json` → `typescript`, `package.json` without `tsconfig.json` → `node` (a repository already on
    `node` keeps it on a refresh). If several match and each is product code (e.g. a Go agent and a .NET

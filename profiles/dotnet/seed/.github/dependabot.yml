@@ -43,6 +43,8 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # Only for Dockerfiles whose FROM lines name the image itself: Dependabot does not read an image named through a
+  # build argument (FROM ${BASE_SDK}); adopt-template leaves the entry out for those (.squad/stack.md, Toolchain).
   - package-ecosystem: docker
     directory: "/"
     schedule:

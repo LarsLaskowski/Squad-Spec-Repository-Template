@@ -1179,3 +1179,44 @@ that is no test (`build_with`), `sys.stdin = …` in `test_gate_stamp.py` and `t
 `module.sonar_check = …` on a module a test loads itself (`test_sonar_rules.py`). `tools/sonar-local.py` has no check
 for the rule. The local check follows exactly these observations and reports the eleven lines and nothing else in the
 template; the tests now use `mock.patch.object`.
+
+## A fallback for an artifact the Product Manager builds (routing.md, Criteria verified only in CI; orchestration.md, An artifact the Product Manager cannot build)
+
+Vandox#418: the plan of the .NET 11 move made AC4 a Product Manager's check on a Docker image the Product Manager was
+to build; they could not build on the target NAS, and step 9 stopped until the orchestrator started a Docker daemon in
+the cloud session and handed over a `docker save` archive. The recipe was probed again in a cloud session for #366
+(Docker 29.9.2): `dockerd --iptables=false --bridge=none` starts, a `FROM alpine` build with `--network host` and the
+session proxy as build argument pulls its base image and reaches the network from a `RUN` step, and `docker save` writes
+the archive.
+
+## Dependent issues are stacked on purpose (squad-issue, step 1, Several issues in one request)
+
+DockerUpdateGuard#433: three runs that changed the same line of `squad_settings.py` were stacked without a rule. The
+pull request of the third targeted the second's branch and was merged there, so its `Closes` never reached `main`; the
+squash merge of the first left the second with a conflict that had to be merged by hand.
+
+## A merged session branch is not reused; notes are copied by a tool (squad-issue, step 1; routing.md, Plan challenge)
+
+PlexToJellyfinSync#298: the session prescribed a branch whose pull request was merged; restarting it needed a
+force-push, which the auto mode denied. In the same run the orchestrator retyped Security's notes into a heredoc and
+wrote the new text on both sides of a "replace … with …"; Security caught it in its delta confirmation.
+`squad-notes.py` copies the report from the member's transcript instead.
+
+## A finding the plan already orders needs no Lead decision (routing.md, Non-blocking findings)
+
+PlexToJellyfinSync#292: a non-blocking finding that only asked for the deletion of an empty `ItemGroup`, which the
+plan's *Approach* ordered, cost a full Lead `decide` launch before the fix round. The same run had to launch a Dev in
+step 6 only to confirm that a group's skeleton had been its whole change, which `6 Implement skipped (G1)` now ends.
+
+## Branch conditions on new code (coverage-check.py)
+
+DockerUpdateGuard#430: a refactoring of 333 call sites passed the local gate at 81.4 % line coverage while SonarQube
+Cloud failed at 69.7 % on new code, counting 68 branch conditions (41 uncovered) of the status switches around them;
+closing the gap took two rounds after the pull request was open.
+
+## Size limits are counted by the scripts (squad-lead.md, mode plan; plan-check.py)
+
+Censio#156: the Lead measured `.squad/project.md` with `wc -w` at 1481 words, `config-check.py` counted 1519 (each
+stand-alone em dash is a word for `str.split`), so the first edit missed `PROJECT_MAX_WORDS`. In Censio#148 the Lead
+shortened unrelated sections because `plan-check.py` counted the *Security review* section the Lead's instructions
+exempt.

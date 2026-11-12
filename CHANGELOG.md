@@ -6,6 +6,28 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The seeded `codeql.yml` grants nothing at the workflow level (`permissions: {}`) and, like the seeded
+  `ci.yml`, checks out with `persist-credentials: false` (#360, #372)
+- [Core] The generated release notes leave out Dependabot's GitHub Actions updates (label `github_actions`) (#363)
+- [Core] `scope-check.py` escapes control characters in what it prints, so a fork's file name cannot start a GitHub
+  Actions workflow command in the *Fork scope* log (#361)
+- [Core] The *Coverage gate* counts branch conditions on new and changed lines together with the lines, as SonarQube
+  Cloud does (`COVERAGE_CONDITIONS = False`: lines only); overall coverage stays line coverage (#368)
+- [Core] `plan-check.py --matrix` reads a file name in a *Tests or check* cell as that file and a call (`Read(...)`)
+  by its name, instead of matching every test file (#373)
+- [Core] `plan-check.py` leaves the *Challenge* and *Security review* sections out of the plan's size, as the Lead's
+  instructions say; the Lead measures a size with the checking script, never `wc -w` (#375)
+- [Core] `squad-log.py` checks the verdict line of the row as written and quotes the result it read in its warning
+  (#369)
+- [Core] New `squad-notes.py` appends *Challenge notes* and *Security notes* from the member's transcript, never
+  retyped; a session branch whose pull request is merged is not reused (#370)
+- [Core] `squad-next.py` accepts `6 Implement skipped (<group>)`, and a non-blocking finding the plan already orders
+  (`NON-BLOCKING 2 (1 plan)`) goes to its owner without a Lead decision (#371)
+- [Core] `squad-issue` says how dependent issues are stacked (one shared run, or each pull request on the previous
+  branch with every `Closes` on the last) (#367)
+- [Core] A manual check on an artifact the Product Manager builds names the fallback; `orchestration.md` holds the
+  recipe for a Docker image built in a cloud session (#366)
+- [Profile] `dotnet_major.py` also checks the `net<N>.0` monikers of shell and PowerShell scripts and workflows (#374)
 - [Profile] `dotnet_config.py` reports a Dockerfile building .NET code that does not bring
   `.squad/dotnet-rules.globalconfig` into its build, and a `.dockerignore` that leaves it out; `adopt-template` and
   the seeded `stack.md` say so (#357)

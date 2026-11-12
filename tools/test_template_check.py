@@ -116,6 +116,33 @@ class TestRuleFiles(unittest.TestCase):
         self.assertIn("no merge base", info[0])
 
 
+class TestWorkflowHardening(unittest.TestCase):
+    def setUp(self):
+        self.script = load_script()
+
+    CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+
+    def test_a_checkout_that_keeps_its_credentials_is_reported(self):
+        parsed = {"jobs": {"build": {"steps": [{"uses": self.CHECKOUT, "with": {"fetch-depth": 0}}]}}}
+        problems = self.script.workflow_hardening("ci.yml", parsed)
+        self.assertEqual(problems, ["ci.yml: the checkout of job build lacks `persist-credentials: false`"])
+
+    def test_a_codeql_workflow_without_empty_workflow_permissions_is_reported(self):
+        steps = [{"uses": self.CHECKOUT, "with": {"persist-credentials": False}}]
+        problems = self.script.workflow_hardening("codeql.yml", {"jobs": {"analyze": {"steps": steps}}})
+        self.assertEqual(problems, ["codeql.yml: no workflow-level `permissions: {}`"])
+
+    def test_a_hardened_workflow_passes(self):
+        steps = [{"uses": self.CHECKOUT, "with": {"persist-credentials": False}}, {"run": "make"}]
+        self.assertEqual(self.script.workflow_hardening("codeql.yml", {"permissions": {},
+                                                                       "jobs": {"analyze": {"steps": steps}}}), [])
+
+    def test_the_seeded_workflows_are_hardened(self):
+        errors = []
+        self.script.check_seed_workflows(errors)
+        self.assertEqual(errors, [])
+
+
 class TestRepeatedRules(unittest.TestCase):
     RULE = " ".join(f"word{i}" for i in range(25))
 

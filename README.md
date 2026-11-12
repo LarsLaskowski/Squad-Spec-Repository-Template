@@ -42,7 +42,8 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
   evidence, no control character); `squad-log.py` appends the pipeline's log rows, a launch's usage read from its
   subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
-  share; `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
+  share; `squad-notes.py` appends a member's *Challenge notes* or *Security notes* from its transcript, never retyped;
+  `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
   transcripts for the wrap-up. `figure-check.py` lists, in step 7, the documentation lines that still state a value
   the diff changed. `gate-stamp.py` runs the step-7 gates of the tier by their `stack.md` names and logs the result
   with the head SHA, which step 9 and `squad-log.py --summary` require; `squad-next.py` prints the orchestrator's

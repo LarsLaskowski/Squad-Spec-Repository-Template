@@ -59,8 +59,9 @@ them to a shell. The first such test also tests the normalizer with CRLF input.
 
 ## Code coverage
 
-**Threshold: at least 80 % line coverage on new or changed production code, and at least 80 % overall** —
-the same measure as SonarQube's "coverage on new code". Both values are set in `.squad/tools/squad_settings.py`
+**Threshold: at least 80 % coverage on new or changed production code, and at least 80 % line coverage overall** —
+the same measure as SonarQube's "coverage on new code": covered lines and branch conditions together, so an
+untested arm of a `switch` or an `if` counts on a changed line. Both values are set in `.squad/tools/squad_settings.py`
 (`COVERAGE_THRESHOLD`, `COVERAGE_OVERALL_THRESHOLD`); the overall one may start lower in a repository adopted
 with a coverage debt and is only ever raised. Check it locally before a push with *Test with coverage* and the
 *Coverage gate* from [`.squad/stack.md`](../.squad/stack.md). Lines that genuinely
@@ -70,7 +71,8 @@ cannot be covered by a unit test (for example process startup glue) need an expl
 
 - [ ] New production code has accompanying unit tests — mandatory, not optional.
 - [ ] The *Analyzer gate* reports nothing in a changed test file.
-- [ ] At least 80 % line coverage on new/changed production code and overall (*Coverage gate*).
+- [ ] At least 80 % coverage (lines and branch conditions) on new/changed production code and 80 % line coverage
+  overall (*Coverage gate*).
 - [ ] File and test names as above (with the criterion id of a squad test); Arrange / Act / Assert; one act; assertion messages.
 - [ ] No real network or clock (a time bound only as a ratio of two durations).
 - [ ] *Format* from `.squad/stack.md` run before committing.

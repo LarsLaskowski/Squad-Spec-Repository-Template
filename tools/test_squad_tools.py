@@ -1,5 +1,7 @@
 """Unit tests for core/.squad/tools/squad-log.py and scope-check.py: run `python3 -m unittest discover tools`."""
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -141,6 +143,11 @@ class TestSquadLog(unittest.TestCase):
         warned = run("8 Review delta", "Reviewer", "approved")
         self.assertIn("WARNING: the row of Reviewer carries no verdict line", warned.stdout)
         self.assertIn('--replace-last "Reviewer" --step "8 Review delta" --new-result', warned.stdout)
+        self.assertIn('The result as written starts "approved"', warned.stdout)
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        approved = run("8 Review delta", "Reviewer", f"VERDICT: APPROVE on {sha}\nno findings")
+        self.assertEqual(approved.returncode, 0, approved.stdout + approved.stderr)
+        self.assertNotIn("WARNING", approved.stdout, "the written row carries the verdict line squad-next.py reads")
         self.assertNotIn("WARNING", run("8 Fix", "Dev", "fixed").stdout, "the Dev reports no verdict line")
         self.assertNotIn("WARNING", run("9 PR approval", "Orchestrator", "approved by checklist").stdout)
 
@@ -1282,6 +1289,22 @@ class TestScopeCheckPullRequest(unittest.TestCase):
         with mock.patch.object(sys, "argv", argv), self.assertRaises(SystemExit) as raised:
             self.script.main()
         self.assertEqual(raised.exception.code, 2)
+
+    def test_a_newline_in_a_fork_path_cannot_start_a_workflow_command(self):
+        forged = "specs/a\n::error title=forged::fork text"
+        self.after[forged] = "| Date |\n"
+        self.files = [{"filename": forged}]
+        source = self.script.PullRequestSource("owner/repo", 7, "token")
+        output = io.StringIO()
+        with mock.patch.object(sys, "argv", ["scope-check.py", "--pull-request", "7", "--no-specs"]), \
+                mock.patch.object(self.script, "pull_request_source", return_value=source), \
+                contextlib.redirect_stdout(output):
+            self.assertEqual(self.script.main(), 1)
+        self.assertIn("ERROR: specs/a\\n::error title=forged::fork text", output.getvalue())
+        self.assertFalse([line for line in output.getvalue().splitlines() if line.startswith("::")])
+
+    def test_printable_escapes_control_and_format_characters_only(self):
+        self.assertEqual(self.script.printable("a\r\x1bb \u202e \u00e4/x.md"), "a\\r\\x1bb \\u202e \u00e4/x.md")
 
     def test_pull_request_mode_needs_the_environment(self):
         with mock.patch.dict(os.environ, {}, clear=True), self.assertRaises(SystemExit):

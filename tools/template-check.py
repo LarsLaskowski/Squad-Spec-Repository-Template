@@ -102,6 +102,8 @@ INSTRUCTIONS_MD = "instructions.md"
 CONFIG_CHECK = "config-check.py"
 DECISION_CHECK = "decision-check.py"
 DEPENDABOT_YML = "dependabot.yml"
+CODEQL_YML = "codeql.yml"
+YML_FILES = "*.yml"
 # Values the decision-check tests repeat.
 STORAGE_MD = "storage.md"
 STORAGE_AREA = "[Storage](storage.md)"
@@ -573,7 +575,7 @@ def check_multi(names, target, errors):
         if not os.path.isfile(os.path.join(target, rel)):
             errors.append(f"profile {label}: {rel} (dispatcher) missing")
     check_gate_commands(label, read(os.path.join(target, SQUAD_DIR, "stack.md")), errors)
-    for path in glob.glob(os.path.join(target, GITHUB_DIR, "**", "*.yml"), recursive=True):
+    for path in glob.glob(os.path.join(target, GITHUB_DIR, "**", YML_FILES), recursive=True):
         check_merged_yaml(label, names, target, path, errors)
     os.remove(os.path.join(target, SQUAD_DIR, "tools", f"analyzer-check-{names[-1]}.py"))
     if run_config_check(target).returncode == 0:
@@ -589,16 +591,43 @@ def check_merged_yaml(label, names, target, path, errors):
         errors.append(f"profile {label}: {os.path.relpath(path, target)} is not valid YAML: "
                       f"{str(error).splitlines()[0]}")
         return
-    checks = {"codeql.yml": check_merged_codeql, DEPENDABOT_YML: check_merged_dependabot, "ci.yml": check_merged_ci}
+    checks = {CODEQL_YML: check_merged_codeql, DEPENDABOT_YML: check_merged_dependabot, "ci.yml": check_merged_ci}
     check = checks.get(os.path.basename(path))
     if check:
         check(label, names, parsed, errors)
+    if os.path.basename(os.path.dirname(path)) == "workflows":
+        errors += [f"profile {label}: merged {problem}" for problem in
+                   workflow_hardening(os.path.relpath(path, target).replace(os.sep, "/"), parsed)]
+
+
+def workflow_hardening(rel, parsed):
+    """The token settings a seeded workflow lacks: every `actions/checkout` step keeps no credentials in `.git/config`
+    (`persist-credentials: false`), and a CodeQL workflow grants nothing at the workflow level (`permissions: {}`), so a
+    job added later does not inherit the repository's default token (#360, #372)."""
+    problems = []
+    if os.path.basename(rel) == CODEQL_YML and parsed.get("permissions") != {}:
+        problems.append(f"{rel}: no workflow-level `permissions: {{}}`")
+    for job_id, job in (parsed.get("jobs") or {}).items():
+        for step in job.get("steps") or []:
+            if str(step.get("uses", "")).startswith("actions/checkout@") and \
+                    (step.get("with") or {}).get("persist-credentials") is not False:
+                problems.append(f"{rel}: the checkout of job {job_id} lacks `persist-credentials: false`")
+    return problems
+
+
+def check_seed_workflows(errors):
+    """Every seeded workflow of the core and the profiles carries the token settings of workflow_hardening(); a
+    `{{TODO: …}}` placeholder, which a target fills in, is read as a plain word."""
+    for path in sorted(glob.glob(os.path.join(ROOT, "seed", GITHUB_DIR, "workflows", YML_FILES)) +
+                       glob.glob(os.path.join(ROOT, "profiles", "*", "seed", GITHUB_DIR, "workflows", YML_FILES))):
+        text = PLACEHOLDER.sub("placeholder", read(path))
+        errors += workflow_hardening(os.path.relpath(path, ROOT).replace(os.sep, "/"), yaml.safe_load(text))
 
 
 def check_merged_codeql(label, names, parsed, errors):
     languages = [entry["language"] for entry in parsed["jobs"]["analyze"]["strategy"]["matrix"]["include"]]
     expected = list(dict.fromkeys(language for n in names
-                                  for language in re.findall(r"- language: (\S+)", profile_file(n, "codeql.yml"))))
+                                  for language in re.findall(r"- language: (\S+)", profile_file(n, CODEQL_YML))))
     if languages != expected:
         errors.append(f"profile {label}: codeql.yml languages {languages}, expected {expected}")
 
@@ -1985,6 +2014,7 @@ def main():
     check_repeated_rules(warnings)
     info += words_per_launch()
     profiles = check_profiles(errors)
+    check_seed_workflows(errors)
     check_consumers(errors, profiles)
     check_changelog(errors, info)
     smoke_test(profiles, errors)

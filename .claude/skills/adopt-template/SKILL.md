@@ -207,9 +207,11 @@ Rules that hold throughout:
      included, and name the guard and that setting in the PR description.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
      `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
-   - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description
-     and ask the user to make *Scope of a fork pull request* a required check of `main` and to require approval
-     for workflow runs of outside contributors (repository settings, *Actions*); neither can be set from a PR.
+   - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description.
+     When this PR adds the file (a first adoption, or a refresh of a target without it), also ask the user to make
+     *Scope of a fork pull request* a required check of `main` and to require approval for workflow runs of outside
+     contributors (repository settings, *Actions*); neither can be set from a PR. A refresh that leaves the file in
+     place does not ask again: the settings are made once.
    - `.squad/decisions.md`, `.squad/agents/*/history.md` and `.squad/agents/*/charter.md` from older template
      versions are removed by the apply step (the charters now live in `.claude/agents/`; nothing read or wrote
      the other two, process decisions are in `docs/decisions/process.md`). An entry in `decisions.md` that is

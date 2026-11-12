@@ -285,6 +285,20 @@ class TestSonarRules(unittest.TestCase):
                      r"re.compile(r'[-\w.]')", r"re.compile(r'[^a]', re.I)"):
             self.assertEqual(self.rules(f"import re\nX = {call}\n"), [], call)
 
+    def test_a_module_attribute_patched_by_hand_in_a_test_is_reported(self):
+        # Measured on #347: Sonar reports these assignments in a test function, not in a helper.
+        source = ("import sys\nimport importlib.util\ntool = importlib.util.module_from_spec(spec)\n\n\n"
+                  "def test_run():\n    original = tool.run\n    tool.run = fake\n    try:\n        pass\n"
+                  "    finally:\n        tool.run, tool.build = original, original\n")
+        self.assertEqual(self.rules(source, path="test_tool.py"), ["python:S8997"] * 3)
+        for body in ("def helper():\n    tool.run = fake\n", "def test_stdin():\n    sys.stdin = fake\n",
+                     "def test_local():\n    module = load()\n    module.run = fake\n",
+                     "def test_self(self):\n    self.run = fake\n"):
+            source = f"import sys\ntool = load()\n\n\n{body}"
+            self.assertEqual(self.rules(source, path="test_tool.py"), [], body)
+        self.assertEqual(self.rules("tool = load()\n\n\ndef test_run():\n    tool.run = fake\n", path="tool.py"), [],
+                         "only test files")
+
     def test_several_spaces_in_a_regex_are_reported(self):
         self.assertEqual(self.rules("import re\nX = re.compile(r'^  ([a-z]+):')\n"), ["python:S6326"])
 

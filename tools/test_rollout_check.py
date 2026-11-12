@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rollout-check.py")
@@ -103,12 +104,8 @@ class TestParsing(unittest.TestCase):
         outputs = {tool.DOTNET_RULES: (1, "REFUSED: the dotnet-rules block stands under [x]"),
                    tool.SONAR_RULES: (2, "NOT CHECKED: no SonarQube project key"),
                    tool.DOTNET_CONFIG: (1, ".NET config: Directory.Build.props: no <TargetFramework>\nFAIL\n")}
-        original = tool.run
-        tool.run = lambda args, cwd=None, timeout=None: outputs[args[1]]
-        try:
+        with mock.patch.object(tool, "run", side_effect=lambda args, cwd=None, timeout=None: outputs[args[1]]):
             findings, notes = tool.dotnet_rehearsal("target", build=True)
-        finally:
-            tool.run = original
         self.assertEqual(len(findings), 1, "a refusal stops the build rehearsal")
         self.assertIn("dotnet-rules.py refuses the target", findings[0])
         self.assertTrue(any("sonar-rules.py NOT CHECKED" in note for note in notes))
@@ -126,12 +123,11 @@ class TestParsing(unittest.TestCase):
             json.dump({"runs": [{"results": [{"ruleId": f"S{n}"} for n in range(rules)]}]}, handle)
 
     def build_with(self, target, codes):
-        original = tool.run
-        tool.run = lambda args, cwd=None, timeout=None: (codes.get(args[1], 0), f"{args[1]} output")
-        try:
+        def run(args, cwd=None, timeout=None):
+            return codes.get(args[1], 0), f"{args[1]} output"
+
+        with mock.patch.object(tool, "run", side_effect=run):
             return tool.build_rehearsal(target)
-        finally:
-            tool.run = original
 
     def test_the_build_rehearsal_lists_the_rules_and_reports_what_stops_it(self):
         with tempfile.TemporaryDirectory() as target:
@@ -147,17 +143,16 @@ class TestParsing(unittest.TestCase):
             self.assertIn("dotnet build failed", self.build_with(target, {"build": 1})[0][0])
 
     def test_the_dotnet_steps_build_only_when_asked_and_nothing_refused(self):
-        original_run, original_build = tool.run, tool.build_rehearsal
-        tool.run = lambda args, cwd=None, timeout=None: (0, "")
-        tool.build_rehearsal = lambda target: ([], ["built"])
-        try:
-            self.assertEqual(tool.dotnet_rehearsal("t", build=False), ([], []))
-            self.assertEqual(tool.dotnet_rehearsal("t", build=True), ([], ["built"]))
-            tool.run = lambda args, cwd=None, timeout=None: (1, "boom") if args[1] == tool.SONAR_RULES else (0, "")
-            findings, _ = tool.dotnet_rehearsal("t", build=True)
-            self.assertIn("sonar-rules.py failed", findings[0])
-        finally:
-            tool.run, tool.build_rehearsal = original_run, original_build
+        def sonar_fails(args, cwd=None, timeout=None):
+            return (1, "boom") if args[1] == tool.SONAR_RULES else (0, "")
+
+        with mock.patch.object(tool, "build_rehearsal", return_value=([], ["built"])):
+            with mock.patch.object(tool, "run", return_value=(0, "")):
+                self.assertEqual(tool.dotnet_rehearsal("t", build=False), ([], []))
+                self.assertEqual(tool.dotnet_rehearsal("t", build=True), ([], ["built"]))
+            with mock.patch.object(tool, "run", side_effect=sonar_fails):
+                findings, _ = tool.dotnet_rehearsal("t", build=True)
+        self.assertIn("sonar-rules.py failed", findings[0])
 
     def test_a_dotnet_consumer_gets_the_dotnet_steps_after_the_apply_step(self):
         head = subprocess.run(["git", "-C", tool.ROOT, "rev-parse", "HEAD"], capture_output=True, text=True,
@@ -169,13 +164,10 @@ class TestParsing(unittest.TestCase):
                 json.dump({"commit": head, "profiles": ["dotnet"]}, handle)
             with open(os.path.join(target, tool.RELEASE_YML), "w", encoding="utf-8") as handle:
                 handle.write("changelog:\n  exclude:\n    labels:\n      - ignore-for-release\n")
-            original_run, original_steps = tool.run, tool.dotnet_rehearsal
-            tool.run = lambda args, cwd=None, timeout=None: (0, "")
-            tool.dotnet_rehearsal = lambda copy, build: (["a dotnet finding"], [f"build={build}"])
-            try:
+            with mock.patch.object(tool, "run", return_value=(0, "")), \
+                    mock.patch.object(tool, "dotnet_rehearsal", return_value=(["a dotnet finding"], ["build=True"])) as steps:
                 findings, notes = tool.rehearse(target, build=True)
-            finally:
-                tool.run, tool.dotnet_rehearsal = original_run, original_steps
+            steps.assert_called_once_with(target, True)
             self.assertEqual(findings, ["a dotnet finding"])
             self.assertIn("build=True", notes)
 

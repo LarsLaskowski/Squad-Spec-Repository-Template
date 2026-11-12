@@ -44,7 +44,8 @@ Checks, without arguments:
   followed only by zero-width assertions, a comma in the explanation of a `noqa` comment, an unanchored regex that
   starts with an unbounded repetition and goes on with something that can fail, two adjacent unbounded repetitions
   that can match the same character, a character class that names a character twice, a regex more complex than 20, a
-  non-capturing group without alternation or quantifier, a `not` of a single comparison);
+  non-capturing group without alternation or quantifier, a `not` of a single comparison, an attribute of a module the
+  test file loads, assigned by hand in a test);
   `sonar-project.properties`
   lists the directory of each of these files as a source, since the scanner skips the hidden `.squad/` and
   `.claude/` below a source directory and CI's SonarQube Cloud analysis would miss them;
@@ -139,7 +140,7 @@ COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
 SONAR_RULES = ["python:S1192", "python:S1940", "python:S3358", "python:S3516", "python:S5843", "python:S5850", "python:S5906",
-               "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786",
+               "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632", "python:S8786", "python:S8997",
                "python:S9081"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
@@ -1864,6 +1865,45 @@ def inverted_comparisons(tree):
             and len(node.operand.ops) == 1 and isinstance(node.operand.ops[0], INVERTED_COMPARISONS)]
 
 
+def assigned_globals(tree):
+    """The names a module binds by an assignment at its top level: a module it loads (`tool = …`), a constant."""
+    return {target.id for node in tree.body if isinstance(node, ast.Assign) for target in node.targets
+            if isinstance(target, ast.Name)}
+
+
+def local_names(function):
+    """The parameters of a function and the names it assigns."""
+    assigned = {target.id for node in ast.walk(function) if isinstance(node, ast.Assign) for target in node.targets
+                if isinstance(target, ast.Name)}
+    return assigned | {arg.arg for arg in function.args.args}
+
+
+def assigned_attributes(function):
+    """(line, target) of every assignment in a function whose target is an attribute of a name (`tool.run = …`)."""
+    for node in ast.walk(function):
+        targets = node.targets if isinstance(node, ast.Assign) else []
+        if isinstance(node, ast.AugAssign):
+            targets = [node.target]
+        unpacked = [element for target in targets for element in (target.elts if isinstance(target, ast.Tuple) else [target])]
+        yield from ((node.lineno, target) for target in unpacked
+                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name))
+
+
+def patched_globals(tree):
+    """python:S8997: a test that assigns an attribute of a module the test file loads at its top level
+    (`tool.run = fake`) changes global state and must restore it by hand; `mock.patch.object` does both. Sonar leaves
+    an imported module (`sys.stdin = …`), a module loaded inside the test, `self` and a helper that is no test
+    (`test_…`) alone, and so does this check."""
+    names = assigned_globals(tree)
+    found = []
+    for function in (node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                     and node.name.startswith("test")):
+        shared = names - local_names(function)
+        found += [(line, "python:S8997", f"{target.value.id}.{target.attr} assigned in a test: use mock.patch.object")
+                  for line, target in assigned_attributes(function) if target.value.id in shared]
+    return found
+
+
 def sonar_findings(path, source):
     """The findings of the SonarQube Cloud rules a refresh has tripped before, as (line, rule, message)."""
     tree = ast.parse(source, path)
@@ -1873,6 +1913,8 @@ def sonar_findings(path, source):
         + inverted_comparisons(tree) + overlap_findings(tree, os.path.basename(path).startswith("test"))
     if not os.path.basename(path).startswith("test"):  # Sonar skips S1192 in test files
         findings += duplicated_literals(source, tree)
+    else:
+        findings += patched_globals(tree)
     return sorted(findings)
 
 

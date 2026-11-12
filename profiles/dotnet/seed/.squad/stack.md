@@ -73,7 +73,10 @@ repositories winning) into the `squad:dotnet-rules` blocks of `.editorconfig` (`
 No section of every C# file sets a rule or a code-style option outside the blocks; the project's own sections of paths
 (generated code, migrations) come after them. A rule the code does not meet yet goes into `DOTNET_RULES_PENDING` in
 `squad_settings.py` with the issue that brings the code up to it: it is written as `suggestion`, which the *Analyzer
-gate* still reports in a changed file, and the entry goes once the issue is done.
+gate* still reports in a changed file, and the entry goes once the issue is done; that holds for a rule the baseline
+does not set too (one on only through `AnalysisLevel`, CA1848). The blocks do not reach the code the Razor compiler
+generates from a `.razor` file's markup, so S1125 still fires on `== false` (and `is false`) there: a condition of that
+kind goes into the component's code-behind (`*.razor.cs`) as a property the markup reads.
 
 SonarAnalyzer.CSharp runs only the rules of *Sonar way core* by default. The rules the project's SonarQube Cloud C#
 profile adds (*Sonar way comprehensive*: S3776, S1192, S107, …), and the core rules it switches off, are set in the

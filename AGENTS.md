@@ -19,8 +19,9 @@ to the other repositories. It contains no product code. See [`README.md`](README
 - **`core/` stays stack- and project-neutral.** Commands are referred to by their name in
   `.squad/stack.md` (*Format*, *Build*, *Analyzer gate*, …), project knowledge by `.squad/project.md` or a
   `<!-- project:… -->` block. Stack details belong in `profiles/<stack>/`.
-- Run `python3 tools/template-check.py` before every pull request, with `complexipy` installed (`pip install
-  complexipy`) so it also checks the cognitive complexity of the tools a target receives; it must pass. It also
+- Run `python3 tools/template-check.py` before every pull request, with `complexipy` installed at the version CI
+  pins (`pip install complexipy==9.0.0`, `.github/workflows/python-ci.yml`; another version counts differently) so
+  it also checks the cognitive complexity of the tools a target receives; it must pass. It also
   checks those tools for the SonarQube Cloud rules a refresh has tripped before (`SONAR_RULES`); when a refresh
   brings a new Sonar finding in a template-managed file, fix it here and add its rule to that check.
   CI also runs SonarQube Cloud's own analysis of these tools (`sonarqube` job, `sonar-project.properties`); fix a

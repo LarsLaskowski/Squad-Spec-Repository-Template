@@ -67,8 +67,8 @@ Plan: [plan.md](plan.md)
 """
 
 
-def feature_plan():
-    text = plan_text(signatures="- `def export(library) -> str`\n- `def header() -> str`")
+def feature_plan(tier="standard"):
+    text = plan_text(tier, signatures="- `def export(library) -> str`\n- `def header() -> str`")
     text = text.replace("Source: Issue #5", "Source: [spec.md](spec.md)")
     text = text.replace("- AC1: The check refuses an expired value.", "The criteria are the spec's.")
     return text.replace("| AC1 | test_expired_refused | tests/test_a.py |",
@@ -162,6 +162,25 @@ class TestPlanSteps(NextTest):
         self.assertIn("Launch: squad-lead, mode decide", out)
         self.assertIn('"2 Decide (plan-check)"', out)
 
+    def test_one_revision_answers_plan_check_and_challenge_that_came_back_together(self):
+        # DockerUpdateGuard#439: the combined revision, logged as the plan-check revise, answers the challenge too.
+        self.repo.write("specs/issue-5/plan.md", "# Plan: <title>\n\nTier: standard\n")
+        self.repo.log(INTAKE, PLANNED,
+                      row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 1 major, 0 minor", 40000))
+        out = self.next()
+        self.assertIn('"2 Plan revise (plan-check)"', out)
+        self.assertIn("one revision answers them together", out)
+        self.repo.write("specs/issue-5/plan.md", plan_text("standard"))
+        self.repo.log(row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertNotIn("Lead revision", self.next(), "no second revision for the challenge")
+
+    def test_a_plan_check_revise_after_clean_verdicts_needs_no_security_confirmation(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication"))
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
+                      row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertIn("Next: step 4 — Skeleton", self.next(), "the revise answered findings only")
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -249,6 +268,17 @@ class TestCodeSteps(NextTest):
         self.tool.stamp_tool().shallow = lambda root: True
         self.assertIn("The clone is shallow: run 'git fetch --unshallow --tags origin' before the stamp", self.next())
 
+    def test_step_6_names_the_fresh_lead_decide_launch(self):
+        # Censio#180: the Lead's step-6 decisions continued the spec agent past the cap.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red", 30000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("step 6 — Implement", out)
+        self.assertIn('"6 Decide" — `python3 .squad/tools/squad-next.py issue-5 --launch squad-lead decide`', out)
+        out = self.next("--launch", "squad-lead", "decide")
+        self.assertIn("Agent: fresh launch", out)
+
     def test_the_orchestrators_skip_row_ends_step_4(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED)
@@ -328,6 +358,41 @@ class TestCodeSteps(NextTest):
                       row("6 Implement", "Dev", "green", 30000, "sonnet/medium"),
                       row("6 Coverage skipped", "Orchestrator", "the gate passes"))
         self.assertNotIn("Next: step 6", self.next())
+
+    def test_a_trivial_feature_whose_tasks_put_the_tester_first_starts_with_tests_first(self):
+        # Vandox#440: squad-next named the Dev's implement while tasks.md put the Tester's rows first.
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.write("specs/feature-7-export/plan.md", feature_plan("trivial"))
+        tasks = TASKS.split("| 1 |")[0] + ("| 1 | G1 | test of export | tests/test_e.py | AC1, AC2 | — | Tester | [ ] |\n"
+                                           "| 2 | G1 | Skeleton of export and header | src/e.py | AC1 | 1 | Dev | [ ] |\n"
+                                           "| 3 | G1 | export and header | src/e.py | AC1, AC2 | 2 | Dev | [ ] |\n")
+        self.repo.write("specs/feature-7-export/tasks.md", tasks)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("2b Plan", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2b Challenge skipped", "Orchestrator", "challenge skipped — one option"))
+        out = self.next()
+        self.assertIn("step 5 — Tests first (G1) (tier trivial: tasks.md puts the Tester first)", out)
+        self.repo.log(row("5 Tests first (G1)", "Tester", "red; Deferred: none", 9000, "sonnet/medium"))
+        self.assertIn("step 6 — Implement (G1)", self.next())
+
+    def test_a_reason_for_the_spec_length_in_the_leads_result_settles_the_size_warning(self):
+        # Vandox#440: the Lead kept the length and said why; squad-next asked for another launch to log it.
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC.replace("Users cannot export.", "word " * 900))
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE — spec of the upload size limit", 50000))
+        self.assertIn("2a Spec revise (size)", self.next(), "the first spec row was written before the warning")
+        self.assertIn("2a Spec revise (size)", self.next())
+        self.repo.log(row("2a Spec", "Lead", "RESULT: DONE — kept the length: the procedure needs every step", 9000,
+                          continued=True))
+        out = self.next()
+        self.assertNotIn("2a Spec revise (size)", out)
+        self.assertIn("Spec challenge", out)
 
     def test_an_agent_continued_in_another_mode_is_never_continued_again(self):
         # Censio#140: the Tester's coverage agent was continued for tests first of the next group.
@@ -618,6 +683,26 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("a stale round", self.next(), "the code of the stamp before")
         self.repo.log(self.reviewed("8 Review delta", "VERDICT: APPROVE", 9000, continued=True))
         self.assertIn("Next: step 9 — PR approval", self.next(), "a commit that touched only specs/ after the stamp")
+        stamped = self.repo.git("rev-parse", "HEAD~1")
+        self.repo.write("docs/USER_GUIDE.md", "# Guide\n\nRun it.\n")
+        self.repo.commit("documentation of the dry run")
+        docs_head = self.repo.git("rev-parse", "HEAD")
+        tool = self.tool
+        run = tool.Run(self.repo.root, self.folder, [], False)
+        self.assertTrue(tool.names_stamped_code(run, docs_head, stamped), "Censio#176: a later head adding docs only")
+        self.assertFalse(tool.names_stamped_code(run, stamped, docs_head), "an earlier head did not read the docs edit")
+
+    def test_a_manual_test_of_the_plan_runs_before_the_review(self):
+        # Censio#176, Vandox#440: the dry run came after the review approved the head and cost a delta round.
+        self.implemented(test="manual: the Product Manager runs the guide on the server")
+        self.stamp()
+        out = self.next()
+        self.assertIn("Next: step 7 — the manual test of AC1 before the review", out)
+        self.assertIn('"7 Manual test" "Product Manager"', out)
+        self.repo.log(row("7 Answer", "Product Manager", "an answer to an escalation"))
+        self.assertIn("the manual test of AC1", self.next(), "another Product Manager row ends nothing")
+        self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
+        self.assertIn("Next: step 8", self.next())
 
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
@@ -866,6 +951,16 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("`VERDICT: BLOCKING <n> | NON-BLOCKING <m> on <sha>`", out)
         tool = self.tool
         self.assertIsNone(tool.verdict_problem("squad-reviewer", "VERDICT: APPROVE on abc1234"))
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        # PiMonitor#215, Censio#185: the word in prose after the verdict is no lost count.
+        for prose in (f"VERDICT: APPROVE on {sha} — no blocking or non-blocking findings",
+                      f"VERDICT: APPROVE on {sha}, then the findings: none blocking, none non-blocking",
+                      f"VERDICT: BLOCKING 1 on {sha} — the non-blocking remarks are in the report"):
+            self.assertIsNone(tool.verdict_problem("squad-reviewer", prose), prose)
+        self.assertIn("NON-BLOCKING <m>", tool.verdict_problem("squad-reviewer", f"VERDICT: APPROVE (NON-BLOCKING 1) on {sha}"),
+                      "a count inside the clause is no clean approval")
+        self.assertIn("NON-BLOCKING <m>", tool.verdict_problem("squad-reviewer", f"VERDICT: BLOCKING 1 (a (b (c))) "
+                                                                                 f"\\| NON-BLOCKING 2 on {sha}"))
         self.assertIn("on <sha>", tool.verdict_problem("squad-reviewer", "approve"))
         self.assertIn("OBJECTIONS <n> major", tool.verdict_problem("squad-devils-advocate", "two objections"))
         self.assertIsNone(tool.verdict_problem("squad-dev", "fixed"))

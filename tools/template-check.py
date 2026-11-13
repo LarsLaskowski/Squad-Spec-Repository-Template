@@ -66,7 +66,9 @@ Checks, without arguments:
   key (or null) and a status `active` or `legacy`;
 - `CHANGELOG.md` has the format `tools/release.py` expects, and a branch that changes what the targets receive
   (`CHANGELOG_PATHS`) adds a line under its `## Unreleased` against the merge base with `origin/main`
-  (`AGENTS.md`, *Releases*).
+  (`AGENTS.md`, *Releases*);
+- `core/.squad/tools/lesson-label.py` names every file `apply-template.py` manages as managed, the marked and
+  generated files as marked and no seed as managed, so a lesson's label follows what a refresh overwrites.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -1235,7 +1237,7 @@ def words_per_launch():
     lines = ["INFO words read per launch (the charter and its Read first files; template text, then the seeded "
              "files a target starts with, which its own text replaces):"]
     entries = []
-    for path in sorted(glob.glob(os.path.join(CORE, ".claude", "agents", "squad-*.md"))):
+    for path in sorted(glob.glob(os.path.join(CORE, CLAUDE_DIR, "agents", "squad-*.md"))):
         text = read(path)
         entries.append((os.path.basename(path)[:-3], launch_words(os.path.basename(path), text, read_first(text))))
     for skill, followed in ORCHESTRATOR_SKILLS.items():
@@ -1295,6 +1297,36 @@ def check_consumers(errors, profiles, path=None):
 
 # A change under these paths reaches the targets and needs a line in CHANGELOG.md (AGENTS.md, Releases).
 CHANGELOG_PATHS = ("core/", "profiles/", "multi/", "seed/", "decision-seeds/", "tools/apply-template.py")
+
+
+def load_tool(path, name):
+    """A Python file of the repository as a module."""
+    spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_lesson_labels(errors):
+    """`lesson-label.py` names every file `apply-template.py` manages (one profile and all together) as managed, the
+    marked and generated files as marked, no seed as managed, and the template's skills as they are in core/."""
+    labels = load_tool(os.path.join("core", SQUAD_DIR, "tools", "lesson-label.py"), "lesson_label")
+    applier = load_tool(os.path.join("tools", "apply-template.py"), "apply_template")
+    profile_dirs = [os.path.join(ROOT, "profiles", name) for name in applier.PROFILES]
+    sets = [[path] for path in profile_dirs] + [profile_dirs]
+    managed, seeds = set(), set()
+    for dirs in sets:
+        names = [os.path.basename(path) for path in dirs]
+        managed |= set(applier.managed_files(dirs, names)[1])
+        seeds |= {applier.RENAMES.get(rel, rel) for rel in applier.seed_files(dirs, names, [])}
+    wrong = sorted(rel for rel in managed if labels.kind(rel) != "managed")
+    wrong += sorted(rel for rel in [*applier.MARKED, *applier.GENERATED] if labels.kind(rel) != "marked")
+    wrong += sorted(rel for rel in seeds if labels.kind(rel) == "managed")
+    if wrong:
+        errors.append("lesson-label.py (MANAGED, MARKED) disagrees with apply-template.py on: " + ", ".join(wrong))
+    skills = sorted(os.listdir(os.path.join(CORE, CLAUDE_DIR, "skills")))
+    if sorted(labels.SKILLS) != skills:
+        errors.append(f"lesson-label.py SKILLS {sorted(labels.SKILLS)} is not the template's skills {skills}")
 
 
 def load_release():
@@ -1998,7 +2030,23 @@ def check_sonar_sources(errors):
                           "sonar-project.properties (the scanner skips hidden directories below a source directory)")
 
 
-def check_complexity(errors):
+CI_WORKFLOW = os.path.join(ROOT, ".github", "workflows", "python-ci.yml")
+COMPLEXIPY_PIN = re.compile(r"\bcomplexipy==([\w.]+)")
+
+
+def version_note(warnings):
+    """A warning when the installed complexipy is not the version CI pins: versions count differently (8.0.1 counted
+    a comprehension's `if` and a conditional expression with nesting, 9.0.0 counts as SonarQube does)."""
+    with open(CI_WORKFLOW, encoding="utf-8") as handle:
+        pinned = COMPLEXIPY_PIN.search(handle.read())
+    done = subprocess.run(["complexipy", "--version"], capture_output=True, text=True, check=False)
+    installed = done.stdout.split()[-1] if done.stdout.split() else "unknown"
+    if pinned and installed != pinned.group(1):
+        warnings.append(f"WARNING complexipy {installed} is installed, CI pins {pinned.group(1)} "
+                        f"(pip install complexipy=={pinned.group(1)}): the cognitive-complexity counts can differ")
+
+
+def check_complexity(errors, warnings):
     """The Python tools (a target's and the template's own) stay below SonarQube Cloud's cognitive-complexity limit
     (python:S3776, 15): every refresh puts them under the target's code analysis, so a finding there would cost a template PR
     and a refresh of every target. complexipy measures the same cognitive complexity; CI installs it."""
@@ -2006,6 +2054,7 @@ def check_complexity(errors):
         print("NOTE: complexipy is not installed (pip install complexipy); cognitive complexity not checked here, "
               "CI checks it")
         return
+    version_note(warnings)
     paths = checked_python_files()
     with tempfile.TemporaryDirectory() as cache:
         result = subprocess.run(["complexipy", *paths, "--max-complexity-allowed", str(COGNITIVE_LIMIT), "--failed",
@@ -2034,6 +2083,7 @@ def main():
     check_seed_workflows(errors)
     check_consumers(errors, profiles)
     check_changelog(errors, info)
+    check_lesson_labels(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
     check_area_checks(errors)
@@ -2041,7 +2091,7 @@ def main():
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_sonar_sources(errors)
-    check_complexity(errors)
+    check_complexity(errors, warnings)
     for line in info + warnings + errors:
         print(line)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

@@ -237,14 +237,27 @@ class TestUpstream(unittest.TestCase):
              "html_url": "https://github.com/o/r/issues/7", "created_at": "2026-11-05T10:00:00Z"}
 
     def test_upstream_lists_the_open_issues_without_pull_requests(self):
+        local = [{"number": 9, "title": "Squad lesson: a revise row leaves squad-next asking again", "body": "x",
+                  "labels": [{"name": "squad"}]},
+                 {"number": 10, "title": "[Squad] Bring .squad/project.md under the limit", "body": "Edit "
+                  ".squad/stack.md and README.md", "labels": [{"name": "squad"}]},
+                 {"number": 11, "title": "Fix .squad/tools/squad-log.py", "body": "", "labels": [
+                     {"name": "squad"}, {"name": "squad-upstream"}]}]
         lists = {"repos/o/r/issues?state=open&labels=squad-upstream": [self.ISSUE, {"number": 8, "pull_request": {}}],
-                 "repos/o/s/issues?state=open&labels=squad-upstream": []}
+                 "repos/o/s/issues?state=open&labels=squad-upstream": [],
+                 "repos/o/r/issues?state=open&labels=squad": [],
+                 "repos/o/s/issues?state=open&labels=squad": local}
         out = io.StringIO()
         with mock.patch.object(report, "gh_list", lambda path, stop=None: lists[path]), contextlib.redirect_stdout(out):
             code = report.main(["--upstream", "--repo", "o/r=key", "--repo", "o/s"])
         self.assertEqual(code, 0)
         self.assertIn("| o/r | #7 | 2026-11-05 | [Squad] Tester model (from o/r#3) |", out.getvalue())
         self.assertNotIn("#8", out.getvalue(), "a pull request is no lesson")
+        # Template#388: a squad issue naming a managed file is listed for a decision, never moved.
+        self.assertIn("| o/s | #9 | Squad lesson: a revise row leaves squad-next asking again | squad-next |",
+                      out.getvalue().replace("squad-next.py", "squad-next"))
+        self.assertNotIn("#10", out.getvalue(), "seeded files and an ambiguous name are the repository's own")
+        self.assertNotIn("#11", out.getvalue(), "already labelled squad-upstream")
 
     def test_move_files_the_issue_here_and_closes_the_original(self):
         writes = []

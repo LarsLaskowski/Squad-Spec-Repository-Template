@@ -80,6 +80,17 @@ class TestSquadNotes(unittest.TestCase):
         self.assertIn("## Security notes\r\n\r\n1. earlier note\r\n\r\n2. a second note\r\n\r\n## Later\r\n", self.text())
         self.assertNotIn("\n\n", self.text().replace("\r\n", ""), "no bare line feed")
 
+    def test_the_leads_docs_result_is_written_whole_as_result_md(self):
+        # Censio#185: a 20-line edit with a code block did not fit the first log row.
+        result = "Tier: docs\n\nEdit `docs/a.md`, replace\n\n```bash\nrun it\n```\n\nRESULT: DONE\n"
+        self.assertEqual(self.run_notes("issue-5", "result", "--stdin", stdin=result).returncode, 1, "no log.md yet")
+        write(os.path.join(self.root, "specs", "issue-5", "log.md"), "| Date |\r\n")
+        done = self.run_notes("issue-5", "result", "--stdin", stdin=result)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.text(os.path.join(self.root, "specs", "issue-5", "result.md")),
+                         result.replace("\n", "\r\n"), "verbatim, the RESULT line kept, CRLF as log.md")
+        self.assertEqual(self.run_notes("issue-5", "result", "--stdin", stdin="just narration").returncode, 1)
+
     def test_spec_folder_and_empty_reports_are_checked(self):
         write(os.path.join(self.root, "specs", "feature-7", "spec.md"), "# Spec\n")
         done = self.run_notes("feature-7", "challenge", "--stdin", "--spec",

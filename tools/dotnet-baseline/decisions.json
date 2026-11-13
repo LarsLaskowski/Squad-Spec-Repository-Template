@@ -75,6 +75,10 @@
     "dotnet_style_prefer_conditional_expression_over_assignment": {
       "value": "true:silent",
       "reason": "IDE0045 stays silent: rewriting an if chain into an assignment nests ternaries, which S3358 rejects (#337)"
+    },
+    "dotnet_diagnostic.MSTEST0001.severity": {
+      "value": "error",
+      "reason": "every test assembly states its parallelization ([assembly: Parallelize] or [assembly: DoNotParallelize]); MSTest leaves it at suggestion (#379)"
     }
   },
   "sections": {

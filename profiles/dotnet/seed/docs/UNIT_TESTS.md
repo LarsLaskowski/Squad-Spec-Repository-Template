@@ -67,7 +67,9 @@ untested arm of a `switch` or an `if` counts on a changed line. Both values are 
 (`COVERAGE_THRESHOLD`, `COVERAGE_OVERALL_THRESHOLD`); the overall one may start lower in a repository adopted
 with a coverage debt and is only ever raised. Check it locally before a push with *Test with coverage* and the
 *Coverage gate* from [`.squad/stack.md`](../.squad/stack.md). The gate lists every
-changed production file with its covered/coverable changed lines and the uncovered line numbers. Lines
+changed production file with its covered/coverable changed lines, the covered branch conditions on them
+(`+ m/n conditions`), the uncovered line numbers and the lines with an uncovered condition (`conditions not
+covered`). Lines
 that genuinely cannot be covered by a unit test (for example host startup glue) need an explicit,
 recorded decision — they are not silently accepted.
 

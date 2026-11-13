@@ -248,7 +248,9 @@ Rules that hold throughout:
 A lesson about a template-managed file arrives as a `squad-upstream` issue in a target (squad runs file their
 lessons in their own repository) and is moved here as a `squad` issue: `python3 tools/squad-report.py --upstream`
 lists the open ones of every active consumer in `consumers.json` (or of the `--repo` given), `--move` moves them in one batch (a new issue here with the title, the
-body and a link back; the original gets a comment linking it and is closed). Without `gh` write access, move each the
+body and a link back; the original gets a comment linking it and is closed). It also lists the open `squad` issues that
+name a managed file: show them to the user, who decides for each whether it moves here (the same way, by hand) or stays
+local; `--move` never moves them. Without `gh` write access, move each the
 same way with the GitHub tools. A lesson is fixed here: change `core/` or the profile, run
 `python3 tools/template-check.py`, open a PR here with its `CHANGELOG.md` line, and once a release contains it refresh
 every active target of `consumers.json` with this skill (README, *Rolling out a change*).

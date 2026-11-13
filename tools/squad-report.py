@@ -35,7 +35,10 @@ project key); legacy entries are left out.
 With `--upstream` it instead lists the open issues labelled `squad-upstream` of the repositories: the squad lessons
 a run filed in its own repository because they concern a template-managed file (`core/.squad/orchestration.md`, *Squad
 lessons*). `--move` moves them here in one batch: each becomes an issue labelled `squad` in the template repository
-with its title, its body and a link back, and the original gets a comment linking the new issue and is closed.
+with its title, its body and a link back, and the original gets a comment linking the new issue and is closed. Below
+them it lists the open issues labelled `squad` alone whose title or body names a template-managed file (by path, or by
+a file name only one managed file has; `lesson-label.py` decides what is managed): lessons that probably carry the
+wrong label, for a decision — move here, or keep as local — never moved by `--move`.
 
 Usage (needs `gh` with read access to the repositories; `--move` also needs write access to their issues):
     python3 tools/squad-report.py --repo LarsLaskowski/Vandox=networlddev_vandox --repo LarsLaskowski/Seluna \\
@@ -48,6 +51,8 @@ cannot be read or written.
 """
 import argparse
 import datetime
+import glob
+import importlib.util
 import json
 import os
 import re
@@ -61,7 +66,10 @@ SONAR = "https://sonarcloud.io/api"
 TEMPLATE_REPOSITORY = "LarsLaskowski/Squad-Spec-Repository-Template"
 REPOSITORY = re.compile(r"\w[\w.-]*+/[\w.-]++")
 ISSUES_PATH = re.compile(r"repos/\w[\w.-]*+/[\w.-]++/issues(?:/\d++(?:/comments)?+)?+")
-CONSUMERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "consumers.json")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONSUMERS = os.path.join(ROOT, "consumers.json")
+# File names of several managed files, or of every run's own documents: matched only with their path.
+AMBIGUOUS_NAMES = {"README.md", "SKILL.md", "plan.md", "spec.md", "tasks.md", "log.md", "_template.md", ".gitignore"}
 # The first line of `squad-log.py --summary`: the template version the run worked under.
 TEMPLATE_LINE = re.compile(r"^Template: [\w./-]++ (v\d{4}\.\d{2}\.\d++)\b", re.M)
 UPSTREAM = "squad-upstream"
@@ -421,14 +429,72 @@ def move_issue(repo, issue, template):
     return url
 
 
+def lesson_labels():
+    """core/.squad/tools/lesson-label.py as a module: the one place that says which files a refresh overwrites."""
+    path = os.path.join(ROOT, "core", ".squad", "tools", "lesson-label.py")
+    spec = importlib.util.spec_from_file_location("lesson_label", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def managed_names():
+    """{a name a lesson may use for a managed file: its path and, where it is distinctive, its file name}: the files
+    of core/, multi/ and the profiles' managed/ that lesson-label.py calls managed; file names several folders share (README.md, SKILL.md, plan.md …) count only
+    with their path."""
+    labels = lesson_labels()
+    bases = [os.path.join(ROOT, "core"), os.path.join(ROOT, "multi"),
+             *glob.glob(os.path.join(ROOT, "profiles", "*", "managed"))]
+    paths = set()
+    for base in bases:
+        for directory, dirs, names in os.walk(base):
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            paths |= {os.path.relpath(os.path.join(directory, name), base).replace(os.sep, "/") for name in names}
+    managed = {path for path in paths if labels.kind(path) == "managed"}
+    names = [os.path.basename(path) for path in managed]
+    distinct = {name for name in names if names.count(name) == 1 and name not in AMBIGUOUS_NAMES}
+    # A tool is often named without its extension (`squad-next`, DockerUpdateGuard#439).
+    stems = {os.path.splitext(name)[0] for name in distinct if name.endswith((".py", ".sh")) and "-" in name}
+    return managed | distinct | stems | {f".claude/skills/{skill}" for skill in labels.SKILLS}
+
+
+def label_candidates(repo, names):
+    """[(issue, the managed names it mentions)] of the open issues of `repo` labelled `squad` alone whose title or
+    body names a managed file: a lesson that probably belongs upstream (Template#388)."""
+    found = []
+    for issue in gh_list(f"repos/{repo}/issues?state=open&labels=squad"):
+        labels = {label.get("name") for label in issue.get("labels") or []}
+        if "pull_request" in issue or UPSTREAM in labels:
+            continue
+        text = f"{issue.get('title') or ''}\n{issue.get('body') or ''}"
+        named = sorted(name for name in names if re.search(rf"(?<![\w./-]){re.escape(name)}(?![\w-]|\.\w)", text))
+        if named:
+            found.append((issue, named))
+    return found
+
+
+def candidate_lines(found):
+    lines = ["| Repository | Issue | Title | Managed files named |", "| ---------- | ----- | ----- | ------------------- |"]
+    for repo, issue, named in found:
+        title = (issue.get("title") or "").replace("|", "\\|")
+        lines.append(f"| {repo} | #{issue['number']} | {title} | {', '.join(named[:5])} |")
+    return lines
+
+
 def upstream_command(repos, template, move):
-    """List the open squad-upstream issues of the repositories; with `move`, move each to `template` as it goes."""
+    """List the open squad-upstream issues of the repositories; with `move`, move each to `template` as it goes. The
+    open `squad` issues that name a managed file follow as candidates whose label to check; they are never moved."""
     found = [(repo, issue) for repo in repos for issue in upstream_issues(repo)]
+    names = managed_names()
+    candidates = [(repo, issue, named) for repo in repos for issue, named in label_candidates(repo, names)]
     if not found:
         print(f"No open {UPSTREAM} issue in {', '.join(repos)}.")
-        return
-    print("\n".join([f"# Open {UPSTREAM} issues", "", *upstream_lines(found)]))
-    if move:
+    else:
+        print("\n".join([f"# Open {UPSTREAM} issues", "", *upstream_lines(found)]))
+    if candidates:
+        print("\n".join(["", "# Open squad issues that name a managed file (check the label: move here, or keep as "
+                         "local; never moved by --move)", "", *candidate_lines(candidates)]))
+    if move and found:
         print("\nMoved:")
         for repo, issue in found:
             print(f"- {repo}#{issue['number']} -> {move_issue(repo, issue, template)}")

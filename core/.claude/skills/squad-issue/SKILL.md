@@ -209,7 +209,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     contradictory rule, a misbehaving tool, an agent that could not be launched, a step you had to improvise —
     each with the role it concerns and a concrete proposal, and check your log for the lesson candidates of *Squad
     lessons* (`squad-log.py … --summary` lists those it finds while the lessons row is missing). File the lessons
-    and log the lessons row as *Squad lessons* says, and link them from the working-record comment. Run
+    with the label `lesson-label.py` prints for the files each fix changes, and log the lessons row as *Squad
+    lessons* says, and link them from the working-record comment. Run
     `python3 .squad/tools/squad-log.py issue-<number> --summary` (`--stdin` with the comment's log table) until it
     exits 0, completing what another exit code names (`--help`): launch rows without usage, commits after the PR
     without a step-11 delta review or verbatim row, the lessons row, a passing gate stamp (step 7). Append the tables

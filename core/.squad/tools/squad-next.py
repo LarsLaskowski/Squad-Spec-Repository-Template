@@ -1046,10 +1046,11 @@ def quick_edits(run):
     if stamp_tool().branch_changes_code(run.root) or stamp_tool().uncommitted(run.root):
         return None
     extra = ["  For patch: when the Lead names a test to add, launch squad-tester once (the only extra launch):"] + \
-        launch(run, TESTER, "coverage", "2 Patch test", f"the Lead's result row and the test it names, {BASE_HANDOVER}") \
+        launch(run, TESTER, "coverage", "2 Patch test", f"result.md and the test it names, {BASE_HANDOVER}") \
         if run.base_tier == "patch" else []
     return heading(f"tier {run.tier} — apply the Lead's exact edits (*Tiers*)") + [
-        DO + "apply the edits of the Lead's result row yourself, run *Format* on them, commit"] + extra + [
+        DO + f"write the Lead's whole result to result.md with `python3 {NOTES_TOOL} {run.name} result --agent-id <the "
+        "Lead's id>` (never retyped), apply its edits yourself, run *Format* on them, commit"] + extra + [
         THEN + "the gate stamp (step 7)"]
 
 
@@ -1346,7 +1347,7 @@ def names_stamped_code(run, sha, stamp):
 def work_record(run):
     """What the reviewers read of the work folder."""
     if run.base_tier in ("docs", "patch"):
-        record = "the first log.md row"
+        record = "result.md (the Lead's whole result; the first log.md row carries its RESULT line)"
     else:
         record = "spec.md, plan.md and tasks.md" if run.feature else "plan.md"
     return record + (" from the working-record comment" if run.after_pr else "")

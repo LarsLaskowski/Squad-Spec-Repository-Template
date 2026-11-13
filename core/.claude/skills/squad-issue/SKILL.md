@@ -147,7 +147,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    an *Early draft PR*, open it once the stamp passes, as that section says (`create-pr` step 8 without its review
    loop), and subscribe to its activity.
 8. **Review.** Launch the review set `squad-next.py` prints, in parallel, with the base ref, the stamp's code
-   SHA, the work folder (tiers `docs` and `patch`: the first `log.md` row) and the stamp's gate output; tell
+   SHA, the work folder (tiers `docs` and `patch`: `result.md`) and the stamp's gate output; tell
    them that later commits may only touch `specs/`, and avoid commits while the round runs (*The stop hook*). A
    report for another code head is a stale round (`squad-next.py` compares the SHA of the Reviewer's verdict line
    with the stamp). Then:
@@ -200,7 +200,7 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
     Each fix goes through steps 7–8 again (the stamp with `--stdin`, a delta review), logged at step 11 like every
     launch (`squad-next.py --launch squad-<role> <mode>` prints the exact launch), within the limit of *Loop limits*,
     and gets the re-approval of step 9. The work folder is gone: give the Reviewer, Security and the Lead
-    the plan (tiers `docs` and `patch`: the first log row; for a feature also `spec.md`, `tasks.md`) from the
+    the plan (tiers `docs` and `patch`: `result.md`; for a feature also `spec.md`, `tasks.md`) from the
     working-record comment or `git show
     <commit-before-removal>:specs/<folder>/<file>`, and edit that comment in one batch. Never skip, disable or
     weaken a test to get green.

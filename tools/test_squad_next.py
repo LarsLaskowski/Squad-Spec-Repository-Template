@@ -162,6 +162,18 @@ class TestPlanSteps(NextTest):
         self.assertIn("Launch: squad-lead, mode decide", out)
         self.assertIn('"2 Decide (plan-check)"', out)
 
+    def test_one_revision_answers_plan_check_and_challenge_that_came_back_together(self):
+        # DockerUpdateGuard#439: the combined revision, logged as the plan-check revise, answers the challenge too.
+        self.repo.write("specs/issue-5/plan.md", "# Plan: <title>\n\nTier: standard\n")
+        self.repo.log(INTAKE, PLANNED,
+                      row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 1 major, 0 minor", 40000))
+        out = self.next()
+        self.assertIn('"2 Plan revise (plan-check)"', out)
+        self.assertIn("one revision answers them together", out)
+        self.repo.write("specs/issue-5/plan.md", plan_text("standard"))
+        self.repo.log(row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertNotIn("Lead revision", self.next(), "no second revision for the challenge")
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)

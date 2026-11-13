@@ -42,7 +42,9 @@ the `adopt-template` skill applies it to an existing (or new) repository and ref
   sections, every criterion with its tests and task, every task with its group, every claim of the plan with its
   evidence, no control character); `squad-log.py` appends the pipeline's log rows, a launch's usage read from its
   subagent transcript (`--agent-id`), and sums them up per role with a price-weighted figure and the orchestrator's
-  share; `squad-notes.py` appends a member's *Challenge notes* or *Security notes* from its transcript, never retyped;
+  share; `squad-notes.py` appends a member's *Challenge notes* or *Security notes* from its transcript, never retyped,
+  and writes the Lead's docs/patch result to `result.md`; `lesson-label.py` names a squad lesson's label
+  (`squad-upstream` or `squad`) from the files its fix changes;
   `session-usage.py` prints the session's tokens per model and per subagent type from Claude Code's session
   transcripts for the wrap-up. `figure-check.py` lists, in step 7, the documentation lines that still state a value
   the diff changed. `gate-stamp.py` runs the step-7 gates of the tier by their `stack.md` names and logs the result
@@ -91,7 +93,7 @@ multi/            dispatchers (analyzer gate, SessionStart hook) written when a 
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
 decision-seeds/   the record that supersedes, on a refresh, the numbered process records of older template versions
 tools/            apply-template.py (mechanical apply), template-check.py (self-check), squad-report.py (quality report,
-                  squad-upstream issues), release.py (changelog and release tags), rollout-check.py (a rollout
+                  squad-upstream issues and squad issues naming a managed file), release.py (changelog and release tags), rollout-check.py (a rollout
                   rehearsed on every active consumer before the release), sonar-local.py with SonarLocal.java
                   (SonarSource's open Python analyzer over the tools, before a release), dotnet-baseline.py
                   (the .NET rule baseline merged from the dotnet consumers, the stricter setting winning, with the

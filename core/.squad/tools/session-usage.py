@@ -245,6 +245,13 @@ def is_message_to_agent(record):
                                                  for block in content)
 
 
+def content_blocks(record):
+    """The dict content blocks of a record's message."""
+    message = record.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    return [block for block in content if isinstance(block, dict)] if isinstance(content, list) else []
+
+
 class Rounds:
     """Where the rounds of a subagent's transcript start: at a message to the agent once it has answered, unless that
     message answers the `SubagentHandback` call of the agent's latest tool use (the harness replies to it with a plain
@@ -257,21 +264,22 @@ class Rounds:
 
     def starts(self, record, answered):
         """True when `record` starts a new round; `answered` tells whether the current round has a response."""
-        message = record.get("message")
-        content = message.get("content") if isinstance(message, dict) else None
-        blocks = [block for block in content if isinstance(block, dict)] if isinstance(content, list) else []
+        blocks = content_blocks(record)
         if record.get("type") == "assistant":
-            calls = [block for block in blocks if block.get("type") == "tool_use"]
-            if calls:
-                # Only a handback call of the agent's latest tool use waits for the harness's plain reply.
-                self.pending = {block.get("id") for block in calls if block.get("name") == HANDBACK}
-                self.called = timestamp(record)
+            self.called_tools(record, blocks)
             return False
         self.pending -= {block.get("tool_use_id") for block in blocks if block.get("type") == "tool_result"}
         if not is_message_to_agent(record):
             return False
         waiting, self.pending = bool(self.pending) and self.replied_at_once(record), set()
         return answered and not waiting
+
+    def called_tools(self, record, blocks):
+        """Only a handback call of the agent's latest tool use waits for the harness's plain reply."""
+        calls = [block for block in blocks if block.get("type") == "tool_use"]
+        if calls:
+            self.pending = {block.get("id") for block in calls if block.get("name") == HANDBACK}
+            self.called = timestamp(record)
 
     def replied_at_once(self, record):
         """True when the message came within `HANDBACK_REPLY_SECONDS` of the handback call (or either has no time):

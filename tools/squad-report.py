@@ -438,6 +438,15 @@ def lesson_labels():
     return module
 
 
+def relative_files(base):
+    """The files below `base`, as paths relative to it with forward slashes (`__pycache__` left out)."""
+    paths = set()
+    for directory, dirs, names in os.walk(base):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        paths |= {os.path.relpath(os.path.join(directory, name), base).replace(os.sep, "/") for name in names}
+    return paths
+
+
 def managed_names():
     """{a name a lesson may use for a managed file: its path and, where it is distinctive, its file name}: the files
     of core/, multi/ and the profiles' managed/ that lesson-label.py calls managed; file names several folders share
@@ -445,12 +454,7 @@ def managed_names():
     labels = lesson_labels()
     bases = [os.path.join(ROOT, "core"), os.path.join(ROOT, "multi"),
              *glob.glob(os.path.join(ROOT, "profiles", "*", "managed"))]
-    paths = set()
-    for base in bases:
-        for directory, dirs, names in os.walk(base):
-            dirs[:] = [d for d in dirs if d != "__pycache__"]
-            paths |= {os.path.relpath(os.path.join(directory, name), base).replace(os.sep, "/") for name in names}
-    managed = {path for path in paths if labels.kind(path) == "managed"}
+    managed = {path for base in bases for path in relative_files(base) if labels.kind(path) == "managed"}
     names = [os.path.basename(path) for path in managed]
     distinct = {name for name in names if names.count(name) == 1 and name not in AMBIGUOUS_NAMES}
     # A tool is often named without its extension (`squad-next`, DockerUpdateGuard#439).

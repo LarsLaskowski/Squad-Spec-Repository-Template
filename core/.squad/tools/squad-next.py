@@ -671,6 +671,12 @@ def plan_findings(run):
     return lines + launch(run, LEAD, "revise", f"{run.plan_step} Plan revise (plan-check)", f"{scope} (no challenge round)")
 
 
+def plan_revisions(run):
+    """The Lead's revise and decide rows of the plan; a plan-check revise only when it answered the verdicts too."""
+    return [row for row in run.of(LEAD, {run.plan_step, "2", "3"}) if re.search(r"revise|decide", row.step, re.I)
+            and (not re.search("plan-check", row.step, re.I) or answers_verdicts(run, row))]
+
+
 def answers_verdicts(run, revise):
     """True when a plan-check revise came after a major objection or a CHANGES_REQUIRED: its hand-over named them, so
     it answers them too (DockerUpdateGuard#439); otherwise it answers the findings alone."""
@@ -725,8 +731,7 @@ def revision(run, challenge, reviews, security_due):
             "  a major objection or CHANGES_REQUIRED: the Lead (mode revise) with all of them; minor objections only: "
             "append them verbatim as *Challenge notes*; APPROVED with notes: append them as *Security notes* (both with "
             f"{NOTES_TOOL})"]
-    revisions = [row for row in run.of(LEAD, {run.plan_step, "2", "3"}) if re.search(r"revise|decide", row.step, re.I)
-                 and (not re.search("plan-check", row.step, re.I) or answers_verdicts(run, row))]
+    revisions = plan_revisions(run)
     answered = [row for row in revisions if reviews and row.index > reviews[-1].index]
     rejected = bool(security) and security[-1] == "CHANGES_REQUIRED" and not answered
     major_open = bool(verdict[0]) and not [row for row in revisions if row.index > challenge[-1].index]

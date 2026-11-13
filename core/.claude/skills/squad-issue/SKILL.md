@@ -124,8 +124,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    genuinely needs a live external system — then the PR says so.
 6. **Implement and cover.** For a change without production or test code this is the Dev's edits and the
    Tester's share the plan names (*Changes without production or test code*). Otherwise launch `squad-dev` in mode `implement` with the plan and
-   the test names. If the Dev disputes a test, launch `squad-lead` in mode `decide`; the Tester changes a test only if the Lead says
-   so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`,
+   the test names. If the Dev disputes a test, launch `squad-lead` in mode `decide` (a fresh agent: `squad-next.py`'s step-6 output
+   names the launch); the Tester changes a test only if the Lead says so. Run *Test with coverage* and the *Coverage gate* yourself. Launch `squad-tester` in mode `coverage`,
    with the reason, only when the gate fails, the Dev reports uncovered new lines, a resource bound of the
    plan has no test yet, a deferred test or test documentation is open (also when the gate passes) or a reviewer
    asks for a test;

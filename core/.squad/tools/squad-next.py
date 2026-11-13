@@ -942,10 +942,19 @@ def group_step(run, group, skeleton, docs_only=False):
             run, DEV, "implement", f"6 Implement{tag}", f"{rows}, the test names (the deferred ones marked), "
             f"{BASE_HANDOVER}") + [
             "  Not due when steps 4 and 5 left the group no production code to write (the skeleton was the whole "
-            "change): " + orchestrator_log(run, f"6 Implement skipped{tag}", "skipped — <what steps 4–5 did>").strip()]
+            "change): " + orchestrator_log(run, f"6 Implement skipped{tag}", "skipped — <what steps 4–5 did>").strip(),
+            decide_pointer(run, tag)]
     if not coverage_ended(run, group):
-        return coverage_pass(run, tag, rows, deferred_tests(run, group))
+        return coverage_pass(run, tag, rows, deferred_tests(run, group)) + [decide_pointer(run, tag)]
     return None
+
+
+def decide_pointer(run, tag):
+    """Where a step-6 question for the Lead goes: a disputed test or lines reported as not unit-testable are a Lead
+    `decide`, a fresh launch the orchestrator would otherwise make without this tool (Censio#180)."""
+    return (f"  A disputed test or lines reported as not unit-testable: the Lead in mode decide, step \"6 Decide{tag}\" — "
+            f"`python3 .squad/tools/squad-next.py {run.name} --launch squad-lead decide` prints the launch (a fresh "
+            "agent, never a continuation of the spec or plan agent)")
 
 
 def documentation_group(run, group, tag):

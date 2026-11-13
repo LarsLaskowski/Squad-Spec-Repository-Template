@@ -261,6 +261,17 @@ class TestCodeSteps(NextTest):
         self.tool.stamp_tool().shallow = lambda root: True
         self.assertIn("The clone is shallow: run 'git fetch --unshallow --tags origin' before the stamp", self.next())
 
+    def test_step_6_names_the_fresh_lead_decide_launch(self):
+        # Censio#180: the Lead's step-6 decisions continued the spec agent past the cap.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red", 30000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("step 6 — Implement", out)
+        self.assertIn('"6 Decide" — `python3 .squad/tools/squad-next.py issue-5 --launch squad-lead decide`', out)
+        out = self.next("--launch", "squad-lead", "decide")
+        self.assertIn("Agent: fresh launch", out)
+
     def test_the_orchestrators_skip_row_ends_step_4(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED)

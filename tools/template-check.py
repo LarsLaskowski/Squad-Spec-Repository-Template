@@ -66,7 +66,9 @@ Checks, without arguments:
   key (or null) and a status `active` or `legacy`;
 - `CHANGELOG.md` has the format `tools/release.py` expects, and a branch that changes what the targets receive
   (`CHANGELOG_PATHS`) adds a line under its `## Unreleased` against the merge base with `origin/main`
-  (`AGENTS.md`, *Releases*).
+  (`AGENTS.md`, *Releases*);
+- `core/.squad/tools/lesson-label.py` names every file `apply-template.py` manages as managed, the marked and
+  generated files as marked and no seed as managed, so a lesson's label follows what a refresh overwrites.
 
 Exit code 0 when everything passes, 1 otherwise. Requires PyYAML.
 """
@@ -1297,6 +1299,36 @@ def check_consumers(errors, profiles, path=None):
 CHANGELOG_PATHS = ("core/", "profiles/", "multi/", "seed/", "decision-seeds/", "tools/apply-template.py")
 
 
+def load_tool(path, name):
+    """A Python file of the repository as a module."""
+    spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_lesson_labels(errors):
+    """`lesson-label.py` names every file `apply-template.py` manages (one profile and all together) as managed, the
+    marked and generated files as marked, no seed as managed, and the template's skills as they are in core/."""
+    labels = load_tool(os.path.join("core", SQUAD_DIR, "tools", "lesson-label.py"), "lesson_label")
+    applier = load_tool(os.path.join("tools", "apply-template.py"), "apply_template")
+    profile_dirs = [os.path.join(ROOT, "profiles", name) for name in applier.PROFILES]
+    sets = [[path] for path in profile_dirs] + [profile_dirs]
+    managed, seeds = set(), set()
+    for dirs in sets:
+        names = [os.path.basename(path) for path in dirs]
+        managed |= set(applier.managed_files(dirs, names)[1])
+        seeds |= {applier.RENAMES.get(rel, rel) for rel in applier.seed_files(dirs, names, [])}
+    wrong = sorted(rel for rel in managed if labels.kind(rel) != "managed")
+    wrong += sorted(rel for rel in [*applier.MARKED, *applier.GENERATED] if labels.kind(rel) != "marked")
+    wrong += sorted(rel for rel in seeds if labels.kind(rel) == "managed")
+    if wrong:
+        errors.append("lesson-label.py (MANAGED, MARKED) disagrees with apply-template.py on: " + ", ".join(wrong))
+    skills = sorted(os.listdir(os.path.join(CORE, ".claude", "skills")))
+    if sorted(labels.SKILLS) != skills:
+        errors.append(f"lesson-label.py SKILLS {sorted(labels.SKILLS)} is not the template's skills {skills}")
+
+
 def load_release():
     """tools/release.py as a module."""
     spec = importlib.util.spec_from_file_location("release", os.path.join(ROOT, "tools", "release.py"))
@@ -2034,6 +2066,7 @@ def main():
     check_seed_workflows(errors)
     check_consumers(errors, profiles)
     check_changelog(errors, info)
+    check_lesson_labels(errors)
     smoke_test(profiles, errors)
     check_decision_tool(errors)
     check_area_checks(errors)

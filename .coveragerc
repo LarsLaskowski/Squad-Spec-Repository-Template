@@ -1,5 +1,0 @@
-[run]
-source = tools, core, profiles, multi
-parallel = true
-relative_files = true
-patch = subprocess

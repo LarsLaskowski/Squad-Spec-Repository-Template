@@ -1237,7 +1237,7 @@ def words_per_launch():
     lines = ["INFO words read per launch (the charter and its Read first files; template text, then the seeded "
              "files a target starts with, which its own text replaces):"]
     entries = []
-    for path in sorted(glob.glob(os.path.join(CORE, ".claude", "agents", "squad-*.md"))):
+    for path in sorted(glob.glob(os.path.join(CORE, CLAUDE_DIR, "agents", "squad-*.md"))):
         text = read(path)
         entries.append((os.path.basename(path)[:-3], launch_words(os.path.basename(path), text, read_first(text))))
     for skill, followed in ORCHESTRATOR_SKILLS.items():
@@ -1324,7 +1324,7 @@ def check_lesson_labels(errors):
     wrong += sorted(rel for rel in seeds if labels.kind(rel) == "managed")
     if wrong:
         errors.append("lesson-label.py (MANAGED, MARKED) disagrees with apply-template.py on: " + ", ".join(wrong))
-    skills = sorted(os.listdir(os.path.join(CORE, ".claude", "skills")))
+    skills = sorted(os.listdir(os.path.join(CORE, CLAUDE_DIR, "skills")))
     if sorted(labels.SKILLS) != skills:
         errors.append(f"lesson-label.py SKILLS {sorted(labels.SKILLS)} is not the template's skills {skills}")
 

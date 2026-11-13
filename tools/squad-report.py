@@ -440,8 +440,8 @@ def lesson_labels():
 
 def managed_names():
     """{a name a lesson may use for a managed file: its path and, where it is distinctive, its file name}: the files
-    of core/, multi/ and the profiles' managed/ that lesson-label.py calls managed; file names several folders share (README.md, SKILL.md, plan.md …) count only
-    with their path."""
+    of core/, multi/ and the profiles' managed/ that lesson-label.py calls managed; file names several folders share
+    (README.md, SKILL.md, plan.md …) count only with their path."""
     labels = lesson_labels()
     bases = [os.path.join(ROOT, "core"), os.path.join(ROOT, "multi"),
              *glob.glob(os.path.join(ROOT, "profiles", "*", "managed"))]

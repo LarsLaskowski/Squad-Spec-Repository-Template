@@ -24,9 +24,9 @@ and cache-read tokens were 15-20 % lower.
 A subagent's transcript holds one **round** per launch of its agent: the first launch and each continuation
 (`SendMessage`), a round starting with a message to the agent once the agent has answered (not a message that
 answers a tool call of the agent, such as the harness's reply to a `SubagentHandback` call: `Rounds`).
-`squad-log.py` reads the latest round: its tokens per kind, its tool uses, its duration from the first to the last record, the model and
-effort its responses ran on, and the agent's context at the end of the round (the four kinds of its last response),
-which is the figure a task notification reports as the agent's tokens.
+`squad-log.py` reads the latest round: its tokens per kind, its tool uses, its duration from the first to the last
+record, the model and effort its responses ran on, and the agent's context at the end of the round (the four kinds
+of its last response), which is the figure a task notification reports as the agent's tokens.
 
 Only these numbers, model ids and agent types are printed; no text of the transcripts, no path, account or other
 personal data. The format of these files is Claude Code's internal one and may change with an update: a record

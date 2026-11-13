@@ -802,6 +802,15 @@ def group_owners(run, group):
     return found
 
 
+def trivial_tests_first(run, group, tag, rows):
+    """Tier trivial: tests first when tasks.md puts the group's Tester rows before the Dev's (Vandox#440)."""
+    if run.base_tier != "trivial" or not tester_first(run, group) or tests_first_ended(run, group):
+        return None
+    return heading(f"step 5 — Tests first{tag} (tier trivial: tasks.md puts the Tester first)") + launch(
+        run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "
+        f"{BASE_HANDOVER}")
+
+
 def tester_first(run, group):
     """True when the first task row of `group` that names the Dev or the Tester names the Tester (and not the Dev)."""
     check = plan_check()
@@ -948,11 +957,9 @@ def group_step(run, group, skeleton, docs_only=False):
                                        "  Not due when the group adds no production behaviour (a limit change that "
                                        "was not due, say): " + orchestrator_log(
                                            run, f"5 Tests first skipped{tag}", "skipped — <why>").strip()]
-    if run.base_tier == "trivial" and tester_first(run, group) and not tests_first_ended(run, group):
-        # Vandox#440: a trivial plan whose tasks put the Tester's rows before the Dev's keeps that order.
-        return heading(f"step 5 — Tests first{tag} (tier trivial: tasks.md puts the Tester first)") + launch(
-            run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "
-            f"{BASE_HANDOVER}")
+    trivial = trivial_tests_first(run, group, tag, rows)
+    if trivial:
+        return trivial
     if run.base_tier == "tests":
         if not group_rows(run, TESTER, "6", group):
             return heading(f"step 6 — the Tester writes the plan's tests{tag} (tier tests: no Dev)") + launch(
@@ -1529,7 +1536,8 @@ def finished(run):
 
 
 STAGES = (intake, escalation, waiting, no_change, spec_stage, plan_written, challenge_and_security, code_steps,
-          quick_edits, matrix_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up, finished)
+          quick_edits, matrix_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up,
+          finished)
 
 
 def run_header(run):

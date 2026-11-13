@@ -78,7 +78,8 @@ def located(result, project, root):
     locations = result.get("locations") or []
     physical = locations[0].get("physicalLocation", {}) if locations else {}
     uri = physical.get("artifactLocation", {}).get("uri", "")
-    path = to_repo_path(uri, root) if uri else (project + "/" if project else "./")
+    folder = f"{project}/" if project else "./"
+    path = to_repo_path(uri, root) if uri else folder
     line = physical.get("region", {}).get("startLine", 0)
     return path, line, result.get("ruleId", "?"), result.get("level", "warning"), \
         result.get("message", {}).get("text", "")

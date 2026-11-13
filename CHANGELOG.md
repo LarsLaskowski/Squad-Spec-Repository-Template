@@ -8,6 +8,30 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 - [Skill] `adopt-template` asks for the *Fork scope* repository settings only in the pull request that adds
   `fork-scope.yml`, not on every refresh
+- [Core] New `lesson-label.py` names a squad lesson's label from the files its fix changes (`squad-upstream` for a
+  managed file, `squad` for the repository's own), split into two issues when both; `squad-upstream` is the default
+  for a lesson about the squad's rules, agents, skills or tools; `squad-report.py --upstream` also lists the open
+  `squad` issues that name a managed file (#388)
+- [Core] `squad-next.py` reads a non-blocking count in the verdict clause only, so "no blocking or non-blocking
+  findings" after `APPROVE` is prose (#385)
+- [Core] `session-usage.py` counts the harness's reply to a `SubagentHandback` call as part of the same round, so one
+  launch is no longer logged as continued; `squad-log.py --round N` logs a round written late (#386, #390)
+- [Core] One Lead revision logged as the plan-check revise answers a challenge and a CHANGES_REQUIRED that came back
+  with it; its hand-over names them (#387)
+- [Core] `squad-next.py` names the fresh Lead `decide` launch of step 6; a member's report is one final reply (#383)
+- [Core] A Reviewer verdict on a later head that adds only documentation to the stamped code counts; a criterion
+  verified `manual:` runs as `7 Manual test` before the review set (#382)
+- [Core] Tier `trivial` keeps a task group's order when `tasks.md` puts the Tester first; a reason for the spec's
+  length in the Lead's result settles the size warning; `squad-log.py --stdin` keeps a new row off the last line of
+  a table pasted without its line break (#390)
+- [Core] The Lead's result of tiers `docs` and `patch` is written verbatim to `result.md` with `squad-notes.py
+  <folder> result`, and the Reviewer and Security read the diff against it (#389)
+- [Core] The Tester keeps test code, table tests included, under the analyzer's cognitive-complexity limit (#384)
+- [Profile] dotnet: the *Analyzer gate* reports a diagnostic without a location (MSTEST0001) for its project when a
+  file of it changed; the shared baseline sets MSTEST0001 to `error` (a test project without `[assembly: Parallelize]`
+  or `DoNotParallelize` goes to `DOTNET_RULES_PENDING` until it states one) (#379)
+- [Seed] dotnet `UNIT_TESTS.md` names the branch conditions the *Coverage gate* prints; go `stack.md` says `gocognit`
+  covers `_test.go` files too (#380, #384)
 
 ## v2026.11.9 — 2026-11-12
 

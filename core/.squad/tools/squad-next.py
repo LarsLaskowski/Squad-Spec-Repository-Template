@@ -1182,6 +1182,24 @@ def early_pr(run):
         orchestrator_log(run, "7 Early draft PR", "<PR url>")]
 
 
+def manual_check(run):
+    """Before the review set: a criterion the plan verifies by a manual test (`manual:`, a Product Manager's dry run)
+    runs on the stamped head first, so a document the run corrects is reviewed once (Censio#176, Vandox#440)."""
+    if run.after_pr or run.plan is None or run.base_tier in ("docs", "patch") or not stamp_ok(run):
+        return None
+    if run.of(MANAGER, {"7", "8", "9"}) or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
+        return None
+    planned = plan_check().planned_verifications(plan_check().sections(run.plan))
+    manual = sorted((criterion for criterion, row in planned.items() if row[0] == "manual"),
+                    key=plan_check().criterion_number)
+    if not manual:
+        return None
+    return heading(f"step 7 — the manual test of {', '.join(manual)} before the review") + [
+        DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
+        "says, and wait; a document the run corrects is committed and stamped again before step 8",
+        f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<the result per criterion>\""]
+
+
 def review_set(run):
     """The launches of a review round by tier (*Tiers*): (agent, mode)."""
     if run.tier == "patch/security":
@@ -1292,10 +1310,15 @@ def unmatched_review(run, stamp_index, rows):
 
 def names_stamped_code(run, sha, stamp):
     """True when the SHA a Reviewer names is the stamp's, or a commit with the same code (one that touched only
-    `specs/` after it)."""
+    `specs/` after it), or a later commit that adds only documentation to the stamped code: the Reviewer read the
+    stamped code and the documentation edit with it (Censio#176)."""
     if stamp.startswith(sha.lower()):
         return True
-    return stamp_tool().git(run.root, "diff", "--quiet", stamp, sha, *stamp_tool().OUTSIDE_SPECS)[0] == 0
+    tool = stamp_tool()
+    if tool.git(run.root, "diff", "--quiet", stamp, sha, *tool.OUTSIDE_SPECS)[0] == 0:
+        return True
+    later = tool.git(run.root, "merge-base", "--is-ancestor", stamp, sha)[0] == 0
+    return later and tool.documentation_only(run.root, stamp, sha)
 
 
 def work_record(run):
@@ -1483,7 +1506,7 @@ def finished(run):
 
 
 STAGES = (intake, escalation, waiting, no_change, spec_stage, plan_written, challenge_and_security, code_steps,
-          quick_edits, matrix_check, code_check, early_pr, review, approval, pull_request, after_pr, wrap_up, finished)
+          quick_edits, matrix_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up, finished)
 
 
 def run_header(run):

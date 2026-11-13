@@ -641,6 +641,24 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("a stale round", self.next(), "the code of the stamp before")
         self.repo.log(self.reviewed("8 Review delta", "VERDICT: APPROVE", 9000, continued=True))
         self.assertIn("Next: step 9 — PR approval", self.next(), "a commit that touched only specs/ after the stamp")
+        stamped = self.repo.git("rev-parse", "HEAD~1")
+        self.repo.write("docs/USER_GUIDE.md", "# Guide\n\nRun it.\n")
+        self.repo.commit("documentation of the dry run")
+        docs_head = self.repo.git("rev-parse", "HEAD")
+        tool = self.tool
+        run = tool.Run(self.repo.root, self.folder, [], False)
+        self.assertTrue(tool.names_stamped_code(run, docs_head, stamped), "Censio#176: a later head adding docs only")
+        self.assertFalse(tool.names_stamped_code(run, stamped, docs_head), "an earlier head did not read the docs edit")
+
+    def test_a_manual_test_of_the_plan_runs_before_the_review(self):
+        # Censio#176, Vandox#440: the dry run came after the review approved the head and cost a delta round.
+        self.implemented(test="manual: the Product Manager runs the guide on the server")
+        self.stamp()
+        out = self.next()
+        self.assertIn("Next: step 7 — the manual test of AC1 before the review", out)
+        self.assertIn('"7 Manual test" "Product Manager"', out)
+        self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
+        self.assertIn("Next: step 8", self.next())
 
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()

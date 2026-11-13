@@ -149,7 +149,8 @@ command the project's documentation gives, or the CI-built artifact, for which t
 PR* (without one, no CI build of the change exists before step 10). When the plan asks the Product Manager to build
 the artifact (an image for the target host, say), the spec or plan first asks whether they can build it there, and
 the plan names the fallback: who builds it otherwise and how it reaches the target (`orchestration.md`, *An artifact
-the Product Manager cannot build*).
+the Product Manager cannot build*). The manual test runs on the stamped head before the review set of step 8 (`squad-next.py` names it, logged as
+`7 Manual test`), so a document it corrects is reviewed once.
 
 ### Operator environments and documented procedures
 

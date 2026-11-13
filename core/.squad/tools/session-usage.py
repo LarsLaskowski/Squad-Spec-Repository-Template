@@ -70,6 +70,10 @@ PRICES = {
 # The weighted figure is expressed in tokens of Sonnet input.
 REFERENCE_PRICE = PRICES["sonnet"][0]
 FAMILY = re.compile(r"(?<![a-z])(" + "|".join(PRICES) + r")(?![a-z])")
+# The tool call a subagent of a cloud session hands its report back with.
+HANDBACK = "SubagentHandback"
+# The harness answers a handback call at once; a SendMessage continuation comes after a turn of the orchestrator.
+HANDBACK_REPLY_SECONDS = 15
 NOT_PROVIDED = "not provided (no Claude Code session transcript found)"
 # From this share of the weighted figure on, the summary names the orchestrating session's model (in percent).
 ORCHESTRATOR_NOTE = 50
@@ -243,11 +247,13 @@ def is_message_to_agent(record):
 
 class Rounds:
     """Where the rounds of a subagent's transcript start: at a message to the agent once it has answered, unless that
-    message answers a tool call of the agent that got no tool result (the harness's reply to a `SubagentHandback`
-    call comes as a plain message; PiMonitor#211). Such a message ends the wait and starts no round."""
+    message answers the `SubagentHandback` call of the agent's latest tool use (the harness replies to it with a plain
+    message within seconds; PiMonitor#211). Such a message ends the wait and starts no round; a later message, or
+    one that comes after the orchestrator's turn, starts the next one."""
 
     def __init__(self):
         self.pending = set()
+        self.called = None
 
     def starts(self, record, answered):
         """True when `record` starts a new round; `answered` tells whether the current round has a response."""
@@ -255,13 +261,25 @@ class Rounds:
         content = message.get("content") if isinstance(message, dict) else None
         blocks = [block for block in content if isinstance(block, dict)] if isinstance(content, list) else []
         if record.get("type") == "assistant":
-            self.pending |= {block.get("id") for block in blocks if block.get("type") == "tool_use"}
+            calls = [block for block in blocks if block.get("type") == "tool_use"]
+            if calls:
+                # Only a handback call of the agent's latest tool use waits for the harness's plain reply.
+                self.pending = {block.get("id") for block in calls if block.get("name") == HANDBACK}
+                self.called = timestamp(record)
             return False
         self.pending -= {block.get("tool_use_id") for block in blocks if block.get("type") == "tool_result"}
         if not is_message_to_agent(record):
             return False
-        waiting, self.pending = bool(self.pending), set()
+        waiting, self.pending = bool(self.pending) and self.replied_at_once(record), set()
         return answered and not waiting
+
+    def replied_at_once(self, record):
+        """True when the message came within `HANDBACK_REPLY_SECONDS` of the handback call (or either has no time):
+        the harness's reply; a continuation needs a turn of the orchestrator first."""
+        stamp = timestamp(record)
+        if stamp is None or self.called is None:
+            return True
+        return (stamp - self.called).total_seconds() <= HANDBACK_REPLY_SECONDS
 
 
 def new_round():

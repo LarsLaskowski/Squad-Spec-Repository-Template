@@ -47,7 +47,7 @@ profile):
 
 - **Managed** — overwritten on every refresh: `CLAUDE.md`, `.squad/team.md`, `.squad/routing.md`,
   `.squad/orchestration.md`,
-  `.squad/tools/` except `squad_settings.py`, `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's
+  `.squad/tools/` except `squad_settings.py`, a profile's shared rule files (`.squad/*-rules.*`), `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's
   skills, `.github/ISSUE_TEMPLATE/feature_request.md`, the `_template.md` files of `docs/decisions/` and
   `docs/areas/`, `docs/decisions/process.md` (the squad's process decisions), `specs/README.md` and
   `specs/_template/`.

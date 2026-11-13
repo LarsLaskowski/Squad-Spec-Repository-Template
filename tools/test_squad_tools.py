@@ -942,6 +942,14 @@ def answer(message_id, stamp, tokens, model="claude-opus-5-5", effort="medium", 
             "message": {"id": message_id, "model": model, "usage": tokens, "content": content}}
 
 
+def handback(message_id, stamp):
+    """An agent's message that hands its report back with the SubagentHandback tool call of a cloud session."""
+    record = answer(message_id, stamp, usage(1, 100, 10_000, 0))
+    record["message"]["content"] = [{"type": "tool_use", "id": f"call-{message_id}", "name": "SubagentHandback",
+                                     "input": {"message": "the report"}}]
+    return record
+
+
 def prompt(stamp, text="do it"):
     return {"type": "user", "timestamp": stamp, "message": {"role": "user", "content": text}}
 
@@ -1023,12 +1031,25 @@ class TestSquadLogTranscripts(unittest.TestCase):
         # message after it belongs to the same round, a later SendMessage starts the next one.
         self.agent("a4", "squad-lead", [
             prompt("2026-01-02T10:40:00Z"),
-            answer("h1", "2026-01-02T10:41:00Z", usage(1, 100, 10_000, 0), tools=["handback1"]),
+            handback("h1", "2026-01-02T10:41:00Z"),
             prompt("2026-01-02T10:41:01Z", "Report delivered."),
             answer("h2", "2026-01-02T10:41:05Z", usage(1, 10, 11_000, 0)),
         ])
         handed = os.path.join(self.session, "subagents", "agent-a4.jsonl")
         self.assertEqual(len(reader.agent_rounds(handed)), 1, "the reply to the handback starts no round")
+        # A handback the harness did not answer, then a continuation after the orchestrator's turn: two rounds.
+        self.agent("a5", "squad-lead", [prompt("2026-01-02T11:00:00Z"), handback("h4", "2026-01-02T11:01:00Z"),
+                                        prompt("2026-01-02T11:03:00Z", "a decide question"),
+                                        answer("h5", "2026-01-02T11:03:30Z", usage(1, 10, 12_000, 0))])
+        unanswered = os.path.join(self.session, "subagents", "agent-a5.jsonl")
+        self.assertEqual(len(reader.agent_rounds(unanswered)), 2, "a continuation is no reply to the handback")
+        # A tool call other than the handback that got no result does not swallow a continuation.
+        self.agent("a6", "squad-lead", [prompt("2026-01-02T12:00:00Z"),
+                                        answer("r1", "2026-01-02T12:01:00Z", usage(1, 10, 9_000, 0), tools=["t1"]),
+                                        prompt("2026-01-02T12:01:02Z", "go on"),
+                                        answer("r2", "2026-01-02T12:01:30Z", usage(1, 10, 9_500, 0))])
+        other = os.path.join(self.session, "subagents", "agent-a6.jsonl")
+        self.assertEqual(len(reader.agent_rounds(other)), 2, "only a handback waits for a plain reply")
         with open(handed, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(prompt("2026-01-02T10:50:00Z", "a decide question")) + "\n")
             handle.write(json.dumps(answer("h3", "2026-01-02T10:50:30Z", usage(1, 10, 12_000, 0))) + "\n")

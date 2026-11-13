@@ -174,6 +174,13 @@ class TestPlanSteps(NextTest):
         self.repo.log(row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
         self.assertNotIn("Lead revision", self.next(), "no second revision for the challenge")
 
+    def test_a_plan_check_revise_after_clean_verdicts_needs_no_security_confirmation(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication"))
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
+                      row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertIn("Next: step 4 — Skeleton", self.next(), "the revise answered findings only")
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -378,7 +385,8 @@ class TestCodeSteps(NextTest):
         self.folder = self.repo.folder = "feature-7-export"
         self.repo.write("specs/feature-7-export/spec.md", SPEC.replace("Users cannot export.", "word " * 900))
         self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
-                      row("2a Spec", "Lead", "RESULT: DONE", 50000))
+                      row("2a Spec", "Lead", "RESULT: DONE — spec of the upload size limit", 50000))
+        self.assertIn("2a Spec revise (size)", self.next(), "the first spec row was written before the warning")
         self.assertIn("2a Spec revise (size)", self.next())
         self.repo.log(row("2a Spec", "Lead", "RESULT: DONE — kept the length: the procedure needs every step", 9000,
                           continued=True))
@@ -691,6 +699,8 @@ class TestReviewAndAfter(NextTest):
         out = self.next()
         self.assertIn("Next: step 7 — the manual test of AC1 before the review", out)
         self.assertIn('"7 Manual test" "Product Manager"', out)
+        self.repo.log(row("7 Answer", "Product Manager", "an answer to an escalation"))
+        self.assertIn("the manual test of AC1", self.next(), "another Product Manager row ends nothing")
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
@@ -947,6 +957,8 @@ class TestReviewFollowUps(NextTest):
                       f"VERDICT: APPROVE on {sha}, then the findings: none blocking, none non-blocking",
                       f"VERDICT: BLOCKING 1 on {sha} — the non-blocking remarks are in the report"):
             self.assertIsNone(tool.verdict_problem("squad-reviewer", prose), prose)
+        self.assertIn("NON-BLOCKING <m>", tool.verdict_problem("squad-reviewer", f"VERDICT: APPROVE (NON-BLOCKING 1) on {sha}"),
+                      "a count inside the clause is no clean approval")
         self.assertIn("NON-BLOCKING <m>", tool.verdict_problem("squad-reviewer", f"VERDICT: BLOCKING 1 (a (b (c))) "
                                                                                  f"\\| NON-BLOCKING 2 on {sha}"))
         self.assertIn("on <sha>", tool.verdict_problem("squad-reviewer", "approve"))

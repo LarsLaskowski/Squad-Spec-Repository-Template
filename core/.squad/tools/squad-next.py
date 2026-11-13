@@ -432,11 +432,10 @@ def verdict_problem(agent, result):
 def partial_review(found, result):
     """True when a Reviewer's verdict line holds a non-blocking count or a code SHA the match left out: a note the
     pattern cannot read cut it short. A non-blocking count is looked for in the verdict clause only (up to ` on
-    <sha>`) and never after `APPROVE`: "no blocking or non-blocking findings" is prose (PiMonitor#215, Censio#185)."""
+    <sha>`): "no blocking or non-blocking findings" after it is prose (PiMonitor#215, Censio#185)."""
     line = result[found.start():].split("\n", 1)[0]
     clause = VERDICT_SHA.split(line, 1)[0].upper()
-    lost_count = found.group("approve") is None and "NON-BLOCKING" in clause and found.group("nonblocking") is None \
-        and found.group("only") is None
+    lost_count = "NON-BLOCKING" in clause and found.group("nonblocking") is None and found.group("only") is None
     lost_sha = VERDICT_SHA.search(line) is not None and found.group("sha") is None
     return lost_count or lost_sha
 
@@ -559,7 +558,8 @@ def spec_check(run, challenge):
         return None
     errors, warnings = plan_check().check_spec_only(run.folder)
     # Vandox#440: a reason for the length in the Lead's last result settles the warning without another launch.
-    sized = run.of(LEAD, {"2a"}, word="size") or [row for row in run.of(LEAD, {"2a"})[-1:]
+    # The first spec row was written before the warning was shown: only a later row's reason counts.
+    sized = run.of(LEAD, {"2a"}, word="size") or [row for row in run.of(LEAD, {"2a"})[1:][-1:]
                                                   if SIZE_REASON.search(row.result)]
     if not errors and (not warnings or sized):
         return None
@@ -671,10 +671,17 @@ def plan_findings(run):
     return lines + launch(run, LEAD, "revise", f"{run.plan_step} Plan revise (plan-check)", f"{scope} (no challenge round)")
 
 
-def open_plan_verdicts(run):
-    """The plan challenge's major objections and Security's CHANGES_REQUIRED that no Lead revision answered yet."""
+def answers_verdicts(run, revise):
+    """True when a plan-check revise came after a major objection or a CHANGES_REQUIRED: its hand-over named them, so
+    it answers them too (DockerUpdateGuard#439); otherwise it answers the findings alone."""
+    return any(row.index < revise.index for row in open_plan_verdicts(run, before=revise.index))
+
+
+def open_plan_verdicts(run, before=None):
+    """The plan challenge's major objections and Security's CHANGES_REQUIRED that no Lead revision (before the row
+    index `before`, when given) answered yet."""
     revised = max([row.index for row in run.of(LEAD, {run.plan_step, "2", "3"})
-                   if re.search(r"revise|decide", row.step, re.I)] + [-1])
+                   if re.search(r"revise|decide", row.step, re.I) and (before is None or row.index < before)] + [-1])
     challenge = [row for row in run.of(ADVOCATE, {run.plan_step, "2"}) if row.index > revised
                  and (objections(row) or (0, 0))[0]]
     rejected = [row for row in run.of(SECURITY, {"3"}) if row.index > revised
@@ -718,7 +725,8 @@ def revision(run, challenge, reviews, security_due):
             "  a major objection or CHANGES_REQUIRED: the Lead (mode revise) with all of them; minor objections only: "
             "append them verbatim as *Challenge notes*; APPROVED with notes: append them as *Security notes* (both with "
             f"{NOTES_TOOL})"]
-    revisions = [row for row in run.of(LEAD, {run.plan_step, "2", "3"}) if re.search(r"revise|decide", row.step, re.I)]
+    revisions = [row for row in run.of(LEAD, {run.plan_step, "2", "3"}) if re.search(r"revise|decide", row.step, re.I)
+                 and (not re.search("plan-check", row.step, re.I) or answers_verdicts(run, row))]
     answered = [row for row in revisions if reviews and row.index > reviews[-1].index]
     rejected = bool(security) and security[-1] == "CHANGES_REQUIRED" and not answered
     major_open = bool(verdict[0]) and not [row for row in revisions if row.index > challenge[-1].index]
@@ -1217,7 +1225,7 @@ def manual_check(run):
     runs on the stamped head first, so a document the run corrects is reviewed once (Censio#176, Vandox#440)."""
     if run.after_pr or run.plan is None or run.base_tier in ("docs", "patch") or not stamp_ok(run):
         return None
-    if run.of(MANAGER, {"7", "8", "9"}) or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
+    if run.of(MANAGER, {"7", "8", "9"}, word="manual") or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
         return None
     planned = plan_check().planned_verifications(plan_check().sections(run.plan))
     manual = sorted((criterion for criterion, row in planned.items() if row[0] == "manual"),

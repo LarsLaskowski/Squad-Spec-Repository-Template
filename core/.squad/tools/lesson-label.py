@@ -6,8 +6,8 @@ the template repository (`squad-upstream`); a lesson whose fix changes only this
 (`squad`). The script decides it from the paths, so the label is never a judgement call:
 
 - **managed** (`MANAGED`, `.squad/orchestration.md`, *Template-managed files*): `CLAUDE.md`, `.squad/team.md`,
-  `.squad/routing.md`, `.squad/orchestration.md`, `.squad/tools/` except `squad_settings.py`, the shared .NET rule
-  files `.squad/dotnet-rules.*`, `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's skills, the feature
+  `.squad/routing.md`, `.squad/orchestration.md`, `.squad/tools/` except `squad_settings.py`, a profile's shared
+  rule files (`.squad/*-rules.*`), `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's skills, the feature
   request template, the `_template.md` files of `docs/decisions/` and `docs/areas/`, `docs/decisions/process.md`,
   `specs/README.md` and `specs/_template/` — `squad-upstream`;
 - **marked** (`MARKED`): `AGENTS.md` (and `.github/copilot-instructions.md`, generated from it), `docs/CONTRIBUTING.md`,
@@ -39,7 +39,7 @@ SKILLS = ("create-pr", "decision-consolidate", "review-pr", "squad-issue", "squa
 # Template-managed files, overwritten by every refresh (glob patterns; `*` stays within one folder).
 MANAGED = (
     "CLAUDE.md", ".squad/team.md", ".squad/routing.md", ".squad/orchestration.md", ".squad/tools/*",
-    ".squad/dotnet-rules.*", ".claude/agents/squad-*.md", ".claude/hooks/*",
+    ".squad/*-rules.*", ".claude/agents/squad-*.md", ".claude/hooks/*",
     *(f".claude/skills/{skill}/*" for skill in SKILLS),
     ".github/ISSUE_TEMPLATE/feature_request.md", "docs/decisions/_template.md", "docs/areas/_template.md",
     "docs/decisions/process.md", "specs/README.md", "specs/_template/*",

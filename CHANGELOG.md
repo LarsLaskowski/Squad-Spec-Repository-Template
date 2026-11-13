@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.10 — 2026-11-13
+
 - [Skill] `adopt-template` asks for the *Fork scope* repository settings only in the pull request that adds
   `fork-scope.yml`, not on every refresh
 - [Core] New `lesson-label.py` names a squad lesson's label from the files its fix changes (`squad-upstream` for a
@@ -32,6 +34,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   or `DoNotParallelize` goes to `DOTNET_RULES_PENDING` until it states one) (#379)
 - [Seed] dotnet `UNIT_TESTS.md` names the branch conditions the *Coverage gate* prints; go `stack.md` says `gocognit`
   covers `_test.go` files too (#380, #384)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/docs/UNIT_TESTS.md`, `profiles/go/seed/.squad/stack.md`
 
 ## v2026.11.9 — 2026-11-12
 

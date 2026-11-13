@@ -2030,7 +2030,23 @@ def check_sonar_sources(errors):
                           "sonar-project.properties (the scanner skips hidden directories below a source directory)")
 
 
-def check_complexity(errors):
+CI_WORKFLOW = os.path.join(ROOT, ".github", "workflows", "python-ci.yml")
+COMPLEXIPY_PIN = re.compile(r"\bcomplexipy==([\w.]+)")
+
+
+def version_note(warnings):
+    """A warning when the installed complexipy is not the version CI pins: versions count differently (8.0.1 counted
+    a comprehension's `if` and a conditional expression with nesting, 9.0.0 counts as SonarQube does)."""
+    with open(CI_WORKFLOW, encoding="utf-8") as handle:
+        pinned = COMPLEXIPY_PIN.search(handle.read())
+    done = subprocess.run(["complexipy", "--version"], capture_output=True, text=True, check=False)
+    installed = done.stdout.split()[-1] if done.stdout.split() else "unknown"
+    if pinned and installed != pinned.group(1):
+        warnings.append(f"WARNING complexipy {installed} is installed, CI pins {pinned.group(1)} "
+                        f"(pip install complexipy=={pinned.group(1)}): the cognitive-complexity counts can differ")
+
+
+def check_complexity(errors, warnings):
     """The Python tools (a target's and the template's own) stay below SonarQube Cloud's cognitive-complexity limit
     (python:S3776, 15): every refresh puts them under the target's code analysis, so a finding there would cost a template PR
     and a refresh of every target. complexipy measures the same cognitive complexity; CI installs it."""
@@ -2038,6 +2054,7 @@ def check_complexity(errors):
         print("NOTE: complexipy is not installed (pip install complexipy); cognitive complexity not checked here, "
               "CI checks it")
         return
+    version_note(warnings)
     paths = checked_python_files()
     with tempfile.TemporaryDirectory() as cache:
         result = subprocess.run(["complexipy", *paths, "--max-complexity-allowed", str(COGNITIVE_LIMIT), "--failed",
@@ -2074,7 +2091,7 @@ def main():
     check_sonar_seed(profiles, errors)
     check_sonar_rules(errors)
     check_sonar_sources(errors)
-    check_complexity(errors)
+    check_complexity(errors, warnings)
     for line in info + warnings + errors:
         print(line)
     print(f"\nChecked core and {len(profiles)} profiles ({', '.join(profiles)}): {'PASS' if not errors else 'FAIL'}")

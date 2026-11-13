@@ -54,7 +54,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: "pip install --only-binary :all: pyyaml==6.0.3 complexipy==8.0.1"
+      - run: "pip install --only-binary :all: pyyaml==6.0.3 complexipy==9.0.0"
       - run: python -m unittest discover tools
       - run: python tools/template-check.py
 

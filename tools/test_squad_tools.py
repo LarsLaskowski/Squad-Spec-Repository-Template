@@ -1013,6 +1013,20 @@ class TestSquadLogTranscripts(unittest.TestCase):
         self.assertEqual((first["end"] - first["start"]).total_seconds(), 100)
         two = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a2.jsonl"))
         self.assertEqual([(r["tool_uses"], r["context"]) for r in two], [(0, 70_301), (1, 63_201)])
+        # PiMonitor#211: the harness answers a SubagentHandback call with a plain message; the agent's final
+        # message after it belongs to the same round, a later SendMessage starts the next one.
+        self.agent("a4", "squad-lead", [
+            prompt("2026-01-02T10:40:00Z"),
+            answer("h1", "2026-01-02T10:41:00Z", usage(1, 100, 10_000, 0), tools=["handback1"]),
+            prompt("2026-01-02T10:41:01Z", "Report delivered."),
+            answer("h2", "2026-01-02T10:41:05Z", usage(1, 10, 11_000, 0)),
+        ])
+        handed = os.path.join(self.session, "subagents", "agent-a4.jsonl")
+        self.assertEqual(len(reader.agent_rounds(handed)), 1, "the reply to the handback starts no round")
+        with open(handed, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(prompt("2026-01-02T10:50:00Z", "a decide question")) + "\n")
+            handle.write(json.dumps(answer("h3", "2026-01-02T10:50:30Z", usage(1, 10, 12_000, 0))) + "\n")
+        self.assertEqual(len(reader.agent_rounds(handed)), 2, "a continuation after the final reply is a new round")
 
     def test_weighted_counts_every_kind_at_its_price(self):
         reader = load_script("session-usage")
@@ -1050,6 +1064,17 @@ class TestSquadLogTranscripts(unittest.TestCase):
                       "a context below the earlier total is the round's own")
         self.assertEqual(self.run_log("2 Plan", "Lead", "x", "--agent-id", "a1", "--continued").returncode, 2,
                          "one round is a fresh launch")
+
+    def test_a_round_logged_late_is_named_by_its_number(self):
+        # Vandox#440: the Lead's ESCALATE round was continued before its row was written.
+        done = self.run_log("2a Spec", "Reviewer", "RESULT: ESCALATE", "--agent-id", "a2", "--round", "1")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("(opus/medium · 70,301 tokens · 0 tool uses · 60 s", self.text(), "the first round's figures")
+        done = self.run_log("2a Spec revise", "Reviewer", "RESULT: DONE", "--agent-id", "a2", "--round", "2",
+                            "--continued")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.run_log("2a", "Reviewer", "x", "--agent-id", "a2", "--round", "3").returncode, 2)
+        self.assertEqual(self.run_log("2a", "Reviewer", "x", "--agent", "squad-reviewer", "--round", "1").returncode, 2)
 
     def test_a_launch_on_another_model_is_logged_as_run_with_a_warning(self):
         write(os.path.join(self.root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: `security`\n")

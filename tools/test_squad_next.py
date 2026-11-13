@@ -866,6 +866,14 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("`VERDICT: BLOCKING <n> | NON-BLOCKING <m> on <sha>`", out)
         tool = self.tool
         self.assertIsNone(tool.verdict_problem("squad-reviewer", "VERDICT: APPROVE on abc1234"))
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        # PiMonitor#215, Censio#185: the word in prose after the verdict is no lost count.
+        for prose in (f"VERDICT: APPROVE on {sha} — no blocking or non-blocking findings",
+                      f"VERDICT: APPROVE on {sha}, then the findings: none blocking, none non-blocking",
+                      f"VERDICT: BLOCKING 1 on {sha} — the non-blocking remarks are in the report"):
+            self.assertIsNone(tool.verdict_problem("squad-reviewer", prose), prose)
+        self.assertIn("NON-BLOCKING <m>", tool.verdict_problem("squad-reviewer", f"VERDICT: BLOCKING 1 (a (b (c))) "
+                                                                                 f"\\| NON-BLOCKING 2 on {sha}"))
         self.assertIn("on <sha>", tool.verdict_problem("squad-reviewer", "approve"))
         self.assertIn("OBJECTIONS <n> major", tool.verdict_problem("squad-devils-advocate", "two objections"))
         self.assertIsNone(tool.verdict_problem("squad-dev", "fixed"))

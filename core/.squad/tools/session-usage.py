@@ -22,8 +22,9 @@ the tables are a lower bound: against `/usage`, output and cache-write tokens ma
 and cache-read tokens were 15-20 % lower.
 
 A subagent's transcript holds one **round** per launch of its agent: the first launch and each continuation
-(`SendMessage`), a round starting with a message to the agent once the agent has answered. `squad-log.py` reads the
-latest round: its tokens per kind, its tool uses, its duration from the first to the last record, the model and
+(`SendMessage`), a round starting with a message to the agent once the agent has answered (not a message that
+answers a tool call of the agent, such as the harness's reply to a `SubagentHandback` call: `Rounds`).
+`squad-log.py` reads the latest round: its tokens per kind, its tool uses, its duration from the first to the last record, the model and
 effort its responses ran on, and the agent's context at the end of the round (the four kinds of its last response),
 which is the figure a task notification reports as the agent's tokens.
 
@@ -240,6 +241,29 @@ def is_message_to_agent(record):
                                                  for block in content)
 
 
+class Rounds:
+    """Where the rounds of a subagent's transcript start: at a message to the agent once it has answered, unless that
+    message answers a tool call of the agent that got no tool result (the harness's reply to a `SubagentHandback`
+    call comes as a plain message; PiMonitor#211). Such a message ends the wait and starts no round."""
+
+    def __init__(self):
+        self.pending = set()
+
+    def starts(self, record, answered):
+        """True when `record` starts a new round; `answered` tells whether the current round has a response."""
+        message = record.get("message")
+        content = message.get("content") if isinstance(message, dict) else None
+        blocks = [block for block in content if isinstance(block, dict)] if isinstance(content, list) else []
+        if record.get("type") == "assistant":
+            self.pending |= {block.get("id") for block in blocks if block.get("type") == "tool_use"}
+            return False
+        self.pending -= {block.get("tool_use_id") for block in blocks if block.get("type") == "tool_result"}
+        if not is_message_to_agent(record):
+            return False
+        waiting, self.pending = bool(self.pending), set()
+        return answered and not waiting
+
+
 def new_round():
     return {"usage": collections.Counter(), "models": collections.Counter(), "effort": None, "tool_uses": 0,
             "start": None, "end": None, "context": 0, "responses": 0}
@@ -269,10 +293,10 @@ def agent_rounds(path):
     (a counter of the token kinds), "models" (responses per model), "effort", "tool_uses", "start" and "end"
     (datetimes), "context" (the four kinds of its last response) and "responses"; rounds without a response are
     left out."""
-    rounds, seen, tools = [], set(), set()
+    rounds, seen, tools, splitter = [], set(), set(), Rounds()
     current = None
     for record in records(path):
-        if current is None or (is_message_to_agent(record) and current["responses"]):
+        if splitter.starts(record, current is not None and current["responses"] > 0) or current is None:
             current = new_round()
             rounds.append(current)
         stamp = timestamp(record)

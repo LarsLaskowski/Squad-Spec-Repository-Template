@@ -78,9 +78,9 @@ def handback(message):
 def latest_round(path):
     """The assistant messages of the agent's latest round, oldest first (one record per content block)."""
     reader = transcripts()
-    messages = []
+    messages, splitter = [], reader.Rounds()
     for record in reader.records(path):
-        if reader.is_message_to_agent(record):
+        if splitter.starts(record, bool(messages)):
             messages = []
         elif record.get("type") == "assistant" and isinstance(record.get("message"), dict):
             messages.append(record["message"])

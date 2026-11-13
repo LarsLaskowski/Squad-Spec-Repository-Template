@@ -125,6 +125,8 @@ NOTE = r"(?:\s*\((?:[^()]|\([^()]*\))*\))?"
 REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)" + NOTE + r"|BLOCKING\s+(?P<blocking>\d+)" + NOTE +
                     r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+)" + NOTE + r")?|NON-BLOCKING\s+(?P<only>\d+)"
                     + NOTE + r")(?:\s+on\s+`?(?P<sha>[0-9a-f]{7,40})\b)?", re.I)
+# The ` on <sha>` that ends a Reviewer's verdict clause.
+VERDICT_SHA = re.compile(r"\bon\s+`?[0-9a-f]{7,40}\b")
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
 OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major" + NOTE +
                         r",\s*(?P<minor>\d+)\s+minor)", re.I)
@@ -427,10 +429,13 @@ def verdict_problem(agent, result):
 
 def partial_review(found, result):
     """True when a Reviewer's verdict line holds a non-blocking count or a code SHA the match left out: a note the
-    pattern cannot read cut it short."""
+    pattern cannot read cut it short. A non-blocking count is looked for in the verdict clause only (up to ` on
+    <sha>`) and never after `APPROVE`: "no blocking or non-blocking findings" is prose (PiMonitor#215, Censio#185)."""
     line = result[found.start():].split("\n", 1)[0]
-    lost_count = "NON-BLOCKING" in line.upper() and found.group("nonblocking") is None and found.group("only") is None
-    lost_sha = re.search(r"\bon\s+`?[0-9a-f]{7,40}\b", line) is not None and found.group("sha") is None
+    clause = VERDICT_SHA.split(line, 1)[0].upper()
+    lost_count = found.group("approve") is None and "NON-BLOCKING" in clause and found.group("nonblocking") is None \
+        and found.group("only") is None
+    lost_sha = VERDICT_SHA.search(line) is not None and found.group("sha") is None
     return lost_count or lost_sha
 
 

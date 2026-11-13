@@ -334,6 +334,12 @@ class TestSquadLog(unittest.TestCase):
         self.assertIn("10,000 tokens", fixed.stdout, "the continuation counts against the linked log's launch")
         self.assertNotIn("1 Intake", fixed.stdout, "the output is the comment's table with its new row only")
         self.assertTrue(fixed.stdout.startswith(comment), fixed.stdout)
+        # Vandox#440: a table copied without its last line break keeps the new row on a line of its own.
+        cut = run("11 Fix", "Dev", "fixed", "--agent", "squad-dev", "--tokens", "5000", "--tool-uses", "3",
+                  "--seconds", "30", text=comment.rstrip("\n"))
+        self.assertEqual(cut.returncode, 0, cut.stderr)
+        self.assertTrue(cut.stdout.startswith(comment), cut.stdout)
+        self.assertTrue(cut.stdout.endswith("|\n"), cut.stdout)
         whole = run("11 Fix", "Dev", "fixed", "--agent", "squad-dev", "--tokens", "5000", "--tool-uses", "3",
                     "--seconds", "30", text=early + comment.splitlines(True)[-1])
         self.assertEqual(whole.returncode, 0, whole.stderr)

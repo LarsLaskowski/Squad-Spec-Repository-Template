@@ -1385,6 +1385,9 @@ def run_on_stdin(parser, args, root):
     removed `log.md` it lacks in front of it; a command that changes it prints the result to standard error and the
     piped log with its change to standard output."""
     piped = sys.stdin.buffer.read()
+    if piped.strip() and not piped.endswith(b"\n"):
+        # A table copied from a comment ends without a line break: the new row would join its last line (Vandox#440).
+        piped += b"\r\n" if b"\r\n" in piped else b"\n"
     prefix = earlier_rows(root, args.folder, piped.decode("utf-8-sig", "replace")).encode()
     with tempfile.TemporaryDirectory() as directory:
         path = os.path.join(directory, "log.md")

@@ -67,8 +67,8 @@ Plan: [plan.md](plan.md)
 """
 
 
-def feature_plan():
-    text = plan_text(signatures="- `def export(library) -> str`\n- `def header() -> str`")
+def feature_plan(tier="standard"):
+    text = plan_text(tier, signatures="- `def export(library) -> str`\n- `def header() -> str`")
     text = text.replace("Source: Issue #5", "Source: [spec.md](spec.md)")
     text = text.replace("- AC1: The check refuses an expired value.", "The criteria are the spec's.")
     return text.replace("| AC1 | test_expired_refused | tests/test_a.py |",
@@ -351,6 +351,40 @@ class TestCodeSteps(NextTest):
                       row("6 Implement", "Dev", "green", 30000, "sonnet/medium"),
                       row("6 Coverage skipped", "Orchestrator", "the gate passes"))
         self.assertNotIn("Next: step 6", self.next())
+
+    def test_a_trivial_feature_whose_tasks_put_the_tester_first_starts_with_tests_first(self):
+        # Vandox#440: squad-next named the Dev's implement while tasks.md put the Tester's rows first.
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC)
+        self.repo.write("specs/feature-7-export/plan.md", feature_plan("trivial"))
+        tasks = TASKS.split("| 1 |")[0] + ("| 1 | G1 | test of export | tests/test_e.py | AC1, AC2 | — | Tester | [ ] |\n"
+                                           "| 2 | G1 | Skeleton of export and header | src/e.py | AC1 | 1 | Dev | [ ] |\n"
+                                           "| 3 | G1 | export and header | src/e.py | AC1, AC2 | 2 | Dev | [ ] |\n")
+        self.repo.write("specs/feature-7-export/tasks.md", tasks)
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000),
+                      row("2a Spec challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("2b Plan", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("2b Challenge skipped", "Orchestrator", "challenge skipped — one option"))
+        out = self.next()
+        self.assertIn("step 5 — Tests first (G1) (tier trivial: tasks.md puts the Tester first)", out)
+        self.repo.log(row("5 Tests first (G1)", "Tester", "red; Deferred: none", 9000, "sonnet/medium"))
+        self.assertIn("step 6 — Implement (G1)", self.next())
+
+    def test_a_reason_for_the_spec_length_in_the_leads_result_settles_the_size_warning(self):
+        # Vandox#440: the Lead kept the length and said why; squad-next asked for another launch to log it.
+        self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
+        self.folder = self.repo.folder = "feature-7-export"
+        self.repo.write("specs/feature-7-export/spec.md", SPEC.replace("Users cannot export.", "word " * 900))
+        self.repo.log(row("1 Intake", "Orchestrator", "feature: label enhancement"),
+                      row("2a Spec", "Lead", "RESULT: DONE", 50000))
+        self.assertIn("2a Spec revise (size)", self.next())
+        self.repo.log(row("2a Spec", "Lead", "RESULT: DONE — kept the length: the procedure needs every step", 9000,
+                          continued=True))
+        out = self.next()
+        self.assertNotIn("2a Spec revise (size)", out)
+        self.assertIn("Spec challenge", out)
 
     def test_an_agent_continued_in_another_mode_is_never_continued_again(self):
         # Censio#140: the Tester's coverage agent was continued for tests first of the next group.

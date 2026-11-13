@@ -125,6 +125,8 @@ NOTE = r"(?:\s*\((?:[^()]|\([^()]*\))*\))?"
 REVIEW = re.compile(r"VERDICT:\s*(?:(?P<approve>APPROVE)\b(?!D)" + NOTE + r"|BLOCKING\s+(?P<blocking>\d+)" + NOTE +
                     r"(?:\s*\\?\|\s*NON-BLOCKING\s+(?P<nonblocking>\d+)" + NOTE + r")?|NON-BLOCKING\s+(?P<only>\d+)"
                     + NOTE + r")(?:\s+on\s+`?(?P<sha>[0-9a-f]{7,40})\b)?", re.I)
+# A Lead result that keeps a spec over its size warning and says why (`kept the length: …`, `size: …`).
+SIZE_REASON = re.compile(r"\b(?:size|length|word count|words)\b", re.I)
 # The ` on <sha>` that ends a Reviewer's verdict clause.
 VERDICT_SHA = re.compile(r"\bon\s+`?[0-9a-f]{7,40}\b")
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
@@ -556,7 +558,9 @@ def spec_check(run, challenge):
     if (challenge and run.of(LEAD, {"2b"})) or not os.path.isdir(run.folder):
         return None
     errors, warnings = plan_check().check_spec_only(run.folder)
-    sized = run.of(LEAD, {"2a"}, word="size")
+    # Vandox#440: a reason for the length in the Lead's last result settles the warning without another launch.
+    sized = run.of(LEAD, {"2a"}, word="size") or [row for row in run.of(LEAD, {"2a"})[-1:]
+                                                  if SIZE_REASON.search(row.result)]
     if not errors and (not warnings or sized):
         return None
     since = max([row.index for row in challenge + run.of(MANAGER, {"2a"})] + [-1])
@@ -798,6 +802,19 @@ def group_owners(run, group):
     return found
 
 
+def tester_first(run, group):
+    """True when the first task row of `group` that names the Dev or the Tester names the Tester (and not the Dev)."""
+    check = plan_check()
+    for header, rows in check.tables(run.tasks or ""):
+        index, owner = check.column(header, "group"), check.column(header, "owner")
+        for row in rows:
+            named = check.owners(check.cell_at(row, owner)) & {"dev", "tester"} if check.cell_at(row, index) == group \
+                else set()
+            if named:
+                return named == {"tester"}
+    return False
+
+
 def task_rows(tasks):
     """(group, task, files or None without a *Files* column) of every task row of tasks.md that names its group."""
     check = plan_check()
@@ -931,6 +948,11 @@ def group_step(run, group, skeleton, docs_only=False):
                                        "  Not due when the group adds no production behaviour (a limit change that "
                                        "was not due, say): " + orchestrator_log(
                                            run, f"5 Tests first skipped{tag}", "skipped — <why>").strip()]
+    if run.base_tier == "trivial" and tester_first(run, group) and not tests_first_ended(run, group):
+        # Vandox#440: a trivial plan whose tasks put the Tester's rows before the Dev's keeps that order.
+        return heading(f"step 5 — Tests first{tag} (tier trivial: tasks.md puts the Tester first)") + launch(
+            run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "
+            f"{BASE_HANDOVER}")
     if run.base_tier == "tests":
         if not group_rows(run, TESTER, "6", group):
             return heading(f"step 6 — the Tester writes the plan's tests{tag} (tier tests: no Dev)") + launch(

@@ -446,6 +446,17 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 5 — Tests first (G2)", out)
         self.assertIn('"5 Tests first (G2)" "Tester" "<the result>" --agent-id <id> --continued\n', out)
 
+    def test_a_planned_file_the_skeleton_left_unchanged_goes_back_to_the_dev(self):
+        # Censio#193: the skeleton report named a function its file did not hold.
+        self.feature(TASKS)
+        self.repo.log(row("4 Skeleton (G1)", "Dev", "done", 9000))
+        self.assertIn("First: the skeleton changed none of src/e.py, which its task rows name", self.next())
+        self.repo.write("src/e.py", "def export():\n    raise NotImplementedError\n")
+        self.repo.commit("skeleton")
+        out = self.next()
+        self.assertIn("Next: step 5 — Tests first (G1)", out)
+        self.assertNotIn("First: the skeleton changed none", out)
+
     def test_a_skip_row_ends_step_4_for_its_group_and_one_without_a_group_for_every_group(self):
         self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
         self.folder = self.repo.folder = "feature-7-export"
@@ -704,6 +715,59 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
+        # Vandox#451, Censio#188: step 7 held the run for a check the plan gave to the Reviewer.
+        self.implemented(test="manual: the Reviewer reads the guide against AC1 in step 8")
+        self.stamp()
+        out = self.next()
+        self.assertNotIn("step 7 — the manual test", out)
+        self.assertIn("Next: step 8 — Review, round 1 (full)", out)
+        self.assertIn("and the manual check of AC1 plan.md's matrix gives it", out)
+
+    def test_an_orchestrator_row_records_the_manual_test_of_a_stand_in(self):
+        self.implemented(test="manual: the Product Manager runs the guide on the server")
+        self.stamp()
+        self.repo.log(row("7 Manual test", "Orchestrator", "AC1 pass: the stand-in the plan names ran it"))
+        self.assertIn("Next: step 8", self.next())
+
+    def test_a_manual_check_in_the_plans_prose_holds_the_review(self):
+        # Censio#191: the plan named the Product Manager's manual check outside the matrix.
+        self.implemented(documentation="none\n\nThe Product Manager checks the palette manually before step 9.")
+        self.stamp()
+        out = self.next()
+        self.assertIn("Next: step 7 — the manual test of the plan's manual check before the review", out)
+        self.assertIn("  Plan: The Product Manager checks the palette manually before step 9.", out)
+        self.repo.log(row("7 Manual test", "Product Manager", "palette approved"))
+        self.assertIn("Next: step 8", self.next())
+
+    def test_a_prose_manual_check_holds_the_review_beside_a_reviewers_manual_criterion(self):
+        # The matrix's manual: row is the Reviewer's; the Product Manager's check is named only in the prose.
+        self.implemented(test="manual: the Reviewer reads the guide in step 8",
+                         documentation="none\n\nThe Product Manager checks the palette manually before step 9.")
+        self.stamp()
+        self.assertIn("Next: step 7 — the manual test of the plan's manual check before the review", self.next())
+
+    def test_a_documentation_change_after_the_stamp_asks_for_the_verbatim_row_first(self):
+        # Censio#194: a verbatim fix was stamped in full while the review row was still BLOCKING.
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("verbatim fix")
+        out = self.next()
+        self.assertIn("a verbatim fix (*Verbatim documentation fixes*) is logged first", out)
+        self.assertIn('"8 Verbatim" Orchestrator "verbatim: [BLOCKING, verbatim]', out)
+
+    def test_a_devs_documentation_fix_of_a_finding_is_not_called_verbatim(self):
+        # An ordinary fix by its owner takes its delta round (*Verbatim documentation fixes*).
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
+        self.repo.log(row("8 Fix", "Dev", "README corrected"))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("fix")
+        self.assertNotIn("is logged first", self.next())
+
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
         head = self.repo.git("rev-parse", "HEAD")
@@ -818,6 +882,23 @@ class TestReviewAndAfter(NextTest):
         self.stamp("--verbatim")
         self.assertIn("Next: step 9 — PR approval", self.next())
 
+    def test_notes_already_in_the_plan_are_not_asked_for_again(self):
+        # PiMonitor#228: the notes step came again after the notes were appended and folded into *Challenge*.
+        settled = self.tool.notes_settled
+        challenge = types.SimpleNamespace(index=1)
+
+        def logged(*rows):
+            return types.SimpleNamespace(rows=[types.SimpleNamespace(index=i, **r) for i, r in enumerate(rows, 2)])
+
+        self.assertTrue(settled(logged(), "# Plan\n\n## Challenge\n\n- answered\n", {"2b"}, challenge))
+        notes = {"who": self.tool.ORCHESTRATOR, "number": "2a", "step": "2a Challenge notes", "result": "appended"}
+        self.assertTrue(settled(logged(notes), "# Plan\n", {"2b"}, challenge), "a notes row of another step number")
+        self.assertFalse(settled(logged(), "# Plan\n", {"2b"}, challenge))
+        template = self.tool.plan_check().template_lines()
+        kept = next(line for line in template if line.startswith("Left out when the plan is written"))
+        self.assertFalse(settled(logged(), f"# Plan\n\n## Challenge\n\n{kept}\n\n## Security review\n\n- x\n", {"2b"},
+                                 challenge), "the template's own *Challenge* section settles nothing")
+
     def test_docs_and_patch_routes(self):
         self.repo.log(INTAKE, row("2 Plan", "Lead", "RESULT: DONE Tier: patch/security — a pin in CI", 9000))
         out = self.next()
@@ -835,6 +916,35 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("the first log.md row", out)
         self.repo.log(row("8 Security diff", "Security", "VERDICT: APPROVED", 9000))
         self.assertIn("Next: step 10 — Pull request", self.next(), "no step 9 on tiers docs and patch")
+
+    def test_a_patch_test_comes_before_the_edits_and_security_findings_are_decided(self):
+        # PiMonitor#235: the test reproduces the defect only on the unfixed code; Security's non-blocking findings
+        # went to step 10 undecided.
+        self.repo.log(INTAKE, row("2 Plan", "Lead", "RESULT: DONE Tier: patch/security — a pin in CI", 9000))
+        out = self.next()
+        self.assertIn("before the edits, on the unfixed head", out)
+        self.assertIn("confirm it fails as the result expects (step 5)", out)
+        self.repo.log(row("2 Patch test", "Tester", "test added", 9000, "sonnet/medium"))
+        self.repo.write("tests/test_a.py", TEST_FILE + "# AC1 test_pin\n")
+        self.repo.commit("the patch test")
+        out = self.next()
+        self.assertIn("apply the Lead's exact edits", out, "the test alone is not the edit")
+        self.assertNotIn("Launch: squad-tester", out)
+        self.repo.write("README.md", "Readme 2\n")
+        self.repo.commit("edit")
+        self.assertNotIn("apply the Lead's exact edits", self.next())
+        self.stamp()
+        self.repo.log(row("8 Security diff", "Security", "[NON-BLOCKING, verbatim] README.md:1 — x; "
+                          "VERDICT: APPROVED \\| NON-BLOCKING 2", 9000))
+        self.assertIn("non-blocking findings (*Non-blocking findings*)", self.next())
+        self.repo.log(row("8 Decide", "Lead", "RESULT: DECIDED — linked issues", 9000))
+        self.assertIn("Next: step 10 — Pull request", self.next())
+        verdict = self.tool.review_verdict
+        tagged = types.SimpleNamespace(who=self.tool.SECURITY, number="8", result="[NON-BLOCKING] a\n[NON-BLOCKING, "
+                                       "verbatim] b\nVERDICT: APPROVED")
+        self.assertEqual(verdict(tagged), (0, 2), "without a count, the tags count")
+        plan = types.SimpleNamespace(who=self.tool.SECURITY, number="3", result="[NON-BLOCKING] a\nVERDICT: APPROVED")
+        self.assertEqual(verdict(plan), (0, 0), "a plan review's notes go to *Security notes*, not to step 8")
 
 
 RECORD = ("# 0001: Topic\n\n- **Status:** {status}\n- **Date:** 2026-01-01\n- **Supersedes:** —\n\n## Context\n\n"

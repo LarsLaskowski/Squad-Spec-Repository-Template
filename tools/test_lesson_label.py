@@ -40,6 +40,15 @@ class TestLessonLabel(unittest.TestCase):
             self.assertEqual(tool.kind(path), "seeded", path)
         self.assertIn("Label: squad\n", run(".squad/stack.md")[1])
 
+    def test_a_repository_owned_tool_under_squad_tools_stays_here(self):
+        # Template#395: Vandox's own coverage converter was labelled squad-upstream, where it cannot be fixed.
+        self.assertEqual(tool.kind(".squad/tools/go-coverage-to-cobertura.py"), "seeded")
+        self.assertEqual(tool.kind(".squad/tools/dotnet-rules.py"), "managed")
+        self.assertIn("Label: squad\n", run(".squad/tools/go-coverage-to-cobertura.py")[1])
+
+    def test_editorconfig_is_marked(self):
+        self.assertEqual(tool.kind(".editorconfig"), "marked")
+
     def test_a_marked_file_needs_its_part_and_both_kinds_make_two_issues(self):
         code, out = run("AGENTS.md")
         self.assertEqual(code, 2)

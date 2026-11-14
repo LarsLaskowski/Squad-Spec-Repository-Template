@@ -1309,7 +1309,8 @@ def load_tool(path, name):
 
 def check_lesson_labels(errors):
     """`lesson-label.py` names every file `apply-template.py` manages (one profile and all together) as managed, the
-    marked and generated files as marked, no seed as managed, and the template's skills as they are in core/."""
+    marked and generated files as marked, no seed as managed, no tool the template does not ship, and the template's
+    skills as they are in core/."""
     labels = load_tool(os.path.join("core", SQUAD_DIR, "tools", "lesson-label.py"), "lesson_label")
     applier = load_tool(os.path.join("tools", "apply-template.py"), "apply_template")
     profile_dirs = [os.path.join(ROOT, "profiles", name) for name in applier.PROFILES]
@@ -1322,8 +1323,10 @@ def check_lesson_labels(errors):
     wrong = sorted(rel for rel in managed if labels.kind(rel) != "managed")
     wrong += sorted(rel for rel in [*applier.MARKED, *applier.GENERATED] if labels.kind(rel) != "marked")
     wrong += sorted(rel for rel in seeds if labels.kind(rel) == "managed")
+    shipped = {rel.rsplit("/", 1)[1] for rel in managed if rel.startswith(".squad/tools/")}
+    wrong += sorted(f".squad/tools/{tool}" for tool in labels.TOOLS if "*" not in tool and tool not in shipped)
     if wrong:
-        errors.append("lesson-label.py (MANAGED, MARKED) disagrees with apply-template.py on: " + ", ".join(wrong))
+        errors.append("lesson-label.py (MANAGED, MARKED, TOOLS) disagrees with apply-template.py on: " + ", ".join(wrong))
     skills = sorted(os.listdir(os.path.join(CORE, CLAUDE_DIR, "skills")))
     if sorted(labels.SKILLS) != skills:
         errors.append(f"lesson-label.py SKILLS {sorted(labels.SKILLS)} is not the template's skills {skills}")
@@ -1823,9 +1826,20 @@ def overlapping_repetitions(state, items, ignore_case):
     sequence = list(flattened(items))
     for i in range(len(sequence) - 1):
         first = repeated_chars(sequence[i], ignore_case, possessive=False)
-        second = repeated_chars(sequence[i + 1], ignore_case)
-        if first and second and first & second and can_fail(state, sequence[i + 2:]):
+        if first and repetition_after(state, sequence, i + 1, first, ignore_case):
             return True
+    return False
+
+
+def repetition_after(state, sequence, start, first, ignore_case):
+    """Whether, from `start` on and past items that can match nothing (`\\?\\|?` in `[ \\t]*\\?\\|?[ \\t]*N`), an
+    unbounded repetition shares a character with `first` and is followed by something that can fail."""
+    for j in range(start, len(sequence)):
+        second = repeated_chars(sequence[j], ignore_case)
+        if second:
+            return bool(first & second) and can_fail(state, sequence[j + 1:])
+        if sre_parser.SubPattern(state, [sequence[j]]).getwidth()[0] > 0:
+            return False
     return False
 
 

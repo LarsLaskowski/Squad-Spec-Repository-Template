@@ -349,21 +349,45 @@ def merge_codeql(texts):
     return head + "".join(entries) + "    steps:\n" + "".join(c.rstrip("\n") + "\n\n" for c in steps) + tail
 
 
+def ci_jobs(jobs):
+    """The jobs of a workflow's `jobs:` section as (id, text) pairs, each text stripped of surrounding blank lines."""
+    chunks = re.split(r"(?m)^(?= {2}[\w-]+:)", jobs)
+    return [(re.match(r" {2}([\w-]+):", chunk).group(1), chunk.strip("\n")) for chunk in chunks if chunk.strip()]
+
+
+def rename_needs(chunk, renames):
+    """The job ids a job's `needs:` names (inline, as a flow list or as block list items), renamed."""
+    if not renames:
+        return chunk
+    ids = "|".join(re.escape(job) for job in renames)
+    pattern = re.compile(rf"(?<![\w-])({ids})(?![\w-])")
+
+    def inline(match):
+        return match.group(1) + pattern.sub(lambda m: renames[m.group(1)], match.group(2))
+
+    chunk = re.sub(r"^( {4}needs:)(.*)$", inline, chunk, flags=re.M)
+    return re.sub(r"(^ {4}needs:\n)((?: {6}- .*\n?)+)",
+                  lambda m: m.group(1) + pattern.sub(lambda n: renames[n.group(1)], m.group(2)), chunk, flags=re.M)
+
+
 def merge_ci(texts, names):
-    """Jobs of every profile under one `jobs:`; a job id that already exists gets the profile as prefix."""
+    """Jobs of every profile under one `jobs:`; a job identical to one already there (the profile-neutral
+    `decision-records`) is taken once, another job id that already exists gets the profile as prefix."""
     head, jobs = texts[0].split("\njobs:\n", 1)
-    taken = set(re.findall(r"^ {2}([\w-]+):", jobs, re.M))
+    known = ci_jobs(jobs)
+    taken = {job for job, _ in known}
     permissions = set(re.findall(r"^ {2}([\w-]+: \w+)$", head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
     out = jobs.rstrip("\n") + "\n"
     for name, text in zip(names[1:], texts[1:], strict=True):
         other_head, other = text.split("\njobs:\n", 1)
         permissions |= set(re.findall(r"^ {2}([\w-]+: \w+)$", other_head.split("permissions:", 1)[1].split("\n\n")[0], re.M))
-        for job in re.findall(r"^ {2}([\w-]+):", other, re.M):
-            if job in taken:
-                other = re.sub(rf"^  {re.escape(job)}:", f"  {name}-{job}:", other, flags=re.M)
-                job = f"{name}-{job}"
-            taken.add(job)
-        out += "\n" + other.rstrip("\n") + "\n"
+        added = [(job, chunk) for job, chunk in ci_jobs(other) if (job, chunk) not in known]
+        renames = {job: f"{name}-{job}" for job, _ in added if job in taken}
+        for job, chunk in added:
+            if job in renames:
+                chunk = re.sub(rf"^  {re.escape(job)}:", f"  {renames[job]}:", chunk, flags=re.M)
+            taken.add(renames.get(job, job))
+            out += "\n" + rename_needs(chunk, renames) + "\n"
     block = "permissions:\n" + "".join(f"  {p}\n" for p in sorted(permissions))
     head = re.sub(r"permissions:\n(?: {2}.*\n)+", lambda _: block, head + "\n", count=1).rstrip("\n")
     return head + "\n\njobs:\n" + out

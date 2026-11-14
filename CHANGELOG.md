@@ -6,6 +6,39 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A `manual:` check that names the Reviewer or Security runs in its step-8 round, not as a step-7 test, and
+  `plan-check.py` refuses one that names a member outside the tier's review round; a Product Manager's manual check
+  named only in the plan's prose holds the review, and an Orchestrator `7 Manual test` row records a stand-in's (#396)
+- [Core] A member's report re-sent word for word after a task notification is part of its round, not a continued
+  launch; members send their report once, with no background command left running (#397)
+- [Core] `squad-log.py` names `--round 1` when a round is logged late; `squad-next.py` asks for the verbatim row before
+  stamping a documentation-only fix of an open review round that no Dev or Tester fix followed (#398)
+- [Core] `plan-check.py` skips appended challenge and security notes in its placeholder check; notes the Lead answered
+  in *Challenge* are not asked for again (the template's own *Challenge* text answers none) (#401)
+- [Core] Security's diff verdict counts its non-blocking findings (`VERDICT: APPROVED | NON-BLOCKING n`, else its
+  tags), so tiers `docs` and `patch` decide them before the PR; the `patch` test is written on the unfixed head before
+  the edits (#402)
+- [Core] `squad-notes.py` writes a report's control characters as text escapes, so appended notes never fail
+  `plan-check.py` (#400)
+- [Core] The Dev's skeleton report lists the changed files from `git status` and only members read back from disk, and
+  `squad-next.py` sends a file a skeleton task row names but the branch has not changed back to the Dev before tests
+  first; a plan names the test seam of a resource bound over an external system (#399)
+- [Core] `lesson-label.py` counts only the tools the template ships to `.squad/tools/` as managed, so a repository's
+  own tool there is labelled `squad`; *Template-managed files* names the template blocks of `.editorconfig` as marked
+  (#395)
+- [Core] `result.md` is listed in the work folder (`specs/README.md`, *Work folder*) and posted in the working record
+  of tiers `docs` and `patch` (#394)
+- [Profile] The seeded CI of every profile runs `decision-check.py --require-history --tags-fetched` in a job
+  `decision-records`, so a changed released record cannot merge, and a refresh adds the job to an existing CI; a CI
+  merged from several profiles runs it once and renames a prefixed job in `needs:` too (#403)
+- [Profile] dotnet: the shared global analyzer config sets MSTEST0001, a rule reported without a location that no
+  `.editorconfig` section reaches, to `error`; `dotnet-rules.py` writes a pending entry for such a rule into
+  `.squad/dotnet-rules-pending.globalconfig` at a higher `global_level`, and `dotnet_config.py` checks that
+  `Directory.Build.props`, Dockerfiles and `.dockerignore` carry both global configs (#393)
+- [Seed] The seeded CI workflows gain the `decision-records` job; dotnet `Directory.Build.props` names
+  `.squad/dotnet-rules-pending.globalconfig`, and dotnet `stack.md` says the *Analyzer gate* also reports a diagnostic
+  without a location of a project with a changed file (#393, #403)
+
 ## v2026.11.10 — 2026-11-13
 
 - [Skill] `adopt-template` asks for the *Fork scope* repository settings only in the pull request that adds

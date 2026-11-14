@@ -28,6 +28,7 @@ BUILD_PROPS = """<Project>
     <PackageReference Include="Reihitsu.Analyzer" PrivateAssets="all" />
     <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory).squad/dotnet-rules.globalconfig" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory).squad/dotnet-rules-pending.globalconfig" />
   </ItemGroup>
 </Project>
 """
@@ -98,12 +99,15 @@ class DotnetConfigTest(unittest.TestCase):
         write("src/App/Dockerfile", named)
         self.assertFinds("src/App/Dockerfile: copies no .squad/dotnet-rules.globalconfig")
         write("src/App/Dockerfile",
-              named.replace("COPY src/ src/", "COPY src/ src/\nCOPY .squad/dotnet-rules.globalconfig .squad/"))
+              named.replace("COPY src/ src/", "COPY src/ src/\nCOPY .squad/dotnet-rules.globalconfig .squad/\n"
+                                                "COPY .squad/dotnet-rules-pending.globalconfig .squad/"))
         self.assertEqual(self.findings(), [], "copied by name")
         write(".dockerignore", "**/bin/\n.squad/\n")
         self.assertFinds(".dockerignore: leaves out .squad/dotnet-rules.globalconfig (.squad/)")
         write(".dockerignore", "*\n!src/\n# the analyzer config\n!.squad/dotnet-rules.globalconfig\n")
-        self.assertEqual(self.findings(), [], "an allow-list that lets it in")
+        self.assertFinds(".dockerignore: leaves out .squad/dotnet-rules-pending.globalconfig (*)")
+        write(".dockerignore", "*\n!src/\n!.squad/dotnet-rules.globalconfig\n!.squad/dotnet-rules-pending.globalconfig\n")
+        self.assertEqual(self.findings(), [], "an allow-list that lets both in")
         write("src/App/Dockerfile", "FROM sdk\nCOPY --chown=app . .\nRUN dotnet build\n")
         write(".dockerignore", "**/obj/\n")
         self.assertEqual(self.findings(), [], "COPY . . brings the whole context")
@@ -116,7 +120,7 @@ class DotnetConfigTest(unittest.TestCase):
         write("src/Server.Dockerfile", "FROM sdk\nCOPY src/ src/\nRUN dotnet publish\n")
         self.assertFinds("src/Server.Dockerfile: copies no")
         write("src/Server.Dockerfile", "FROM alpine\n")
-        for ignore, kept in (("**/.squad\n", False), (".*\n", False), ("*\n!/.squad/dotnet-rules.globalconfig\n", True),
+        for ignore, kept in (("**/.squad\n", False), (".*\n", False), ("*\n!/.squad/dotnet-rules.globalconfig\n", False),
                              ("*\n!.squad/*.globalconfig\n", True)):
             write(".dockerignore", ignore)
             self.assertEqual(self.findings() == [], kept, ignore)
@@ -220,6 +224,13 @@ class DotnetConfigTest(unittest.TestCase):
         self.assertFinds("[*.cs] sets charset = latin1, the baseline utf-8")
         write(".editorconfig", text.replace("S1125.severity = none", "S1125.severity = error"))
         self.assertFinds("the dotnet-rules blocks are missing or out of date")
+
+    def test_an_outdated_pending_global_config_is_reported(self):
+        # #393: a pending rule reported without a location (MSTEST0001) is lowered in the pending global config.
+        self.assertFinds(".squad/dotnet-rules-pending.globalconfig: missing or out of date", pending={"MSTEST0001": "#5"})
+        self.write_blocks({"MSTEST0001": "#5"})
+        self.assertEqual(self.findings({"MSTEST0001": "#5"}), [])
+        self.assertFinds(".squad/dotnet-rules-pending.globalconfig: missing or out of date")
 
     def test_a_section_of_a_path_after_the_blocks_may_set_rules(self):
         with open(".editorconfig", encoding="utf-8") as handle:

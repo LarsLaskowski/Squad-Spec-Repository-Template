@@ -331,13 +331,23 @@ class TestOutput(unittest.TestCase):
         self.assertNotIn("S107", text, "a rule off only in a section of paths stays out")
         self.assertNotIn("RH0010", text, "a rule that is on stays out")
 
+    def test_the_global_config_carries_a_rule_reported_without_a_location_at_its_severity(self):
+        # #393: an .editorconfig section never reaches MSTEST0001, a diagnostic of the whole compilation.
+        merged = tool.merge([config("a", dotnet_diagnostic__MSTEST0001__severity="error",
+                                    dotnet_diagnostic__MSTEST0002__severity="error")])
+        text = tool.render_global(merged)
+        self.assertIn("\ndotnet_diagnostic.MSTEST0001.severity = error\n", text)
+        self.assertNotIn("MSTEST0002", text, "a rule with a location stays in .editorconfig alone")
+
     def test_the_template_global_config_is_current(self):
         with open(tool.BASELINE, encoding="utf-8") as handle:
-            off = {line.split(" = ")[0] for line in handle.read().split("\n[")[1].splitlines()
-                   if line.startswith("dotnet_diagnostic.") and line.endswith("= none")}
+            general = [line for line in handle.read().split("\n[")[1].splitlines() if line.startswith("dotnet_diagnostic.")]
+        wanted = {line for line in general if line.endswith("= none") or tool.rule_id(line.split(" = ")[0])
+                  in tool.COMPILATION_RULES}
         with open(tool.GLOBAL_CONFIG, encoding="utf-8") as handle:
-            written = {line.split(" = ")[0] for line in handle if line.startswith("dotnet_diagnostic.")}
-        self.assertEqual(written, off, "the global config and the baseline's [*.cs] section switch off the same rules")
+            written = {line.strip() for line in handle if line.startswith("dotnet_diagnostic.")}
+        self.assertEqual(written, wanted, "the global config holds the [*.cs] rules switched off and those reported "
+                                          "without a location, at the baseline's severity")
 
     def test_check_reports_an_outdated_file_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as root:

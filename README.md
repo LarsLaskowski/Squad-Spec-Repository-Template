@@ -87,7 +87,8 @@ profiles/<stack>/
   instructions.md the stack blocks of AGENTS.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook; dotnet: sonar-rules.py,
                   dotnet-rules.py with the rule baseline .squad/dotnet-rules.editorconfig and its switched-off rules
-                  .squad/dotnet-rules.globalconfig, dotnet_config.py)
+                  .squad/dotnet-rules.globalconfig, dotnet_config.py; dotnet-rules.py also writes the repository's
+                  .squad/dotnet-rules-pending.globalconfig)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md
@@ -169,7 +170,8 @@ is refused unless `--reset-profiles` is given. What changes compared with one pr
   `COVERAGE_PATHSPECS`, `COVERAGE_EXCLUDES` and `COVERAGE_TEST_PATHSPECS` are the union of the profiles'.
 - **SessionStart hook** — `session-start-<profile>.sh` per profile, run by `session-start.sh`.
 - **CI, CodeQL, Dependabot** — the jobs, CodeQL matrix entries and Dependabot ecosystems are merged side by
-  side (a CI job id used twice gets the profile as prefix). Other seed files that exist in several profiles
+  side (a job two profiles seed identically, such as `decision-records`, is taken once; another CI job id used twice
+  gets the profile as prefix). Other seed files that exist in several profiles
   keep the primary profile's version and are reported as `conflict`: merge those by hand. The exception is
   `sonar-project.properties` in a repository with the `dotnet` profile: the SonarScanner for .NET refuses a repository
   that has one, so the seed is skipped (the dotnet `ci.yml` passes the settings as scanner arguments).

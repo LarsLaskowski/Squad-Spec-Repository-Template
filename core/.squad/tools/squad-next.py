@@ -474,7 +474,7 @@ def security_nonblocking(row, found):
     (PiMonitor#235: on `patch/security` they went to step 10 undecided)."""
     if row.number not in ("8", "11"):
         return 0
-    count = re.match(r"[ \t]*\\?\|?[ \t]*NON-BLOCKING[ \t]+(\d+)", row.result[found.end():], re.I)
+    count = re.match(r"[ \t]*(?:\\?\|[ \t]*)?NON-BLOCKING[ \t]+(\d+)", row.result[found.end():], re.I)
     return int(count.group(1)) if count else len(NONBLOCKING_FINDING.findall(row.result))
 
 

@@ -1826,9 +1826,20 @@ def overlapping_repetitions(state, items, ignore_case):
     sequence = list(flattened(items))
     for i in range(len(sequence) - 1):
         first = repeated_chars(sequence[i], ignore_case, possessive=False)
-        second = repeated_chars(sequence[i + 1], ignore_case)
-        if first and second and first & second and can_fail(state, sequence[i + 2:]):
+        if first and repetition_after(state, sequence, i + 1, first, ignore_case):
             return True
+    return False
+
+
+def repetition_after(state, sequence, start, first, ignore_case):
+    """Whether, from `start` on and past items that can match nothing (`\\?\\|?` in `[ \\t]*\\?\\|?[ \\t]*N`), an
+    unbounded repetition shares a character with `first` and is followed by something that can fail."""
+    for j in range(start, len(sequence)):
+        second = repeated_chars(sequence[j], ignore_case)
+        if second:
+            return bool(first & second) and can_fail(state, sequence[j + 1:])
+        if sre_parser.SubPattern(state, [sequence[j]]).getwidth()[0] > 0:
+            return False
     return False
 
 

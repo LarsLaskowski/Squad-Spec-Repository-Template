@@ -296,13 +296,14 @@ class TestSonarRules(unittest.TestCase):
         # Measured with SonarSource's analyzer (tools/sonar-local.py): each of these is python:S8786.
         for pattern in (r"x\d+\S* \[", r"x[a-z]+\w*y", r"x\d+\d*y", r"x\d*\d+y", r"x([a-z]+)\w+y",
                         r"x(?P<id>[A-Za-z]+\d+)[^\"]*\"", r"x\s*.*?y", r"x\d*?\d+y", r"x\d+?\S*y", r"x\d+\S*+y",
-                        r"x\d+.*y", r"x(?>\d+)\S*y"):
+                        r"x\d+.*y", r"x(?>\d+)\S*y", r"x[ \t]*\\?\|?[ \t]*N"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\nX.search(t)\n"), ["python:S8786"],
                              pattern)
 
     def test_adjacent_repetitions_without_a_common_character_or_a_possessive_first_pass(self):
         for pattern in (r"x\d+[a-z]*y", r"x[a-z]+[^a-z]*y", r"x\d+(?::[^\"]*)?\"", r"x[a-z]+\d+y", r"x\d+\.\d+",
-                        r"x\d+\S*", r"x\w+ \w+y", r"x\d++\S*y", r"x\s*\"[^\"]*\"\s*,\s*\""):
+                        r"x\d+\S*", r"x\w+ \w+y", r"x\d++\S*y", r"x\s*\"[^\"]*\"\s*,\s*\"",
+                        r"x[ \t]*(?:\\?\|[ \t]*)?N"):
             self.assertEqual(self.rules(f"import re\nX = re.compile(r'{pattern}')\nX.search(t)\n"), [], pattern)
         self.assertEqual(self.rules("import re\nX = re.sub(r'x\\d+\\S* y', '', t)\n", path="test_tool.py"), [],
                          "Sonar does not report it in a test file")

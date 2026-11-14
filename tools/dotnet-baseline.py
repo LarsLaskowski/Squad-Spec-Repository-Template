@@ -30,9 +30,10 @@ analyzers from the installed SDK of that feature band (`dotnet --list-sdks`). A 
 
 The result is `profiles/dotnet/managed/.squad/dotnet-rules.editorconfig`, which every target receives and its
 `.squad/tools/dotnet-rules.py` writes into the marked blocks of `.editorconfig`, and from its `[*.cs]` rules at
-`none` the global analyzer config `profiles/dotnet/managed/.squad/dotnet-rules.globalconfig`. The report lists the
-open conflicts, the rules switched off in one repository only, the rules dropped as unknown, the project exceptions
-and, per repository, how many settings the baseline tightens or adds (`--verbose`: each of them).
+`none` and its rules reported without a location (`COMPILATION_RULES`, at their severity) the global analyzer config
+`profiles/dotnet/managed/.squad/dotnet-rules.globalconfig`. The report lists the open conflicts, the rules switched
+off in one repository only, the rules dropped as unknown, the project exceptions and, per repository, how many
+settings the baseline tightens or adds (`--verbose`: each of them).
 
 Usage, from the template repository's root:
     python3 tools/dotnet-baseline.py [--check] [--verbose] [--target OWNER/NAME=PATH]
@@ -59,12 +60,18 @@ DECISIONS = os.path.join(DATA, "decisions.json")
 IDS = os.path.join(DATA, "analyzer-ids.txt")
 BASELINE = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.editorconfig")
 GLOBAL_CONFIG = os.path.join(ROOT, "profiles", "dotnet", "managed", ".squad", "dotnet-rules.globalconfig")
-GLOBAL_HEADER = """# The rules the .NET rule baseline switches off for every C# file, as a global analyzer config:
-# an .editorconfig section reaches no generated code (Razor components), this file reaches every syntax tree of the
-# compilation. Directory.Build.props names it in GlobalAnalyzerConfigFiles (dotnet_config.py checks it). Written by
-# the template's tools/dotnet-baseline.py from dotnet-rules.editorconfig; never edit it in a repository.
+GLOBAL_HEADER = """\
+# The rules the .NET rule baseline switches off for every C# file, and the severity of the rules reported without a
+# location, as a global analyzer config: an .editorconfig section reaches no generated code (Razor components) and no
+# diagnostic without a source file (MSTEST0001), this file reaches the whole compilation. Directory.Build.props names
+# it in GlobalAnalyzerConfigFiles (dotnet_config.py checks it); .squad/dotnet-rules-pending.globalconfig, at a higher
+# global_level, lowers a rule of DOTNET_RULES_PENDING. Written by the template's tools/dotnet-baseline.py from
+# dotnet-rules.editorconfig; never edit it in a repository.
 is_global = true
 """
+# Rules an analyzer reports for the whole compilation, without a location: an .editorconfig section never applies to
+# them, so the global config carries their baseline severity (#393).
+COMPILATION_RULES = ("MSTEST0001",)
 CURRENT, FAILED, NOT_CHECKED, USAGE = 0, 1, 2, 4
 PROFILE = "dotnet"
 REF = "origin/main"
@@ -577,11 +584,13 @@ def render(merged):
 
 
 def render_global(merged):
-    """The global analyzer config: every rule the baseline switches off for every C# file."""
-    off = sorted((key for key, value in merged.general.items() if rule_id(key) and value.strip().lower() == "none"),
-                 key=sort_key)
-    return GLOBAL_HEADER + "".join(f"\n# {merged.reasons[key]}\n{key} = none\n" if merged.reasons.get(key)
-                                   else f"\n{key} = none\n" for key in off)
+    """The global analyzer config: every rule the baseline switches off for every C# file, and every rule of
+    COMPILATION_RULES at the baseline's severity."""
+    rules = sorted((key for key, value in merged.general.items() if rule_id(key)
+                    and (value.strip().lower() == "none" or rule_id(key) in COMPILATION_RULES)), key=sort_key)
+    return GLOBAL_HEADER + "".join(
+        (f"\n# {merged.reasons[key]}" if merged.reasons.get(key) else "") + f"\n{key} = {merged.general[key].strip()}\n"
+        for key in rules)
 
 
 def changes(config, merged):

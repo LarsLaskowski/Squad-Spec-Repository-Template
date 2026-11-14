@@ -60,7 +60,8 @@ profile and owned by this repository: keep it true when the build changes.
 `analyzer-check.py` runs a full, non-incremental Release build with a SARIF error log per project and
 reports every non-suppressed Roslyn diagnostic — `RH####`, `S####`, `MSTEST####`, `CA####`, at **any
 severity**, including info-level ones that never appear as build warnings but that SonarQube Cloud
-imports — located in a file changed since the merge base with `origin/main`. Its solution comes from
+imports — located in a file changed since the merge base with `origin/main`, and every diagnostic without a location
+(MSTEST0001) of a project with such a changed file. Its solution comes from
 `.squad/tools/squad_settings.py`. In addition the build must show **zero `RH####` warnings and errors**
 anywhere. Do not grep console build output instead: an incremental build prints no warnings at all.
 
@@ -75,9 +76,11 @@ No section of every C# file sets a rule or a code-style option outside the block
 `squad_settings.py` with the issue that brings the code up to it: it is written as `suggestion`, which the *Analyzer
 gate* still reports in a changed file, and the entry goes once the issue is done; that holds for a rule the baseline
 does not set too (one on only through `AnalysisLevel`, CA1848). The blocks do not reach the code the Razor compiler
-generates from a `.razor` file's markup; the rules the baseline switches off (S1125) are off there too through the
-template-managed global analyzer config `.squad/dotnet-rules.globalconfig`, which `Directory.Build.props` names in
-`GlobalAnalyzerConfigFiles`.
+generates from a `.razor` file's markup, nor a diagnostic without a location (MSTEST0001): the template-managed global
+analyzer config `.squad/dotnet-rules.globalconfig` switches the baseline's off rules (S1125) off there too and sets
+the severity of the rules reported without a location. A pending entry for one of those is written by `dotnet-rules.py`
+into `.squad/dotnet-rules-pending.globalconfig`, whose higher `global_level` wins over the managed file;
+`Directory.Build.props` names both in `GlobalAnalyzerConfigFiles`.
 
 SonarAnalyzer.CSharp runs only the rules of *Sonar way core* by default. The rules the project's SonarQube Cloud C#
 profile adds (*Sonar way comprehensive*: S3776, S1192, S107, …), and the core rules it switches off, are set in the
@@ -121,8 +124,8 @@ the image never gets (Vandox#24: `_framework/blazor.web.js` was in the local pub
 image, because no `.razor` file existed at restore time). Where Docker runs, build the image. Where it does not
 (the sandbox), reproduce the Dockerfile's order in a scratch directory; every change to a `.csproj`,
 `Directory.*.props`, a `.razor` or other content item, a static web asset or the Dockerfile runs it before the
-review. The image build needs `.squad/dotnet-rules.globalconfig`, which `Directory.Build.props` names: a Dockerfile
-that copies files by name copies it into the build stage, and a `.dockerignore` that leaves out `.squad/` lets it in
+review. The image build needs both global configs of `.squad/` that `Directory.Build.props` names: a Dockerfile
+that copies files by name copies them into the build stage, and a `.dockerignore` that leaves out `.squad/` lets them in
 (`dotnet_config.py` checks both):
 
 ```bash

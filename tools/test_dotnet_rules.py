@@ -57,9 +57,11 @@ class DotnetRulesTest(unittest.TestCase):
         os.chdir(self.cwd)
         self.dir.cleanup()
 
-    def run_script(self, *argv, pending=None, baseline="baseline.editorconfig"):
+    def run_script(self, *argv, pending=None, baseline="baseline.editorconfig", global_baseline=None):
         module = load(pending)
         module.BASELINE = os.path.abspath(baseline)
+        if global_baseline:
+            module.GLOBAL_BASELINE = os.path.abspath(global_baseline)
         output = io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
             try:
@@ -138,6 +140,28 @@ class DotnetRulesTest(unittest.TestCase):
         self.assertIn("# pending: #7 (DOTNET_RULES_PENDING)\ndotnet_diagnostic.S107.severity = suggestion\n", general,
                       "a rule only a section of paths sets is lowered for the other C# files")
         self.assertEqual(self.run_script("--check")[0], 1, "once it is fixed and out of the list, the block is outdated")
+
+    def test_a_pending_rule_of_the_global_config_goes_into_the_pending_global_config(self):
+        # #393: MSTEST0001 has no location, so only a global config with a higher global_level can lower it.
+        write(".editorconfig", EDITORCONFIG)
+        write("global.globalconfig", "# managed\nis_global = true\n\ndotnet_diagnostic.MSTEST0001.severity = error\n\n"
+                                     "dotnet_diagnostic.S1125.severity = none\n")
+        code, out = self.run_script(pending={"MSTEST0001": "#12", "S3776": "#3"}, global_baseline="global.globalconfig")
+        self.assertEqual(code, 0, out)
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        self.assertIn("is_global = true\nglobal_level = 101\n", text)
+        self.assertTrue(text.endswith("\n# pending: #12 (DOTNET_RULES_PENDING)\n"
+                                      "dotnet_diagnostic.MSTEST0001.severity = suggestion\n"), text)
+        self.assertNotIn("S3776", text, "a rule with a location is lowered in .editorconfig alone")
+        self.assertEqual(self.run_script("--check", pending={"MSTEST0001": "#12", "S3776": "#3"},
+                                         global_baseline="global.globalconfig")[0], 0)
+        code, out = self.run_script("--check", pending={"S3776": "#3"}, global_baseline="global.globalconfig")
+        self.assertEqual(code, 1, "once the rule is met and out of the list, the pending config is outdated")
+        self.assertIn("the pending global config is missing or out of date", out)
+        self.assertEqual(self.run_script(pending={}, global_baseline="global.globalconfig")[0], 0)
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8") as handle:
+            self.assertNotIn("dotnet_diagnostic", handle.read(), "nothing pending: the header alone")
 
     def test_a_pending_entry_without_an_issue_is_refused(self):
         write(".editorconfig", EDITORCONFIG)

@@ -179,6 +179,16 @@ class DotnetRulesTest(unittest.TestCase):
         self.assertIn("MSTEST0001.severity = suggestion\r\n", text)
         self.assertNotIn("\n", text.replace("\r\n", ""), "the rewrite keeps CRLF")
 
+    def test_a_new_pending_global_config_takes_the_line_ending_of_editorconfig(self):
+        write(".editorconfig", EDITORCONFIG.replace("\n", "\r\n"), newline="")
+        write("global.globalconfig", "is_global = true\n\ndotnet_diagnostic.MSTEST0001.severity = error\n")
+        self.assertFalse(os.path.exists(".squad/dotnet-rules-pending.globalconfig"))
+        self.assertEqual(self.run_script(pending={"MSTEST0001": "#4"}, global_baseline="global.globalconfig")[0], 0)
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        self.assertIn("\r\n", text)
+        self.assertNotIn("\n", text.replace("\r\n", ""), "a new file follows a CRLF .editorconfig")
+
     def test_a_pending_entry_without_an_issue_is_refused(self):
         write(".editorconfig", EDITORCONFIG)
         for pending in ({"S3776": "later"}, {"S3776": ""}, {"not a rule": "#1"}, ["S3776"], {"s1192": "#14"}):

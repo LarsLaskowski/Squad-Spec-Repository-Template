@@ -163,6 +163,22 @@ class DotnetRulesTest(unittest.TestCase):
         with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8") as handle:
             self.assertNotIn("dotnet_diagnostic", handle.read(), "nothing pending: the header alone")
 
+    def test_a_crlf_checkout_of_the_pending_global_config_stays_current(self):
+        # A CRLF repository (`* text=auto eol=crlf`) checks the file out with CRLF: it is current, and rewritten in kind.
+        write(".editorconfig", EDITORCONFIG)
+        write("global.globalconfig", "is_global = true\n\ndotnet_diagnostic.MSTEST0001.severity = error\n")
+        self.assertEqual(self.run_script(pending={}, global_baseline="global.globalconfig")[0], 0)
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        write(".squad/dotnet-rules-pending.globalconfig", text.replace("\n", "\r\n"), newline="")
+        code, out = self.run_script("--check", pending={}, global_baseline="global.globalconfig")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.run_script(pending={"MSTEST0001": "#4"}, global_baseline="global.globalconfig")[0], 0)
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        self.assertIn("MSTEST0001.severity = suggestion\r\n", text)
+        self.assertNotIn("\n", text.replace("\r\n", ""), "the rewrite keeps CRLF")
+
     def test_a_pending_entry_without_an_issue_is_refused(self):
         write(".editorconfig", EDITORCONFIG)
         for pending in ({"S3776": "later"}, {"S3776": ""}, {"not a rule": "#1"}, ["S3776"], {"s1192": "#14"}):

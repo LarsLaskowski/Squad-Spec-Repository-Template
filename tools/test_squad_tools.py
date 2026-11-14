@@ -1406,6 +1406,10 @@ class TestSquadSettingsScope(unittest.TestCase):
         scope = load_script("scope-check")
         self.assertFalse(scope.is_squad_file(".squad/tools/squad_settings.py"))
         self.assertTrue(scope.is_squad_file(".squad/tools/squad_settings.py", fork=True))
+        # A DOTNET_RULES_PENDING change rewrites the pending global config dotnet-rules.py generates from it.
+        self.assertFalse(scope.is_squad_file(".squad/dotnet-rules-pending.globalconfig"))
+        self.assertTrue(scope.is_squad_file(".squad/dotnet-rules-pending.globalconfig", fork=True))
+        self.assertTrue(scope.is_squad_file(".squad/dotnet-rules.globalconfig"), "the managed rules stay squad files")
         self.assertTrue(scope.is_squad_file(".squad/tools/scope-check.py"))
 
 

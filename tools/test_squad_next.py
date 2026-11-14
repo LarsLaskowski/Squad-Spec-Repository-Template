@@ -446,6 +446,17 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 5 — Tests first (G2)", out)
         self.assertIn('"5 Tests first (G2)" "Tester" "<the result>" --agent-id <id> --continued\n', out)
 
+    def test_a_planned_file_the_skeleton_left_unchanged_goes_back_to_the_dev(self):
+        # Censio#193: the skeleton report named a function its file did not hold.
+        self.feature(TASKS)
+        self.repo.log(row("4 Skeleton (G1)", "Dev", "done", 9000))
+        self.assertIn("First: the skeleton changed none of src/e.py, which its task rows name", self.next())
+        self.repo.write("src/e.py", "def export():\n    raise NotImplementedError\n")
+        self.repo.commit("skeleton")
+        out = self.next()
+        self.assertIn("Next: step 5 — Tests first (G1)", out)
+        self.assertNotIn("First: the skeleton changed none", out)
+
     def test_a_skip_row_ends_step_4_for_its_group_and_one_without_a_group_for_every_group(self):
         self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
         self.folder = self.repo.folder = "feature-7-export"
@@ -729,6 +740,13 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "palette approved"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_prose_manual_check_holds_the_review_beside_a_reviewers_manual_criterion(self):
+        # The matrix's manual: row is the Reviewer's; the Product Manager's check is named only in the prose.
+        self.implemented(test="manual: the Reviewer reads the guide in step 8",
+                         documentation="none\n\nThe Product Manager checks the palette manually before step 9.")
+        self.stamp()
+        self.assertIn("Next: step 7 — the manual test of the plan's manual check before the review", self.next())
+
     def test_a_documentation_change_after_the_stamp_asks_for_the_verbatim_row_first(self):
         # Censio#194: a verbatim fix was stamped in full while the review row was still BLOCKING.
         self.implemented()
@@ -738,7 +756,17 @@ class TestReviewAndAfter(NextTest):
         self.repo.commit("verbatim fix")
         out = self.next()
         self.assertIn("a verbatim fix (*Verbatim documentation fixes*) is logged first", out)
-        self.assertIn('"8 Verbatim" Orchestrator', out)
+        self.assertIn('"8 Verbatim" Orchestrator "verbatim: [BLOCKING, verbatim]', out)
+
+    def test_a_devs_documentation_fix_of_a_finding_is_not_called_verbatim(self):
+        # An ordinary fix by its owner takes its delta round (*Verbatim documentation fixes*).
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
+        self.repo.log(row("8 Fix", "Dev", "README corrected"))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("fix")
+        self.assertNotIn("is logged first", self.next())
 
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
@@ -866,6 +894,10 @@ class TestReviewAndAfter(NextTest):
         notes = {"who": self.tool.ORCHESTRATOR, "number": "2a", "step": "2a Challenge notes", "result": "appended"}
         self.assertTrue(settled(logged(notes), "# Plan\n", {"2b"}, challenge), "a notes row of another step number")
         self.assertFalse(settled(logged(), "# Plan\n", {"2b"}, challenge))
+        template = self.tool.plan_check().template_lines()
+        kept = next(line for line in template if line.startswith("Left out when the plan is written"))
+        self.assertFalse(settled(logged(), f"# Plan\n\n## Challenge\n\n{kept}\n\n## Security review\n\n- x\n", {"2b"},
+                                 challenge), "the template's own *Challenge* section settles nothing")
 
     def test_docs_and_patch_routes(self):
         self.repo.log(INTAKE, row("2 Plan", "Lead", "RESULT: DONE Tier: patch/security — a pin in CI", 9000))

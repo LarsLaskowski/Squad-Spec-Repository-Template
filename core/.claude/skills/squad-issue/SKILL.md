@@ -115,8 +115,8 @@ every Git and GitHub action yourself, including follow-up issues the Lead decide
    made only for a major objection is confirmed by Security too.
 4. **Skeleton** (only if the plan adds or changes API). Launch `squad-dev` in mode `skeleton` with the body the *Skeleton*
    section of `.squad/stack.md` names, quoted in the prompt: the planned signatures and the existing test call sites
-   the plan assigns to the Dev. Before step 5, compare the files its report lists with the *Files* of its task rows
-   (`tasks.md`, else the plan's *Signatures*); a planned file missing from the list goes back to the Dev. A plan that declares the change free of production and test code skips steps 4 and 5
+   the plan assigns to the Dev; a planned file the skeleton left unchanged goes back to the Dev (`squad-next.py` names
+   it). A plan that declares the change free of production and test code skips steps 4 and 5
    (*Changes without production or test code*).
 5. **Tests first** (not for `trivial` or `tests`). Launch `squad-tester` in mode `tests-first`. Confirm yourself
    that the new tests compile and fail on the current code (unless the Tester justified why one cannot); the tests

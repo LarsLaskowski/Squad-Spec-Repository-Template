@@ -609,12 +609,28 @@ def spec_challenge(run, challenge):
     return None
 
 
+def notes_written(document):
+    """True when a section of NOTES holds a line that is not the plan template's own (its *Challenge* section says
+    "Left out when the plan is written", which settles nothing)."""
+    template = plan_check().template_lines()
+    level = None
+    for line in document.splitlines():
+        heading = re.match(r"^(#{1,6})[ \t]", line)
+        if heading and level is not None and len(heading.group(1)) <= level:
+            level = None
+        if NOTES.match(line):
+            level = len(heading.group(1))
+        elif level is not None and line.strip() and line.strip() not in template:
+            return True
+    return False
+
+
 def notes_settled(run, document, numbers, challenge):
     """True when the minor objections of `challenge` are in `document`: its *Challenge notes* section is there, the
     orchestrator logged the append, or a later Lead launch folded or answered them (Censio#140: a Lead `decide` that
     folds the notes must not send the orchestrator back to append them again). The Lead's *Challenge* section that
     answers them counts as the notes, and an orchestrator's notes row counts at any step number (PiMonitor#228)."""
-    if NOTES.search(document or ""):
+    if notes_written(document or ""):
         return True
     later = [row for row in run.rows if row.index > challenge.index]
     return any(row.who == ORCHESTRATOR and NOTES_ROW.search(f"{row.step} {row.result}") for row in later) or \
@@ -806,11 +822,37 @@ def groups(run):
     return [(name, *state) for name, state in found.items()] or [("", False, False)]
 
 
+def cell_paths(text):
+    """The paths a *Files* cell names, in parentheses too."""
+    paths = [word.strip(".,;:()`'\"") for word in re.split(r"[\s,]+", (text or "").replace("`", " "))]
+    return [path for path in paths if "/" in path or "." in path.strip(".")]
+
+
+def skeleton_gaps(run, group):
+    """Once the Dev logged the group's skeleton: the files its skeleton task rows name that the branch has not changed,
+    committed or not (Censio#193: a report named a function its file did not hold)."""
+    if not group or not group_rows(run, DEV, "4", group):
+        return []
+    planned = {path for name, task, files in task_rows(run.tasks)
+               if name == group and re.match(r"skeleton\b", task, re.I) for path in cell_paths(files)}
+    tool = stamp_tool()
+    try:
+        touched = tool.changed(run.root, tool.merge_base(run.root)) | set(tool.uncommitted(run.root))
+    except tool.Refusal:
+        return []
+    return sorted(path for path in planned if path not in touched)
+
+
+def skeleton_gap_lines(run, group):
+    gaps = skeleton_gaps(run, group)
+    return [f"  First: the skeleton changed none of {', '.join(gaps)}, which its task rows name: back to the Dev (mode "
+            "skeleton) before the Tester starts"] if gaps else []
+
+
 def documentation_cell(text):
     """True when every path a *Files* cell names, in parentheses too, is a Markdown file or a README: a group of such
     rows has no code to skeleton or test first."""
-    paths = [word.strip(".,;:()`'\"") for word in re.split(r"[\s,]+", (text or "").replace("`", " "))]
-    paths = [path for path in paths if "/" in path or "." in path.strip(".")]
+    paths = cell_paths(text)
     return bool(paths) and all(path.lower().endswith(".md") or path.rsplit("/", 1)[-1].upper().startswith("README")
                                for path in paths)
 
@@ -975,7 +1017,7 @@ def group_step(run, group, skeleton, docs_only=False):
                 "  Not due when the plan states it adds no API (its *Signatures* names only private members): " +
                 orchestrator_log(run, f"4 Skeleton skipped{tag}", "skipped — <where the plan says it adds no API>").strip()]
         if not tests_first_ended(run, group):
-            return heading(f"step 5 — Tests first{tag}") + launch(
+            return heading(f"step 5 — Tests first{tag}") + skeleton_gap_lines(run, group) + launch(
                 run, TESTER, "tests-first", f"5 Tests first{tag}", f"{rows}, the tests of *Tests per criterion*, "
                 f"{BASE_HANDOVER}") + [THEN + "confirm yourself that the new tests compile and fail on the current "
                                        "code; log its `Deferred: <test names>` line (`Deferred: none`) in the row",
@@ -1147,20 +1189,27 @@ def code_check(run):
         lines.append("  Only decision-record status lines and index rows changed since the stamp (step 9, *PR "
                      "approval*): add --verbatim (Format check, decision-check.py and scope-check.py only; no delta "
                      "round)")
-    elif last is not None and last.group("verdict") == "PASS" and review_open(run) and \
+    elif last is not None and last.group("verdict") == "PASS" and (tag := unfixed_review_tag(run)) and \
             tool.documentation_only(run.root, last.group("sha"), "HEAD"):
         # Censio#194: a verbatim fix stamped in full before its row: the round's counts were never subtracted.
         cell = run.step_cell("8", "Verbatim")
         lines.append("  Only documentation changed since the stamp while the review round has findings: a verbatim "
                      f"fix (*Verbatim documentation fixes*) is logged first ({LOG_TOOL} {run.name} \"{cell}\" "
-                     "Orchestrator \"verbatim: [BLOCKING, verbatim] <file:line>\"), then stamped with --verbatim")
+                     f"Orchestrator \"verbatim: [{tag}, verbatim] <file:line>\"), then stamped with --verbatim")
     return lines + gates_due(run)
 
 
-def review_open(run):
-    """True when a review row of the set after the last full stamp reports findings."""
-    rows = [row for agent, _ in review_set(run) for row in review_rows(run, agent, last_full_stamp_row(run))]
-    return any((verdict := review_verdict(row)) and any(verdict) for row in rows)
+def unfixed_review_tag(run):
+    """`BLOCKING` or `NON-BLOCKING` when a review row of the set after the last full stamp reports findings and no Dev
+    or Tester row followed it (an ordinary fix, which takes its delta round), else None."""
+    rows = [row for agent, _ in review_set(run) for row in review_rows(run, agent, last_full_stamp_row(run))
+            if (verdict := review_verdict(row)) and any(verdict)]
+    if not rows:
+        return None
+    last = max(row.index for row in rows)
+    if any(row.who in (DEV, TESTER) and row.index > last for row in run.rows):
+        return None
+    return "BLOCKING" if any(review_verdict(row)[0] for row in rows) else "NON-BLOCKING"
 
 
 def verbatim_rows(run, after):
@@ -1274,7 +1323,7 @@ def manual_check(run):
         return None
     planned = manual_criteria(run)
     manual = [criterion for criterion, owner in planned.items() if owner is None]
-    prose = [] if planned else plan_check().prose_manual_checks(run.plan)
+    prose = [] if manual else plan_check().prose_manual_checks(run.plan)
     if not manual and not prose:
         return None
     what = ", ".join(manual) if manual else "the plan's manual check"

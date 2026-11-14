@@ -179,7 +179,7 @@ RESULTS = {"CI": "pending: the pull request's CI (step 11)", "manual": "to recor
 MANUAL_MEMBERS = ("Reviewer", "Security")
 MANAGER_NAMED = re.compile(r"\bProduct Manager\b|\bPM\b")
 PROSE_MANUAL = re.compile(r"\bmanual(?:ly)?\b", re.I)
-NEGATED = re.compile(r"\b(?:no|not|without|never|none)\b", re.I)
+NEGATED = re.compile(r"\b(?:no|not|without|never|none)\b[^.]{0,20}?\bmanual", re.I)
 
 
 def strip_comments(text):
@@ -670,9 +670,31 @@ def check_plan(plan, spec, errors):
             errors.append("spec.md: *Scenarios* says \"none\", which a feature that touches a security area may "
                           "not: write the scenarios")
     check_tests(parts, criteria, name, errors, settled)
+    check_manual_owners(parts, plan, errors)
     check_verification_kinds(parts, errors)
     check_facts(parts, errors)
     return criteria, settled
+
+
+def review_members(plan):
+    """The members of the tier's review round (*Tiers*): Security alone on `patch/security`, the Reviewer and Security
+    on `security`, the Reviewer on every other tier."""
+    tier = TIER_LINE.search(plan)
+    name = tier.group(1) if tier else ""
+    if tier and tier.group(2).lstrip().startswith("/security"):
+        name += "/security"
+    return {"patch/security": ("Security",), "security": ("Reviewer", "Security")}.get(name, ("Reviewer",))
+
+
+def check_manual_owners(parts, plan, errors):
+    """A `manual:` check names only a member of the tier's review round, which runs it in step 8; any other member never
+    reviews this run's diff."""
+    members = review_members(plan)
+    for criterion, (kind, check, _, _) in sorted(planned_verifications(parts).items()):
+        owner = manual_owner(check) if kind == "manual" else None
+        if owner and owner not in members:
+            errors.append(f"plan.md: {criterion}: the `manual:` check names {owner}, which reviews no diff on this "
+                          f"tier ({', '.join(members)} does): name a member of the review round or the Product Manager")
 
 
 def check_verification_kinds(parts, errors):
@@ -1010,7 +1032,7 @@ def matrix_row(criterion, planned, settled, sources, head, changed=frozenset()):
         return [criterion, "\u2014", "\u2014", "MISSING: no test or verification in plan.md"], True
     kind, check, names, _ = planned[criterion]
     if kind == "manual" and manual_owner(check):
-        return [criterion, kind, check, f"to record: the {manual_owner(check)}'s verdict row of step 8"], False
+        return [criterion, kind, check, f"to record: {manual_owner(check)}'s verdict row of step 8"], False
     if kind != "unit":
         return [criterion, kind, check, RESULTS[kind]], False
     found = carriers(criterion, planned[criterion], sources, changed)

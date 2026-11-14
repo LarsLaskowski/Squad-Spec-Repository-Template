@@ -208,7 +208,9 @@ Rules that hold throughout:
      test data, a test project file), set `COVERAGE_TEST_PATHSPECS` to every test location, the default's patterns
      included, and name the guard and that setting in the PR description.
    - CI: an existing workflow is kept. Add only what the template's decisions need — e.g. excluding
-     `.squad/**` and `.claude/**` from the coverage measure of the code analysis.
+     `.squad/**` and `.claude/**` from the coverage measure of the code analysis — and the seed's `decision-records`
+     job when the workflow lacks it, with the job added to the `needs:` of an aggregate job (`ci-success`) the target
+     has; a CI change, so name it in the PR description for Security's review.
    - `.github/workflows/fork-scope.yml` (seeded when missing, also on a refresh): name it in the PR description.
      When this PR adds the file (a first adoption, or a refresh of a target without it), also ask the user to make
      *Scope of a fork pull request* a required check of `main` and to require approval for workflow runs of outside

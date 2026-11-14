@@ -293,7 +293,7 @@ class Rounds:
 
 def new_round():
     return {"usage": collections.Counter(), "models": collections.Counter(), "effort": None, "tool_uses": 0,
-            "start": None, "end": None, "context": 0, "responses": 0, "report": None}
+            "start": None, "end": None, "context": 0, "responses": 0, "report": None, "notified": False}
 
 
 def add_response(current, record, found, tools):
@@ -329,13 +329,23 @@ def report_text(block):
     return None
 
 
+def opened_by_notification(record):
+    """True when the message that opens a round is a task notification (a background command of the agent's own
+    ended), not a message that carries a new task."""
+    message = record.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    texts = [content] if isinstance(content, str) else [block.get("text") for block in content_blocks(record)]
+    return any(isinstance(text, str) and text.lstrip().startswith("<task-notification>") for text in texts)
+
+
 def merged_repeats(rounds):
-    """The rounds with each one whose report repeats the previous round's word for word folded into it: a member that
-    re-sent its report (after a background wait of its own ended, say) ran no new task (DockerUpdateGuard#444)."""
+    """The rounds with each one that a task notification opened and whose report repeats the previous round's word for
+    word folded into it: a member that re-sent its report after a background wait of its own ran no new task
+    (DockerUpdateGuard#444); a message with a new task starts a round of its own whatever it reports."""
     merged = []
     for entry in rounds:
         previous = merged[-1] if merged else None
-        if previous is None or not entry["report"] or entry["report"] != previous["report"]:
+        if previous is None or not entry["notified"] or not entry["report"] or entry["report"] != previous["report"]:
             merged.append(entry)
             continue
         previous["usage"].update(entry["usage"])
@@ -359,6 +369,7 @@ def agent_rounds(path):
     for record in records(path):
         if splitter.starts(record, current is not None and current["responses"] > 0) or current is None:
             current = new_round()
+            current["notified"] = opened_by_notification(record)
             rounds.append(current)
         stamp = timestamp(record)
         if stamp is not None:

@@ -1130,6 +1130,12 @@ class TestSquadLogTranscripts(unittest.TestCase):
         self.assertEqual([(r["responses"], r["context"]) for r in rounds], [(2, 21_011), (1, 22_011)],
                          "the repeated report folds into the first round; a new report is a new round")
         self.assertEqual((rounds[0]["end"] - rounds[0]["start"]).total_seconds(), 490)
+        self.agent("a8", "squad-tester", [
+            prompt("2026-01-02T13:00:00Z"), reported("f1", "2026-01-02T13:05:00Z", "RESULT: DONE", 20_000),
+            prompt("2026-01-02T13:20:00Z", "now cover the error path"),
+            reported("f2", "2026-01-02T13:21:00Z", "RESULT: DONE", 21_000)])
+        rounds = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a8.jsonl"))
+        self.assertEqual(len(rounds), 2, "a message with a new task is a round of its own, whatever it reports")
 
     def test_a_launch_on_another_model_is_logged_as_run_with_a_warning(self):
         write(os.path.join(self.root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: `security`\n")

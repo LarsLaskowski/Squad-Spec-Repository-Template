@@ -346,8 +346,15 @@ class TestPlanCheck(unittest.TestCase):
         # Vandox#451, Censio#188: a manual check the Reviewer runs takes its result from the review.
         by_reviewer = plan.replace("manual: the PM on the CI artifact", "manual: the Reviewer reads the guide in step 8")
         _, output = self.matrix(self.feature(spec=spec, plan=by_reviewer, tasks=tasks))
-        self.assertIn("| AC4 | manual | the Reviewer reads the guide in step 8 | to record: the Reviewer's verdict row "
+        self.assertIn("| AC4 | manual | the Reviewer reads the guide in step 8 | to record: Reviewer's verdict row "
                       "of step 8 |", output)
+        by_security = plan.replace("manual: the PM on the CI artifact", "manual: Security reads the headers")
+        self.assertIn("plan.md: AC4: the `manual:` check names Security, which reviews no diff on this tier (Reviewer "
+                      "does): name a member of the review round or the Product Manager",
+                      self.errors(self.feature(spec=spec, plan=by_security, tasks=tasks)))
+        on_security = by_security.replace("Tier: standard", "Tier: security")
+        self.assertFalse(any("`manual:` check names" in e for e in
+                             self.errors(self.feature(spec=spec, plan=on_security, tasks=tasks))))
 
     def test_manual_owner_and_a_manual_check_in_the_prose(self):
         owner = self.script.manual_owner
@@ -355,9 +362,11 @@ class TestPlanCheck(unittest.TestCase):
                           owner("the PM, or the Reviewer as stand-in"), owner("on the CI artifact")],
                          ["Reviewer", "Security", None, None])
         plan = PLAN + ("\n## Manual verification\n\nThe Product Manager checks the palette manually before step 9.\n"
-                       "No manual test by the Product Manager is needed for AC2.\n")
+                       "No manual test by the Product Manager is needed for AC2.\n"
+                       "The Product Manager checks manually that the dialog does not flicker.\n")
         self.assertEqual(self.script.prose_manual_checks(plan),
-                         ["The Product Manager checks the palette manually before step 9."], "Censio#191")
+                         ["The Product Manager checks the palette manually before step 9.",
+                          "The Product Manager checks manually that the dialog does not flicker."], "Censio#191")
         self.assertEqual(self.script.prose_manual_checks(PLAN), [])
 
     def test_a_note_appended_verbatim_is_no_placeholder(self):

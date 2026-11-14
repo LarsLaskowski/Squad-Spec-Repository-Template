@@ -99,3 +99,5 @@ lost, and the PR sets `RULE_WORDS_BASELINE` to the new total.
 ## Skills
 
 - `adopt-template` — apply or refresh the template in a target repository and open a PR there.
+- `squad-upstream-cycle` — collect the squad lessons of every active consumer, move them here, fix them in one PR,
+  prepare the release PR and, once the owner has created the release, roll it out to every active consumer.

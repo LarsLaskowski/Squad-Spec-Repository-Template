@@ -102,7 +102,8 @@ tools/            apply-template.py (mechanical apply), template-check.py (self-
 docs/             squad-rationale.md: the evidence behind the squad's rules (stays here, never rolled out)
 consumers.json    the repositories that use the template: profiles, SonarQube Cloud key, active or legacy
 CHANGELOG.md      what each release brings to them
-.claude/skills/adopt-template/   the skill
+.claude/skills/adopt-template/   the skill that applies or refreshes the template in a target
+.claude/skills/squad-upstream-cycle/   collect the consumers' squad lessons, fix, release and roll out
 ```
 
 Four kinds of files in a target repository:

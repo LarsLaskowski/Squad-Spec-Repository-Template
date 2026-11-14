@@ -39,7 +39,8 @@ Lead writes them, as given, into `measurements.md` in the work folder, which ste
 - Issue (bug fix): `specs/issue-<number>/` — `plan.md`, `log.md` (and `measurements.md`, *Bug or feature*);
   tiers `docs` and `patch` have the Lead's `result.md` instead of `plan.md`
 - Feature: `specs/feature-<short-slug>/`, from an issue `specs/feature-<number>-<short-slug>/` — `spec.md`,
-  `plan.md`, `tasks.md`, `log.md` (and `measurements.md`, *Bug or feature*)
+  `plan.md`, `tasks.md`, `log.md` (and `measurements.md`, *Bug or feature*); on the `docs` route `log.md` and the
+  Lead's `result.md` only
 - The work folder lives **only on the work branch**: it is committed and pushed after every step so a
   crashed session can resume, and in step 10 its content is posted as a "Squad working record" comment
   (on the issue, or on the PR for a feature without issue) and the folder is removed before the PR opens.

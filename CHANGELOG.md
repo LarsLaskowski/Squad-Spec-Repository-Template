@@ -38,6 +38,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Profile] dotnet: `.squad/dotnet-rules-pending.globalconfig` keeps the line ending of its checkout, so a CRLF
   repository's fresh clone passes the *Analyzer gate*; `scope-check.py` lets a product PR change it with
   `squad_settings.py`, from which it is generated (#406)
+- [Core] `plan-check.py` refuses a `manual:` check that names a member who reviews no diff (Lead, Dev, Tester, …), so
+  it is no longer taken for the Product Manager's test; *Work folder* names the feature's `docs` route (#408)
 - [Seed] The seeded CI workflows gain the `decision-records` job; dotnet `Directory.Build.props` names
   `.squad/dotnet-rules-pending.globalconfig`, and dotnet `stack.md` says the *Analyzer gate* also reports a diagnostic
   without a location of a project with a changed file (#393, #403)

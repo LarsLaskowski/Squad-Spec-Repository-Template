@@ -704,6 +704,42 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
+        # Vandox#451, Censio#188: step 7 held the run for a check the plan gave to the Reviewer.
+        self.implemented(test="manual: the Reviewer reads the guide against AC1 in step 8")
+        self.stamp()
+        out = self.next()
+        self.assertNotIn("step 7 — the manual test", out)
+        self.assertIn("Next: step 8 — Review, round 1 (full)", out)
+        self.assertIn("and the manual check of AC1 plan.md's matrix gives it", out)
+
+    def test_an_orchestrator_row_records_the_manual_test_of_a_stand_in(self):
+        self.implemented(test="manual: the Product Manager runs the guide on the server")
+        self.stamp()
+        self.repo.log(row("7 Manual test", "Orchestrator", "AC1 pass: the stand-in the plan names ran it"))
+        self.assertIn("Next: step 8", self.next())
+
+    def test_a_manual_check_in_the_plans_prose_holds_the_review(self):
+        # Censio#191: the plan named the Product Manager's manual check outside the matrix.
+        self.implemented(documentation="none\n\nThe Product Manager checks the palette manually before step 9.")
+        self.stamp()
+        out = self.next()
+        self.assertIn("Next: step 7 — the manual test of the plan's manual check before the review", out)
+        self.assertIn("  Plan: The Product Manager checks the palette manually before step 9.", out)
+        self.repo.log(row("7 Manual test", "Product Manager", "palette approved"))
+        self.assertIn("Next: step 8", self.next())
+
+    def test_a_documentation_change_after_the_stamp_asks_for_the_verbatim_row_first(self):
+        # Censio#194: a verbatim fix was stamped in full while the review row was still BLOCKING.
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 1 \\| NON-BLOCKING 0", 60000))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("verbatim fix")
+        out = self.next()
+        self.assertIn("a verbatim fix (*Verbatim documentation fixes*) is logged first", out)
+        self.assertIn('"8 Verbatim" Orchestrator', out)
+
     def test_failed_gates_go_to_their_owner(self):
         self.implemented()
         head = self.repo.git("rev-parse", "HEAD")
@@ -818,6 +854,19 @@ class TestReviewAndAfter(NextTest):
         self.stamp("--verbatim")
         self.assertIn("Next: step 9 — PR approval", self.next())
 
+    def test_notes_already_in_the_plan_are_not_asked_for_again(self):
+        # PiMonitor#228: the notes step came again after the notes were appended and folded into *Challenge*.
+        settled = self.tool.notes_settled
+        challenge = types.SimpleNamespace(index=1)
+
+        def logged(*rows):
+            return types.SimpleNamespace(rows=[types.SimpleNamespace(index=i, **r) for i, r in enumerate(rows, 2)])
+
+        self.assertTrue(settled(logged(), "# Plan\n\n## Challenge\n\n- answered\n", {"2b"}, challenge))
+        notes = {"who": self.tool.ORCHESTRATOR, "number": "2a", "step": "2a Challenge notes", "result": "appended"}
+        self.assertTrue(settled(logged(notes), "# Plan\n", {"2b"}, challenge), "a notes row of another step number")
+        self.assertFalse(settled(logged(), "# Plan\n", {"2b"}, challenge))
+
     def test_docs_and_patch_routes(self):
         self.repo.log(INTAKE, row("2 Plan", "Lead", "RESULT: DONE Tier: patch/security — a pin in CI", 9000))
         out = self.next()
@@ -835,6 +884,35 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("the first log.md row", out)
         self.repo.log(row("8 Security diff", "Security", "VERDICT: APPROVED", 9000))
         self.assertIn("Next: step 10 — Pull request", self.next(), "no step 9 on tiers docs and patch")
+
+    def test_a_patch_test_comes_before_the_edits_and_security_findings_are_decided(self):
+        # PiMonitor#235: the test reproduces the defect only on the unfixed code; Security's non-blocking findings
+        # went to step 10 undecided.
+        self.repo.log(INTAKE, row("2 Plan", "Lead", "RESULT: DONE Tier: patch/security — a pin in CI", 9000))
+        out = self.next()
+        self.assertIn("before the edits, on the unfixed head", out)
+        self.assertIn("confirm it fails as the result expects (step 5)", out)
+        self.repo.log(row("2 Patch test", "Tester", "test added", 9000, "sonnet/medium"))
+        self.repo.write("tests/test_a.py", TEST_FILE + "# AC1 test_pin\n")
+        self.repo.commit("the patch test")
+        out = self.next()
+        self.assertIn("apply the Lead's exact edits", out, "the test alone is not the edit")
+        self.assertNotIn("Launch: squad-tester", out)
+        self.repo.write("README.md", "Readme 2\n")
+        self.repo.commit("edit")
+        self.assertNotIn("apply the Lead's exact edits", self.next())
+        self.stamp()
+        self.repo.log(row("8 Security diff", "Security", "[NON-BLOCKING, verbatim] README.md:1 — x; "
+                          "VERDICT: APPROVED \\| NON-BLOCKING 2", 9000))
+        self.assertIn("non-blocking findings (*Non-blocking findings*)", self.next())
+        self.repo.log(row("8 Decide", "Lead", "RESULT: DECIDED — linked issues", 9000))
+        self.assertIn("Next: step 10 — Pull request", self.next())
+        verdict = self.tool.review_verdict
+        tagged = types.SimpleNamespace(who=self.tool.SECURITY, number="8", result="[NON-BLOCKING] a\n[NON-BLOCKING, "
+                                       "verbatim] b\nVERDICT: APPROVED")
+        self.assertEqual(verdict(tagged), (0, 2), "without a count, the tags count")
+        plan = types.SimpleNamespace(who=self.tool.SECURITY, number="3", result="[NON-BLOCKING] a\nVERDICT: APPROVED")
+        self.assertEqual(verdict(plan), (0, 0), "a plan review's notes go to *Security notes*, not to step 8")
 
 
 RECORD = ("# 0001: Topic\n\n- **Status:** {status}\n- **Date:** 2026-01-01\n- **Supersedes:** —\n\n## Context\n\n"

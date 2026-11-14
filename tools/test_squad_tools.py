@@ -1103,6 +1103,34 @@ class TestSquadLogTranscripts(unittest.TestCase):
         self.assertEqual(self.run_log("2a", "Reviewer", "x", "--agent-id", "a2", "--round", "3").returncode, 2)
         self.assertEqual(self.run_log("2a", "Reviewer", "x", "--agent", "squad-reviewer", "--round", "1").returncode, 2)
 
+    def test_the_refusals_of_a_late_round_name_round_one(self):
+        # Censio#194: the way out of a round logged late was only in --help.
+        refused = self.run_log("6 Coverage", "Reviewer", "x", "--agent-id", "a2")
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("log round 1 first with --round 1", refused.stderr)
+        refused = self.run_log("6 Coverage", "Reviewer", "x", "--agent-id", "a2", "--continued")
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("log that round first with --agent-id <id> --round 1", refused.stdout)
+
+    def test_a_report_sent_again_is_part_of_its_round(self):
+        # DockerUpdateGuard#444: a Tester that re-sent its report after a background wait was logged as continued.
+        def reported(message_id, stamp, text, tokens):
+            record = answer(message_id, stamp, usage(1, 10, tokens, 0))
+            record["message"]["content"] = [{"type": "text", "text": text}]
+            return record
+
+        self.agent("a7", "squad-tester", [
+            prompt("2026-01-02T13:00:00Z"), reported("e1", "2026-01-02T13:05:00Z", "RESULT: DONE 3 tests", 20_000),
+            prompt("2026-01-02T13:08:00Z", "<task-notification>sleep finished</task-notification>"),
+            reported("e2", "2026-01-02T13:08:10Z", "RESULT: DONE 3 tests", 21_000),
+            prompt("2026-01-02T13:20:00Z", "one more test"),
+            reported("e3", "2026-01-02T13:21:00Z", "RESULT: DONE 4 tests", 22_000)])
+        reader = load_script("session-usage")
+        rounds = reader.agent_rounds(os.path.join(self.session, "subagents", "agent-a7.jsonl"))
+        self.assertEqual([(r["responses"], r["context"]) for r in rounds], [(2, 21_011), (1, 22_011)],
+                         "the repeated report folds into the first round; a new report is a new round")
+        self.assertEqual((rounds[0]["end"] - rounds[0]["start"]).total_seconds(), 490)
+
     def test_a_launch_on_another_model_is_logged_as_run_with_a_warning(self):
         write(os.path.join(self.root, "specs", "issue-1", "plan.md"), "# Plan\n\nTier: `security`\n")
         done = self.run_log("5 Tests first", "Tester", "tests", "--agent-id", "a3")

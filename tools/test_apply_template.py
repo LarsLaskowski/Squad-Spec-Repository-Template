@@ -51,8 +51,18 @@ class TestMergedCi(unittest.TestCase):
         merged = load_script().merge_ci(texts, ["go", "typescript"])
         self.assertEqual(merged.count("decision-check.py"), 1, merged)
         self.assertIn("\n  typescript-sonarqube:\n", merged)
-        self.assertIn("needs: [build, audit, sonarqube, decision-records]", merged)
+        self.assertIn("needs: [build, audit, typescript-sonarqube, decision-records]", merged)
         self.assertNotIn("typescript-decision-records", merged)
+
+    def test_needs_follow_a_job_renamed_with_the_profile_prefix(self):
+        script = load_script()
+        self.assertEqual(script.rename_needs("    needs: sonarqube\n", {"sonarqube": "ts-sonarqube"}),
+                         "    needs: ts-sonarqube\n")
+        self.assertEqual(script.rename_needs("    needs:\n      - build\n      - sonarqube-extra\n",
+                                             {"build": "ts-build"}),
+                         "    needs:\n      - ts-build\n      - sonarqube-extra\n")
+        self.assertEqual(script.rename_needs("    needs: [sonarqube]\n    run: sonarqube\n", {"sonarqube": "x"}),
+                         "    needs: [x]\n    run: sonarqube\n")
 
 
 class TestLineEndings(unittest.TestCase):

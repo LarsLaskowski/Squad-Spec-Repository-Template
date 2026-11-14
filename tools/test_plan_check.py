@@ -352,6 +352,10 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("plan.md: AC4: the `manual:` check names Security, which reviews no diff on this tier (Reviewer "
                       "does): name a member of the review round or the Product Manager",
                       self.errors(self.feature(spec=spec, plan=by_security, tasks=tasks)))
+        by_tester = plan.replace("manual: the PM on the CI artifact", "manual: the Tester runs the CLI on a fixture")
+        self.assertIn("plan.md: AC4: the `manual:` check names Tester, which reviews no diff on this tier (Reviewer "
+                      "does): name a member of the review round or the Product Manager",
+                      self.errors(self.feature(spec=spec, plan=by_tester, tasks=tasks)))
         on_security = by_security.replace("Tier: standard", "Tier: security")
         self.assertFalse(any("`manual:` check names" in e for e in
                              self.errors(self.feature(spec=spec, plan=on_security, tasks=tasks))))
@@ -361,6 +365,8 @@ class TestPlanCheck(unittest.TestCase):
         self.assertEqual([owner("the Reviewer reads the guide"), owner("Security reads the headers"),
                           owner("the PM, or the Reviewer as stand-in"), owner("on the CI artifact")],
                          ["Reviewer", "Security", None, None])
+        self.assertEqual([owner("the Dev runs it"), owner("against a dev server"), owner("the security headers")],
+                         ["Dev", None, None], "roles are capitalised; a lower-case word names no member")
         plan = PLAN + ("\n## Manual verification\n\nThe Product Manager checks the palette manually before step 9.\n"
                        "No manual test by the Product Manager is needed for AC2.\n"
                        "The Product Manager checks manually that the dialog does not flicker.\n")

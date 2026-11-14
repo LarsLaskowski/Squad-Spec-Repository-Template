@@ -177,6 +177,9 @@ RESULTS = {"CI": "pending: the pull request's CI (step 11)", "manual": "to recor
            WAIVED: "waived by the Product Manager (*Amendments*)"}
 # The squad members a `manual:` check may name as the one who runs it in its step-8 review (Vandox#451, Censio#188).
 MANUAL_MEMBERS = ("Reviewer", "Security")
+# Members that never review a run's diff, so a `manual:` check naming one is refused (capitalised, as roles are written:
+# "the security headers" or "a dev server" names no member).
+NON_REVIEW_MEMBERS = ("Lead", "Dev", "Developer", "Tester", "Code Officer", "Devil's Advocate", "Orchestrator")
 MANAGER_NAMED = re.compile(r"\bProduct Manager\b|\bPM\b")
 PROSE_MANUAL = re.compile(r"\bmanual(?:ly)?\b", re.I)
 NEGATED = re.compile(r"\b(?:no|not|without|never|none)\b[^.]{0,20}?\bmanual", re.I)
@@ -1006,11 +1009,12 @@ def names_test(name, path, text):
 
 
 def manual_owner(check):
-    """The squad member a `manual:` check names as the one who runs it (MANUAL_MEMBERS), or None for the Product
+    """The squad member a `manual:` check names as the one who runs it (MANUAL_MEMBERS, or one of NON_REVIEW_MEMBERS,
+    which `check_manual_owners` refuses), or None for the Product
     Manager's manual test: one that names the Product Manager, or nobody."""
     if MANAGER_NAMED.search(check):
         return None
-    return next((member for member in MANUAL_MEMBERS if re.search(rf"\b{member}\b", check)), None)
+    return next((member for member in MANUAL_MEMBERS + NON_REVIEW_MEMBERS if re.search(rf"\b{member}\b", check)), None)
 
 
 def prose_manual_checks(plan):

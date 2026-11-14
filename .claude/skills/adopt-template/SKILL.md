@@ -129,12 +129,14 @@ Rules that hold throughout:
      project's SonarQube Cloud C# profile (a target without the markers gets them; a sentence of its `stack.md` that
      calls a rule one "no local analyzer reports" is corrected). NOT CHECKED (no access to sonarcloud.io) is named in
      the PR description.
-   - The image build sees `.squad/dotnet-rules.globalconfig`: a Dockerfile that copies files by name copies it into
-     the build stage, a `.dockerignore` that leaves out `.squad/` lets that file in (`!.squad/dotnet-rules.globalconfig`),
-     and the target's *Image build check* reproduction copies it too; `dotnet_config.py` reports a Dockerfile or
-     `.dockerignore` that keeps it out.
+   - The image build sees both global configs, `.squad/dotnet-rules.globalconfig` and the
+     `.squad/dotnet-rules-pending.globalconfig` that `dotnet-rules.py` writes: a Dockerfile that copies files by name
+     copies them into the build stage, a `.dockerignore` that leaves out `.squad/` lets both in
+     (`!.squad/dotnet-rules.globalconfig`, `!.squad/dotnet-rules-pending.globalconfig`), and the target's *Image build
+     check* reproduction copies them too; `dotnet_config.py` reports a Dockerfile or `.dockerignore` that keeps one out.
    - A build-file item the seeds gained since the recorded tag is carried over the same way as the other seeds (step 1):
-     the `GlobalAnalyzerConfigFiles` item of `Directory.Build.props`, which `dotnet_config.py` asks for, is one.
+     the two `GlobalAnalyzerConfigFiles` items of `Directory.Build.props`, which `dotnet_config.py` asks for, are such
+     items.
    - *Format*, *Build* and the *Analyzer gate* run over the whole code: findings the refresh can fix mechanically are
      fixed in its PR, every other rule gets an issue in the target and a `DOTNET_RULES_PENDING` entry, both named in
      the PR description (`tools/rollout-check.py --build` lists them per rule before the release).

@@ -87,7 +87,8 @@ profiles/<stack>/
   instructions.md the stack blocks of AGENTS.md
   managed/        stack tooling, overwritten on every refresh (analyzer gate, SessionStart hook; dotnet: sonar-rules.py,
                   dotnet-rules.py with the rule baseline .squad/dotnet-rules.editorconfig and its switched-off rules
-                  .squad/dotnet-rules.globalconfig, dotnet_config.py)
+                  .squad/dotnet-rules.globalconfig, dotnet_config.py; dotnet-rules.py also writes the repository's
+                  .squad/dotnet-rules-pending.globalconfig)
   seed/           written once if missing: .squad/stack.md, squad_settings.py, UNIT_TESTS.md, CI, …
 multi/            dispatchers (analyzer gate, SessionStart hook) written when a repository has several profiles
 seed/             written once if missing: .squad/project.md, .claude/settings.json, SECURITY.md

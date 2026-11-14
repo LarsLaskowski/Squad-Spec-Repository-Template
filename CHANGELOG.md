@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.11 — 2026-11-14
+
 - [Core] A `manual:` check that names the Reviewer or Security runs in its step-8 round, not as a step-7 test, and
   `plan-check.py` refuses one that names a member outside the tier's review round; a Product Manager's manual check
   named only in the plan's prose holds the review, and an Orchestrator `7 Manual test` row records a stand-in's (#396)
@@ -43,6 +45,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Seed] The seeded CI workflows gain the `decision-records` job; dotnet `Directory.Build.props` names
   `.squad/dotnet-rules-pending.globalconfig`, and dotnet `stack.md` says the *Analyzer gate* also reports a diagnostic
   without a location of a project with a changed file (#393, #403)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.github/workflows/ci.yml`, `profiles/dotnet/seed/.squad/stack.md`, `profiles/dotnet/seed/Directory.Build.props`, `profiles/go/seed/.github/workflows/ci.yml`, `profiles/node/seed/.github/workflows/ci.yml`, `profiles/typescript/seed/.github/workflows/ci.yml`
 
 ## v2026.11.10 — 2026-11-13
 

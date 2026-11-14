@@ -35,6 +35,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   `.editorconfig` section reaches, to `error`; `dotnet-rules.py` writes a pending entry for such a rule into
   `.squad/dotnet-rules-pending.globalconfig` at a higher `global_level`, and `dotnet_config.py` checks that
   `Directory.Build.props`, Dockerfiles and `.dockerignore` carry both global configs (#393)
+- [Profile] dotnet: `.squad/dotnet-rules-pending.globalconfig` keeps the line ending of its checkout, so a CRLF
+  repository's fresh clone passes the *Analyzer gate*; `scope-check.py` lets a product PR change it with
+  `squad_settings.py`, from which it is generated (#406)
 - [Seed] The seeded CI workflows gain the `decision-records` job; dotnet `Directory.Build.props` names
   `.squad/dotnet-rules-pending.globalconfig`, and dotnet `stack.md` says the *Analyzer gate* also reports a diagnostic
   without a location of a project with a changed file (#393, #403)

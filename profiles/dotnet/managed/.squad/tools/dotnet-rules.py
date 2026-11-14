@@ -63,7 +63,8 @@ EDITORCONFIG = ".editorconfig"
 BASELINE = os.path.join(os.path.dirname(HERE), "dotnet-rules.editorconfig")
 GLOBAL_BASELINE = os.path.join(os.path.dirname(HERE), "dotnet-rules.globalconfig")
 PENDING_CONFIG = os.path.join(".squad", "dotnet-rules-pending.globalconfig")
-# Above the managed global config's level (100, the default): a key both files set takes this file's value.
+# Above the managed global config's level (0, the default of a global config not named .globalconfig): a key both
+# files set takes this file's value.
 PENDING_LEVEL = 101
 PENDING_HEADER = f"""\
 # The repository's DOTNET_RULES_PENDING entries for rules of .squad/dotnet-rules.globalconfig (those reported without
@@ -284,16 +285,23 @@ def switched_off(baseline, pending):
             and values.get(setting_key(name).lower()) in ("none", "silent")]
 
 
-def pending_global(global_baseline, pending):
+def pending_global(global_baseline, pending, newline="\n"):
     """The text of the pending global config: every pending rule the managed global config raises above
-    PENDING_SEVERITY, lowered to it, with its issue above it."""
+    PENDING_SEVERITY, lowered to it, with its issue above it; written with `newline` (`line_ending`)."""
     lines = []
     for line in global_baseline.splitlines():
         key, equals, value = line.partition("=")
         name = rule_of(key) if equals and not line_is_comment(line) else None
         if name in pending and lowered(value.strip()) != value.strip():
             lines += ["", f"# pending: {pending[name].strip()} (DOTNET_RULES_PENDING)", f"{key.strip()} = {PENDING_SEVERITY}"]
-    return PENDING_HEADER + "".join(f"{line}\n" for line in lines)
+    return (PENDING_HEADER + "".join(f"{line}\n" for line in lines)).replace("\n", newline)
+
+
+def line_ending(current, editorconfig):
+    """The line ending of the pending global config: the one its checkout has (a CRLF repository checks it out with
+    CRLF), else `.editorconfig`'s."""
+    text = current or editorconfig
+    return "\r\n" if "\r\n" in text else "\n"
 
 
 def rule_of(key):
@@ -331,7 +339,7 @@ def main(argv=None):
               + (" (no such option in the baseline: nothing to lower)" if name in unused else ""))
     files = ((EDITORCONFIG, "the dotnet-rules blocks", text, render(text, general, paths)),
              (PENDING_CONFIG, "the pending global config", read_file(PENDING_CONFIG),
-              pending_global(read_file(GLOBAL_BASELINE), PENDING)))
+              pending_global(read_file(GLOBAL_BASELINE), PENDING, line_ending(read_file(PENDING_CONFIG), text))))
     return update(files, options.check)
 
 

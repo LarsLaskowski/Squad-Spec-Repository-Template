@@ -264,7 +264,9 @@ def blocks_findings(rules):
     general, paths, _ = rules.wanted(baseline, rules.PENDING)
     found = [] if rules.render(text, general, paths) == text else [
         f"{EDITORCONFIG}: the dotnet-rules blocks are missing or out of date; run python3 .squad/tools/dotnet-rules.py"]
-    if rules.pending_global(rules.read_file(rules.GLOBAL_BASELINE), rules.PENDING) != rules.read_file(rules.PENDING_CONFIG):
+    current = rules.read_file(rules.PENDING_CONFIG)
+    if rules.pending_global(rules.read_file(rules.GLOBAL_BASELINE), rules.PENDING,
+                            rules.line_ending(current, text)) != current:
         found.append(f"{rules.PENDING_CONFIG}: missing or out of date; run python3 .squad/tools/dotnet-rules.py")
     return found
 

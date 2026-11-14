@@ -231,6 +231,11 @@ class DotnetConfigTest(unittest.TestCase):
         self.write_blocks({"MSTEST0001": "#5"})
         self.assertEqual(self.findings({"MSTEST0001": "#5"}), [])
         self.assertFinds(".squad/dotnet-rules-pending.globalconfig: missing or out of date")
+        self.write_blocks({})
+        with open(".squad/dotnet-rules-pending.globalconfig", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        write(".squad/dotnet-rules-pending.globalconfig", text.replace("\n", "\r\n"), newline="")
+        self.assertEqual(self.findings(), [], "a CRLF checkout of a current file is current")
 
     def test_a_section_of_a_path_after_the_blocks_may_set_rules(self):
         with open(".editorconfig", encoding="utf-8") as handle:

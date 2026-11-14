@@ -58,7 +58,7 @@ is blocking.
 
 One exception: `.squad/stack.md`, `.squad/project.md` and the project blocks of `AGENTS.md` describe the
 product, not the squad. `.squad/tools/squad_settings.py` is the repository's own settings file and a product PR may
-change it too (a coverage exclusion, *Code a unit test cannot cover*; a threshold is never lowered). A product PR updates them when the change itself makes them untrue — a new build command,
+change it too, with the files a tool writes from it (`SETTINGS_OUTPUTS` in `scope-check.py`) (a coverage exclusion, *Code a unit test cannot cover*; a threshold is never lowered). A product PR updates them when the change itself makes them untrue — a new build command,
 a new security area, a new guarantee or coupling point — without an escalation, and the Reviewer treats a stale
 entry there like stale documentation. A project block of `AGENTS.md` changes identically in
 `.github/copilot-instructions.md` (`scope-check.py` compares them).

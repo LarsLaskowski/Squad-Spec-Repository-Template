@@ -40,6 +40,21 @@ class TestMergedSettings(unittest.TestCase):
                           settings.SMALL_FEATURE_CRITERIA, settings.SPEC_APPROVAL), (300, 200, 2500, 3, "lead"))
 
 
+class TestMergedCi(unittest.TestCase):
+    def test_the_shared_decision_records_job_is_taken_once_and_other_ids_get_the_profile(self):
+        # Template#403: every profile seeds the same decision-records job; a multi-profile CI runs it once.
+        profiles = os.path.join(os.path.dirname(SCRIPT), "..", "profiles")
+        texts = []
+        for name in ("go", "typescript"):
+            with open(os.path.join(profiles, name, "seed", ".github", "workflows", "ci.yml"), encoding="utf-8") as f:
+                texts.append(f.read())
+        merged = load_script().merge_ci(texts, ["go", "typescript"])
+        self.assertEqual(merged.count("decision-check.py"), 1, merged)
+        self.assertIn("\n  typescript-sonarqube:\n", merged)
+        self.assertIn("needs: [build, audit, sonarqube, decision-records]", merged)
+        self.assertNotIn("typescript-decision-records", merged)
+
+
 class TestLineEndings(unittest.TestCase):
     def setUp(self):
         self.script = load_script()

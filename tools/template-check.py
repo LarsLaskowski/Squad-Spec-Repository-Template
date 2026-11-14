@@ -1309,7 +1309,8 @@ def load_tool(path, name):
 
 def check_lesson_labels(errors):
     """`lesson-label.py` names every file `apply-template.py` manages (one profile and all together) as managed, the
-    marked and generated files as marked, no seed as managed, and the template's skills as they are in core/."""
+    marked and generated files as marked, no seed as managed, no tool the template does not ship, and the template's
+    skills as they are in core/."""
     labels = load_tool(os.path.join("core", SQUAD_DIR, "tools", "lesson-label.py"), "lesson_label")
     applier = load_tool(os.path.join("tools", "apply-template.py"), "apply_template")
     profile_dirs = [os.path.join(ROOT, "profiles", name) for name in applier.PROFILES]
@@ -1322,8 +1323,10 @@ def check_lesson_labels(errors):
     wrong = sorted(rel for rel in managed if labels.kind(rel) != "managed")
     wrong += sorted(rel for rel in [*applier.MARKED, *applier.GENERATED] if labels.kind(rel) != "marked")
     wrong += sorted(rel for rel in seeds if labels.kind(rel) == "managed")
+    shipped = {rel.rsplit("/", 1)[1] for rel in managed if rel.startswith(".squad/tools/")}
+    wrong += sorted(f".squad/tools/{tool}" for tool in labels.TOOLS if "*" not in tool and tool not in shipped)
     if wrong:
-        errors.append("lesson-label.py (MANAGED, MARKED) disagrees with apply-template.py on: " + ", ".join(wrong))
+        errors.append("lesson-label.py (MANAGED, MARKED, TOOLS) disagrees with apply-template.py on: " + ", ".join(wrong))
     skills = sorted(os.listdir(os.path.join(CORE, CLAUDE_DIR, "skills")))
     if sorted(labels.SKILLS) != skills:
         errors.append(f"lesson-label.py SKILLS {sorted(labels.SKILLS)} is not the template's skills {skills}")

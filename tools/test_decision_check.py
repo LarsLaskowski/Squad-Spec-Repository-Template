@@ -95,6 +95,17 @@ class TestReleaseTagsOfTheRemote(unittest.TestCase):
         self.assertIn("WARNING: no local 'v*' tags and the remote 'origin' could not be asked", output)
         self.assertIn("possibly released", output)
 
+    def test_with_tags_fetched_no_remote_is_asked(self):
+        # Template#403: CI runs the check with fetch-depth 0, where a private remote cannot be asked without
+        # credentials; the fetched tags are all the repository has.
+        self.git("remote", "set-url", "origin", os.path.join(self.dir.name, "missing.git"))
+        result = subprocess.run([sys.executable, SCRIPT, "--require-history", "--tags-fetched"], cwd=self.repo,
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("could not be asked", result.stdout)
+        self.assertIn("0001-topic.md: no '- **Area:**' line", result.stdout)
+        self.assertEqual(load_script().check_freeze(self.repo, {}, [], [], tags_fetched=True), set())
+
     def test_every_remote_is_asked(self):
         other = os.path.join(self.dir.name, "other.git")
         subprocess.run(["git", "init", "-q", "--bare", other], check=True)

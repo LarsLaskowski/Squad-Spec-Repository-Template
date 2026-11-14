@@ -49,6 +49,18 @@ class TestSquadNotes(unittest.TestCase):
         self.assertEqual(self.text(), PLAN + "\n## Challenge notes\n\n" + REPORT.split("\n\nVERDICT")[0] + "\n")
         self.assertIn("4 line(s) written verbatim", done.stdout)
 
+    def test_control_characters_of_a_report_are_written_as_text_escapes(self):
+        # PiMonitor#238: a quoted U+FEFF in Security's report made plan-check.py fail after the notes were appended.
+        done = self.run_notes("issue-5", "security", "--stdin",
+                              stdin="1. the input `\ufeffcpu 1 2` starts with a BOM\u2028\tok\n\nVERDICT: APPROVED\n")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("1. the input `U+FEFFcpu 1 2` starts with a BOMU+2028\tok",
+                      self.text())
+        self.assertNotIn("\ufeff", self.text())
+        write(os.path.join(self.root, "specs", "issue-5", "log.md"), "| Date |\n")
+        self.assertEqual(self.run_notes("issue-5", "result", "--stdin", stdin="a\x07b\nRESULT: DONE\n").returncode, 0)
+        self.assertEqual(self.text(os.path.join(self.root, "specs", "issue-5", "result.md")), "aU+0007b\nRESULT: DONE\n")
+
     def test_the_report_is_read_from_the_last_message_of_the_agents_round(self):
         transcript = os.path.join(self.session, "subagents", "agent-da1.jsonl")
         reader = load_script("squad-notes")

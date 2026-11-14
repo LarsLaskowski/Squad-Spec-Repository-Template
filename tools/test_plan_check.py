@@ -343,6 +343,28 @@ class TestPlanCheck(unittest.TestCase):
             self.assertIn(row, output)
         waived_by_lead = spec.replace("| 8 | Product Manager |", "| 8 | Lead |")
         self.assertTrue(any("did not waive" in e for e in self.errors(self.feature(spec=waived_by_lead))))
+        # Vandox#451, Censio#188: a manual check the Reviewer runs takes its result from the review.
+        by_reviewer = plan.replace("manual: the PM on the CI artifact", "manual: the Reviewer reads the guide in step 8")
+        _, output = self.matrix(self.feature(spec=spec, plan=by_reviewer, tasks=tasks))
+        self.assertIn("| AC4 | manual | the Reviewer reads the guide in step 8 | to record: the Reviewer's verdict row "
+                      "of step 8 |", output)
+
+    def test_manual_owner_and_a_manual_check_in_the_prose(self):
+        owner = self.script.manual_owner
+        self.assertEqual([owner("the Reviewer reads the guide"), owner("Security reads the headers"),
+                          owner("the PM, or the Reviewer as stand-in"), owner("on the CI artifact")],
+                         ["Reviewer", "Security", None, None])
+        plan = PLAN + ("\n## Manual verification\n\nThe Product Manager checks the palette manually before step 9.\n"
+                       "No manual test by the Product Manager is needed for AC2.\n")
+        self.assertEqual(self.script.prose_manual_checks(plan),
+                         ["The Product Manager checks the palette manually before step 9."], "Censio#191")
+        self.assertEqual(self.script.prose_manual_checks(PLAN), [])
+
+    def test_a_note_appended_verbatim_is_no_placeholder(self):
+        # PiMonitor#228: a challenge note quoted `<title>` markup.
+        note = "\n## Challenge notes\n\n- No existing test pins the <h1> or the <title> markup.\n"
+        self.assertEqual(self.errors(self.feature(plan=PLAN + note)), [])
+        self.assertTrue(any("placeholder" in e for e in self.errors(self.feature(plan=PLAN + "\n<title>\n"))))
 
     def test_matrix_reads_the_test_paths_of_the_settings_and_needs_a_plan(self):
         subprocess.run(["git", "init", "-q"], check=True)

@@ -130,6 +130,7 @@ SIZE_REASON = re.compile(r"\b(?:size|length|word count|words)\b", re.I)
 # The ` on <sha>` that ends a Reviewer's verdict clause.
 VERDICT_SHA = re.compile(r"\bon\s+`?[0-9a-f]{7,40}\b")
 SECURITY_VERDICT = re.compile(r"VERDICT:\s*(APPROVED|CHANGES_REQUIRED)", re.I)
+NONBLOCKING_FINDING = re.compile(r"\[NON-BLOCKING\b", re.I)
 OBJECTIONS = re.compile(r"VERDICT:\s*(?:(?P<none>NO OBJECTIONS)|OBJECTIONS\s+(?P<major>\d+)\s+major" + NOTE +
                         r",\s*(?P<minor>\d+)\s+minor)", re.I)
 WAITS = re.compile(r"\bwaits? for\b|\bposted for agreement\b", re.I)
@@ -146,7 +147,7 @@ READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
-NOTES = re.compile(r"^#{2,6}[ \t]+Challenge notes\b", re.I | re.M)
+NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
 NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 CONTINUATION_CAP = 5
 CONTINUATION_TOKENS = 300_000
@@ -167,7 +168,8 @@ VERDICT_FORMATS = {
               "characters of `git rev-parse` of the head it reviewed; `NON-BLOCKING <m> (<k> plan)` when <k> of them "
               "only ask for what the plan already orders)",
     ADVOCATE: "`VERDICT: NO OBJECTIONS` or `VERDICT: OBJECTIONS <n> major, <m> minor`",
-    SECURITY: "`VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED`",
+    SECURITY: "`VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED` (mode diff, approved with non-blocking findings: "
+              "`VERDICT: APPROVED | NON-BLOCKING <n>`)",
 }
 DECIDE_FORMAT = ("`RESULT: DECIDED — <option>`; on review findings `FIX: <each change and its owner>` and `ISSUE: "
                  "<each linked issue>` after the dash, `FIX:` in capitals whenever it orders a change")
@@ -456,7 +458,7 @@ def review_verdict(row):
     """(blocking, non-blocking) of a Reviewer or Security diff row, or None without a VERDICT line."""
     if row.who == SECURITY:
         found = SECURITY_VERDICT.search(row.result)
-        return None if not found else (int(found.group(1).upper() != "APPROVED"), 0)
+        return None if not found else (int(found.group(1).upper() != "APPROVED"), security_nonblocking(row, found))
     found = REVIEW.search(row.result)
     if not found:
         return None
@@ -465,6 +467,15 @@ def review_verdict(row):
     if found.group("only"):
         return 0, int(found.group("only"))
     return int(found.group("blocking")), int(found.group("nonblocking") or 0)
+
+
+def security_nonblocking(row, found):
+    """The non-blocking findings of a Security diff row: the count its verdict names, else its `[NON-BLOCKING …]` tags
+    (PiMonitor#235: on `patch/security` they went to step 10 undecided)."""
+    if row.number not in ("8", "11"):
+        return 0
+    count = re.match(r"[ \t]*\\?\|?[ \t]*NON-BLOCKING[ \t]+(\d+)", row.result[found.end():], re.I)
+    return int(count.group(1)) if count else len(NONBLOCKING_FINDING.findall(row.result))
 
 
 def objections(row):
@@ -601,12 +612,13 @@ def spec_challenge(run, challenge):
 def notes_settled(run, document, numbers, challenge):
     """True when the minor objections of `challenge` are in `document`: its *Challenge notes* section is there, the
     orchestrator logged the append, or a later Lead launch folded or answered them (Censio#140: a Lead `decide` that
-    folds the notes must not send the orchestrator back to append them again)."""
+    folds the notes must not send the orchestrator back to append them again). The Lead's *Challenge* section that
+    answers them counts as the notes, and an orchestrator's notes row counts at any step number (PiMonitor#228)."""
     if NOTES.search(document or ""):
         return True
-    later = [row for row in run.rows if row.index > challenge.index and row.number in numbers]
+    later = [row for row in run.rows if row.index > challenge.index]
     return any(row.who == ORCHESTRATOR and NOTES_ROW.search(f"{row.step} {row.result}") for row in later) or \
-        any(row.who == LEAD for row in later)
+        any(row.who == LEAD and row.number in numbers for row in later)
 
 
 def spec_approval(run):
@@ -1061,17 +1073,29 @@ def stamp_ok(run):
 
 def quick_edits(run):
     """Tiers docs and patch: the orchestrator applies the Lead's exact edits first."""
-    if run.base_tier not in ("docs", "patch") or stamp_tool().stamps(run.raw):
+    if run.base_tier not in ("docs", "patch") or stamp_tool().stamps(run.raw) or stamp_tool().uncommitted(run.root):
         return None
-    if stamp_tool().branch_changes_code(run.root) or stamp_tool().uncommitted(run.root):
+    tested = run.of(TESTER, {"2"})
+    if stamp_tool().branch_changes_code(run.root) and not (tested and tests_only(run)):
         return None
-    extra = ["  For patch: when the Lead names a test to add, launch squad-tester once (the only extra launch):"] + \
-        launch(run, TESTER, "coverage", "2 Patch test", f"result.md and the test it names, {BASE_HANDOVER}") \
-        if run.base_tier == "patch" else []
-    return heading(f"tier {run.tier} — apply the Lead's exact edits (*Tiers*)") + [
-        DO + f"write the Lead's whole result to result.md with `python3 {NOTES_TOOL} {run.name} result --agent-id <the "
-        "Lead's id>` (never retyped), apply its edits yourself, run *Format* on them, commit"] + extra + [
-        THEN + "the gate stamp (step 7)"]
+    result = [] if tested else [DO + f"write the Lead's whole result to result.md with `python3 {NOTES_TOOL} "
+                                f"{run.name} result --agent-id <the Lead's id>` (never retyped)"]
+    if run.base_tier == "patch" and not tested:
+        # PiMonitor#235: the test reproduces the defect only on the unfixed code, so it comes before the edits.
+        result += ["  For patch: when the Lead names a test to add, launch squad-tester once (the only extra launch), "
+                   "before the edits, on the unfixed head:"] + launch(
+            run, TESTER, "coverage", "2 Patch test", f"result.md and the test it names, {BASE_HANDOVER}") + [
+            "  then run the test yourself and confirm it fails as the result expects (step 5), commit it, and apply "
+            "the edits; without such a test, apply them now"]
+    return heading(f"tier {run.tier} — apply the Lead's exact edits (*Tiers*)") + result + [
+        DO + "apply its edits yourself, run *Format* on them, commit", THEN + "the gate stamp (step 7)"]
+
+
+def tests_only(run):
+    """True when the branch changes test code only outside `specs/`: the patch test, before the Lead's edits."""
+    tool = stamp_tool()
+    code, base = tool.git(run.root, "merge-base", tool.BASE_REF, "HEAD")
+    return code == 0 and tool.changed_kinds(run.root, base.strip()) == {"test"}
 
 
 def gates_due(run):
@@ -1123,7 +1147,20 @@ def code_check(run):
         lines.append("  Only decision-record status lines and index rows changed since the stamp (step 9, *PR "
                      "approval*): add --verbatim (Format check, decision-check.py and scope-check.py only; no delta "
                      "round)")
+    elif last is not None and last.group("verdict") == "PASS" and review_open(run) and \
+            tool.documentation_only(run.root, last.group("sha"), "HEAD"):
+        # Censio#194: a verbatim fix stamped in full before its row: the round's counts were never subtracted.
+        cell = run.step_cell("8", "Verbatim")
+        lines.append("  Only documentation changed since the stamp while the review round has findings: a verbatim "
+                     f"fix (*Verbatim documentation fixes*) is logged first ({LOG_TOOL} {run.name} \"{cell}\" "
+                     "Orchestrator \"verbatim: [BLOCKING, verbatim] <file:line>\"), then stamped with --verbatim")
     return lines + gates_due(run)
+
+
+def review_open(run):
+    """True when a review row of the set after the last full stamp reports findings."""
+    rows = [row for agent, _ in review_set(run) for row in review_rows(run, agent, last_full_stamp_row(run))]
+    return any((verdict := review_verdict(row)) and any(verdict) for row in rows)
 
 
 def verbatim_rows(run, after):
@@ -1226,21 +1263,36 @@ def early_pr(run):
 
 
 def manual_check(run):
-    """Before the review set: a criterion the plan verifies by a manual test (`manual:`, a Product Manager's dry run)
-    runs on the stamped head first, so a document the run corrects is reviewed once (Censio#176, Vandox#440)."""
+    """Before the review set: a criterion the plan verifies by the Product Manager's manual test (`manual:`, a dry run,
+    or a manual check its prose names) runs on the stamped head first, so a document the run corrects is reviewed once
+    (Censio#176, Vandox#440, Censio#191); one whose check names a reviewer of the set is part of its step-8 round
+    (Vandox#451, Censio#188)."""
     if run.after_pr or run.plan is None or run.base_tier in ("docs", "patch") or not stamp_ok(run):
         return None
-    if run.of(MANAGER, {"7", "8", "9"}, word="manual") or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
+    logged = [row for who in (MANAGER, ORCHESTRATOR) for row in run.of(who, {"7", "8", "9"}, word="manual")]
+    if logged or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
         return None
-    planned = plan_check().planned_verifications(plan_check().sections(run.plan))
-    manual = sorted((criterion for criterion, row in planned.items() if row[0] == "manual"),
-                    key=plan_check().criterion_number)
-    if not manual:
+    planned = manual_criteria(run)
+    manual = [criterion for criterion, owner in planned.items() if owner is None]
+    prose = [] if planned else plan_check().prose_manual_checks(run.plan)
+    if not manual and not prose:
         return None
-    return heading(f"step 7 — the manual test of {', '.join(manual)} before the review") + [
+    what = ", ".join(manual) if manual else "the plan's manual check"
+    return heading(f"step 7 — the manual test of {what} before the review") + [f"  Plan: {line}" for line in prose[:3]] + [
         DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
         "says, and wait; a document the run corrects is committed and stamped again before step 8",
         f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<the result per criterion>\""]
+
+
+def manual_criteria(run):
+    """{criterion: the reviewer of the review set that runs its `manual:` check in step 8, or None (the Product
+    Manager's test of step 7)}; a check that names a member outside the set stays the Product Manager's."""
+    plan = plan_check()
+    planned = plan.planned_verifications(plan.sections(run.plan or ""))
+    members = {CELLS.get(agent, agent) for agent, _ in review_set(run)}
+    owners = {criterion: plan.manual_owner(row[1]) for criterion, row in planned.items() if row[0] == "manual"}
+    return {criterion: owners[criterion] if owners[criterion] in members else None
+            for criterion in sorted(owners, key=plan.criterion_number)}
 
 
 def review_set(run):
@@ -1384,6 +1436,10 @@ def review_launch(run, missing):
         cell = f"{number} Review{suffix}" if agent == REVIEWER else f"{number} Security diff{suffix}"
         handover = REVIEW_HANDOVER.format(record=record) + ("; for a delta round the last round's findings and the "
                                                             "new code SHA" if suffix else "")
+        checks = [criterion for criterion, owner in manual_criteria(run).items() if owner == CELLS.get(agent, agent)]
+        if checks and not suffix and not run.after_pr:
+            handover += f"; and the manual check of {', '.join(checks)} plan.md's matrix gives it, with its result per " \
+                        "criterion in the report"
         lines += launch(run, agent, mode, cell, handover)
     if run.tier not in ("security", "patch/security"):
         lines.append(f"  No Security diff review on tier {run.tier} (an unlisted security area the Reviewer finds: "

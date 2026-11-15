@@ -429,18 +429,22 @@ class TestGateStamp(RepoTest):
         self.assertEqual(self.stamp("--dry-run")[0], 0, "a dry run only lists the gates")
 
     def test_a_head_that_skips_ci_is_refused(self):
-        # Vandox#471: the stamped head is one that counts, so CI runs on it.
+        # Vandox#471: a save-only code commit is no finished step.
+        self.repo.write("src/a.py", "x = 3\n")
         self.repo.commit("Work in progress: tests first [skip ci]")
         code, out, _ = self.stamp()
         self.assertEqual(code, 1)
         self.assertIn("skips CI", out)
         self.assertNotIn("$ echo format-check", out, "no gate runs before the refusal")
         self.assertEqual(self.stamp("--dry-run")[0], 0, "a dry run only lists the gates")
+        self.repo.write("src/b.py", "y = 1\n")
         self.repo.commit("Implement the export\n\nskip-checks: true")
         self.assertEqual(self.stamp()[0], 1, "the trailer skips the checks as well")
-        self.repo.commit("Implement the export")
+        self.repo.write("specs/issue-5/notes.md", "row\n")
+        self.repo.commit("Log the Code Officer [skip ci]")
         code, out, _ = self.stamp()
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 0, f"a specs/-only head is stamped; its row is the next commit: {out}")
+        self.assertIn("commit this row without `[skip ci]`", out)
 
     def test_a_shallow_clone_without_a_record_change_is_stamped(self):
         self.tool.shallow = lambda root: True

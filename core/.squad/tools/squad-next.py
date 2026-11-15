@@ -853,21 +853,16 @@ def skeleton_gaps(run, group):
 
 
 def planned_path_changed(path, touched):
-    """True when a path a *Files* cell names matches a changed file: a glob by `fnmatch`, a directory (`dir/`, or one
-    with no `.` in its last part) by prefix, a bare file name by the file names of the changed paths (DockerUpdateGuard
-    #465, #477, Censio#202)."""
+    """True when a path a *Files* cell names matches a changed file: a glob by `fnmatch`, a directory (`src/A.B` too) by
+    prefix, a bare file name by the file names of the changed paths (DockerUpdateGuard#465, #477, Censio#202)."""
     path = path[2:] if path.startswith("./") else path
     if any(char in path for char in "*?["):
         prefix = path.split("**", 1)[0] if "**" in path else None
         return any(fnmatch.fnmatchcase(changed, path) or (prefix is not None and changed.startswith(prefix))
                    for changed in touched)
-    if path in touched:
+    if path in touched or any(changed.startswith(path.rstrip("/") + "/") for changed in touched):
         return True
-    if path.endswith("/") or "." not in path.rsplit("/", 1)[-1]:
-        return any(changed.startswith(path.rstrip("/") + "/") for changed in touched)
-    if "/" not in path:
-        return any(changed.rsplit("/", 1)[-1] == path for changed in touched)
-    return False
+    return "/" not in path and any(changed.rsplit("/", 1)[-1] == path for changed in touched)
 
 
 def skeleton_gap_lines(run, group):
@@ -1220,8 +1215,8 @@ def code_check(run):
     dirty = tool.uncommitted(run.root)
     lines = heading(f"step {step.split()[0]} — Code check: {problem}") + (
         [f"  Commit first, these files outside specs/ are uncommitted: {', '.join(dirty[:10])}"] if dirty else []) + [
-        DO + "git fetch origin main and merge main when it moved (*Merge conflicts*); commit (a subject without "
-        "`[skip ci]`: the stamped head runs CI, *Commits*); then run",
+        DO + "git fetch origin main and merge main when it moved (*Merge conflicts*); commit (a finished step's "
+        "commit without `[skip ci]`, *Commits*); then run",
         f"    {STAMP_TOOL} {run.name}" + (STDIN if run.after_pr else "")]
     if last is not None and last.group("verdict") == "PASS" and verbatim_fix(run, last):
         lines.append("  A verbatim documentation fix since the stamp: add --verbatim (Format check, decision-check.py "
@@ -1380,8 +1375,8 @@ def manual_check(run):
 
 def manual_failure(run):
     """None when the last `7 Manual test` row did not fail; else the lines of what follows a failed manual test
-    (*Loop limits*, *Manual criterion fails*, Vandox#469), or [] once the Lead decided and the group it added has
-    no new stamp yet (steps 4–7 of that group come first)."""
+    (*Loop limits*, *Manual criterion fails*, Vandox#469): the Lead's decision, the work it added until a new stamp,
+    then the manual test again."""
     rows = sorted((row for who in (MANAGER, ORCHESTRATOR) for row in run.of(who, {"7"}, word="manual")),
                   key=lambda row: row.index)
     if not rows or not MANUAL_FAILED.search(rows[-1].result):
@@ -1397,11 +1392,29 @@ def manual_failure(run):
             run, LEAD, "decide", "7 Decide (manual test)", "the failed manual test's row and the plan: it adds a "
             "task group for the options it takes, which runs steps 4–7 and the manual test again (*Loop limits*)")
     if last_full_stamp_row(run) < decided[-1].index:
-        return []
+        return manual_rework(run, decided[-1])
     return heading(f"step 7 — the manual test again, on the stamp after the added task group (run {runs + 1})") + [
         DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
         "says, and wait",
         f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<PASS or FAIL per criterion, then the result>\""]
+
+
+def manual_rework(run, decision):
+    """The work a Lead decision on a failed manual test added, before its stamp: a feature's group runs from tasks.md
+    (`code_steps` comes first), so only a bug fix, or a feature whose group is not in tasks.md yet, gets here."""
+    handover = f"the Lead's decision (row \"{decision.step}\") on the failed manual test, {BASE_HANDOVER}"
+    if run.feature:
+        return heading("step 7 — the Lead's decision on the failed manual test adds a task group that tasks.md does "
+                       "not hold yet") + launch(run, LEAD, "revise", "7 Plan revise (manual test)", "its decision: "
+                                            "it writes the group's rows into tasks.md", rule=LAST)
+    if not run.of(DEV, after=decision.index):
+        return heading("step 7 — the Dev's work the Lead's decision on the failed manual test orders") + launch(
+            run, DEV, "implement", "6 Implement (manual test)", handover)
+    if not run.of(TESTER, after=decision.index):
+        return heading("step 7 — the Tester's coverage pass on that work") + launch(
+            run, TESTER, "coverage", "6 Coverage (manual test)", handover)
+    return heading("step 7 — the work the Lead's decision ordered changed no code since the stamp") + [
+        DO + "check the Dev's report: no change means the decision is not carried out; the Lead (mode decide) settles it"]
 
 
 def manual_criteria(run):
@@ -1496,9 +1509,11 @@ def review(run):
     # off the planned ones, and untagged verbatim fixes beyond the other non-blocking findings do too.
     others = max(sum(v[1] for v in verdicts) - planned, 0)
     plain = fixed_nonblocking - fixed_planned
+    # A plan tag on a verdict line without a `(n plan)` note still names a non-blocking finding it fixed.
+    surplus = max(fixed_planned - planned, 0)
     planned = max(planned - fixed_planned - max(plain - others, 0), 0)
     blocking = sum(v[0] for v in verdicts) - fixed_blocking + planned
-    nonblocking = others - plain
+    nonblocking = others - plain - surplus
     return review_outcome(run, rows, max(blocking, 0), max(nonblocking, 0))
 
 

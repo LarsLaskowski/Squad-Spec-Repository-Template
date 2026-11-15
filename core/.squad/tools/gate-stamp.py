@@ -519,17 +519,22 @@ def run_logged(run, root, name, sha, stream):
 
 
 def head_refusal(root):
-    """Refuse a head the stamp cannot name: uncommitted files outside `specs/`, or a message that skips CI (`[skip
-    ci]` and GitHub's other spellings): the stamped head is one that counts, so CI and the code analysis run on it
-    (`.squad/orchestration.md`, *Commits*, Vandox#471)."""
+    """Refuse a head the stamp cannot name: uncommitted files outside `specs/`, or a commit that changes code and whose
+    message skips CI (`[skip ci]` and GitHub's other spellings), which marks unfinished work (`.squad/orchestration.md`,
+    *Commits*, Vandox#471). A `specs/`-only head that skips CI is stamped: the stamp's row is the next commit, and it
+    runs CI."""
     dirty = uncommitted(root)
     if dirty:
         raise Refusal("Commit first: the stamp names the commit its gates ran on, and these files outside specs/ are "
                       "changed or untracked: " + ", ".join(dirty[:10]))
     code, message = git(root, "log", "-1", "--format=%B", "HEAD")
-    if code == 0 and SKIP_CI.search(message):
-        raise Refusal("the head commit's message skips CI (`[skip ci]`): the stamped head runs CI, so commit the "
-                      "finished step without it (.squad/orchestration.md, *Commits*)")
+    if code != 0 or not SKIP_CI.search(message):
+        return
+    _, files = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+    if any(not name.startswith("specs/") for name in files.split()):
+        raise Refusal("the head commit changes code and its message skips CI (`[skip ci]`), the mark of a save-only "
+                      "commit: once the step is finished, commit its log row without `[skip ci]` on top and stamp "
+                      "that head (.squad/orchestration.md, *Commits*)")
 
 
 def stamp_command(options, root, name, log_path, after_pr, stream=None):
@@ -558,8 +563,10 @@ def stamp_command(options, root, name, log_path, after_pr, stream=None):
     row = squad_log().append_row(log_path, AFTER_PR_STEP if after_pr else STAMP_STEP, ORCHESTRATOR,
                                  stamp_text(verdict, sha, context["tier"], results, hits, options.verbatim))
     print(row)
-    print(f"Gate stamp: {verdict} on {sha[:12]}" + ("" if verdict == "PASS" else " — fix the failing gates (the "
-                                                     "output above), commit and run the stamp again"))
+    print(f"Gate stamp: {verdict} on {sha[:12]}" + (" — commit this row without `[skip ci]`: CI and the code "
+                                                     "analysis run on the stamped code" if verdict == "PASS" else
+                                                     " — fix the failing gates (the output above), commit and run "
+                                                     "the stamp again"))
     return 0 if verdict == "PASS" else 1
 
 

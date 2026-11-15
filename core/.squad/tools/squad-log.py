@@ -52,12 +52,13 @@ mechanics out of the orchestrator's hands:
   the trailer records the step (`· continued from <step>`), so a later continuation of either agent is computed
   against the right rows. `--continued` needs an earlier row of that member with usage, `--continued-from` a
   launch of that step (the fresh launch or one of its logged continuations). A continuation logged at another step
-  number than the fresh launch it continues prints a warning, unless its step cell names a fix, delta or revise round: the first launch of another mode
-  (`skeleton` to `implement`, `tests-first` to `coverage`, `approve-pr`, `decide`) is a fresh launch, not a
-  continuation. `--continued` and `--continued-from` are only for continuing the same agent: a fresh launch of
-  the same role at another step is logged without them. A continuation of an agent that was already continued
-  five times or reported 300,000 tokens is logged with a warning, and the summary names it under *Past the
-  continuation cap* (`.squad/orchestration.md`, *Continuing a member*: a fresh launch with a hand-over was due);
+  number than the fresh launch it continues prints a warning, unless its step cell names a fix, delta or revise
+  round: the first launch of another mode (`skeleton` to `implement`, `tests-first` to `coverage`, `approve-pr`,
+  `decide`) is a fresh launch, not a continuation. `--continued` and `--continued-from` are only for continuing the
+  same agent: a fresh launch of the same role at another step is logged without them. A continuation of an agent
+  that was already continued five times or reported 300,000 tokens is logged with a warning, and the summary names
+  it under *Past the continuation cap* (`.squad/orchestration.md`, *Continuing a member*: a fresh launch with a
+  hand-over was due);
 - the usage block often arrives only after the member's hand-back: `--amend-last MEMBER` with the same
   options adds the trailer to the last row of that member afterwards, so the row can be written as soon as
   the report is in. A row gets its trailer once (a pending one is completed); a second amend is refused. When a
@@ -387,9 +388,9 @@ def at_cap(chain):
 def continued_chain(path, member, skip_last=False, step=None, origin=None):
     """The agent a continuation of `member` continues, as `agent_chains` gives it: with `origin` the chain whose
     fresh launch, or one of whose continuations, has that step cell (`chain_of_step`), else its last fresh launch.
-    None when the member has no row with usage (with `origin`: no launch of that step). With `skip_last` the member's last trailer is left out
-    (it is the one being replaced); with `step`, only the rows before the member's last row of that step count
-    (that row is the one amended or replaced)."""
+    None when the member has no row with usage (with `origin`: no launch of that step). With `skip_last` the
+    member's last trailer is left out (it is the one being replaced); with `step`, only the rows before the member's
+    last row of that step count (that row is the one amended or replaced)."""
     with open(path, encoding="utf-8-sig") as handle:
         rows = parse_rows(handle.read())
     wanted = cell(member)

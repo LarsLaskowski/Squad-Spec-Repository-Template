@@ -110,6 +110,9 @@ and the head SHA.
 `squad-next.py` names for every launch the agent it continues, by the step cell of its fresh launch, or why it is
 fresh, and how to log it: keep the agent id of every fresh launch, since the agent it names is not always the member's
 last one. What a continued member may do is in `team.md` (*Shared rules*).
+A report a launch delivers again word for word (a task notification after its hand-back) belongs to the round already
+received: no reply, no row. When the same launch keeps re-sending it while it waits on a background command of its
+own, stop that agent (`TaskStop`) and log its round from the first report.
 
 ## Commits
 

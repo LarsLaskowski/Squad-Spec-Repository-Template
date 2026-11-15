@@ -123,23 +123,28 @@ is a failure, not a success. After the PR every push re-triggers CI and the code
 batched and committed once per round, and a tests-first commit that fails on purpose is pushed only together
 with the implementation that makes it pass: the head of an open PR never fails by design.
 
+A commit pushed only to save work — an interim commit for the stop hook, a tests-first commit, a `log.md` row or other
+`specs/` bookkeeping, a document in the middle of a rewrite — ends its subject with `[skip ci]`, so CI and the code
+analysis do not run on a head that is unfinished by design. The heads that count never carry it: the commit
+`gate-stamp.py` stamps (it refuses one that does), the commit a review round reviews, the commit that opens or updates
+the PR for a fix round, and the head the PR is marked ready on; GitHub reads only the head commit of a push, and a
+required check never reports on a skipped head, so the last commit before the PR is marked ready runs CI.
+
 ## The stop hook
 
 A cloud session's stop hook asks for a commit and push whenever the orchestrator ends its turn with
 uncommitted or unpushed work — and it asks **once per stop**: ending the turn again after answering it is not
 blocked. The hook never decides when a commit is made:
 
-- Before the PR, outside a review round and a merge, satisfy it with an interim commit ("Work in progress:
-  <step>"); a member then reports against the SHA it was given (`team.md`).
-- While a review round runs (its code SHA must stay the head; a commit that touches only `specs/` is fine),
-  while a merge waits for a conflict resolution, and once the PR is open (a push of a half-finished tree
-  re-runs CI and the code analysis on it), do not commit: answer the hook once with what is running and when
-  its commit follows, and end the turn. A head that was pushed half-finished anyway is logged as work in
-  progress, and neither CI nor the code analysis is judged on it.
-- The exception once the PR is open: while the run waits on the Product Manager with an *Early draft PR* open (the
-  dry run, a manual test, an answer), commit and push the `specs/` bookkeeping before ending the turn, since a cloud
-  container can be reclaimed while it waits. The commit touches only `specs/`, so it needs no new stamp or review
-  round; CI runs on the new head and is waited for as after any push.
+- Outside a review round and a merge, satisfy it with an interim commit ("Work in progress: <step> [skip ci]",
+  *Commits*), also while a PR is open; a member then reports against the SHA it was given (`team.md`).
+- While a review round runs (its code SHA must stay the head; a commit that touches only `specs/` is fine) and
+  while a merge waits for a conflict resolution, do not commit: answer the hook once with what is running and when
+  its commit follows, and end the turn. A head that was pushed half-finished without `[skip ci]` anyway is logged as
+  work in progress, and neither CI nor the code analysis is judged on it.
+- While the run waits on the Product Manager with an *Early draft PR* open (the dry run, a manual test, an answer),
+  commit and push the `specs/` bookkeeping with `[skip ci]` before ending the turn, since a cloud container can be
+  reclaimed while it waits. The commit touches only `specs/`, so it needs no new stamp or review round.
 
 ## Draft until green
 

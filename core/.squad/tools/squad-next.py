@@ -1220,7 +1220,8 @@ def code_check(run):
     dirty = tool.uncommitted(run.root)
     lines = heading(f"step {step.split()[0]} — Code check: {problem}") + (
         [f"  Commit first, these files outside specs/ are uncommitted: {', '.join(dirty[:10])}"] if dirty else []) + [
-        DO + "git fetch origin main and merge main when it moved (*Merge conflicts*); commit; then run",
+        DO + "git fetch origin main and merge main when it moved (*Merge conflicts*); commit (a subject without "
+        "`[skip ci]`: the stamped head runs CI, *Commits*); then run",
         f"    {STAMP_TOOL} {run.name}" + (STDIN if run.after_pr else "")]
     if last is not None and last.group("verdict") == "PASS" and verbatim_fix(run, last):
         lines.append("  A verbatim documentation fix since the stamp: add --verbatim (Format check, decision-check.py "

@@ -140,6 +140,8 @@ WAITS = re.compile(r"\bwaits? for\b|\bposted for agreement\b", re.I)
 CHECKLIST = re.compile(r"^\s*(?:re-)?approved by checklist\b", re.I)
 # A step-5 Tester row names its deferred tests after `Deferred:` (`Deferred: none` without one).
 DEFERRED = re.compile(r"\bDeferred:\s*(?P<names>[^\n|]*)", re.I)
+# A Dev row that removed the code a deferred test was deferred for (`removed the fallback branch of test_a`).
+REMOVED = re.compile(r"\b(?:remov|delet|drop)", re.I)
 # A step-11 Orchestrator row that the PR was merged or closed: the watching ends, step 12 runs at once.
 PR_ENDED = re.compile(r"\b(?:merged|closed)\b", re.I)
 # A continuation that a fix, delta or revise round makes in another mode is no change of mode.
@@ -965,6 +967,16 @@ def deferred_row(run, group):
     return rows[-1] if rows else None
 
 
+def deferral_settled(run, group):
+    """True when a later Dev row that says it removed something names every deferred test of the group (the branch
+    the test was deferred for is gone, Vandox#470), so no coverage pass waits for it."""
+    row = deferred_row(run, group)
+    names = [name.strip(" `'\"") for name in re.split(r"[,;]\s*", deferred_tests(run, group)) if name.strip()]
+    later = " ".join(squad_log().ANY_TRAILER.sub("", other.result) for other in run.of(DEV, after=row.index)
+                     if REMOVED.search(other.result))
+    return bool(names) and all(name.split(" (")[0] in later for name in names)
+
+
 def implement_ended(run, group):
     """True when the group's implementation is over: a Dev implement row of step 6, or an orchestrator row of step 6
     that says it skipped the implementation and names the group (`6 Implement skipped (G1)`: steps 4–5 left nothing to
@@ -979,7 +991,7 @@ def coverage_ended(run, group):
     """True when the group's coverage pass is over: a Tester row of step 6, an orchestrator coverage row of step 6 that
     names the group, or one without a group after the group's implementation (`6 Coverage gate (all groups)`). With
     deferred tests open, only a Tester row of step 6 ends it."""
-    if deferred_tests(run, group):
+    if deferred_tests(run, group) and not deferral_settled(run, group):
         tests_first = deferred_row(run, group).index
         return any(row.index > tests_first for row in group_rows(run, TESTER, "6", group))
     if group_rows(run, TESTER, "6", group) or [row for row in run.of(ORCHESTRATOR, {"6"}, word="coverage")
@@ -987,6 +999,9 @@ def coverage_ended(run, group):
         return True
     implemented = group_rows(run, DEV, "6", group, word="implement")
     after = implemented[-1].index if implemented else len(run.rows)
+    # Vandox#470: a passing full stamp on a head that holds the group's implementation passed its Coverage gate.
+    if implemented and last_full_stamp_row(run) > after:
+        return True
     return any(not GROUP.search(row.step) for row in run.of(ORCHESTRATOR, {"6"}, after=after, word="coverage"))
 
 

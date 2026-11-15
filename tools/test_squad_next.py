@@ -342,6 +342,31 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
         self.assertNotIn("deferred tests", self.next())
 
+    def test_a_deferred_test_whose_branch_the_dev_removed_needs_no_coverage_pass(self):
+        # Vandox#470: the Tester deferred a test for a branch the Dev had already removed.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green; test_a still deferred", 30000, "sonnet/medium"))
+        self.assertIn("the deferred tests (`test_a`)", self.next(), "naming the test is no removal")
+        self.repo.log(row("6 Implement fix", "Dev", "removed the fallback branch test_a covered", 9000,
+                          "sonnet/medium", continued=True),
+                      row("6 Coverage skipped", "Orchestrator", "the gate passes"))
+        self.assertNotIn("deferred tests", self.next())
+
+    def test_a_passing_stamp_after_the_implementation_ends_the_coverage_pass(self):
+        # Vandox#470: the gate passed on a head holding the implementation, yet the coverage step was asked again.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: none", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green", 30000, "sonnet/medium"))
+        self.repo.write("src/a.py", "x = 2\n")
+        self.repo.write("tests/test_a.py", TEST_FILE)
+        self.repo.commit("implement")
+        self.assertIn("Next: step 6", self.next())
+        self.stamp()
+        self.assertNotIn("Next: step 6", self.next())
+
     def test_a_tests_first_fix_round_without_a_deferred_line_keeps_the_deferred_tests(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),

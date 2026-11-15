@@ -224,7 +224,7 @@ decision record, an area document, `README.md` or a configuration example (never
 applied by the orchestrator exactly as proposed, confirmed with `git diff` to contain nothing else, passed through
 *Format check*, `scope-check.py` and `decision-check.py`, and logged with finding, file and commit (after the PR: a
 step-11 row of the Orchestrator naming it `verbatim`); the row names each finding it applied by the Reviewer's tag
-(`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`), which `squad-next.py` subtracts from the round's counts. When the new sentence no longer fits a hard-wrapped
+(`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`, `[NON-BLOCKING, plan, verbatim]`), which `squad-next.py` subtracts from the round's counts. When the new sentence no longer fits a hard-wrapped
 paragraph, the other lines of that paragraph may be rewrapped: whitespace only, confirmed with `git diff --word-diff`,
 which then shows the proposed change and nothing else, and the log row says `rewrapped`. No launch, no
 build, no confirming delta round: a blocking finding resolved this way makes its round clean, and the text is read

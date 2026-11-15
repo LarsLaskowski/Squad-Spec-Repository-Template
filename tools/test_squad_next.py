@@ -1016,6 +1016,23 @@ class TestReviewFollowUps(NextTest):
                       out)
         self.assertIn("the plan already orders", out)
 
+    def test_a_plan_ordered_finding_applied_verbatim_needs_no_owner_and_no_delta_round(self):
+        # DockerUpdateGuard#479: both findings were verbatim documentation fixes, one of them plan-ordered.
+        for tags in ("[NON-BLOCKING, verbatim] README.md line 1; [NON-BLOCKING, verbatim] README.md line 2",
+                     "[NON-BLOCKING, verbatim] README.md line 1; [NON-BLOCKING, plan, verbatim] README.md line 2"):
+            with self.subTest(tags=tags):
+                self.setUp()
+                self.implemented()
+                self.stamp()
+                self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 2 (1 plan)", 60000),
+                              row("8 Verbatim", "Orchestrator", f"verbatim: {tags}"))
+                self.repo.write("README.md", "Readme, fixed\nand more\n")
+                self.repo.commit("verbatim fixes")
+                self.stamp("--verbatim")
+                out = self.next()
+                self.assertNotIn("mandatory delta round", out)
+                self.assertIn("Next: step 9 — PR approval", out)
+
     def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
         self.implemented()
         self.stamp()
@@ -1105,7 +1122,7 @@ class TestReviewFollowUps(NextTest):
         prose = [tool.Row(5, "8 Verbatim", "8", "orchestrator", "verbatim: [BLOCKING, verbatim] docs/a.md — the "
                           "blocking sentence corrected; [NON-BLOCKING, verbatim] README.md, non-blocking wording")]
         run.of = lambda who, after=-1: prose
-        self.assertEqual(tool.verbatim_findings(run, 0), (1, 1), "the word blocking in prose counts nothing")
+        self.assertEqual(tool.verbatim_findings(run, 0), (1, 1, 0), "the word blocking in prose counts nothing")
 
 
 class TestLaunches(NextTest):

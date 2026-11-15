@@ -182,7 +182,8 @@ SKIPPED = re.compile(r"\bskip", re.I)
 # (`NON-BLOCKING 2 (1 plan)`): their owner fixes them without a Lead decision (PlexToJellyfinSync#292).
 PLAN_FINDINGS = re.compile(r"NON-BLOCKING\s+\d+\s*\((\d+)\s+plan\b", re.I)
 # The tags a verbatim row names its findings by, as the Reviewer wrote them (`[NON-BLOCKING, verbatim]`).
-NONBLOCKING_TAG = re.compile(r"\[NON-BLOCKING, verbatim\]", re.I)
+NONBLOCKING_TAG = re.compile(r"\[NON-BLOCKING, (?:plan, )?verbatim\]", re.I)
+PLAN_VERBATIM_TAG = re.compile(r"\[NON-BLOCKING, plan, verbatim\]", re.I)
 BLOCKING_TAG = re.compile(r"\[BLOCKING, verbatim\]", re.I)
 STATUS_FIELD = re.compile(r"^[+-]- \*\*Status:\*\*")
 DECISIONS = "docs/decisions/"
@@ -1238,16 +1239,17 @@ def verbatim_rows(run, after):
 
 
 def verbatim_findings(run, after):
-    """(blocking, non-blocking) findings the Orchestrator's verbatim rows after the row index `after` applied: each
-    `BLOCKING` and `NON-BLOCKING` tag a row names counts once; a row that names no tag counts as one blocking
-    finding."""
-    blocking = nonblocking = 0
+    """(blocking, non-blocking, plan-ordered) findings the Orchestrator's verbatim rows after the row index `after`
+    applied: each `BLOCKING` and `NON-BLOCKING` tag a row names counts once, `[NON-BLOCKING, plan, verbatim]` as a
+    plan-ordered one too; a row that names no tag counts as one blocking finding."""
+    blocking = nonblocking = planned = 0
     for row in verbatim_rows(run, after):
         tagged_nonblocking = len(NONBLOCKING_TAG.findall(row.result))
         tagged_blocking = len(BLOCKING_TAG.findall(row.result))
         nonblocking += tagged_nonblocking
+        planned += len(PLAN_VERBATIM_TAG.findall(row.result))
         blocking += tagged_blocking if tagged_blocking or tagged_nonblocking else 1
-    return blocking, nonblocking
+    return blocking, nonblocking, planned
 
 
 def verbatim_fix(run, last):
@@ -1438,10 +1440,15 @@ def review(run):
     stale = unmatched_review(run, stamp_index, rows)
     if stale:
         return stale
-    fixed_blocking, fixed_nonblocking = verbatim_findings(run, max(r.index for r in rows))
+    fixed_blocking, fixed_nonblocking, fixed_planned = verbatim_findings(run, max(r.index for r in rows))
     planned = sum(plan_ordered(row) for row in rows)
+    # A verbatim fix of a plan-ordered finding needs no owner (DockerUpdateGuard#479): a tag naming `plan` takes it
+    # off the planned ones, and untagged verbatim fixes beyond the other non-blocking findings do too.
+    others = max(sum(v[1] for v in verdicts) - planned, 0)
+    plain = fixed_nonblocking - fixed_planned
+    planned = max(planned - fixed_planned - max(plain - others, 0), 0)
     blocking = sum(v[0] for v in verdicts) - fixed_blocking + planned
-    nonblocking = sum(v[1] for v in verdicts) - fixed_nonblocking - planned
+    nonblocking = others - plain
     return review_outcome(run, rows, max(blocking, 0), max(nonblocking, 0))
 
 

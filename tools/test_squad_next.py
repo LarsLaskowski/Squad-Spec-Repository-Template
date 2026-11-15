@@ -457,6 +457,28 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 5 — Tests first (G1)", out)
         self.assertNotIn("First: the skeleton changed none", out)
 
+    def test_a_glob_a_directory_or_a_bare_file_name_counts_as_changed_when_a_matching_file_changed(self):
+        # DockerUpdateGuard#465, #477, Censio#202: the cell named a bare name, a glob or a directory.
+        for cell, changed in (("e.py", "src/e.py"), ("src/**", "src/deep/e.py"), ("src/*", "src/e.py"),
+                              ("src/", "src/e.py"), ("src/deep", "src/deep/e.py")):
+            with self.subTest(cell=cell):
+                self.assertTrue(self.tool.planned_path_changed(cell, {changed}), cell)
+        for cell in ("f.py", "lib/**", "lib/", "src/f.py"):
+            with self.subTest(cell=cell):
+                self.assertFalse(self.tool.planned_path_changed(cell, {"src/e.py"}), cell)
+
+    def test_a_tests_first_agent_past_the_token_cap_is_not_continued_for_the_next_group(self):
+        # DockerUpdateGuard#477: the tests-first agent of G1 had reached 397,492 tokens before the G3 tests-first.
+        rows = [row("5 Tests first (G1)", "Tester", "red", 290089), row("6 Coverage (G1)", "Tester", "ok", 102341),
+                row("5 Tests first (G2)", "Tester", "red", 107403, continued="5 Tests first (G1)"),
+                row("6 Coverage (G2)", "Tester", "ok", 51427, continued=True)]
+        log = self.tool.squad_log()
+        run = types.SimpleNamespace(rows=self.tool.parse_rows(log.parse_rows("".join(rows))))
+        run.of = lambda who, *_, **__: [r for r in run.rows if r.who == who]
+        chain, why, _ = self.tool.pick_chain(run, "squad-tester", "tests-first", self.tool.SAME)
+        self.assertIsNone(chain, "a chain past the cap is never continued")
+        self.assertIn("397,492 tokens", why)
+
     def test_a_skip_row_ends_step_4_for_its_group_and_one_without_a_group_for_every_group(self):
         self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
         self.folder = self.repo.folder = "feature-7-export"

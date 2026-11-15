@@ -68,6 +68,7 @@ Exit code 0 when it printed the next step, 1 when the work folder has no log, 2 
 """
 import argparse
 import collections
+import fnmatch
 import importlib.util
 import os
 import re
@@ -840,7 +841,25 @@ def skeleton_gaps(run, group):
         touched = tool.changed(run.root, tool.merge_base(run.root)) | set(tool.uncommitted(run.root))
     except tool.Refusal:
         return []
-    return sorted(path for path in planned if path not in touched)
+    return sorted(path for path in planned if not planned_path_changed(path, touched))
+
+
+def planned_path_changed(path, touched):
+    """True when a path a *Files* cell names matches a changed file: a glob by `fnmatch`, a directory (`dir/`, or one
+    with no `.` in its last part) by prefix, a bare file name by the file names of the changed paths (DockerUpdateGuard
+    #465, #477, Censio#202)."""
+    path = path[2:] if path.startswith("./") else path
+    if any(char in path for char in "*?["):
+        prefix = path.split("**", 1)[0] if "**" in path else None
+        return any(fnmatch.fnmatchcase(changed, path) or (prefix is not None and changed.startswith(prefix))
+                   for changed in touched)
+    if path in touched:
+        return True
+    if path.endswith("/") or "." not in path.rsplit("/", 1)[-1]:
+        return any(changed.startswith(path.rstrip("/") + "/") for changed in touched)
+    if "/" not in path:
+        return any(changed.rsplit("/", 1)[-1] == path for changed in touched)
+    return False
 
 
 def skeleton_gap_lines(run, group):

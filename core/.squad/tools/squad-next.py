@@ -152,8 +152,8 @@ SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
 NOTES_ROW = re.compile(r"\bnotes\b", re.I)
-# A `7 Manual test` row that reports a failure (`FAIL` in capitals), and the task groups a failed manual test may add before the Lead
-# escalates (*Loop limits*, *Manual criterion fails*).
+# A `7 Manual test` row that reports a failure (`FAIL` in capitals), and the task groups a failed manual test may
+# add before the Lead escalates (*Loop limits*, *Manual criterion fails*).
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5

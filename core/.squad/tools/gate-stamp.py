@@ -152,6 +152,12 @@ FIGURE_TIERS = ("trivial", "standard", "security")
 DEPENDS = {COVERAGE_GATE: TEST_COVERAGE}
 
 
+# The commit-message markers that make GitHub Actions skip a push (`[skip ci]`, `[ci skip]`, `[no ci]`,
+# `[skip actions]`, `[actions skip]`, and the `skip-checks: true` trailer).
+SKIP_CI = re.compile(r"\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks:\s*true\s*$",
+                     re.I | re.M)
+
+
 class Refusal(Exception):
     """The stamp cannot be made: the message says why (exit code 1)."""
 
@@ -512,12 +518,24 @@ def run_logged(run, root, name, sha, stream):
     return results
 
 
-def stamp_command(options, root, name, log_path, after_pr, stream=None):
-    """Run the gates and append the stamp row; the exit code."""
+def head_refusal(root):
+    """Refuse a head the stamp cannot name: uncommitted files outside `specs/`, or a message that skips CI (`[skip
+    ci]` and GitHub's other spellings): the stamped head is one that counts, so CI and the code analysis run on it
+    (`.squad/orchestration.md`, *Commits*, Vandox#471)."""
     dirty = uncommitted(root)
-    if dirty and not options.dry_run:
+    if dirty:
         raise Refusal("Commit first: the stamp names the commit its gates ran on, and these files outside specs/ are "
                       "changed or untracked: " + ", ".join(dirty[:10]))
+    code, message = git(root, "log", "-1", "--format=%B", "HEAD")
+    if code == 0 and SKIP_CI.search(message):
+        raise Refusal("the head commit's message skips CI (`[skip ci]`): the stamped head runs CI, so commit the "
+                      "finished step without it (.squad/orchestration.md, *Commits*)")
+
+
+def stamp_command(options, root, name, log_path, after_pr, stream=None):
+    """Run the gates and append the stamp row; the exit code."""
+    if not options.dry_run:
+        head_refusal(root)
     rows = read_rows(log_path)
     context = run_context(root, name, rows, after_pr)
     if options.verbatim:

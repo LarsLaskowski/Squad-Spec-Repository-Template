@@ -132,6 +132,17 @@ class TestWorkflowHardening(unittest.TestCase):
         problems = self.script.workflow_hardening("codeql.yml", {"jobs": {"analyze": {"steps": steps}}})
         self.assertEqual(problems, ["codeql.yml: no workflow-level `permissions: {}`"])
 
+    def test_a_write_permission_at_workflow_level_is_reported(self):
+        # #414: githubactions:S8233 failed the quality gate of a refresh that touched ci.yml.
+        for granted in ({"contents": "read", "checks": "write"}, "write-all"):
+            with self.subTest(granted=granted):
+                problems = self.script.workflow_hardening("ci.yml", {"permissions": granted, "jobs": {}})
+                self.assertEqual(len(problems), 1, problems)
+                self.assertIn("githubactions:S8233", problems[0])
+        job = {"permissions": {"checks": "write"}, "steps": []}
+        self.assertEqual(self.script.workflow_hardening("ci.yml", {"permissions": {"contents": "read"},
+                                                                   "jobs": {"build": job}}), [])
+
     def test_a_hardened_workflow_passes(self):
         steps = [{"uses": self.CHECKOUT, "with": {"persist-credentials": False}}, {"run": "make"}]
         self.assertEqual(self.script.workflow_hardening("codeql.yml", {"permissions": {},

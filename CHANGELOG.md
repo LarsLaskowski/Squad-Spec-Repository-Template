@@ -6,6 +6,27 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-next.py` counts a skeleton row's *Files* glob, directory or bare file name as changed when a matching
+  file changed, and the `tasks.md` template asks for repository-relative paths (#419, #421, #422)
+- [Core] A plan-ordered review finding applied verbatim (`[NON-BLOCKING, plan, verbatim]`, or an untagged verbatim row
+  beyond the other non-blocking findings) needs no owner and no delta round (#418)
+- [Core] A manual test that fails at step 7 goes to the Lead, who adds a task group; after the group's stamp
+  `squad-next.py` asks for the manual test again, and after 2 groups the Lead escalates relaxing the criterion (#417)
+- [Core] A task group a Lead decision adds in steps 7–8 is logged under its own steps 4–6, never `8 Fix`; `squad-log.py
+  --continued-from` accepts the step of a logged continuation and names the agent's fresh launch in the trailer
+  (#411, #416)
+- [Core] A group's coverage pass ends with a passing full stamp after its implementation, and a deferred test whose
+  branch a later Dev row says it removed no longer holds it (#416)
+- [Core] Commits that only save work end with `[skip ci]`; the stamped, reviewed and ready heads never do, and
+  `gate-stamp.py` refuses a head that skips CI (#415)
+- [Core] Members run *Format* in the foreground under a time limit, on the changed files where the formatter takes
+  paths; a report re-sent word for word gets no reply and no row, and a launch that keeps re-sending is stopped (#412)
+- [Core] The Lead checks every planned signature against the analyzer's limits, sweeps every list of a set the change
+  alters, and moves a built group's settled paragraphs into the area document (#413, #420)
+- [Seed] dotnet `ci.yml` grants `checks: write` to the build job only (githubactions:S8233); `.squad/stack.md` lists
+  S107 and CA1716 among the signature limits and says how to run the *Image build check* block from a CRLF checkout
+  (#413, #414)
+
 ## v2026.11.11 — 2026-11-14
 
 - [Core] A `manual:` check that names the Reviewer or Security runs in its step-8 round, not as a step-7 test, and

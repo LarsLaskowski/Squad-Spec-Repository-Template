@@ -48,7 +48,9 @@ one language, is never carried over to another (the .NET profile's `== false` is
 
 **Format.** The member that changed files — Dev, Tester, Code Officer, or the orchestrator for its own edits —
 runs *Format* from `stack.md` before handing back and keeps its result to those files: every other file the
-formatter touched is reported as "formatted outside the change", not edited, and the orchestrator restores it.
+formatter touched is reported as "formatted outside the change", not edited, and the orchestrator restores it. It
+runs in the foreground under a time limit (`timeout 600 <command>`), on the changed files or their directories where
+the formatter takes paths; a run that hits the limit is reported, never left running in the background.
 
 **Git and GitHub.** Members never run Git write operations and never post to GitHub (no GitHub MCP write tool
 either); the hook `.claude/hooks/git-guard.py` denies such Bash commands. Read-only Git, `git add` and a scratch `git

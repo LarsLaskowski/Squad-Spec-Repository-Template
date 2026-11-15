@@ -342,6 +342,31 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
         self.assertNotIn("deferred tests", self.next())
 
+    def test_a_deferred_test_whose_branch_the_dev_removed_needs_no_coverage_pass(self):
+        # Vandox#470: the Tester deferred a test for a branch the Dev had already removed.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green; test_a still deferred", 30000, "sonnet/medium"))
+        self.assertIn("the deferred tests (`test_a`)", self.next(), "naming the test is no removal")
+        self.repo.log(row("6 Implement fix", "Dev", "removed the fallback branch test_a covered", 9000,
+                          "sonnet/medium", continued=True),
+                      row("6 Coverage skipped", "Orchestrator", "the gate passes"))
+        self.assertNotIn("deferred tests", self.next())
+
+    def test_a_passing_stamp_after_the_implementation_ends_the_coverage_pass(self):
+        # Vandox#470: the gate passed on a head holding the implementation, yet the coverage step was asked again.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: none", 30000, "sonnet/medium"),
+                      row("6 Implement", "Dev", "green", 30000, "sonnet/medium"))
+        self.repo.write("src/a.py", "x = 2\n")
+        self.repo.write("tests/test_a.py", TEST_FILE)
+        self.repo.commit("implement")
+        self.assertIn("Next: step 6", self.next())
+        self.stamp()
+        self.assertNotIn("Next: step 6", self.next())
+
     def test_a_tests_first_fix_round_without_a_deferred_line_keeps_the_deferred_tests(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
@@ -456,6 +481,28 @@ class TestCodeSteps(NextTest):
         out = self.next()
         self.assertIn("Next: step 5 — Tests first (G1)", out)
         self.assertNotIn("First: the skeleton changed none", out)
+
+    def test_a_glob_a_directory_or_a_bare_file_name_counts_as_changed_when_a_matching_file_changed(self):
+        # DockerUpdateGuard#465, #477, Censio#202: the cell named a bare name, a glob or a directory.
+        for cell, changed in (("e.py", "src/e.py"), ("src/**", "src/deep/e.py"), ("src/*", "src/e.py"),
+                              ("src/", "src/e.py"), ("src/deep", "src/deep/e.py")):
+            with self.subTest(cell=cell):
+                self.assertTrue(self.tool.planned_path_changed(cell, {changed}), cell)
+        for cell in ("f.py", "lib/**", "lib/", "src/f.py"):
+            with self.subTest(cell=cell):
+                self.assertFalse(self.tool.planned_path_changed(cell, {"src/e.py"}), cell)
+
+    def test_a_tests_first_agent_past_the_token_cap_is_not_continued_for_the_next_group(self):
+        # DockerUpdateGuard#477: the tests-first agent of G1 had reached 397,492 tokens before the G3 tests-first.
+        rows = [row("5 Tests first (G1)", "Tester", "red", 290089), row("6 Coverage (G1)", "Tester", "ok", 102341),
+                row("5 Tests first (G2)", "Tester", "red", 107403, continued="5 Tests first (G1)"),
+                row("6 Coverage (G2)", "Tester", "ok", 51427, continued=True)]
+        log = self.tool.squad_log()
+        run = types.SimpleNamespace(rows=self.tool.parse_rows(log.parse_rows("".join(rows))))
+        run.of = lambda who, *_, **__: [r for r in run.rows if r.who == who]
+        chain, why, _ = self.tool.pick_chain(run, "squad-tester", "tests-first", self.tool.SAME)
+        self.assertIsNone(chain, "a chain past the cap is never continued")
+        self.assertIn("397,492 tokens", why)
 
     def test_a_skip_row_ends_step_4_for_its_group_and_one_without_a_group_for_every_group(self):
         self.repo.git("mv", "specs/issue-5", "specs/feature-7-export")
@@ -713,6 +760,30 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Answer", "Product Manager", "an answer to an escalation"))
         self.assertIn("the manual test of AC1", self.next(), "another Product Manager row ends nothing")
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
+        self.assertIn("Next: step 8", self.next())
+
+    def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
+        # Vandox#469: a timing criterion failed on the reference host before the review.
+        self.implemented(test="manual: the Product Manager times the query on the reference host")
+        self.stamp()
+        for attempt in (1, 2, 3):
+            self.repo.log(row("7 Manual test", "Product Manager", "AC1 FAIL: 2,386 ms"))
+            out = self.next()
+            self.assertIn("Launch: squad-lead, mode decide", out)
+            self.assertNotIn("Next: step 8", out)
+            if attempt == 3:
+                self.assertIn("after 2 added task groups", out)
+                self.assertIn("escalates relaxing the criterion", out)
+                break
+            self.assertIn(f"task group {attempt} of 2", out)
+            self.repo.log(row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — group G2", 9000))
+            self.repo.write("src/a.py", f"x = {attempt + 2}\n")
+            self.repo.commit("faster")
+            self.stamp()
+            self.assertIn(f"the manual test again, on the stamp after the added task group (run {attempt + 1})",
+                          self.next())
+        self.repo.log(row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — the criterion relaxed", 9000),
+                      row("7 Manual test", "Product Manager", "AC1 PASS: 900 ms"))
         self.assertIn("Next: step 8", self.next())
 
     def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
@@ -994,6 +1065,23 @@ class TestReviewFollowUps(NextTest):
                       out)
         self.assertIn("the plan already orders", out)
 
+    def test_a_plan_ordered_finding_applied_verbatim_needs_no_owner_and_no_delta_round(self):
+        # DockerUpdateGuard#479: both findings were verbatim documentation fixes, one of them plan-ordered.
+        for tags in ("[NON-BLOCKING, verbatim] README.md line 1; [NON-BLOCKING, verbatim] README.md line 2",
+                     "[NON-BLOCKING, verbatim] README.md line 1; [NON-BLOCKING, plan, verbatim] README.md line 2"):
+            with self.subTest(tags=tags):
+                self.setUp()
+                self.implemented()
+                self.stamp()
+                self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 2 (1 plan)", 60000),
+                              row("8 Verbatim", "Orchestrator", f"verbatim: {tags}"))
+                self.repo.write("README.md", "Readme, fixed\nand more\n")
+                self.repo.commit("verbatim fixes")
+                self.stamp("--verbatim")
+                out = self.next()
+                self.assertNotIn("mandatory delta round", out)
+                self.assertIn("Next: step 9 — PR approval", out)
+
     def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
         self.implemented()
         self.stamp()
@@ -1083,7 +1171,7 @@ class TestReviewFollowUps(NextTest):
         prose = [tool.Row(5, "8 Verbatim", "8", "orchestrator", "verbatim: [BLOCKING, verbatim] docs/a.md — the "
                           "blocking sentence corrected; [NON-BLOCKING, verbatim] README.md, non-blocking wording")]
         run.of = lambda who, after=-1: prose
-        self.assertEqual(tool.verbatim_findings(run, 0), (1, 1), "the word blocking in prose counts nothing")
+        self.assertEqual(tool.verbatim_findings(run, 0), (1, 1, 0), "the word blocking in prose counts nothing")
 
 
 class TestLaunches(NextTest):

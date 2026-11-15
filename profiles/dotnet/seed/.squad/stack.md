@@ -138,7 +138,9 @@ git ls-files -z | xargs -0 -I{} cp --parents {} "$scratch"
 ls "$scratch"/publish/{{TODO: wwwroot/_framework, or another output the image needs}}
 ```
 
-Keep the first copy equal to the `COPY` lines before `RUN dotnet restore` in the Dockerfile. A `--no-restore`
+In a repository checked out with CRLF line endings, a copy of the block taken from this file runs only with the
+carriage returns removed (`sed 's/\r$//'`); without them bash reports `$'\r': command not found`. Keep the first copy
+equal to the `COPY` lines before `RUN dotnet restore` in the Dockerfile. A `--no-restore`
 publish that fails, or an output that is missing, is the defect the CI release build would report after the
 PR is open.
 
@@ -165,9 +167,12 @@ too.
   with `_camelCase` readonly fields, `.ConfigureAwait(false)` in library/service code.
 - Guards an analyzer asks for (e.g. `if (_logger.IsEnabled(...))` for CA1873) are written by the Dev,
   not added later by the Code Officer.
-- Names the analyzers refuse, checked by the Lead before a name goes into the plan's *Signatures*: an enum
-  whose name ends in `Flags` or `Enum` (S2344), and a nested type of any
-  visibility (RH2101 class, RH2104 struct, RH2105 interface, RH2106 record, RH2107 enum, RH2108 delegate).
+- Names and signatures the analyzers refuse, checked by the Lead before they go into the plan's *Signatures*: an
+  enum whose name ends in `Flags` or `Enum` (S2344), a nested type of any
+  visibility (RH2101 class, RH2104 struct, RH2105 interface, RH2106 record, RH2107 enum, RH2108 delegate), more than
+  seven parameters on a method outside the tests, a `[LoggerMessage]` method included (S107), and a parameter or
+  member named after a keyword of another .NET language on a public or interface member (`from`, `to`, `step`:
+  CA1716).
 
 ## Logger arguments
 

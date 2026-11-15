@@ -426,6 +426,9 @@ class TestSquadLog(unittest.TestCase):
         row = self.script.append_row(self.path, "7 Fix", "Dev", "fixed", today="2026-01-02 15:00", launch=share)
         self.assertTrue(row.endswith("(sonnet/medium · 4,178 tokens · 5 tool uses · 317 s · continued from "
                                      "6 Implement (rows 9-14)) |"), row)
+        # Vandox#460: a continuation's step names the agent it continued; the trailer names that agent's fresh launch.
+        share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 410000, 5, 317), origin="7 Fix")
+        self.assertEqual(share, ("sonnet/medium", 5822, 5, 317, True, implement))
         # A plain continuation still belongs to the last fresh launch (docs), not to the implement chain …
         share = self.script.continued_launch(self.path, "Dev", ("sonnet/medium", 190000, 3, 40))
         self.assertEqual(share[1], 8833)
@@ -465,7 +468,7 @@ class TestSquadLog(unittest.TestCase):
         usage = ["--agent", "squad-dev", "--tokens", "104000", "--tool-uses", "4", "--seconds", "60"]
         missing = run("7 Fix", "Dev", "fixed", "--continued-from", "6 Review", *usage)
         self.assertEqual(missing.returncode, 1)
-        self.assertIn("no fresh launch of Dev with usage at step '6 Review'", missing.stdout)
+        self.assertIn("no launch of Dev with usage at step '6 Review'", missing.stdout)
         done = run("7 Fix", "Dev", "fixed", "--continued-from", "6 Implement", *usage)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("(sonnet/medium · 4,000 tokens · 4 tool uses · 60 s · continued from 6 Implement) |", done.stdout)

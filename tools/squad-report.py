@@ -425,7 +425,7 @@ def move_issue(repo, issue, template):
     gh_write("POST", f"repos/{repo}/issues/{number}/comments",
              {"body": f"Moved to {url}: a `{UPSTREAM}` lesson is fixed in the template repository and arrives here "
                       "with the next refresh (`adopt-template`)."})
-    gh_write("PATCH", f"repos/{repo}/issues/{number}", {"state": "closed", "state_reason": "not_planned"})
+    gh_write("PATCH", f"repos/{repo}/issues/{number}", {"state": "closed", "state_reason": "completed"})
     return url
 
 

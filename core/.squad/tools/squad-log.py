@@ -162,7 +162,7 @@ documentation fix, of the Orchestrator naming it verbatim, or the summary names 
 error. Exit code 0 when the row was written, amended or
 the summary is complete, 1 when the folder has no `log.md`, the agent file is unknown, `--agent-id` finds no
 transcript of that agent in the session, no row can be amended or replaced, or `--continued` finds no earlier usage
-of the member (`--continued-from`: no fresh launch of that step), 3 when the summary lists launch rows without
+of the member (`--continued-from`: no launch of that step), 3 when the summary lists launch rows without
 usage, 4 when commits after the pull request have no review row after them, 5 when no step-12 lessons row exists, 6
 when the code head has no passing gate stamp.
 """
@@ -366,7 +366,17 @@ def agent_chains(rows, member):
             chain["over"].append(row_step)
         chain["tokens"] += tokens
         chain["continuations"] += 1
+        chain.setdefault("rounds", []).append(row_step)
     return chains, fresh, current
+
+
+def chain_of_step(chains, fresh, step):
+    """The index of the chain whose fresh launch, or one of whose continuations, has the step cell `step` (Vandox
+    #460: `--continued-from` named the step of a continuation); None when none has."""
+    if step in fresh:
+        return fresh[step]
+    found = [index for index, chain in enumerate(chains) if step in chain.get("rounds", [])]
+    return found[-1] if found else None
 
 
 def at_cap(chain):
@@ -377,7 +387,7 @@ def at_cap(chain):
 def continued_chain(path, member, skip_last=False, step=None, origin=None):
     """The agent a continuation of `member` continues, as `agent_chains` gives it: with `origin` the member's last
     fresh launch whose step cell is that text, else its last fresh launch. None when the member has no row with
-    usage (with `origin`: no fresh launch of that step). With `skip_last` the member's last trailer is left out
+    usage (with `origin`: no launch of that step). With `skip_last` the member's last trailer is left out
     (it is the one being replaced); with `step`, only the rows before the member's last row of that step count
     (that row is the one amended or replaced)."""
     with open(path, encoding="utf-8-sig") as handle:
@@ -389,7 +399,7 @@ def continued_chain(path, member, skip_last=False, step=None, origin=None):
         last = [index for index, row in enumerate(rows) if row[2] == wanted and TRAILER.search(row[3])]
         rows = rows[:last[-1]] + rows[last[-1] + 1:] if last else rows
     chains, fresh, current = agent_chains(rows, wanted)
-    index = fresh.get(cell(origin)) if origin is not None else current
+    index = chain_of_step(chains, fresh, cell(origin)) if origin is not None else current
     return None if index is None else chains[index]
 
 
@@ -426,9 +436,13 @@ def continued_launch(path, member, launch, skip_last=False, step=None, origin=No
     uses and seconds as reported (they cover the round alone). A reported token figure below the earlier total
     was already the round alone and is kept. None when there is nothing to continue from (`previous_tokens`). A
     pending launch keeps its pending mark and records the continuation, which its amend then completes."""
-    earlier = previous_tokens(path, member, skip_last, step, origin)
-    if earlier is None:
+    chain = continued_chain(path, member, skip_last, step, origin)
+    if chain is None:
         return None
+    earlier = chain["tokens"]
+    # A continuation's step names the agent of the fresh launch it joined: the trailer names that launch.
+    if origin is not None and chain["step"] and chain["step"] != cell(origin):
+        origin = chain["step"].replace("\\|", "|")
     model, tokens, tool_uses, seconds = launch[:4]
     if tokens == PENDING:
         return (model, PENDING, None, None, True, origin)
@@ -1088,7 +1102,8 @@ def share_of_round(path, member, launch, continued, replace=False, step=None, or
         return launch
     share = continued_launch(path, member, launch, skip_last=replace, step=step, origin=origin)
     if share is None and origin is not None:
-        print(f"--continued-from: no fresh launch of {member} with usage at step '{origin}'")
+        print(f"--continued-from: no launch of {member} with usage at step '{origin}'; name the step cell of the "
+              "agent's fresh launch, or of one of its logged continuations, exactly as the log has it")
     elif share is None:
         print(f"--continued: no earlier row of {member} with usage to continue from; an agent whose first round "
               "is not logged yet: log that round first with --agent-id <id> --round 1, then this one")

@@ -145,7 +145,7 @@ COGNITIVE_LIMIT = 15
 # check_sonar_rules); python:S3776 is checked with complexipy (check_complexity).
 SONAR_RULES = ["python:S1192", "python:S1481", "python:S1940", "python:S3358", "python:S3516", "python:S5843",
                "python:S5850", "python:S5906", "python:S5869", "python:S6019", "python:S6326", "python:S6395", "python:S7632",
-               "python:S8786", "python:S8997", "python:S9081"]
+               "python:S8786", "python:S8997", "python:S9081", "githubactions:S8233"]
 # python:S5906: assertTrue/assertFalse of a comparison or isinstance(), and an equality or identity assertion against
 # None, True, False or round(), have a more specific unittest assertion.
 # python:S1481: a parameter a function only ever augments (`errors += found`) and never reads: Sonar takes the
@@ -606,17 +606,30 @@ def check_merged_yaml(label, names, target, path, errors):
 
 def workflow_hardening(rel, parsed):
     """The token settings a seeded workflow lacks: every `actions/checkout` step keeps no credentials in `.git/config`
-    (`persist-credentials: false`), and a CodeQL workflow grants nothing at the workflow level (`permissions: {}`), so a
-    job added later does not inherit the repository's default token (#360, #372)."""
+    (`persist-credentials: false`), a CodeQL workflow grants nothing at the workflow level (`permissions: {}`), so a
+    job added later does not inherit the repository's default token (#360, #372), and no workflow grants a write
+    permission at the workflow level (githubactions:S8233, #414)."""
     problems = []
     if os.path.basename(rel) == CODEQL_YML and parsed.get("permissions") != {}:
         problems.append(f"{rel}: no workflow-level `permissions: {{}}`")
+    writes = workflow_writes(parsed.get("permissions"))
+    if writes:
+        # githubactions:S8233: a write permission at workflow level reaches every job; it belongs to the job needing it.
+        problems.append(f"{rel}: workflow-level write permission {', '.join(writes)} (githubactions:S8233): grant it "
+                        "to the job that needs it")
     for job_id, job in (parsed.get("jobs") or {}).items():
         for step in job.get("steps") or []:
             if str(step.get("uses", "")).startswith("actions/checkout@") and \
                     (step.get("with") or {}).get("persist-credentials") is not False:
                 problems.append(f"{rel}: the checkout of job {job_id} lacks `persist-credentials: false`")
     return problems
+
+
+def workflow_writes(granted):
+    """The scopes a `permissions:` value grants write access to (`all` for `write-all`)."""
+    if isinstance(granted, dict):
+        return sorted(scope for scope, level in granted.items() if level == "write")
+    return ["all"] if granted == "write-all" else []
 
 
 def check_seed_workflows(errors):

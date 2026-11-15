@@ -428,6 +428,20 @@ class TestGateStamp(RepoTest):
         self.assertNotIn("$ echo format-check", out, "no gate runs before the refusal")
         self.assertEqual(self.stamp("--dry-run")[0], 0, "a dry run only lists the gates")
 
+    def test_a_head_that_skips_ci_is_refused(self):
+        # Vandox#471: the stamped head is one that counts, so CI runs on it.
+        self.repo.commit("Work in progress: tests first [skip ci]")
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 1)
+        self.assertIn("skips CI", out)
+        self.assertNotIn("$ echo format-check", out, "no gate runs before the refusal")
+        self.assertEqual(self.stamp("--dry-run")[0], 0, "a dry run only lists the gates")
+        self.repo.commit("Implement the export\n\nskip-checks: true")
+        self.assertEqual(self.stamp()[0], 1, "the trailer skips the checks as well")
+        self.repo.commit("Implement the export")
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 0, out)
+
     def test_a_shallow_clone_without_a_record_change_is_stamped(self):
         self.tool.shallow = lambda root: True
         code, out, _ = self.stamp()

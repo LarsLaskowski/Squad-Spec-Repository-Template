@@ -1228,3 +1228,49 @@ Found in the pull request analysis of #376: SonarQube Cloud reported python:S148
 of the augmented assignment and read nowhere in the function. It left alone `errors += […]` in `check_merged_yaml`,
 whose `errors` is also read (`errors.append`), and `errors += release.check(text)` in `check_changelog`. The local
 check reports a parameter whose only use is such an assignment, which is that one line; the code now calls `extend`.
+
+## Skeleton gaps of a glob, a directory or a bare name (squad-next.py, `skeleton_gaps`)
+
+Three runs got a false "the skeleton changed none of …" before step 5: DockerUpdateGuard#280 (`src/…/Portainer/**`
+and a directory), DockerUpdateGuard#462 (test files named without their directory) and Censio#34 (a bare name and
+`src/Censio.Companion.Core/*`). Each time the orchestrator checked `git show --stat` and went on; the risk was an
+unneeded Dev round. In the same DockerUpdateGuard#280 run the Tester's G3 tests-first was logged as a continuation of
+an agent already at 397,492 tokens; the current `pick_chain` names a fresh launch for that log, so the tool needed no
+change there, only a regression test.
+
+## A plan-ordered finding fixed verbatim (squad-next.py, `review`)
+
+DockerUpdateGuard#288: `VERDICT: BLOCKING 0 | NON-BLOCKING 2 (1 plan)`, both verbatim documentation fixes applied and
+logged as `[NON-BLOCKING, verbatim]`; the plan-ordered one was still added to the blocking count and cost a delta round.
+
+## A manual criterion that fails before the review (routing.md, Loop limits)
+
+Vandox#47: the Product Manager's timing of AC10 on the reference NAS measured 2,386 ms against 1,000 ms at step 7. With
+no rule the Lead improvised two task groups (G5, G6), three NAS runs and two extra Security plan deltas. The owner set
+the limit at two groups before the escalation (the other loop limits allow two rounds too).
+
+## `[skip ci]` on commits that only save work (orchestration.md, Commits)
+
+Vandox#47: the stop hook's commits put dozens of unfinished heads (tests that fail on purpose, log rows, documents in a
+rewrite) on a branch with an early draft PR; each push ran Backend, Analyze, SonarQube, Release build and Agent, and the
+real failures were hard to tell from the planned ones. The owner chose the rule as proposed. GitHub reads only the head
+commit of a push, and a required check never reports on a skipped head, which is why the stamped, reviewed and ready
+heads must not carry the marker.
+
+## A hung full-tree format and a re-sent report (team.md, Format; orchestration.md, Continuing a member)
+
+Vandox#46: the Dev's skeleton launch started a full-tree `reihitsu-format` that hung; the agent ended its turn waiting
+on it, and its identical report reached the orchestrator about 20 times (about 1,100 s and 30 orchestrator turns).
+
+## Signature limits and the size caps (squad-lead.md, mode plan)
+
+Vandox#46: the plan fixed a `[LoggerMessage]` signature with 11 parameters (S107 allows 7), interface parameters
+`from`/`to` (CA1716) and nested helper types (RH2101), each found only at the skeleton; the word caps made the Lead
+trim settled paragraphs in at least five launches. DockerUpdateGuard#267: the plan named one sentence about the
+clients with `TransientHttpRetryHandler` but not the §3 list of the same clients, which the review found.
+
+## Workflow-level write permissions (template-check.py, `workflow_hardening`)
+
+PlexToJellyfinSync#315: the v2026.11.11 refresh touched `ci.yml`, and SonarQube Cloud failed the quality gate on
+githubactions:S8233 ("Move this write permission from workflow level to job level", security rating C on new code) for
+the seeded `checks: write`, which only the build job's `dorny/test-reporter` step needs.

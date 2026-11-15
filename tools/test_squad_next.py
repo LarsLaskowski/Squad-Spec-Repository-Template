@@ -485,7 +485,8 @@ class TestCodeSteps(NextTest):
     def test_a_glob_a_directory_or_a_bare_file_name_counts_as_changed_when_a_matching_file_changed(self):
         # DockerUpdateGuard#465, #477, Censio#202: the cell named a bare name, a glob or a directory.
         for cell, changed in (("e.py", "src/e.py"), ("src/**", "src/deep/e.py"), ("src/*", "src/e.py"),
-                              ("src/", "src/e.py"), ("src/deep", "src/deep/e.py")):
+                              ("src/", "src/e.py"), ("src/deep", "src/deep/e.py"),
+                              ("src/Censio.Pipe", "src/Censio.Pipe/Reader.cs"), ("Dockerfile", "deploy/Dockerfile")):
             with self.subTest(cell=cell):
                 self.assertTrue(self.tool.planned_path_changed(cell, {changed}), cell)
         for cell in ("f.py", "lib/**", "lib/", "src/f.py"):
@@ -786,6 +787,20 @@ class TestReviewAndAfter(NextTest):
                       row("7 Manual test", "Product Manager", "AC1 PASS: 900 ms"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_bug_fix_after_the_leads_decision_on_a_failed_manual_test_holds_the_review(self):
+        # Release review: a bug fix has no tasks.md, so the decided work went straight to step 8 on the old stamp.
+        self.implemented(test="manual: the Product Manager times the query on the reference host")
+        self.stamp()
+        self.repo.log(row("7 Manual test", "Product Manager", "AC1 FAIL: 2,386 ms"),
+                      row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — cache the index", 9000))
+        out = self.next()
+        self.assertNotIn("Next: step 8", out)
+        self.assertIn("Launch: squad-dev, mode implement", out)
+        self.repo.log(row("6 Implement (manual test)", "Dev", "index cached", 9000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("Launch: squad-tester, mode coverage", out)
+        self.assertNotIn("Next: step 8", out)
+
     def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
         # Vandox#451, Censio#188: step 7 held the run for a check the plan gave to the Reviewer.
         self.implemented(test="manual: the Reviewer reads the guide against AC1 in step 8")
@@ -1081,6 +1096,19 @@ class TestReviewFollowUps(NextTest):
                 out = self.next()
                 self.assertNotIn("mandatory delta round", out)
                 self.assertIn("Next: step 9 — PR approval", out)
+
+    def test_a_plan_tag_without_a_plan_note_still_clears_its_finding(self):
+        # Release review: the verdict line carried no `(1 plan)` note, the verbatim row a plan tag.
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: BLOCKING 0 \\| NON-BLOCKING 1", 60000),
+                      row("8 Verbatim", "Orchestrator", "verbatim: [NON-BLOCKING, plan, verbatim] README.md line 1"))
+        self.repo.write("README.md", "Readme, fixed\n")
+        self.repo.commit("verbatim fix")
+        self.stamp("--verbatim")
+        out = self.next()
+        self.assertNotIn("mode decide", out)
+        self.assertIn("Next: step 9 — PR approval", out)
 
     def test_a_fix_the_lead_orders_on_a_non_blocking_finding_comes_before_step_9(self):
         self.implemented()

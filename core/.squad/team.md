@@ -76,7 +76,7 @@ orchestrator's: the member that owns the content (the Tester for *Test doubles*,
 exact text, and the orchestrator writes it verbatim and runs *Format*. Both hooks prevent accidents and are
 no security boundary: an interpreter or a shell redirect gets past them, and these rules bind there all the same.
 
-**Reporting against a SHA.** Before the PR the orchestrator may commit your edits as work in progress while
+**Reporting against a SHA.** The orchestrator may commit your edits as work in progress while
 you work (`orchestration.md`, *The stop hook*), so a clean `git status` at hand-back is expected: report your
 changes against the head SHA you were given (`git diff <sha>`). Your report is one final reply (or one
 `SubagentHandback` call where the harness offers it), never split across several and sent once: finish within your

@@ -128,9 +128,10 @@ with the implementation that makes it pass: the head of an open PR never fails b
 
 A commit pushed only to save work — an interim commit for the stop hook, a tests-first commit, a `log.md` row or other
 `specs/` bookkeeping, a document in the middle of a rewrite — ends its subject with `[skip ci]`, so CI and the code
-analysis do not run on a head that is unfinished by design. The heads that count never carry it: the commit
-`gate-stamp.py` stamps (it refuses one that does), the commit a review round reviews, the commit that opens or updates
-the PR for a fix round, and the head the PR is marked ready on; GitHub reads only the head commit of a push, and a
+analysis do not run on a head that is unfinished by design. The commits that count never carry it: a finished step's
+commit (`gate-stamp.py` refuses to stamp a code commit that carries it), the commit of a stamp's row, so CI runs on the
+code a review round reviews, the commit that opens or updates the PR for a fix round, and the head the PR is marked
+ready on; GitHub reads only the head commit of a push, and a
 required check never reports on a skipped head, so the last commit before the PR is marked ready runs CI.
 
 ## The stop hook

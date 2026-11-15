@@ -1392,7 +1392,7 @@ def manual_failure(run):
             run, LEAD, "decide", "7 Decide (manual test)", "the failed manual test's row and the plan: it adds a "
             "task group for the options it takes, which runs steps 4–7 and the manual test again (*Loop limits*)")
     if last_full_stamp_row(run) < decided[-1].index:
-        return manual_rework(run, decided[-1])
+        return manual_rework(run, decided[0])
     return heading(f"step 7 — the manual test again, on the stamp after the added task group (run {runs + 1})") + [
         DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
         "says, and wait",
@@ -1414,7 +1414,9 @@ def manual_rework(run, decision):
         return heading("step 7 — the Tester's coverage pass on that work") + launch(
             run, TESTER, "coverage", "6 Coverage (manual test)", handover)
     return heading("step 7 — the work the Lead's decision ordered changed no code since the stamp") + [
-        DO + "check the Dev's report: no change means the decision is not carried out; the Lead (mode decide) settles it"]
+        DO + "when the decision orders no code (a rerun, a corrected test setup), stamp this head again; the manual "
+        "test follows. Otherwise the decision is not carried out: back to the Dev with it",
+        f"    {STAMP_TOOL} {run.name}"]
 
 
 def manual_criteria(run):

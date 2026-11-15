@@ -440,7 +440,7 @@ class TestGateStamp(RepoTest):
         self.repo.write("src/b.py", "y = 1\n")
         self.repo.commit("Implement the export\n\nskip-checks: true")
         self.assertEqual(self.stamp()[0], 1, "the trailer skips the checks as well")
-        self.repo.write("specs/issue-5/notes.md", "row\n")
+        self.repo.write("specs/issue-5/notes draft über.md", "row\n")
         self.repo.commit("Log the Code Officer [skip ci]")
         code, out, _ = self.stamp()
         self.assertEqual(code, 0, f"a specs/-only head is stamped; its row is the next commit: {out}")

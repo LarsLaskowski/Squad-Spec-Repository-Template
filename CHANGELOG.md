@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A Lead decision on a failed manual test that orders no code is stamped again instead of looping through the
+  Dev and the Tester; `gate-stamp.py` reads a `specs/` file name with a space or a non-ASCII character as bookkeeping;
+  the dotnet seed's S107 item names constructors too (#425)
+
 - [Core] After the Lead's decision on a failed manual test, `squad-next.py` holds the review until the work it ordered
   is done and stamped, a bug fix's Dev and Tester rounds included; a *Files* cell `src/A.B` or `Dockerfile` matches; a
   plan tag on a verbatim row clears its finding without a `(n plan)` note; `gate-stamp.py` stamps a `specs/`-only

@@ -801,6 +801,21 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("Launch: squad-tester, mode coverage", out)
         self.assertNotIn("Next: step 8", out)
 
+    def test_a_decision_on_a_failed_manual_test_that_orders_no_code_is_stamped_again(self):
+        # Release review: a rerun on the right host changed no code, and the Dev and Tester were asked in a loop.
+        self.implemented(test="manual: the Product Manager times the query on the reference host")
+        self.stamp()
+        self.repo.log(row("7 Manual test", "Product Manager", "AC1 FAIL: wrong host"),
+                      row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — rerun on the reference host", 9000),
+                      row("6 Implement (manual test)", "Dev", "no change needed", 9000, "sonnet/medium"),
+                      row("6 Coverage (manual test)", "Tester", "nothing to add", 9000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("stamp this head again; the manual test follows", out)
+        self.repo.log(row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — rerun, no code", 9000, continued=True))
+        self.assertNotIn("Launch: squad-dev", self.next(), "a later Lead row starts no second Dev round")
+        self.stamp()
+        self.assertIn("the manual test again", self.next())
+
     def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
         # Vandox#451, Censio#188: step 7 held the run for a check the plan gave to the Reviewer.
         self.implemented(test="manual: the Reviewer reads the guide against AC1 in step 8")

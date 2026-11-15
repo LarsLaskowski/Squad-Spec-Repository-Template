@@ -153,8 +153,8 @@ The orchestrator tells you which **mode** to run:
   resource bounds: a signature that still contradicts one (a promise of one file in memory at a time beside a
   method that takes four streams) is changed in the same revision. Do not append
   answers: move settled material (verified facts) to the
-  decision record, or into *Documentation updates* for the Dev, once a group is built its settled paragraphs into the
-  area document that now states them (a pointer stays), and shorten (a plan over its tier's
+  decision record, or into *Documentation updates* for the Dev; once a group is built, replace its settled paragraphs
+  by a pointer to the area document that now states them; and shorten (a plan over its tier's
   `PLAN_MAX_WORDS` needs a `Plan size:` line, `plan-check.py`). Update the
   affected decision records (a rejected option and the reason belong under *Options considered*).
 - `decide` — a loop limit was hit, members disagree, or a review round left non-blocking findings (step 8,

@@ -170,7 +170,7 @@ too.
 - Names and signatures the analyzers refuse, checked by the Lead before they go into the plan's *Signatures*: an
   enum whose name ends in `Flags` or `Enum` (S2344), a nested type of any
   visibility (RH2101 class, RH2104 struct, RH2105 interface, RH2106 record, RH2107 enum, RH2108 delegate), more than
-  seven parameters on a method outside the tests, a `[LoggerMessage]` method included (S107), and a parameter or
+  seven parameters on a method or constructor outside the tests, a `[LoggerMessage]` method included (S107), and a parameter or
   member named after a keyword of another .NET language on a public or interface member (`from`, `to`, `step`:
   CA1716).
 

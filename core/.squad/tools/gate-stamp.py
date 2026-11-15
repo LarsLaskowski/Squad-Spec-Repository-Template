@@ -530,8 +530,8 @@ def head_refusal(root):
     code, message = git(root, "log", "-1", "--format=%B", "HEAD")
     if code != 0 or not SKIP_CI.search(message):
         return
-    _, files = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
-    if any(not name.startswith("specs/") for name in files.split()):
+    _, files = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD", *OUTSIDE_SPECS)
+    if files.strip():
         raise Refusal("the head commit changes code and its message skips CI (`[skip ci]`), the mark of a save-only "
                       "commit: once the step is finished, commit its log row without `[skip ci]` on top and stamp "
                       "that head (.squad/orchestration.md, *Commits*)")

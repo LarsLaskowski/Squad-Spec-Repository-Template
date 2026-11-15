@@ -150,6 +150,10 @@ SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
 NOTES_ROW = re.compile(r"\bnotes\b", re.I)
+# A `7 Manual test` row that reports a failure (`FAIL` in capitals), and the task groups a failed manual test may add before the Lead
+# escalates (*Loop limits*, *Manual criterion fails*).
+MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
+MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
 CONTINUATION_TOKENS = 300_000
 SPEC_APPROVAL = getattr(settings, "SPEC_APPROVAL", "lead")
@@ -305,6 +309,7 @@ def agent_chains(run, agent):
             chain["continuations"] += 1
             if chain["mixed"] is None and other_mode(agent, chain["mode"], row):
                 chain["mixed"] = row.step
+            by_step.setdefault(row.step, index)
             last = index
     return chains, fresh, last
 
@@ -1339,6 +1344,9 @@ def manual_check(run):
     (Vandox#451, Censio#188)."""
     if run.after_pr or run.plan is None or run.base_tier in ("docs", "patch") or not stamp_ok(run):
         return None
+    failed = manual_failure(run)
+    if failed is not None:
+        return failed or None
     logged = [row for who in (MANAGER, ORCHESTRATOR) for row in run.of(who, {"7", "8", "9"}, word="manual")]
     if logged or any(review_rows(run, agent, -1) for agent, _ in review_set(run)):
         return None
@@ -1351,7 +1359,33 @@ def manual_check(run):
     return heading(f"step 7 — the manual test of {what} before the review") + [f"  Plan: {line}" for line in prose[:3]] + [
         DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
         "says, and wait; a document the run corrects is committed and stamped again before step 8",
-        f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<the result per criterion>\""]
+        f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<PASS or FAIL per criterion, then the result>\""]
+
+
+def manual_failure(run):
+    """None when the last `7 Manual test` row did not fail; else the lines of what follows a failed manual test
+    (*Loop limits*, *Manual criterion fails*, Vandox#469), or [] once the Lead decided and the group it added has
+    no new stamp yet (steps 4–7 of that group come first)."""
+    rows = sorted((row for who in (MANAGER, ORCHESTRATOR) for row in run.of(who, {"7"}, word="manual")),
+                  key=lambda row: row.index)
+    if not rows or not MANUAL_FAILED.search(rows[-1].result):
+        return None
+    runs = sum(1 for row in rows if MANUAL_FAILED.search(row.result))
+    decided = run.of(LEAD, after=rows[-1].index)
+    if not decided:
+        if runs > MANUAL_GROUPS:
+            return heading(f"step 7 — the manual test failed after {MANUAL_GROUPS} added task groups") + launch(
+                run, LEAD, "decide", "7 Decide (manual test)", "the failed manual test's rows and the groups added "
+                "for it: it escalates relaxing the criterion to the Product Manager (*Loop limits*)")
+        return heading(f"step 7 — the manual test failed (task group {runs} of {MANUAL_GROUPS} for it)") + launch(
+            run, LEAD, "decide", "7 Decide (manual test)", "the failed manual test's row and the plan: it adds a "
+            "task group for the options it takes, which runs steps 4–7 and the manual test again (*Loop limits*)")
+    if last_full_stamp_row(run) < decided[-1].index:
+        return []
+    return heading(f"step 7 — the manual test again, on the stamp after the added task group (run {runs + 1})") + [
+        DO + "ask the Product Manager (or the stand-in the plan names) to run it on the stamped head, as the plan "
+        "says, and wait",
+        f"  Log: {LOG_TOOL} {run.name} \"7 Manual test\" \"Product Manager\" \"<PASS or FAIL per criterion, then the result>\""]
 
 
 def manual_criteria(run):
@@ -1708,7 +1742,7 @@ def cap_warnings(run):
         if not trailer.group("continued"):
             continue
         chains, fresh, current = log.agent_chains(run.raw[:launches[-1]], member)
-        index = fresh.get(trailer.group("origin")) if trailer.group("origin") else current
+        index = log.chain_of_step(chains, fresh, trailer.group("origin")) if trailer.group("origin") else current
         if index is not None and log.at_cap(chains[index]):
             found.append(f"WARNING: {member}'s last launch, \"{rows[1]}\", continued an agent past the continuation "
                          "cap (.squad/orchestration.md, *Continuing a member*): its next launch is a new agent with a "

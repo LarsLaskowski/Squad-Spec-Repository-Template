@@ -737,6 +737,30 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
+        # Vandox#469: a timing criterion failed on the reference host before the review.
+        self.implemented(test="manual: the Product Manager times the query on the reference host")
+        self.stamp()
+        for attempt in (1, 2, 3):
+            self.repo.log(row("7 Manual test", "Product Manager", "AC1 FAIL: 2,386 ms"))
+            out = self.next()
+            self.assertIn("Launch: squad-lead, mode decide", out)
+            self.assertNotIn("Next: step 8", out)
+            if attempt == 3:
+                self.assertIn("after 2 added task groups", out)
+                self.assertIn("escalates relaxing the criterion", out)
+                break
+            self.assertIn(f"task group {attempt} of 2", out)
+            self.repo.log(row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — group G2", 9000))
+            self.repo.write("src/a.py", f"x = {attempt + 2}\n")
+            self.repo.commit("faster")
+            self.stamp()
+            self.assertIn(f"the manual test again, on the stamp after the added task group (run {attempt + 1})",
+                          self.next())
+        self.repo.log(row("7 Decide (manual test)", "Lead", "RESULT: DECIDED — the criterion relaxed", 9000),
+                      row("7 Manual test", "Product Manager", "AC1 PASS: 900 ms"))
+        self.assertIn("Next: step 8", self.next())
+
     def test_a_manual_check_by_the_reviewer_is_part_of_its_round(self):
         # Vandox#451, Censio#188: step 7 held the run for a check the plan gave to the Reviewer.
         self.implemented(test="manual: the Reviewer reads the guide against AC1 in step 8")

@@ -518,9 +518,14 @@ def run_logged(run, root, name, sha, stream):
     return results
 
 
-def skip_ci_refusal(root):
-    """Refuse a head whose message skips CI (`[skip ci]` and GitHub's other spellings): the stamped head is one that
-    counts, so CI and the code analysis run on it (`.squad/orchestration.md`, *Commits*, Vandox#471)."""
+def head_refusal(root):
+    """Refuse a head the stamp cannot name: uncommitted files outside `specs/`, or a message that skips CI (`[skip
+    ci]` and GitHub's other spellings): the stamped head is one that counts, so CI and the code analysis run on it
+    (`.squad/orchestration.md`, *Commits*, Vandox#471)."""
+    dirty = uncommitted(root)
+    if dirty:
+        raise Refusal("Commit first: the stamp names the commit its gates ran on, and these files outside specs/ are "
+                      "changed or untracked: " + ", ".join(dirty[:10]))
     code, message = git(root, "log", "-1", "--format=%B", "HEAD")
     if code == 0 and SKIP_CI.search(message):
         raise Refusal("the head commit's message skips CI (`[skip ci]`): the stamped head runs CI, so commit the "
@@ -529,12 +534,8 @@ def skip_ci_refusal(root):
 
 def stamp_command(options, root, name, log_path, after_pr, stream=None):
     """Run the gates and append the stamp row; the exit code."""
-    dirty = uncommitted(root)
-    if dirty and not options.dry_run:
-        raise Refusal("Commit first: the stamp names the commit its gates ran on, and these files outside specs/ are "
-                      "changed or untracked: " + ", ".join(dirty[:10]))
     if not options.dry_run:
-        skip_ci_refusal(root)
+        head_refusal(root)
     rows = read_rows(log_path)
     context = run_context(root, name, rows, after_pr)
     if options.verbatim:

@@ -138,7 +138,9 @@ git ls-files -z | xargs -0 -I{} cp --parents {} "$scratch"
 ls "$scratch"/publish/{{TODO: wwwroot/_framework, or another output the image needs}}
 ```
 
-Keep the first copy equal to the `COPY` lines before `RUN dotnet restore` in the Dockerfile. A `--no-restore`
+In a repository checked out with CRLF line endings, a copy of the block taken from this file runs only with the
+carriage returns removed (`sed 's/\r$//'`); without them bash reports `$'\r': command not found`. Keep the first copy
+equal to the `COPY` lines before `RUN dotnet restore` in the Dockerfile. A `--no-restore`
 publish that fails, or an output that is missing, is the defect the CI release build would report after the
 PR is open.
 

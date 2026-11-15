@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.12 — 2026-11-15
+
 - [Core] `squad-log.py --help` says `--continued-from` takes the step of a logged continuation too (#426)
 
 - [Core] A Lead decision on a failed manual test that orders no code is stamped again instead of looping through the
@@ -37,6 +39,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Seed] dotnet `ci.yml` grants `checks: write` to the build job only (githubactions:S8233); `.squad/stack.md` lists
   S107 and CA1716 among the signature limits and says how to run the *Image build check* block from a CRLF checkout
   (#413, #414)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.github/workflows/ci.yml`, `profiles/dotnet/seed/.squad/stack.md`
 
 ## v2026.11.11 — 2026-11-14
 

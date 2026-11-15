@@ -6,17 +6,16 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
-- [Core] `squad-log.py --help` says `--continued-from` takes the step of a logged continuation too (#426)
+## v2026.11.12 — 2026-11-15
 
+- [Core] `squad-log.py --help` says `--continued-from` takes the step of a logged continuation too (#426)
 - [Core] A Lead decision on a failed manual test that orders no code is stamped again instead of looping through the
   Dev and the Tester; `gate-stamp.py` reads a `specs/` file name with a space or a non-ASCII character as bookkeeping;
   the dotnet seed's S107 item names constructors too (#425)
-
 - [Core] After the Lead's decision on a failed manual test, `squad-next.py` holds the review until the work it ordered
   is done and stamped, a bug fix's Dev and Tester rounds included; a *Files* cell `src/A.B` or `Dockerfile` matches; a
   plan tag on a verbatim row clears its finding without a `(n plan)` note; `gate-stamp.py` stamps a `specs/`-only
   `[skip ci]` head and names the way out for a save-only code commit (#424)
-
 - [Core] `squad-next.py` counts a skeleton row's *Files* glob, directory or bare file name as changed when a matching
   file changed, and the `tasks.md` template asks for repository-relative paths (#419, #421, #422)
 - [Core] A plan-ordered review finding applied verbatim (`[NON-BLOCKING, plan, verbatim]`, or an untagged verbatim row
@@ -37,6 +36,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Seed] dotnet `ci.yml` grants `checks: write` to the build job only (githubactions:S8233); `.squad/stack.md` lists
   S107 and CA1716 among the signature limits and says how to run the *Image build check* block from a CRLF checkout
   (#413, #414)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.github/workflows/ci.yml`, `profiles/dotnet/seed/.squad/stack.md`
 
 ## v2026.11.11 — 2026-11-14
 

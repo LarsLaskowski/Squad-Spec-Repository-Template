@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-log.py --help` says `--continued-from` takes the step of a logged continuation too (#426)
+
 - [Core] A Lead decision on a failed manual test that orders no code is stamped again instead of looping through the
   Dev and the Tester; `gate-stamp.py` reads a `specs/` file name with a space or a non-ASCII character as bookkeeping;
   the dotnet seed's S107 item names constructors too (#425)

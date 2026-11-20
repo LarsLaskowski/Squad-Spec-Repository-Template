@@ -195,6 +195,15 @@ class TestPlanSteps(NextTest):
         self.repo.log(row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
         self.assertIn("Next: step 4 — Skeleton", self.next(), "one revision answers the notes")
 
+    def test_fix_now_notes_of_a_delta_review_after_a_rejection_still_reach_the_lead(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: CHANGES_REQUIRED", 9000),
+                      row("2 Plan revise", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
+        self.assertIn("Lead revision for Security's `fix now` notes", self.next())
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -787,6 +796,20 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
         self.assertNotIn("over a private input", self.next(), "one row ends the step")
 
+    def test_the_private_check_ends_the_step_7_manual_test_and_a_failure_goes_to_the_lead(self):
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 FAIL on the private recording", 20000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("step 6 — the Tester's private check failed", out)
+        self.assertIn("Launch: squad-lead, mode decide", out)
+        self.repo.log(row("6 Decide (private check)", "Lead", "RESULT: DECIDED — FIX: a group", 9000))
+        self.assertNotIn("private check", self.next(), "the decision waits for the Dev's work")
+        self.repo.log(row("6 Implement (private check)", "Dev", "fixed", 9000, "sonnet/medium"))
+        self.assertIn("the Tester's check of AC1 over a private input", self.next())
+        self.repo.log(row("6 Private check", "Tester", "AC1 PASS on the private recording", 9000, "sonnet/medium"))
+        self.stamp()
+        self.assertNotIn("manual test of AC1", self.next(), "the Product Manager is not asked for the Tester's check")
+
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.
         self.implemented(test="manual: the Product Manager times the query on the reference host")
@@ -1307,7 +1330,8 @@ class TestEarlyPrAsked(NextTest):
 
     def test_a_negated_mention_does_not_ask(self):
         for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
-                     "There is not an early draft PR, nor a branch build.", "Never an early draft PR."):
+                     "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
+                     "An early draft PR is not needed.", "Early draft PR: none."):
             self.assertFalse(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_one_mention_does_not_hide_another(self):

@@ -804,7 +804,7 @@ def check(folder, approved=False):
     return errors, warnings
 
 
-def area_size_warning(path, line, adds):
+def area_size_warning(path, adds):
     """The warning for one area document a line of *Areas* names, or None: its current size plus the words the plan
     says the change adds passes AREA_MAX_WORDS, or it is within AREA_HEADROOM of it with no such statement."""
     if not os.path.isfile(path):
@@ -825,7 +825,7 @@ def check_area_sizes(plan, warnings):
     the documentation is written (Censio#38)."""
     for line in sections(plan).get("Areas", "").splitlines():
         adds = AREA_ADDS.search(line)
-        found = (area_size_warning(path, line, adds) for path in sorted(set(AREA_PATH.findall(line))))
+        found = (area_size_warning(path, adds) for path in sorted(set(AREA_PATH.findall(line))))
         warnings.extend(warning for warning in found if warning)
 
 

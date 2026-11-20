@@ -29,12 +29,13 @@ When the kind points to the other skill, switch to it now and say so in one line
 `log.md` names the kind and what decided it (`feature: user request`, `feature: label enhancement`,
 `bug: no feature label`).
 
-A **verification issue** asks for a manual check on real hardware, the real game or a real browser and names no
+A **verification issue** asks for a manual check on real hardware, a real application or a real browser and names no
 behavior to change (the label `Manual`, or its title and body say so): the skills stop at intake and the orchestrator
-launches no member. It hands the Product Manager a checklist taken from the issue's criteria, prepares what can be
-automated first (a headless browser run, a replay into a server), and continues as a tier `docs` change once the
-Product Manager's results are in; the Lead writes them into the documents the issue names, quoted, never inferred. A
-check that shows wrong behavior files a bug issue for it, and the run documents only the result.
+launches no member until the Product Manager's results are in. It hands the Product Manager a checklist taken from the
+issue's criteria, prepares what can be automated first (a headless browser run, a replay into a server), and then
+continues as a tier `docs` change, or a higher tier when a document the issue names is outside it (an area document):
+the Lead's result states the results, quoted, never inferred, as exact edits of the documents the issue names. A check
+that shows wrong behavior files a bug issue for it, and the run documents only the result.
 
 An issue whose change needs values only the Product Manager can produce (measurements on a real system, figures from
 a production host) runs with the skill its kind decides, but the Product Manager supplies the values before step 1;
@@ -163,7 +164,8 @@ the Product Manager cannot build*). The manual test runs on the stamped head bef
 review set (the Reviewer; Security on its tiers) runs in that member's round instead, its result in its report.
 A `manual:` check the Tester runs over an input that must stay out of the repository names the Tester and says the input
 is private (`manual: the Tester replays the private recording`); `squad-next.py` names the launch after step 6's
-coverage pass (`6 Private check`), and the input's location is handed over, never committed, copied or quoted.
+coverage pass (`6 Private check`), and the input's location is handed over, never committed, copied or quoted. A failed check goes to the Lead like a
+failed manual test (*Manual criterion fails*).
 
 ### Operator environments and documented procedures
 

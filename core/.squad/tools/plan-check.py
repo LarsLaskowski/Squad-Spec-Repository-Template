@@ -180,6 +180,9 @@ MANUAL_MEMBERS = ("Reviewer", "Security")
 # Members that never review a run's diff, so a `manual:` check naming one is refused (capitalised, as roles are written:
 # "the security headers" or "a dev server" names no member).
 NON_REVIEW_MEMBERS = ("Lead", "Dev", "Developer", "Tester", "Code Officer", "Devil's Advocate", "Orchestrator")
+# A `manual:` check the Tester runs over an input that must stay out of the repository (Censio#125): the Tester runs it
+# after step 6, as the one exception to NON_REVIEW_MEMBERS.
+PRIVATE_INPUT = re.compile(r"\b(?:private|never committed|not committed|outside the repository|must not enter)\b", re.I)
 MANAGER_NAMED = re.compile(r"\bProduct Manager\b|\bPM\b")
 PROSE_MANUAL = re.compile(r"\bmanual(?:ly)?\b", re.I)
 NEGATED = re.compile(r"\b(?:no|not|without|never|none)\b[^.]{0,20}?\bmanual", re.I)
@@ -695,7 +698,7 @@ def check_manual_owners(parts, plan, errors):
     members = review_members(plan)
     for criterion, (kind, check, _, _) in sorted(planned_verifications(parts).items()):
         owner = manual_owner(check) if kind == "manual" else None
-        if owner and owner not in members:
+        if owner and owner not in members and not tester_private_check(check):
             errors.append(f"plan.md: {criterion}: the `manual:` check names {owner}, which reviews no diff on this "
                           f"tier ({', '.join(members)} does): name a member of the review round or the Product Manager")
 
@@ -1017,6 +1020,12 @@ def manual_owner(check):
     return next((member for member in MANUAL_MEMBERS + NON_REVIEW_MEMBERS if re.search(rf"\b{member}\b", check)), None)
 
 
+def tester_private_check(check):
+    """True when a `manual:` check is the Tester's own run over a private input: it names the Tester and the input that
+    stays out of the repository (`.squad/routing.md`, *Criteria verified only in CI*; `squad-next.py` names the launch)."""
+    return manual_owner(check) == "Tester" and bool(PRIVATE_INPUT.search(check))
+
+
 def prose_manual_checks(plan):
     """The Lead's own lines outside the verification sections that name a manual check by the Product Manager (Censio
     #191: a manual-verification paragraph the matrix does not hold); a negated line ("no manual test") names none."""
@@ -1035,6 +1044,8 @@ def matrix_row(criterion, planned, settled, sources, head, changed=frozenset()):
     if criterion not in planned:
         return [criterion, "\u2014", "\u2014", "MISSING: no test or verification in plan.md"], True
     kind, check, names, _ = planned[criterion]
+    if kind == "manual" and tester_private_check(check):
+        return [criterion, kind, check, "to record: the Tester's row of step 6 over the private input"], False
     if kind == "manual" and manual_owner(check):
         return [criterion, kind, check, f"to record: {manual_owner(check)}'s verdict row of step 8"], False
     if kind != "unit":

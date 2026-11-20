@@ -1426,6 +1426,26 @@ def manual_rework(run, decision):
         f"    {STAMP_TOOL} {run.name}"]
 
 
+def private_criteria(run):
+    """The criteria whose `manual:` check the Tester runs over a private input (`plan-check.py`, `tester_private_check`)."""
+    plan = plan_check()
+    planned = plan.planned_verifications(plan.sections(run.plan or ""))
+    return sorted((criterion for criterion, row in planned.items() if row[0] == "manual"
+                   and plan.tester_private_check(row[1])), key=plan.criterion_number)
+
+
+def private_check(run):
+    """Step 6, after the coverage pass and before the gate stamp: the Tester runs a manual criterion over an input that
+    must stay out of the repository, handed over by its location (Censio#125)."""
+    if run.after_pr or run.plan is None or run.of(TESTER, {"6"}, word="private") or not (criteria := private_criteria(run)):
+        return None
+    return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + launch(
+        run, TESTER, "coverage", run.step_cell("6", "Private check"),
+        f"the plan's manual check of {', '.join(criteria)} and where the private input is (ask the Product Manager if "
+        "the plan does not say); the input is never committed, copied or quoted in the report, only its result") + [
+        THEN + "the stamp follows once the row says whether the check passed"]
+
+
 def manual_criteria(run):
     """{criterion: the reviewer of the review set that runs its `manual:` check in step 8, or None (the Product
     Manager's test of step 7)}; a check that names a member outside the set stays the Product Manager's."""
@@ -1754,7 +1774,7 @@ def finished(run):
 
 
 STAGES = (intake, escalation, waiting, no_change, spec_stage, plan_written, challenge_and_security, code_steps,
-          quick_edits, matrix_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up,
+          quick_edits, matrix_check, private_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up,
           finished)
 
 

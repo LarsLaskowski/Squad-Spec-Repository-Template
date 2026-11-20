@@ -763,6 +763,16 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_manual_criterion_over_a_private_input_is_the_testers_step_6_launch(self):
+        # Censio#125: the stamp followed the coverage pass without naming the Tester's run over the private recording.
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        out = self.next()
+        self.assertIn("Next: step 6 — the Tester's check of AC1 over a private input", out)
+        self.assertIn("Launch: squad-tester, mode coverage", out)
+        self.assertIn('"6 Private check"', out)
+        self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
+        self.assertNotIn("over a private input", self.next(), "one row ends the step")
+
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.
         self.implemented(test="manual: the Product Manager times the query on the reference host")

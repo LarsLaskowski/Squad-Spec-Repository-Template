@@ -154,6 +154,9 @@ the plan names the fallback: who builds it otherwise and how it reaches the targ
 the Product Manager cannot build*). The manual test runs on the stamped head before the review set of step 8 (`squad-next.py` names it, logged as
 `7 Manual test`), so a document it corrects is reviewed once. A `manual:` check that names a member of the step-8
 review set (the Reviewer; Security on its tiers) runs in that member's round instead, its result in its report.
+A `manual:` check the Tester runs over an input that must stay out of the repository names the Tester and says the input
+is private (`manual: the Tester replays the private recording`); `squad-next.py` names the launch after step 6's
+coverage pass (`6 Private check`), and the input's location is handed over, never committed, copied or quoted.
 
 ### Operator environments and documented procedures
 

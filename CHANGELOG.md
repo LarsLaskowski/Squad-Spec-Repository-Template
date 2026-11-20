@@ -6,18 +6,17 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.13 — 2026-11-20
+
 - [Core] `squad-next.py` asks for `PASS` or `FAIL` in the Tester's private-check row, reads "Early draft PR: not needed"
   and "no need for an early draft PR" as declined, and `plan-check.py` accepts a private check whose input the Product
-  Manager supplies (#439)
-
+  Manager supplies (#440)
 - [Core] After the Lead decides on a failed private check `squad-next.py` names the Dev's work and escalates after 2
   groups; the revision for a major objection hands over Security's `fix now` notes too; a negation next to "early draft
-  PR" that does not predicate it no longer hides the request (#438)
-
+  PR" that does not predicate it no longer hides the request (#439)
 - [Core] The release review's fixes: Security's `fix now` notes of a delta review reach the Lead, the Tester's private
   check is not asked of the Product Manager again and a failed one goes to the Lead, a negation after "early draft PR"
-  counts, and the verification-issue rule names no consumer's domain (#437)
-
+  counts, and the verification-issue rule names no consumer's domain (#438)
 - [Core] `squad-next.py` ignores a negated "no early draft PR" in the plan and goes fresh from 250,000 tokens on, not
   only past the 300,000 cap; Security's `fix now` plan notes go to the Lead in mode `revise` before the skeleton (#430,
   #434)
@@ -31,6 +30,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   criterion, and plans identical logic of two types as one helper; the Dev lists files it cannot stage (#429, #434,
   #435, #436)
 - [Profile] The dotnet seed's *Skeleton* gives a member that must not throw (CA1065) an empty body (#434)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.squad/stack.md`
 
 ## v2026.11.12 — 2026-11-15
 

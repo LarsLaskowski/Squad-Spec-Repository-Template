@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] The release review's fixes: Security's `fix now` notes of a delta review reach the Lead, the Tester's private
+  check is not asked of the Product Manager again and a failed one goes to the Lead, a negation after "early draft PR"
+  counts, and the verification-issue rule names no consumer's domain (#437)
+
 - [Core] `squad-next.py` ignores a negated "no early draft PR" in the plan and goes fresh from 250,000 tokens on, not
   only past the 300,000 cap; Security's `fix now` plan notes go to the Lead in mode `revise` before the skeleton (#430,
   #434)

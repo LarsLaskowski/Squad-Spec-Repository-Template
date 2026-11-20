@@ -149,6 +149,7 @@ ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
 EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,2}$", re.I)
+EARLY_PR_DENIED_AFTER = re.compile(r"^\W*(?:is |are |was )?(?:not\b|none\b|never\b|unneeded\b)", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -785,8 +786,9 @@ FIX_NOW = re.compile(r"\bfix now\b", re.I)
 def fix_now_revision(run, reviews, revisions):
     """The Lead's revision for the *Security notes* of an approved plan review that recommend `fix now`, before the
     skeleton: the notes are appended to `plan.md` and the Lead would otherwise never see them (Censio#38)."""
-    if not reviews or not FIX_NOW.search(run.section("Security notes")) or any(
-            row.index > reviews[0].index for row in revisions):
+    approved = [row for row in reviews if security_verdict(row) == "APPROVED"]
+    if not approved or not FIX_NOW.search(run.section("Security notes")) or any(
+            row.index > approved[0].index for row in revisions):
         return None
     return heading(f"step {run.plan_step} — Lead revision for Security's `fix now` notes") + launch(
         run, LEAD, "revise", f"{run.plan_step} Plan revise (security notes)", "the *Security notes* of plan.md that "
@@ -1354,7 +1356,8 @@ def failed_gates(run, last):
 def early_pr_asked(line):
     """A plan line that asks for an early draft PR: one mention that no negation of up to three words precedes
     (`no early draft PR`, `without an early draft PR`, DockerUpdateGuard#505) counts."""
-    return any(not EARLY_PR_DENIED.search(line[:found.start()]) for found in EARLY_PR.finditer(line))
+    return any(not EARLY_PR_DENIED.search(line[:found.start()]) and not EARLY_PR_DENIED_AFTER.search(line[found.end():])
+               for found in EARLY_PR.finditer(line))
 
 
 def early_pr(run):
@@ -1452,9 +1455,22 @@ def private_criteria(run):
 
 def private_check(run):
     """Step 6, after the coverage pass and before the gate stamp: the Tester runs a manual criterion over an input that
-    must stay out of the repository, handed over by its location (Censio#125)."""
-    if run.after_pr or run.plan is None or run.of(TESTER, {"6"}, word="private") or not (criteria := private_criteria(run)):
+    must stay out of the repository, handed over by its location (Censio#125). A failed run goes to the Lead like a
+    failed manual test (*Loop limits*, *Manual criterion fails*) and, once the Dev has worked on its decision, runs
+    again."""
+    if run.after_pr or run.plan is None or not (criteria := private_criteria(run)):
         return None
+    rows = run.of(TESTER, {"6"}, word="private")
+    if rows and not MANUAL_FAILED.search(rows[-1].result):
+        return None
+    if rows:
+        decided = run.of(LEAD, after=rows[-1].index)
+        if not decided:
+            return heading("step 6 — the Tester's private check failed") + launch(
+                run, LEAD, "decide", "6 Decide (private check)", "the failed check's row and the plan: it adds a task "
+                "group for the options it takes, or escalates relaxing the criterion after 2 groups (*Loop limits*)")
+        if not run.of(DEV, after=decided[-1].index):
+            return None
     return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + launch(
         run, TESTER, "coverage", run.step_cell("6", "Private check"),
         f"the plan's manual check of {', '.join(criteria)} and where the private input is (ask the Product Manager if "
@@ -1468,7 +1484,8 @@ def manual_criteria(run):
     plan = plan_check()
     planned = plan.planned_verifications(plan.sections(run.plan or ""))
     members = {CELLS.get(agent, agent) for agent, _ in review_set(run)}
-    owners = {criterion: plan.manual_owner(row[1]) for criterion, row in planned.items() if row[0] == "manual"}
+    owners = {criterion: plan.manual_owner(row[1]) for criterion, row in planned.items()
+              if row[0] == "manual" and not plan.tester_private_check(row[1])}
     return {criterion: owners[criterion] if owners[criterion] in members else None
             for criterion in sorted(owners, key=plan.criterion_number)}
 

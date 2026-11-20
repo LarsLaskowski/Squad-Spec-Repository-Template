@@ -149,8 +149,9 @@ ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
 EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,3}$", re.I)
-EARLY_PR_DENIED_AFTER = re.compile(
-    r"^\s*(?:(?:is|are|was)\s+(?:not|never)\b|[:\u2014\u2013-]\s*(?:none|no|not|n/a)\b|(?:is\s+)?unneeded\b)", re.I)
+EARLY_PR_DENIED_AFTER = (re.compile(r"^\s*(?:is|are|was)\s+(?:not|never)\b", re.I),
+                         re.compile(r"^\s*[:\u2014\u2013-]\s*(?:none|no|not|n/a)\b", re.I),
+                         re.compile(r"^\s*(?:is\s+)?unneeded\b", re.I))
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -1358,7 +1359,8 @@ def failed_gates(run, last):
 def early_pr_asked(line):
     """A plan line that asks for an early draft PR: one mention that no negation of up to three words precedes
     (`no early draft PR`, `without an early draft PR`, DockerUpdateGuard#505) counts."""
-    return any(not EARLY_PR_DENIED.search(line[:found.start()]) and not EARLY_PR_DENIED_AFTER.search(line[found.end():])
+    return any(not EARLY_PR_DENIED.search(line[:found.start()])
+               and not any(pattern.search(line[found.end():]) for pattern in EARLY_PR_DENIED_AFTER)
                for found in EARLY_PR.finditer(line))
 
 

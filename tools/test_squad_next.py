@@ -798,7 +798,7 @@ class TestReviewAndAfter(NextTest):
 
     def test_a_third_failed_private_check_escalates_to_the_product_manager(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
-        for number in range(2):
+        for _ in range(2):
             self.repo.log(row("6 Private check", "Tester", "AC1 FAIL", 9000, "sonnet/medium"),
                           row("6 Decide (private check)", "Lead", "RESULT: DECIDED — FIX: a group", 9000),
                           row("6 Implement (private check)", "Dev", "fixed", 9000, "sonnet/medium"))

@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] After the Lead decides on a failed private check `squad-next.py` names the Dev's work and escalates after 2
+  groups; the revision for a major objection hands over Security's `fix now` notes too; a negation next to "early draft
+  PR" that does not predicate it no longer hides the request (#438)
+
 - [Core] The release review's fixes: Security's `fix now` notes of a delta review reach the Lead, the Tester's private
   check is not asked of the Product Manager again and a failed one goes to the Lead, a negation after "early draft PR"
   counts, and the verification-issue rule names no consumer's domain (#437)

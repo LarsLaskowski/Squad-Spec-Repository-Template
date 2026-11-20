@@ -148,6 +148,7 @@ PR_ENDED = re.compile(r"\b(?:merged|closed)\b", re.I)
 ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
+EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,2}$", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -1334,12 +1335,18 @@ def failed_gates(run, last):
     return lines + [THEN + f"commit and run {STAMP_TOOL} {run.name} again"]
 
 
+def early_pr_asked(line):
+    """A plan line that asks for an early draft PR: one mention that no negation of up to three words precedes
+    (`no early draft PR`, `without an early draft PR`, DockerUpdateGuard#505) counts."""
+    return any(not EARLY_PR_DENIED.search(line[:found.start()]) for found in EARLY_PR.finditer(line))
+
+
 def early_pr(run):
     if run.after_pr or run.plan is None or run.of(ORCHESTRATOR, {"7"}, word="draft"):
         return None
     template = plan_check().template_lines()
     own = [line for line in (run.plan or "").splitlines() if line.strip() and line.strip() not in template]
-    if not any(EARLY_PR.search(line) for line in own):
+    if not any(early_pr_asked(line) for line in own):
         return None
     return heading("step 7 — Early draft PR (the plan asks for one)") + [
         DO + "open the PR as a draft as create-pr step 8 says, without its review loop (specs/ stays, the working "

@@ -1264,3 +1264,19 @@ class TestLaunches(NextTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEarlyPrAsked(NextTest):
+    """The plan's own sentence decides whether step 7 asks for an early draft PR (DockerUpdateGuard#505)."""
+
+    def test_a_plan_that_asks_for_one_is_read_as_asking(self):
+        for line in ("An early draft PR is opened after step 6.", "Open the early draft PR right away."):
+            self.assertTrue(self.tool.early_pr_asked(line), line)
+
+    def test_a_negated_mention_does_not_ask(self):
+        for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
+                     "There is not an early draft PR, nor a branch build.", "Never an early draft PR."):
+            self.assertFalse(self.tool.early_pr_asked(line), line)
+
+    def test_a_negation_of_one_mention_does_not_hide_another(self):
+        self.assertTrue(self.tool.early_pr_asked("No early draft PR before step 6, then an early draft PR."))

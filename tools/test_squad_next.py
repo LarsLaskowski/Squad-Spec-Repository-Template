@@ -796,6 +796,24 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
         self.assertNotIn("over a private input", self.next(), "one row ends the step")
 
+    def test_a_third_failed_private_check_escalates_to_the_product_manager(self):
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        for number in range(2):
+            self.repo.log(row("6 Private check", "Tester", "AC1 FAIL", 9000, "sonnet/medium"),
+                          row("6 Decide (private check)", "Lead", "RESULT: DECIDED — FIX: a group", 9000),
+                          row("6 Implement (private check)", "Dev", "fixed", 9000, "sonnet/medium"))
+        self.repo.log(row("6 Private check", "Tester", "AC1 FAIL", 9000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("after 2 added task groups", out)
+        self.assertIn("escalates relaxing the criterion", out)
+
+    def test_security_notes_that_say_fix_now_are_named_in_a_major_objections_revision(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 1 major, 0 minor", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
+        self.assertIn("every *Security notes* entry that recommends `fix now`", self.next())
+
     def test_the_private_check_ends_the_step_7_manual_test_and_a_failure_goes_to_the_lead(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
         self.repo.log(row("6 Private check", "Tester", "AC1 FAIL on the private recording", 20000, "sonnet/medium"))
@@ -803,7 +821,9 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("step 6 — the Tester's private check failed", out)
         self.assertIn("Launch: squad-lead, mode decide", out)
         self.repo.log(row("6 Decide (private check)", "Lead", "RESULT: DECIDED — FIX: a group", 9000))
-        self.assertNotIn("private check", self.next(), "the decision waits for the Dev's work")
+        out = self.next()
+        self.assertIn("Launch: squad-dev, mode implement", out, "the Dev works on the Lead's decision")
+        self.assertIn('"6 Implement (private check)"', out)
         self.repo.log(row("6 Implement (private check)", "Dev", "fixed", 9000, "sonnet/medium"))
         self.assertIn("the Tester's check of AC1 over a private input", self.next())
         self.repo.log(row("6 Private check", "Tester", "AC1 PASS on the private recording", 9000, "sonnet/medium"))
@@ -1333,6 +1353,11 @@ class TestEarlyPrAsked(NextTest):
                      "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
                      "An early draft PR is not needed.", "Early draft PR: none."):
             self.assertFalse(self.tool.early_pr_asked(line), line)
+
+    def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):
+        for line in ("AC4 is verified by an early draft PR, not by a branch build.",
+                     "An early draft PR (not a branch build) runs the image job."):
+            self.assertTrue(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_one_mention_does_not_hide_another(self):
         self.assertTrue(self.tool.early_pr_asked("No early draft PR before step 6, then an early draft PR."))

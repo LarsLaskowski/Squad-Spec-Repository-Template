@@ -149,7 +149,7 @@ ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
 EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,2}$", re.I)
-EARLY_PR_DENIED_AFTER = re.compile(r"^\W*(?:is |are |was )?(?:not\b|none\b|never\b|unneeded\b)", re.I)
+EARLY_PR_DENIED_AFTER = re.compile(r"^\s*(?:(?:is|are|was)\s+(?:not|never)\b|:\s*(?:none|no)\b|(?:is\s+)?unneeded\b)", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -807,7 +807,8 @@ def lead_revision(run, rejected, rejections, major_open):
     if major_open or rejected:
         return heading(f"step {run.plan_step} — Lead revision") + launch(
             run, LEAD, "revise", f"{run.plan_step} Plan revise", "all objections (minor ones included) and Security's "
-            "CHANGES_REQUIRED findings; a Security note that leaves the plan a choice too")
+            "CHANGES_REQUIRED findings; a Security note that leaves the plan a choice, and every *Security notes* entry "
+            "that recommends `fix now`, too")
     return None
 
 
@@ -1466,11 +1467,17 @@ def private_check(run):
     if rows:
         decided = run.of(LEAD, after=rows[-1].index)
         if not decided:
-            return heading("step 6 — the Tester's private check failed") + launch(
-                run, LEAD, "decide", "6 Decide (private check)", "the failed check's row and the plan: it adds a task "
-                "group for the options it takes, or escalates relaxing the criterion after 2 groups (*Loop limits*)")
+            failures = len(rows)
+            where = (f"task group {failures} of {MANUAL_GROUPS} for it" if failures <= MANUAL_GROUPS else
+                     f"after {MANUAL_GROUPS} added task groups")
+            return heading(f"step 6 — the Tester's private check failed ({where})") + launch(
+                run, LEAD, "decide", "6 Decide (private check)", "the failed check's rows and the plan: it adds a task "
+                "group for the options it takes" + (", or escalates relaxing the criterion to the Product Manager "
+                "(*Loop limits*)" if failures > MANUAL_GROUPS else ""))
         if not run.of(DEV, after=decided[-1].index):
-            return None
+            return heading("step 6 — the Dev's work the Lead's decision on the failed private check orders") + launch(
+                run, DEV, "implement", "6 Implement (private check)",
+                f"the Lead's decision (row \"{decided[0].step}\") on the failed private check, {BASE_HANDOVER}")
     return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + launch(
         run, TESTER, "coverage", run.step_cell("6", "Private check"),
         f"the plan's manual check of {', '.join(criteria)} and where the private input is (ask the Product Manager if "

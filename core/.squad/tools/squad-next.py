@@ -11,7 +11,7 @@ for it, and prints the next step of `.squad/routing.md` (*Pipeline*) for the run
   explicitly); fresh or continued (*Continuing a member*): a fix, delta or revise round continues the member's last
   agent, the Lead's mode `plan` after mode `spec` continues its spec agent, the next task group continues the member's
   last agent of the same mode, named by the step cell of its fresh launch — and the first launch of another mode, an
-  agent continued five times or past 300,000 tokens, or one that ran on another model than *Launch model* names is a
+  agent continued five times or from 250,000 tokens on, or one that ran on another model than *Launch model* names is a
   fresh launch (the cap and the model: with a short hand-over); what to hand over, with the exact verdict line of the
   Reviewer, the Devil's Advocate, Security and the Lead in mode `decide` to quote in the prompt, so the member does
   not depend on its agent file being current; and the `squad-log.py` command that logs it;
@@ -158,7 +158,9 @@ NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
-CONTINUATION_TOKENS = 300_000
+# A continuation adds tens of thousands of tokens: from here on the next launch is fresh, so the round never ends past
+# the 300,000 where `squad-log.py` warns (Censio#38).
+FRESH_TOKENS = 250_000
 SPEC_APPROVAL = getattr(settings, "SPEC_APPROVAL", "lead")
 LOG_TOOL = "python3 .squad/tools/squad-log.py"
 NOTES_TOOL = ".squad/tools/squad-notes.py"
@@ -373,9 +375,9 @@ def pick_chain(run, agent, mode, rule):
 def spent(run, agent, chain):
     """Why the agent of `chain` is not continued again (*Continuing a member*), or None: the cap, a continuation in
     another mode, or another model than *Launch model* names."""
-    if chain["continuations"] >= CONTINUATION_CAP or chain["tokens"] >= CONTINUATION_TOKENS:
+    if chain["continuations"] >= CONTINUATION_CAP or chain["tokens"] >= FRESH_TOKENS:
         return (f"the agent of \"{chain['step']}\" was continued {chain['continuations']} time(s) at "
-                f"{chain['tokens']:,} tokens: from {CONTINUATION_CAP} continuations or {CONTINUATION_TOKENS:,} "
+                f"{chain['tokens']:,} tokens: from {CONTINUATION_CAP} continuations or {FRESH_TOKENS:,} "
                 "tokens on, a fresh launch with a short hand-over")
     if chain["mixed"]:
         return (f"the agent of \"{chain['step']}\" was continued in another mode at \"{chain['mixed']}\": it holds two "
@@ -774,7 +776,21 @@ def revision(run, challenge, reviews, security_due):
     rejected = bool(security) and security[-1] == "CHANGES_REQUIRED" and not answered
     major_open = bool(verdict[0]) and not [row for row in revisions if row.index > challenge[-1].index]
     return lead_revision(run, rejected, security.count("CHANGES_REQUIRED"), major_open) or \
-        confirmation(run, security_due and bool(answered), verdict, challenge)
+        fix_now_revision(run, reviews, revisions) or confirmation(run, security_due and bool(answered), verdict, challenge)
+
+
+FIX_NOW = re.compile(r"\bfix now\b", re.I)
+
+
+def fix_now_revision(run, reviews, revisions):
+    """The Lead's revision for the *Security notes* of an approved plan review that recommend `fix now`, before the
+    skeleton: the notes are appended to `plan.md` and the Lead would otherwise never see them (Censio#38)."""
+    if not reviews or not FIX_NOW.search(run.section("Security notes")) or any(
+            row.index > reviews[0].index for row in revisions):
+        return None
+    return heading(f"step {run.plan_step} — Lead revision for Security's `fix now` notes") + launch(
+        run, LEAD, "revise", f"{run.plan_step} Plan revise (security notes)", "the *Security notes* of plan.md that "
+        "recommend `fix now`: it writes each into the plan, or decides to file it as an issue and says why")
 
 
 def lead_revision(run, rejected, rejections, major_open):

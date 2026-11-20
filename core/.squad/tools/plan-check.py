@@ -108,6 +108,12 @@ PLAN_MAX_WORDS = getattr(settings, "PLAN_MAX_WORDS", PLAN_LIMITS)
 # the *Challenge* and *Security review* the Lead folds them into and leaves unchanged in every later launch.
 NOTES_HEADING = re.compile(r"^(#{2,6})[ \t]+(?:Challenge(?: notes)?|Security (?:notes|review))\b", re.I)
 PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
+# An area document past AREA_MAX_WORDS covers more than one area (`decision-check.py`); the plan sizes it before the
+# documentation is written (Censio#38).
+AREA_MAX_WORDS = getattr(settings, "AREA_MAX_WORDS", 5000)
+AREA_HEADROOM = 500
+AREA_PATH = re.compile(r"docs/areas/[\w.-]+\.md")
+AREA_ADDS = re.compile(r"\+\s*([\d,]+)\s*words?\b", re.I)
 SPEC_MAX_WORDS = getattr(settings, "SPEC_MAX_WORDS", 2500)
 SPEC_BASE_WORDS = getattr(settings, "SPEC_BASE_WORDS", 300)
 SPEC_WORDS_PER_CRITERION = getattr(settings, "SPEC_WORDS_PER_CRITERION", 200)
@@ -744,7 +750,7 @@ def check_spec_only(folder):
     criteria, _ = check_spec(spec, errors)
     check_placeholders(SPEC, spec, errors)
     check_control_characters(folder, errors)
-    words = len(strip_comments(spec).split())
+    words = sum(len(line.split()) for line in outside_notes(strip_comments(spec).splitlines()))
     limit = min(SPEC_MAX_WORDS, SPEC_BASE_WORDS + SPEC_WORDS_PER_CRITERION * len(criteria))
     if words > limit:
         return errors, [f"spec.md has {words} words, over {limit} for {len(criteria)} criteria (SPEC_BASE_WORDS "
@@ -789,7 +795,27 @@ def check(folder, approved=False):
             check_tasks(tasks, criteria, errors, signature_names(signatures_section(plan)), dropped)
             check_placeholders("tasks.md", tasks, errors)
     check_plan_size(plan, errors, warnings, approved)
+    check_area_sizes(plan, warnings)
     return errors, warnings
+
+
+def check_area_sizes(plan, warnings):
+    """A warning for every area document the plan's *Areas* names whose current size plus the words the plan says the
+    change adds (`+N words` on its line) passes AREA_MAX_WORDS, or that is within AREA_HEADROOM of it and has no such
+    statement: the split into a new area document is planned and in the spec's *Area documents* from the start, not
+    found by `decision-check.py` once the documentation is written (Censio#38)."""
+    for line in sections(plan).get("Areas", "").splitlines():
+        adds = AREA_ADDS.search(line)
+        added = int(adds.group(1).replace(",", "")) if adds else None
+        for path in sorted(set(AREA_PATH.findall(line))):
+            current = len(read(path, []).split()) if os.path.isfile(path) else None
+            if current is None or current + (added or 0) <= (AREA_MAX_WORDS if added is not None
+                                                             else AREA_MAX_WORDS - AREA_HEADROOM):
+                continue
+            states = f"{current} words now" + (f" and {added} added" if added is not None else "")
+            warnings.append(f"plan.md: {path} has {states} (AREA_MAX_WORDS {AREA_MAX_WORDS}): plan the split into a new "
+                            "area document now (name and scope for the index, in the spec's Area documents), or state "
+                            "the words the change adds on the line (`+N words`)")
 
 
 def template_lines():

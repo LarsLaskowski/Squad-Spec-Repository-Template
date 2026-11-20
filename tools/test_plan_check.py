@@ -529,6 +529,24 @@ class TestPlanCheck(unittest.TestCase):
         errors, warnings = self.script.check_spec_only(folder)
         self.assertTrue(warnings and "SPEC_MAX_WORDS" in warnings[0], warnings)
         self.assertFalse(any("words" in e for e in errors), "a long spec is no finding")
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            handle.write(spec + "\n## Challenge notes\n\n" + "answer " * 3000)
+        self.assertEqual(self.script.check_spec_only(folder)[1], [], "Censio#38: the appended notes are not counted")
+
+    def test_an_area_document_the_change_pushes_past_its_limit_is_planned_before_the_documentation(self):
+        # Censio#38: AREA_MAX_WORDS was reported only after the Dev had written the documentation.
+        write("docs/areas/big.md", "# Big\n\n" + "word " * 4900)
+        write("docs/areas/small.md", "# Small\n\n" + "word " * 100)
+        areas = PLAN + ("\n## Areas\n\n- docs/areas/big.md: the new limits\n"
+                        "- docs/areas/small.md (+200 words): the new limits\n"
+                        "- docs/areas/missing.md (+9000 words): a new area\n")
+        warnings = self.script.check(self.feature(plan=areas))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("docs/areas/big.md has 4902 words now (AREA_MAX_WORDS 5000)", warnings[0])
+        added = areas.replace("big.md:", "big.md (+150 words):")
+        self.assertIn("4902 words now and 150 added", self.script.check(self.feature(plan=added))[1][0])
+        within = areas.replace("big.md:", "big.md (+50 words):")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 
     def test_plan_over_the_limit_of_its_tier_is_a_finding(self):
         errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))

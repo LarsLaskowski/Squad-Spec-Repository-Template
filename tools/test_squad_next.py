@@ -181,6 +181,20 @@ class TestPlanSteps(NextTest):
                       row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
         self.assertIn("Next: step 4 — Skeleton", self.next(), "the revise answered findings only")
 
+    def test_security_notes_that_recommend_fix_now_go_to_the_lead_before_the_skeleton(self):
+        # Censio#38: the notes were appended to plan.md, no step sent them to the Lead, the Tester found the gap.
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. The loader's error and thread rule is missing: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
+        out = self.next()
+        self.assertIn("Next: step 2 — Lead revision for Security's `fix now` notes", out)
+        self.assertIn("Launch: squad-lead, mode revise", out)
+        self.repo.log(row("2 Plan revise (security notes)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertIn("Next: step 3 — Security delta confirmation", self.next(), "the revised plan is confirmed once")
+        self.repo.log(row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
+        self.assertIn("Next: step 4 — Skeleton", self.next(), "one revision answers the notes")
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -1240,6 +1254,14 @@ class TestLaunches(NextTest):
         self.assertIn('ran on sonnet/medium, not opus/medium: never continued', out)
         self.assertEqual(run_main(self.tool, ["issue-5", "--launch", "squad-dev", "dance"])[0], 2)
         self.assertEqual(run_main(self.tool, ["issue-9"])[0], 1)
+
+    def test_a_launch_is_fresh_from_250000_tokens_on_not_only_past_the_cap(self):
+        # Censio#38: the Tester was continued at 330,000 tokens after squad-next.py had named a continuation at 260,000.
+        self.implemented()
+        self.repo.log(row("6 Documentation", "Dev", "docs", 230000, "sonnet/medium", continued=True))
+        out = self.next("--launch", "squad-dev", "fix")
+        self.assertIn("260,000 tokens: from 5 continuations or 250,000 tokens on, a fresh launch", out)
+        self.assertIn("Agent: fresh launch", out)
 
     def test_a_continuation_past_the_cap_is_named_until_the_next_fresh_launch(self):
         # Censio#146: squad-next.py named fresh launches, the orchestrator continued the Dev at 365,086 tokens.

@@ -1790,8 +1790,8 @@ def finished(run):
 
 
 STAGES = (intake, escalation, waiting, no_change, spec_stage, plan_written, challenge_and_security, code_steps,
-          quick_edits, matrix_check, private_check, code_check, early_pr, manual_check, review, approval, pull_request, after_pr, wrap_up,
-          finished)
+          quick_edits, matrix_check, private_check, code_check, early_pr, manual_check, review, approval,
+          pull_request, after_pr, wrap_up, finished)
 
 
 def run_header(run):

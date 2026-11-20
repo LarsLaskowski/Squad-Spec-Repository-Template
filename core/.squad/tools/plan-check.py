@@ -56,6 +56,10 @@ Checks, in the work folder `specs/<folder>/`:
   says so when the log has a row of step 4 or later) its size is a warning only: an approved plan is not reopened for
   its size, also not when a merge of `main` brought a lower limit (`.squad/orchestration.md`, *Merge conflicts*).
 
+An area document that the plan's *Areas* names (`docs/areas/<name>.md`) and whose size plus the words the plan says the
+change adds (`+N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`, default 5000), or that is within
+500 words of it with no such statement, is a warning: the split is planned now (Censio#38).
+
 After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
 `Plan challenge: due — …` or `Plan challenge: not due — …`: due on tier `security`, and on tier `standard` when
 the plan has production code (no *Verification without tests*) and *Options considered* names an alternative
@@ -82,7 +86,8 @@ to fill in (`squad-issue`, step 10).
 
 With `--spec` only `spec.md` is checked: after the Lead's mode `spec`, before the spec challenge. A spec longer
 than `SPEC_BASE_WORDS` plus `SPEC_WORDS_PER_CRITERION` per acceptance criterion, at most `SPEC_MAX_WORDS`
-(`squad_settings.py`, default 300, 200 and 2500; the template's guidance comments do not count) is reported as a
+(`squad_settings.py`, default 300, 200 and 2500; the template's guidance comments and the appended *Challenge notes*
+and the *Challenge* section that answers them do not count) is reported as a
 warning: every later launch reads it, so the Lead sizes it to the feature.
 
 Usage, from the repository root:
@@ -799,23 +804,29 @@ def check(folder, approved=False):
     return errors, warnings
 
 
+def area_size_warning(path, line, adds):
+    """The warning for one area document a line of *Areas* names, or None: its current size plus the words the plan
+    says the change adds passes AREA_MAX_WORDS, or it is within AREA_HEADROOM of it with no such statement."""
+    if not os.path.isfile(path):
+        return None
+    current = len(read(path, []).split())
+    added = int(adds.group(1).replace(",", "")) if adds else None
+    if current + (added or 0) <= (AREA_MAX_WORDS if adds else AREA_MAX_WORDS - AREA_HEADROOM):
+        return None
+    states = f"{current} words now" + (f" and {added} added" if adds else "")
+    return (f"plan.md: {path} has {states} (AREA_MAX_WORDS {AREA_MAX_WORDS}): plan the split into a new area document "
+            "now (name and scope for the index, in the spec's Area documents), or state the words the change adds on "
+            "the line (`+N words`)")
+
+
 def check_area_sizes(plan, warnings):
-    """A warning for every area document the plan's *Areas* names whose current size plus the words the plan says the
-    change adds (`+N words` on its line) passes AREA_MAX_WORDS, or that is within AREA_HEADROOM of it and has no such
-    statement: the split into a new area document is planned and in the spec's *Area documents* from the start, not
-    found by `decision-check.py` once the documentation is written (Censio#38)."""
+    """A warning for every area document the plan's *Areas* names that `area_size_warning` reports: the split into a new
+    area document is planned and in the spec's *Area documents* from the start, not found by `decision-check.py` once
+    the documentation is written (Censio#38)."""
     for line in sections(plan).get("Areas", "").splitlines():
         adds = AREA_ADDS.search(line)
-        added = int(adds.group(1).replace(",", "")) if adds else None
-        for path in sorted(set(AREA_PATH.findall(line))):
-            current = len(read(path, []).split()) if os.path.isfile(path) else None
-            if current is None or current + (added or 0) <= (AREA_MAX_WORDS if added is not None
-                                                             else AREA_MAX_WORDS - AREA_HEADROOM):
-                continue
-            states = f"{current} words now" + (f" and {added} added" if added is not None else "")
-            warnings.append(f"plan.md: {path} has {states} (AREA_MAX_WORDS {AREA_MAX_WORDS}): plan the split into a new "
-                            "area document now (name and scope for the index, in the spec's Area documents), or state "
-                            "the words the change adds on the line (`+N words`)")
+        found = (area_size_warning(path, line, adds) for path in sorted(set(AREA_PATH.findall(line))))
+        warnings.extend(warning for warning in found if warning)
 
 
 def template_lines():

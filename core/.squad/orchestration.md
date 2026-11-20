@@ -250,8 +250,10 @@ change to a file outside the documentation.
 
 When `squad-security` in mode `plan` reports a required measurement as not run because a download or tool was
 denied (e.g. a vendor release binary refused by the permission classifier), the orchestrator asks the Product
-Manager once for exactly that download, runs the measurement itself once it is allowed, and passes the measured
-result with the plan to the Lead (mode `revise`). Security re-runs the review in round 2 against the revised
+Manager once for exactly that download, runs the measurement itself once it is allowed, writes each command with
+its quoted output into `measurements.md` at once, and passes the measured result with the plan to the Lead (mode
+`revise`). A plan that names the orchestrator as the owner of such a measurement (*Lead*, mode `plan`) has it run
+after that one leave and before Security's plan review. Security re-runs the review in round 2 against the revised
 plan and the measurement. Not run is never approved, and the denial alone is no reason to skip the measurement.
 
 A measurement a member reports without the command it ran and its quoted output is unverified, whatever the

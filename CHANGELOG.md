@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-next.py` asks for `PASS` or `FAIL` in the Tester's private-check row, reads "Early draft PR: not needed"
+  and "no need for an early draft PR" as declined, and `plan-check.py` accepts a private check whose input the Product
+  Manager supplies (#439)
+
 - [Core] After the Lead decides on a failed private check `squad-next.py` names the Dev's work and escalates after 2
   groups; the revision for a major objection hands over Security's `fix now` notes too; a negation next to "early draft
   PR" that does not predicate it no longer hides the request (#438)

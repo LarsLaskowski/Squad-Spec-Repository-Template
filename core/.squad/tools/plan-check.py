@@ -1060,7 +1060,7 @@ def manual_owner(check):
 def tester_private_check(check):
     """True when a `manual:` check is the Tester's own run over a private input: it names the Tester and the input that
     stays out of the repository (`.squad/routing.md`, *Criteria verified only in CI*; `squad-next.py` names the launch)."""
-    return manual_owner(check) == "Tester" and bool(PRIVATE_INPUT.search(check))
+    return bool(re.search(r"\bTester\b", check)) and bool(PRIVATE_INPUT.search(check))
 
 
 def prose_manual_checks(plan):

@@ -1243,6 +1243,8 @@ class TestScopeCheck(unittest.TestCase):
 
             def after(self, path):
                 return text.replace("old", "new")
+
+            raw_after = after
         found = self.script.check(["AGENTS.md"], None, None, False, Fork())
         self.assertTrue(found and "squad or instruction file" in found[0], found)
 
@@ -1257,6 +1259,15 @@ class TestScopeCheck(unittest.TestCase):
     def test_control_character_in_markdown_is_reported(self):
         write("docs/decisions/0001-x.md", "# 0001\n\ntext \u202e here\n")
         self.assertIn("U+202E", self.errors()[0])
+
+    def test_a_carriage_return_without_a_line_feed_in_markdown_is_reported(self):
+        # DockerUpdateGuard#489: a plan.md join of `\\r\\r\\n` and a decision record ending in a lone CR.
+        write("specs/issue-1/plan.md", "# Plan\r\n\r\r\nmore\r\n", newline="")
+        write("docs/decisions/0001-x.md", "# 0001\n\ntext\r", newline="")
+        write("docs/ok.md", "# Ok\r\n\r\nCRLF only\r\n", newline="")
+        found = self.errors()
+        self.assertEqual([e.split(":")[0] for e in found], ["docs/decisions/0001-x.md", "specs/issue-1/plan.md"])
+        self.assertIn("1 carriage return(s) without a line feed", found[0])
 
     def test_working_record_after_step_10_is_reported(self):
         write("specs/issue-1/plan.md", "# Plan\n")

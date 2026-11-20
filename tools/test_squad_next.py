@@ -181,6 +181,20 @@ class TestPlanSteps(NextTest):
                       row("2 Plan revise (plan-check)", "Lead", "RESULT: DONE", 9000, continued=True))
         self.assertIn("Next: step 4 — Skeleton", self.next(), "the revise answered findings only")
 
+    def test_security_notes_that_recommend_fix_now_go_to_the_lead_before_the_skeleton(self):
+        # Censio#38: the notes were appended to plan.md, no step sent them to the Lead, the Tester found the gap.
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. The loader's error and thread rule is missing: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
+        out = self.next()
+        self.assertIn("Next: step 2 — Lead revision for Security's `fix now` notes", out)
+        self.assertIn("Launch: squad-lead, mode revise", out)
+        self.repo.log(row("2 Plan revise (security notes)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertIn("Next: step 3 — Security delta confirmation", self.next(), "the revised plan is confirmed once")
+        self.repo.log(row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
+        self.assertIn("Next: step 4 — Skeleton", self.next(), "one revision answers the notes")
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -763,6 +777,16 @@ class TestReviewAndAfter(NextTest):
         self.repo.log(row("7 Manual test", "Product Manager", "AC1 pass"))
         self.assertIn("Next: step 8", self.next())
 
+    def test_a_manual_criterion_over_a_private_input_is_the_testers_step_6_launch(self):
+        # Censio#125: the stamp followed the coverage pass without naming the Tester's run over the private recording.
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        out = self.next()
+        self.assertIn("Next: step 6 — the Tester's check of AC1 over a private input", out)
+        self.assertIn("Launch: squad-tester, mode coverage", out)
+        self.assertIn('"6 Private check"', out)
+        self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
+        self.assertNotIn("over a private input", self.next(), "one row ends the step")
+
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.
         self.implemented(test="manual: the Product Manager times the query on the reference host")
@@ -1231,6 +1255,14 @@ class TestLaunches(NextTest):
         self.assertEqual(run_main(self.tool, ["issue-5", "--launch", "squad-dev", "dance"])[0], 2)
         self.assertEqual(run_main(self.tool, ["issue-9"])[0], 1)
 
+    def test_a_launch_is_fresh_from_250000_tokens_on_not_only_past_the_cap(self):
+        # Censio#38: the Tester was continued at 330,000 tokens after squad-next.py had named a continuation at 260,000.
+        self.implemented()
+        self.repo.log(row("6 Documentation", "Dev", "docs", 230000, "sonnet/medium", continued=True))
+        out = self.next("--launch", "squad-dev", "fix")
+        self.assertIn("260,000 tokens: from 5 continuations or 250,000 tokens on, a fresh launch", out)
+        self.assertIn("Agent: fresh launch", out)
+
     def test_a_continuation_past_the_cap_is_named_until_the_next_fresh_launch(self):
         # Censio#146: squad-next.py named fresh launches, the orchestrator continued the Dev at 365,086 tokens.
         self.implemented()
@@ -1264,3 +1296,19 @@ class TestLaunches(NextTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEarlyPrAsked(NextTest):
+    """The plan's own sentence decides whether step 7 asks for an early draft PR (DockerUpdateGuard#505)."""
+
+    def test_a_plan_that_asks_for_one_is_read_as_asking(self):
+        for line in ("An early draft PR is opened after step 6.", "Open the early draft PR right away."):
+            self.assertTrue(self.tool.early_pr_asked(line), line)
+
+    def test_a_negated_mention_does_not_ask(self):
+        for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
+                     "There is not an early draft PR, nor a branch build.", "Never an early draft PR."):
+            self.assertFalse(self.tool.early_pr_asked(line), line)
+
+    def test_a_negation_of_one_mention_does_not_hide_another(self):
+        self.assertTrue(self.tool.early_pr_asked("No early draft PR before step 6, then an early draft PR."))

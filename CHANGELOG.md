@@ -6,6 +6,20 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-next.py` ignores a negated "no early draft PR" in the plan and goes fresh from 250,000 tokens on, not
+  only past the 300,000 cap; Security's `fix now` plan notes go to the Lead in mode `revise` before the skeleton (#430,
+  #434)
+- [Core] `scope-check.py` rejects a carriage return without a line feed in changed Markdown, and `squad-notes.py` never
+  writes one (#431)
+- [Core] A `manual:` check the Tester runs over a private input is allowed, and `squad-next.py` names its launch after
+  step 6's coverage pass (#433)
+- [Core] `plan-check.py` warns when a planned area document passes `AREA_MAX_WORDS` and no longer counts a spec's
+  appended *Challenge notes*; a verification issue stops at intake (#432, #434)
+- [Core] The Lead plans a vendor-binary measurement for the orchestrator, checks a third-party rendering claim before a
+  criterion, and plans identical logic of two types as one helper; the Dev lists files it cannot stage (#429, #434,
+  #435, #436)
+- [Profile] The dotnet seed's *Skeleton* gives a member that must not throw (CA1065) an empty body (#434)
+
 ## v2026.11.12 — 2026-11-15
 
 - [Core] `squad-log.py --help` says `--continued-from` takes the step of a logged continuation too (#426)

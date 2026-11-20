@@ -356,6 +356,13 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("plan.md: AC4: the `manual:` check names Tester, which reviews no diff on this tier (Reviewer "
                       "does): name a member of the review round or the Product Manager",
                       self.errors(self.feature(spec=spec, plan=by_tester, tasks=tasks)))
+        # Censio#125: the Tester's own run over an input that stays out of the repository is allowed.
+        private = plan.replace("manual: the PM on the CI artifact",
+                               "manual: the Tester replays the private recording, never committed")
+        folder_private = self.feature(spec=spec, plan=private, tasks=tasks)
+        self.assertFalse(any("`manual:` check names" in e for e in self.errors(folder_private)))
+        self.assertIn("| AC4 | manual | the Tester replays the private recording, never committed | to record: the "
+                      "Tester's row of step 6 over the private input |", self.matrix(folder_private)[1])
         on_security = by_security.replace("Tier: standard", "Tier: security")
         self.assertFalse(any("`manual:` check names" in e for e in
                              self.errors(self.feature(spec=spec, plan=on_security, tasks=tasks))))
@@ -522,6 +529,24 @@ class TestPlanCheck(unittest.TestCase):
         errors, warnings = self.script.check_spec_only(folder)
         self.assertTrue(warnings and "SPEC_MAX_WORDS" in warnings[0], warnings)
         self.assertFalse(any("words" in e for e in errors), "a long spec is no finding")
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            handle.write(spec + "\n## Challenge notes\n\n" + "answer " * 3000)
+        self.assertEqual(self.script.check_spec_only(folder)[1], [], "Censio#38: the appended notes are not counted")
+
+    def test_an_area_document_the_change_pushes_past_its_limit_is_planned_before_the_documentation(self):
+        # Censio#38: AREA_MAX_WORDS was reported only after the Dev had written the documentation.
+        write("docs/areas/big.md", "# Big\n\n" + "word " * 4900)
+        write("docs/areas/small.md", "# Small\n\n" + "word " * 100)
+        areas = PLAN + ("\n## Areas\n\n- docs/areas/big.md: the new limits\n"
+                        "- docs/areas/small.md (+200 words): the new limits\n"
+                        "- docs/areas/missing.md (+9000 words): a new area\n")
+        warnings = self.script.check(self.feature(plan=areas))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("docs/areas/big.md has 4902 words now (AREA_MAX_WORDS 5000)", warnings[0])
+        added = areas.replace("big.md:", "big.md (+150 words):")
+        self.assertIn("4902 words now and 150 added", self.script.check(self.feature(plan=added))[1][0])
+        within = areas.replace("big.md:", "big.md (+50 words):")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 
     def test_plan_over_the_limit_of_its_tier_is_a_finding(self):
         errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))

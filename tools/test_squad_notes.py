@@ -92,6 +92,15 @@ class TestSquadNotes(unittest.TestCase):
         self.assertIn("## Security notes\r\n\r\n1. earlier note\r\n\r\n2. a second note\r\n\r\n## Later\r\n", self.text())
         self.assertNotIn("\n\n", self.text().replace("\r\n", ""), "no bare line feed")
 
+    def test_a_lone_carriage_return_never_becomes_two_in_a_crlf_document(self):
+        # DockerUpdateGuard#489: the join held `\\r\\r\\n` after the notes were appended.
+        write(self.plan, PLAN.replace("\n", "\r\n") + "\r")
+        done = self.run_notes("issue-5", "challenge", "--stdin", stdin=REPORT.replace("\n", "\r\n") + "\r")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        text = self.text()
+        self.assertNotIn("\r\r", text)
+        self.assertEqual(text.count("\r"), text.count("\n"), "every line end is CRLF")
+
     def test_the_leads_docs_result_is_written_whole_as_result_md(self):
         # Censio#185: a 20-line edit with a code block did not fit the first log row.
         result = "Tier: docs\n\nEdit `docs/a.md`, replace\n\n```bash\nrun it\n```\n\nRESULT: DONE\n"

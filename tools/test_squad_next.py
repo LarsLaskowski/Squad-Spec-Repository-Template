@@ -793,6 +793,7 @@ class TestReviewAndAfter(NextTest):
         self.assertIn("Next: step 6 — the Tester's check of AC1 over a private input", out)
         self.assertIn("Launch: squad-tester, mode coverage", out)
         self.assertIn('"6 Private check"', out)
+        self.assertIn('"<PASS or FAIL per criterion, then the result>"', out, "the token the failure check reads")
         self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
         self.assertNotIn("over a private input", self.next(), "one row ends the step")
 
@@ -1351,7 +1352,8 @@ class TestEarlyPrAsked(NextTest):
     def test_a_negated_mention_does_not_ask(self):
         for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
                      "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
-                     "An early draft PR is not needed.", "Early draft PR: none."):
+                     "An early draft PR is not needed.", "Early draft PR: none.", "Early draft PR: not needed.",
+                     "There is no need for an early draft PR.", "We do not ask for an early draft PR."):
             self.assertFalse(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):

@@ -359,6 +359,7 @@ class TestPlanCheck(unittest.TestCase):
         # Censio#125: the Tester's own run over an input that stays out of the repository is allowed.
         private = plan.replace("manual: the PM on the CI artifact",
                                "manual: the Tester replays the private recording, never committed")
+        self.assertTrue(self.script.tester_private_check("the Tester replays the private recording the PM supplies"))
         folder_private = self.feature(spec=spec, plan=private, tasks=tasks)
         self.assertFalse(any("`manual:` check names" in e for e in self.errors(folder_private)))
         self.assertIn("| AC4 | manual | the Tester replays the private recording, never committed | to record: the "

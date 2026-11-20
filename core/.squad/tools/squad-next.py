@@ -148,8 +148,9 @@ PR_ENDED = re.compile(r"\b(?:merged|closed)\b", re.I)
 ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
 EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
-EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,2}$", re.I)
-EARLY_PR_DENIED_AFTER = re.compile(r"^\s*(?:(?:is|are|was)\s+(?:not|never)\b|:\s*(?:none|no)\b|(?:is\s+)?unneeded\b)", re.I)
+EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,3}$", re.I)
+EARLY_PR_DENIED_AFTER = re.compile(
+    r"^\s*(?:(?:is|are|was)\s+(?:not|never)\b|[:\u2014\u2013-]\s*(?:none|no|not|n/a)\b|(?:is\s+)?unneeded\b)", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -1478,11 +1479,13 @@ def private_check(run):
             return heading("step 6 — the Dev's work the Lead's decision on the failed private check orders") + launch(
                 run, DEV, "implement", "6 Implement (private check)",
                 f"the Lead's decision (row \"{decided[0].step}\") on the failed private check, {BASE_HANDOVER}")
-    return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + launch(
+    lines = launch(
         run, TESTER, "coverage", run.step_cell("6", "Private check"),
         f"the plan's manual check of {', '.join(criteria)} and where the private input is (ask the Product Manager if "
-        "the plan does not say); the input is never committed, copied or quoted in the report, only its result") + [
-        THEN + "the stamp follows once the row says whether the check passed"]
+        "the plan does not say); the input is never committed, copied or quoted in the report, only its result")
+    lines[-1] = lines[-1].replace("\"<the result>\"", "\"<PASS or FAIL per criterion, then the result>\"")
+    return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + lines + [
+        THEN + "the stamp follows once the row says PASS or FAIL"]
 
 
 def manual_criteria(run):

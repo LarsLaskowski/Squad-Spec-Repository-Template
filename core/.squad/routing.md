@@ -1,8 +1,7 @@
 # Routing
 
 Bug fixes (`squad-issue`) and features (`squad-spec`, which adds `spec.md`) run the same pipeline (*Bug or feature*).
-The orchestrator — the session running the skill — launches the members, passes documents between them (subagents
-cannot talk to each other), performs every Git and GitHub action and logs every step and launch in `log.md`
+The orchestrator — the session running the skill — launches the members, passes documents between them, performs every Git and GitHub action and logs every step and launch in `log.md`
 (`squad-issue`, step 1). Step numbers are the skills'.
 
 The orchestrator's own procedures are in [`orchestration.md`](orchestration.md), which the members need not read;
@@ -68,18 +67,17 @@ area, guarantee or coupling point; the Reviewer treats a stale entry there like 
 
 ## Tiers
 
-In step 2 the Lead picks the tier by what the change does, not only by the paths it touches, and justifies it in
-`plan.md` (`docs`, `patch`: in its result); in doubt about what the change does (not about the definition: the table
-settles that), the higher one (`docs` < `patch` < `tests` < `trivial` < `standard` < `security`). Security or the
-Reviewer may raise it at any time, never lower it. A raise to `security` after step 2 adds only what is still ahead —
-Security's diff review in step 8, and its plan review if step 3 has not run and step 4 not started — and no new plan
-challenge; the orchestrator records it in `plan.md` with the area that caused it and launches the Lead only for a
+In step 2 the Lead picks the tier by what the change does, not only by its paths, and justifies it in `plan.md`
+(`docs`, `patch`: in its result); in doubt about what the change does (the table settles the definition), the higher
+one (`docs` < `patch` < `tests` < `trivial` < `standard` < `security`). Security or the Reviewer may raise it at any
+time, never lower it. A raise to `security` after step 2 adds only what is still ahead — Security's diff review in
+step 8, and its plan review if step 3 has not run and step 4 not started — not a new plan challenge; the orchestrator records it in `plan.md` with the area that caused it and launches the Lead only for a
 decision it leaves open.
 
 Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or build
 configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever it is not
 "none", whatever the tier, Security reviews the plan (step 3). Security reviews the diff (step 8) only on tier
-`security` and `patch/security` (the `patch` row); below that the Reviewer is the diff's security review, and an area
+`security` and `patch/security`; below that the Reviewer is the diff's security review, and an area
 it finds touched but not listed goes to *Unlisted security areas*.
 
 | Tier | When | Pipeline |
@@ -89,7 +87,7 @@ it finds touched but not listed goes to *Unlisted security areas*.
 | `tests` | The diff changes test code only — the test paths (`COVERAGE_TEST_PATHSPECS` in `squad_settings.py`, by default its `COVERAGE_EXCLUDES`) and `docs/UNIT_TESTS.md` — beyond what `patch` allows; any other file makes it `trivial` or higher (`scope-check.py --tier tests`). | `plan.md` with the criteria and their tests; no plan challenge; step 3 only with *Security areas touched*; steps 4 and 5 skipped, step 6 is `squad-tester` in mode `coverage` writing the plan's tests (no Dev); step 7 runs the *test code only* row of *Gates of a patch* (`gate-stamp.py`), the Code Officer as usual; Reviewer and PR approval (step 9) still run. |
 | `trivial` | Documentation that does not qualify as `docs`, code comments, log or UI wording, configuration defaults, or a documentation change that needs a decision record — no change to behavior or control flow | Steps 4 and 5 skipped, except step 5 of a task group whose first `tasks.md` row names the Tester (`squad-next.py` names it); no plan challenge; step 3 only with *Security areas touched*; code check, Reviewer and PR approval (step 9) still run. Tests and coverage are still required if production code changes. |
 | `standard` | A behavior change that creates, changes or removes no security control (see `security`) — also when it touches a security area, Docker/CI or build configuration, or adds or updates a dependency | Plan challenge in step 2 when *Plan challenge* calls for it; step 3 with *Security areas touched*, in parallel with the challenge. No Security diff review: the Reviewer raises the tier when the diff changes a security control after all |
-| `security` | Creates, changes or removes a **security control**: authentication, authorization, sessions or CSRF protection, cryptography, the storage or handling of secrets and credentials, a permission, allow-list, sandbox or other guard that decides what an attacker may reach or do (a check that only keeps malformed or oversized input from breaking the program — a size bound, a parser's validation — is input handling: `standard` with the area under *Security areas touched*; a check that confines what a path, URL, redirect or query reaches, output escaping, or a rate limit against abuse is a guard, also inside a parser), the network exposure (a listener, a route reachable without login, a header or CORS policy), or the trust of the build and release (CI permissions and secrets, signing, provenance) — beyond what `patch/security` allows | Full pipeline; the plan challenge (*Plan challenge*) and the Security plan review run in parallel, answered by one Lead revision; Security reviews the diff in step 8 |
+| `security` | Creates, changes or removes a **security control**: authentication, authorization, sessions or CSRF protection, cryptography, the storage or handling of secrets and credentials, a permission, allow-list, sandbox or other guard that decides what an attacker may reach or do (a check that only keeps malformed or oversized input from breaking the program — a size bound, a parser's validation — is input handling: `standard` with the area under *Security areas touched*; a check that confines what a path, URL, redirect or query reaches, output escaping, or a rate limit against abuse is a guard, also inside a parser), the network exposure (a listener, a route reachable without login, a header or CORS policy), or the trust of the build and release (CI permissions and secrets, signing, provenance) — beyond what `patch/security` allows | Full pipeline: plan challenge and Security plan review in parallel (*Plan challenge*); Security reviews the diff in step 8 |
 
 An issue about `.squad/stack.md` or `.squad/project.md` is a product PR and counts as documentation for the
 `docs` tier — except an edit to *Security areas* or to a command the pipeline runs: `patch/security` within
@@ -110,7 +108,7 @@ and replaces a gate the stack lacks by the next broader one (*Test* for *Test (p
 | a shell script, a workflow or a Dockerfile | *Analyzer gate* with `--lint-only` (shellcheck, actionlint, hadolint and the shell rules on the changed files, no build), plus the check the Lead's result names for the edit (a pin check, `bash -n`, a dry run) |
 | a configuration file or a data file the product reads (YAML, JSON, a catalog) | the check the Lead's result names (a loader test, a schema check), run as *Test (project)* when it is a test |
 | test code only | *Format check*, *Analyzer gate*, *Test (project)* for the test project(s) of the changed code (`stack.md`) |
-| production code | *Format check*, *Analyzer gate*, *Test with coverage* and the *Coverage gate* — not *Test (project)*: the gate reads the coverage reports of the full run, the overall figure included |
+| production code | *Format check*, *Analyzer gate*, *Test with coverage* and the *Coverage gate* — not *Test (project)* |
 
 ### Changes without production or test code
 
@@ -118,7 +116,7 @@ In any tier, a plan whose change touches no production or test code (a workflow,
 configuration, documentation only) may declare steps 4 (*Skeleton*), 5 (*Tests first*) and the *Coverage
 gate* **not applicable**; the tier and its other steps stay. The Lead then names under *Verification without tests*
 in `plan.md` where and by whom each acceptance criterion is verified instead (a workflow step, a PR dry run, an image
-build, a read-only check), and the orchestrator logs the skipped steps with a pointer to it. Step 6 is the Dev's
+build, a read-only check); `squad-next.py` prints the row that logs the skipped steps. Step 6 is the Dev's
 edits, then, in mode `coverage`, the Tester's share where *Verification without tests* or *Documentation updates*
 names the Tester (test documentation, a dry-run artifact: *Dry-run artifacts*); step 7 runs the gates without the
 *Coverage gate* (`gate-stamp.py`). The Reviewer checks that the section exists and covers every criterion and that
@@ -129,9 +127,7 @@ steps 4–6 apply again.
 
 A criterion verified by a dry run on the branch — a planted failing test that must turn a gate or a CI job red, a
 deliberate defect a check must catch — never reaches the merged change. Its owner writes the artifact as a patch file
-outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` (`git-guard.py`
-allows a member only the forms of `git apply` that read a patch) and hands back its path. The orchestrator applies it
-as one commit, runs or waits for the check, reverts that commit with `git revert`, and logs both commits with the
+outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` and hands back its path. The orchestrator applies it as one commit, runs or waits for the check, reverts that commit with `git revert`, and logs both commits with the
 check's result; the Reviewer confirms that the revert left nothing of it.
 
 ### Criteria verified only in CI
@@ -139,8 +135,7 @@ check's result; the Reviewer confirms that the revert left nothing of it.
 A criterion only CI can verify in full (a container image the sandbox cannot build, a release build on another
 platform) is still checked as far as the sandbox allows before the review. A change to an input the image build is
 sensitive to (*Image build check* in `.squad/stack.md` names them: manifests, content items, static web assets, the
-Dockerfile) runs the *Image build check*, which follows the Dockerfile's order (manifests, restore, sources, build
-without restore); the plan names it as the criterion's verification, owned by the Dev. A build or publish from the
+Dockerfile) runs the *Image build check*; the plan names it as the criterion's verification, owned by the Dev. A build or publish from the
 full working tree does not count: it restores with every source present. A red CI on such a criterion after that check
 is worked in step 11.
 
@@ -150,7 +145,7 @@ which needs an *Early draft PR* (no CI build exists before step 10 otherwise). W
 build the artifact (an image for the target host, say), the spec or plan first asks whether they can build it there,
 and the plan names the fallback: who builds it otherwise and how it reaches the target (*An artifact the Product
 Manager cannot build*). The manual test runs on the stamped head before step 8's review set (`squad-next.py` names it,
-logged as `7 Manual test`), so a document it corrects is reviewed once; a `manual:` check that names a member of that
+logged as `7 Manual test`); a `manual:` check that names a member of that
 set (the Reviewer; Security on its tiers) runs in that member's round, its result in its report. A `manual:` check the
 Tester runs over an input that must stay out of the repository names the Tester and says the input is private
 (`manual: the Tester replays the private recording`); `squad-next.py` names its launch after step 6's coverage pass
@@ -166,15 +161,14 @@ upload tools, what the target host has installed) is planned against that enviro
   have (tools such as `git`, the hosts it reaches, DNS, its console, the order in which the operator pastes the steps)
   and records the answers as scenarios and acceptance criteria, against which the Devil's Advocate checks the plan.
 - **Third-party pages.** For a document that leads the operator through another provider's page or console (a settings
-  page, a dashboard), whose labels and layouts change without notice, the spec asks the Product Manager how far it may
+  page, a dashboard), the spec asks the Product Manager how far it may
   rest on them (exact labels, only the page's name and purpose, or a link to the provider's guide) and records the
   answer as a non-functional requirement.
 - **Dry run.** The plan schedules a dry run of the documented steps by the Product Manager (or a stated stand-in)
   **before** the documentation is reviewed, with the hosts and software versions it needs (the backend version with
   the API the procedure calls, say). Each statement of the document no run has shown is a row of the plan's *Verified
   facts*, `unverified`, owned by the dry run — never a marker in the document, which its readers keep; the dry run
-  confirms or corrects it, or it is narrowed to what the run showed or left out. When the session cannot reach an
-  external page, the plan asks the Product Manager to confirm its statements in the earliest real run, not at the end.
+  confirms or corrects it, or it is narrowed to what the run showed or left out.
 - **Shell procedures.** For a documented shell procedure the plan states, before Security's plan review, what
   happens when (a) all lines are pasted at once, (b) one line at a time, (c) one line fails, (d) a variable
   is lost, and names the tests (unit and CI) that hold each answer; the Tester derives its cases from it. A line
@@ -211,7 +205,7 @@ the CI-built artifact (*Criteria verified only in CI*) or **dry run** (*Operator
 procedures*) needs a CI result before the review. Its plan says so, and the orchestrator opens the PR as a draft right
 after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment yet), waits for CI and reads
 `sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar gate* alone is no reason for an
-early PR: every push to an open PR reruns all of CI, and step 11 reads the analysis anyway. The dry run runs on that
+early PR. The dry run runs on that
 head, before the documentation is reviewed. Step 9 also requires the green CI run, the dry-run result and the
 Reviewer's round on the same head; step 10 then only posts the working record and removes `specs/`, and marks nothing
 ready (*Draft until green*).
@@ -245,18 +239,16 @@ The orchestrator first runs this checklist in full:
 - the area documents and documentation updates the plan names are in the diff;
 - every link or statement a review round reported `unopened` is confirmed (*Pages the session cannot open*).
 
-Then it sets each `Proposed` decision record of this change and its index row to `Accepted`, runs
-`decision-check.py`, commits and stamps that commit with `gate-stamp.py --verbatim` (bookkeeping like `log.md`: no
-delta round). It launches the Lead in mode `approve-pr` only for an open decision — a plan deviation in a member's
+Then it sets each `Proposed` decision record of this change and its index row to `Accepted` (bookkeeping like
+`log.md`, no delta round; `squad-next.py` prints the commands, the stamp with `gate-stamp.py --verbatim`). It launches the Lead in mode `approve-pr` only for an open decision — a plan deviation in a member's
 report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), or a
 change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find
 consistent — listing each point; the Lead decides only those (`squad-lead.md`, mode `approve-pr`), non-blocking
 findings having been decided in step 8 (*Non-blocking findings*). Otherwise it logs "approved by checklist" → 10.
 
 A fix the Lead orders goes back to step 6 or 8 and counts against the review loop; any edit beyond the record status,
-`docs/ARCHITECTURE.md` included, has an owner and gets a delta round. Once that round is clean the checklist runs
-again, and the Lead's `approve-pr` agent is continued only for a point the fix left open, never for a settled one.
-`NOT APPROVED` without a fix means the Lead decides or escalates. After the PR, a re-approval runs the same checklist
+`docs/ARCHITECTURE.md` included, has an owner and gets a delta round; then the checklist runs again, and the Lead's
+`approve-pr` agent is continued only for a point the fix left open. `NOT APPROVED` without a fix means the Lead decides or escalates. After the PR, a re-approval runs the same checklist
 once CI on the new head has finished and passes.
 
 ## Plan challenge
@@ -264,23 +256,21 @@ once CI on the new head has finished and passes.
 The Devil's Advocate challenges every plan of tier `security` (also one without production code: CI permissions,
 secrets, a workflow), and a plan of tier `standard` only when it changes production code **and** either names an
 alternative under *Options considered* or adds a new decision record — extending an existing record alone does not
-count; the same holds for a feature, whose spec it has already challenged. `plan-check.py` prints the verdict with its
-reason (`Plan challenge: due — …` or `not due — …`), and `squad-next.py` acts on it. It runs at most once, has no
+count; the same holds for a feature, whose spec it has already challenged. `plan-check.py` prints the verdict
+(`Plan challenge: due — …` or `not due — …`), and `squad-next.py` acts on it. It runs at most once, has no
 veto, and a rejected objection is not raised again. Each objection is ranked `major` (the plan would build the wrong
-thing or miss the defect) or `minor`, so the orchestrator routes without judgment:
+thing or miss the defect) or `minor`, and the orchestrator routes by that rank:
 
 - **Only minor objections** (when step 3 runs: and Security approved): no Lead launch; the orchestrator appends them
-  to `plan.md` as *Challenge notes* (bookkeeping, like `log.md`), copied verbatim from the member's report with
-  `squad-notes.py`, never retyped. Dev and Tester follow them or report a deviation; the Reviewer checks them in
-  round 1.
+  verbatim to `plan.md` as *Challenge notes* with `squad-notes.py`, never retyped (bookkeeping, like `log.md`). Dev
+  and Tester follow them or report a deviation; the Reviewer checks them in round 1.
 - **Non-blocking findings of Security's `APPROVED` plan review** go verbatim into a *Security notes* section the same
   way — except a note that leaves the plan a choice ("document it, or reject") or that Security recommends to `fix
   now`: the Lead decides it in mode `revise` before the skeleton, in one launch with any major objection
-  (`squad-next.py` names the launch), since Dev and Tester may not edit the plan.
+  (`squad-next.py` names the launch).
 - **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`, `spec.md`:
   the sentence as it stands and as it should read) is applied by the orchestrator when it appends the note, the way
-  of *Verbatim documentation fixes* (`specs/` only, logged, no launch), since Dev and Tester may not edit those
-  documents. A fix that needs judgment, or one that changes an acceptance criterion, is routed as above.
+  of *Verbatim documentation fixes* (`specs/` only, logged, no launch). A fix that needs judgment, or one that changes an acceptance criterion, is routed as above.
 - **A major objection:** the Lead, in mode `revise` with all objections, answers each one in the plan's
   *Challenge* section, the minor ones included.
 
@@ -293,7 +283,7 @@ Security delta confirmation.
 If the Lead concludes in step 2 (also after answering the Devil's Advocate) that no code change is needed —
 duplicate, cannot be reproduced, works as designed (e.g. covered by an accepted decision record), or out of
 scope — it returns `RESULT: NO CHANGE` with a proposed issue comment (`squad-lead.md`, *Output format*). The
-orchestrator posts the comment only after the Product Manager has confirmed it (a public statement on the issue), with
+orchestrator posts the comment only after the Product Manager has confirmed it, with
 the log appended as a collapsed "Squad working record" block, then removes the work folder in a commit and pushes; no
 PR is opened, the branch stays without one, and the user is told so.
 
@@ -305,45 +295,43 @@ PR is opened, the branch stays without one, and the user is told so.
   fixes them or escalates. A finding is never waved through.
 - **Spec challenge (step 2, features):** one Devil's Advocate round, no veto, handled like the plan challenge
   (minor objections into the spec's *Challenge notes*, which the Lead answers while it plans).
-- **Plan ↔ Security (steps 2–3):** at most 2 rejections; the first revision also answers the plan challenge
-  (*Plan challenge*). After the 2nd `CHANGES_REQUIRED` the Lead decides: narrow the scope, split into separate issues,
-  escalate to the Product Manager, or accept and fix the remaining defect without an escalation when it is a pure
-  wording defect, a defect confined to the plan's resource section (limits, bounds, sizes) whose fix changes no scope,
-  or a defect whose **complete fix** (the exact statements or edits) Security supplied, where the fix changes no scope
-  and no acceptance criterion (for a defect in a claim about how code, a library or a server behaves, only once
-  Security has **measured** the failure); exactly one Security delta confirmation of the fix follows, and a further
-  rejection goes to the Product Manager.
-- **Review ↔ Dev (steps 6–8):** review pass 1 is a full review; at most **2 further fix-and-review
-  rounds**, each reviewing only the delta; blocking findings still open then go to the Lead (accept with
-  justification, split into a follow-up issue, abort, or escalate). A round counts per review round that
-  returned blocking findings, not per launch: the Dev's fix and a test or test double the Tester repairs
-  because of it are one fix round, followed by one delta review; a defect found in a test counts the same.
+- **Plan ↔ Security (steps 2–3):** at most 2 rejections. After the 2nd `CHANGES_REQUIRED` the Lead narrows the scope, splits into separate issues,
+  escalates to the Product Manager, or — without an escalation — accepts and fixes the remaining defect if it is a
+  pure wording defect, one confined to the plan's resource section (limits, bounds, sizes) whose fix changes no scope,
+  or one whose **complete fix** (the exact statements or edits) Security supplied and whose fix changes no scope and no
+  acceptance criterion (a defect in a claim about how code, a library or a server behaves: only once Security has
+  **measured** the failure); exactly one Security delta confirmation of the fix follows, and a further rejection goes
+  to the Product Manager.
+- **Review ↔ Dev (steps 6–8):** review pass 1 is a full review, then at most **2 further fix-and-review rounds**,
+  each on the delta only; blocking findings still open then go to the Lead (accept with justification, split into a
+  follow-up issue, abort, or escalate). Rounds count per review round with blocking findings, not per launch: the
+  Dev's fix and a test or test double the Tester repairs because of it are one fix round, followed by one delta
+  review; a defect found in a test counts the same.
 - **Existing tests affected by a signature change:** the plan lists the existing test call sites of a
   changed signature (factories, helpers) and who adapts them. The **Dev** adapts them in step 4 when the old
   signature goes away (so *Build* passes before the Tester starts), and later when a call site stops
   compiling only because of a signature or field change the Dev made itself — mechanically, no assertion touched,
   listed in its report; in no other case does the Dev edit test code. The **Tester** moves them in step 5 when old and
   new signature coexist, and checks the Dev's edits in its coverage step.
-- **Manual criterion fails (step 7):** a manual test that fails on the stamped head goes to the Lead (mode `decide`),
-  which adds a task group to the same plan for the options it takes (a bug fix: a further implement round of the
-  Dev and the Tester's coverage pass); the group runs steps 4–7 like the others and ends with a new gate stamp and the
-  manual test again (one `7 Manual test` row per run). After **2 such groups** the Lead escalates relaxing the
+- **Manual criterion fails (step 7):** a manual test failing on the stamped head goes to the Lead (mode `decide`),
+  which adds a task group to the plan for the options it takes (a bug fix: another Dev implement round and the
+  Tester's coverage pass); the group runs steps 4–7 like the others, ending with a new gate stamp and the manual test
+  again (one `7 Manual test` row per run). After **2 such groups** the Lead escalates relaxing the
   criterion to the Product Manager.
 - **Dev ↔ Tester disagreements:** if the Dev believes a step-5 test's expectation is wrong, the Lead decides
-  (the test is not changed silently). A defect the Dev reproduces without changing the test (a failing fixture
+  (the test is never changed silently). A defect the Dev reproduces without changing the test (a failing fixture
   or helper, not a disputed expectation) goes to the Tester as a fix round once the orchestrator has verified
-  the reproduction. Not counted against a loop limit.
-- **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted
-  and the item goes to the Dev (or Tester for tests), then the code check runs again. Not counted
-  against a loop limit.
-- **Coverage gate fails:** Dev and Tester iterate; lines no unit test can cover go to the Lead, whose
-  decision is recorded in `log.md`. A whole such file that the plan did not list (*Code a unit test cannot
-  cover*) is a plan defect the Lead records with the decision.
+  the reproduction. Neither counts against a loop limit.
+- **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted and the item
+  goes to the Dev (tests: the Tester), then the code check runs again; not counted against a loop limit.
+- **Coverage gate fails:** Dev and Tester iterate; lines no unit test can cover go to the Lead, its decision recorded
+  in `log.md`; a whole such file the plan did not list (*Code a unit test cannot cover*) is a plan defect it records
+  with the decision.
 - **After the PR (step 11):** CI or quality-gate failures and review comments are fixed on the same
   branch through steps 7–8 again (delta review), at most 2 fix rounds per failure; then the Lead decides.
 - **New scope on the open PR (step 11):** a Product Manager request on the open pull request that adds or changes
-  behavior beyond the spec's acceptance criteria (not a criterion the change misses) goes to the Lead before any edit.
-  The Lead decides, recorded in `log.md`: a follow-up issue (the default), or the change grows — the spec gets the new
+  behavior beyond the spec's acceptance criteria (not a criterion the change misses) goes to the Lead before any edit,
+  which decides, recorded in `log.md`: a follow-up issue (the default), or the change grows — the spec gets the new
   criteria as amendments (mode `decide` in `squad-lead.md`) and the plan a new task group, which runs steps 3–8 like
   the others (plan challenge and Security plan review as the tier asks) before step 9 approves again.
 - **Safeguard stop (any member, any step):** an API `invalid_request` of category `cyber` is not an API error:
@@ -367,7 +355,7 @@ labelled both bug and feature, and values only the Product Manager can produce (
 approval (*Spec approval*); the public issue comment of *Outcome "no change"* and of *Outside authors*; a download a
 member was denied (*A denied measurement*); a Security rejection of a fix the Lead accepted, and a safeguard stop
 (*Loop limits*); the dry run and statements no run has shown (*Operator environments and documented procedures*);
-pages the session cannot open (*Pages the session cannot open*); a manual test before step 9 (*Criteria verified only
+*Pages the session cannot open*; a manual test before step 9 (*Criteria verified only
 in CI*); a pull request the user marked ready before *Draft until green* holds. A request the Product Manager makes on
 the open pull request goes to the Lead first (*Loop limits*, New scope on the open PR).
 

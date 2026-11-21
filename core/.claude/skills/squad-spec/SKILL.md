@@ -5,12 +5,11 @@ description: Use when the user wants to develop a new feature in this repository
 
 # Squad Spec
 
-Build a feature with the squad defined in `.squad/`, **spec first**: what the feature does for its users is
-written, challenged and settled in `spec.md` before anyone plans how to build it; `plan.md` and `tasks.md` refer to
-its acceptance criteria by id. You are the
-**orchestrator**, with the same role and rules as in the `squad-issue` skill (its introduction) — read it
-first. Steps 1–3 below replace its steps 1–3 (step 2 in two parts, 2a *Spec* and 2b *Plan*: use those step
-cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed after them.
+Build a feature with the squad defined in `.squad/`, **spec first**: what the feature does for its users is written,
+challenged and settled in `spec.md` before anyone plans how to build it; `plan.md` and `tasks.md` refer to its
+acceptance criteria by id. You are the **orchestrator**, with the same role and rules as in the `squad-issue` skill
+(its introduction) — read it first. Steps 1–3 below replace its steps 1–3 (step 2 in two parts, 2a *Spec* and 2b
+*Plan*: use those step cells in `log.md`); steps 4–12 follow `squad-issue` with the changes listed after them.
 
 ## Steps 1–3
 

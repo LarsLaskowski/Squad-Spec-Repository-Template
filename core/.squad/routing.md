@@ -29,8 +29,8 @@ A **verification issue** (the label `Manual`, or its title and body say so) asks
 a real application or a real browser and names no behavior to change. The run stops at intake: the orchestrator
 prepares what can be automated (a headless browser run, a replay into a server), hands the Product Manager a checklist
 from the issue's criteria and launches no member until the results are in; then the run continues as tier `docs`, or
-higher when a document the issue names is outside it (an area document), the Lead's result stating the results —
-quoted, never inferred — as exact edits of the documents the issue names. A check that shows wrong behavior files a
+higher when a document the issue names is outside it (an area document), the Lead's result quoting the results, never
+inferring them, as exact edits of those documents. A check that shows wrong behavior files a
 bug issue; the run documents only the result.
 
 An issue whose change needs values only the Product Manager can produce (measurements on a real system, figures from
@@ -204,11 +204,11 @@ arrive in step 11.
 CI runs on pull requests only, so step 10's PR comes too late for a change whose **CI-only criteria**, manual test on
 the CI-built artifact (*Criteria verified only in CI*) or **dry run** (*Operator environments and documented
 procedures*) needs a CI result before the review. Its plan says so, and the orchestrator opens the PR as a draft right
-after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment yet), waits for CI and reads
-`sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar gate* alone is no reason for an
-early PR. The dry run runs on that head, before the documentation is reviewed. Step 9 also requires the green CI run,
-the dry-run result and the Reviewer's round on the same head; step 10 then only posts the working record and removes
-`specs/`, and marks nothing ready (*Draft until green*).
+after step 7, `specs/` still in the diff, and works the findings of CI and `sonar-check.py pr <n>` before step 8 as in
+step 11 (`squad-next.py` prints the steps). The *Sonar gate* alone is no reason for an
+early PR. The dry run runs on that head. Step 9 also requires the green CI run, the dry-run result and the Reviewer's
+round on the same head; step 10 then only posts the working record and removes `specs/`, and marks nothing ready
+(*Draft until green*).
 
 ## Pipeline
 
@@ -225,7 +225,7 @@ the dry-run result and the Reviewer's round on the same head; step 10 then only 
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below, and what *Early draft PR* adds |
 | 10 | Pull request | Orchestrator | Working record posted as comment, `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
 | 11 | After the PR | Dev, Code Officer, Reviewer | *Draft until green* holds and the PR is marked ready for review; review comments worked |
-| 12 | Wrap-up | Orchestrator | Squad lessons checked against the candidates and filed, and the lessons row logged (*Squad lessons*); the run metrics of `squad-log.py --summary` (exit 0), then the output of `session-usage.py` headed "Session usage", appended to the working record exactly as printed and reported to the user — never a screenshot or a figure typed from `/usage` |
+| 12 | Wrap-up | Orchestrator | Squad lessons filed and the lessons row logged (*Squad lessons*); the output of `squad-log.py --summary` (exit 0), then of `session-usage.py`, appended to the working record exactly as printed (`squad-next.py` names the headings) and reported to the user — never a screenshot or a figure typed from `/usage` |
 
 ### PR approval
 
@@ -343,7 +343,7 @@ user is told so.
 
 ## Escalation to the Product Manager
 
-The Lead escalates only when it cannot decide responsibly on its own: an ambiguous requirement, a product decision
+The Lead escalates only what it cannot decide responsibly itself: an ambiguous requirement, a product decision
 (behavior change visible to users, breaking a guarantee in `docs/ARCHITECTURE.md` or an accepted decision record), or
 a loop limit where none of its options is clearly right. A reader of an external format without a real sample in the
 test data or on the issue is an ambiguous requirement: the Lead asks for the sample, or for the confirmation to build
@@ -358,9 +358,9 @@ labelled both bug and feature, and values only the Product Manager can produce (
 approval (*Spec approval*); the public issue comment of *Outcome "no change"* and of *Outside authors*; a download a
 member was denied (*A denied measurement*); a Security rejection of a fix the Lead accepted, and a safeguard stop
 (*Loop limits*); the dry run and statements no run has shown (*Operator environments and documented procedures*);
-*Pages the session cannot open*; a manual test before step 9 (*Criteria verified only
-in CI*); a pull request the user marked ready before *Draft until green* holds. A request the Product Manager makes on
-the open pull request goes to the Lead first (*Loop limits*, New scope on the open PR).
+*Pages the session cannot open*; a manual test before step 9 (*Criteria verified only in CI*); a pull request the user
+marked ready before *Draft until green* holds. A request the Product Manager makes on the open pull request goes to
+the Lead first (*Loop limits*, New scope on the open PR).
 
 ## Non-blocking findings
 

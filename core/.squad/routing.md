@@ -1,8 +1,9 @@
 # Routing
 
 Bug fixes (`squad-issue`) and features (`squad-spec`, which adds `spec.md`) run the same pipeline (*Bug or feature*).
-The orchestrator — the session running the skill — launches the members, passes documents between them, performs every Git and GitHub action and logs every step and launch in `log.md`
-(`squad-issue`, step 1). Step numbers are the skills'.
+The orchestrator — the session running the skill — launches the members, passes documents between them, performs every
+Git and GitHub action and logs every step and launch in `log.md` (`squad-issue`, step 1). Step numbers are the
+skills'.
 
 The orchestrator's own procedures are in [`orchestration.md`](orchestration.md), which the members need not read;
 a section named here that this file lacks is one of its sections.
@@ -71,8 +72,8 @@ In step 2 the Lead picks the tier by what the change does, not only by its paths
 (`docs`, `patch`: in its result); in doubt about what the change does (the table settles the definition), the higher
 one (`docs` < `patch` < `tests` < `trivial` < `standard` < `security`). Security or the Reviewer may raise it at any
 time, never lower it. A raise to `security` after step 2 adds only what is still ahead — Security's diff review in
-step 8, and its plan review if step 3 has not run and step 4 not started — not a new plan challenge; the orchestrator records it in `plan.md` with the area that caused it and launches the Lead only for a
-decision it leaves open.
+step 8, and its plan review if step 3 has not run and step 4 not started — not a new plan challenge; the orchestrator
+records it in `plan.md` with the area that caused it and launches the Lead only for a decision it leaves open.
 
 Every `plan.md` names its **Security areas touched**: each security area of `.squad/project.md`, Docker/CI or build
 configuration and dependency the change touches, or exactly "none" (never on tier `security`). Whenever it is not
@@ -97,10 +98,10 @@ is only for lessons the squad itself raised.
 
 ### Gates of a patch
 
-A `patch`'s step 7 runs the checks its files need and nothing else; the complete analysis, and for a `patch`
-without production code the full suite and the overall coverage figure, are CI's job on the draft pull request
-(*Draft until green*). `gate-stamp.py` runs every row that matches the diff, with the check the Lead's result names,
-and replaces a gate the stack lacks by the next broader one (*Test* for *Test (project)*).
+A `patch`'s step 7 runs only the checks its files need; the complete analysis — and, without production code, the full
+suite and the overall coverage figure — is CI's job on the draft pull request (*Draft until green*). `gate-stamp.py`
+runs every row that matches the diff, with the check the Lead's result names, and replaces a gate the stack lacks by
+the next broader one (*Test* for *Test (project)*).
 
 | The diff touches | Gates |
 | ---------------- | ----- |
@@ -127,17 +128,18 @@ steps 4–6 apply again.
 
 A criterion verified by a dry run on the branch — a planted failing test that must turn a gate or a CI job red, a
 deliberate defect a check must catch — never reaches the merged change. Its owner writes the artifact as a patch file
-outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` and hands back its path. The orchestrator applies it as one commit, runs or waits for the check, reverts that commit with `git revert`, and logs both commits with the
-check's result; the Reviewer confirms that the revert left nothing of it.
+outside the working tree (the scratchpad, a scratch worktree), checks it with `git apply --check` and hands back its
+path. The orchestrator applies it as one commit, runs or waits for the check, reverts that commit with `git revert`,
+and logs both commits with the check's result; the Reviewer confirms that the revert left nothing of it.
 
 ### Criteria verified only in CI
 
 A criterion only CI can verify in full (a container image the sandbox cannot build, a release build on another
 platform) is still checked as far as the sandbox allows before the review. A change to an input the image build is
 sensitive to (*Image build check* in `.squad/stack.md` names them: manifests, content items, static web assets, the
-Dockerfile) runs the *Image build check*; the plan names it as the criterion's verification, owned by the Dev. A build or publish from the
-full working tree does not count: it restores with every source present. A red CI on such a criterion after that check
-is worked in step 11.
+Dockerfile) runs the *Image build check*; the plan names it as the criterion's verification, owned by the Dev. A build
+or publish from the full working tree does not count: it restores with every source present. A red CI on such a
+criterion after that check is worked in step 11.
 
 A criterion tested by hand before step 9 (a Product Manager's manual test, say) names in the plan its build: a local
 build or publish of the branch head with the command the project's documentation gives, or the CI-built artifact,
@@ -145,12 +147,12 @@ which needs an *Early draft PR* (no CI build exists before step 10 otherwise). W
 build the artifact (an image for the target host, say), the spec or plan first asks whether they can build it there,
 and the plan names the fallback: who builds it otherwise and how it reaches the target (*An artifact the Product
 Manager cannot build*). The manual test runs on the stamped head before step 8's review set (`squad-next.py` names it,
-logged as `7 Manual test`); a `manual:` check that names a member of that
-set (the Reviewer; Security on its tiers) runs in that member's round, its result in its report. A `manual:` check the
-Tester runs over an input that must stay out of the repository names the Tester and says the input is private
-(`manual: the Tester replays the private recording`); `squad-next.py` names its launch after step 6's coverage pass
-(`6 Private check`), and the input's location is handed over — the input is never committed, copied or quoted. A
-failed check goes to the Lead like a failed manual test (*Manual criterion fails*).
+logged as `7 Manual test`); a `manual:` check that names a member of that set (the Reviewer; Security on its tiers)
+runs in that member's round, its result in its report. A `manual:` check the Tester runs over an input that must stay
+out of the repository names the Tester and says the input is private (`manual: the Tester replays the private
+recording`); `squad-next.py` names its launch after step 6's coverage pass (`6 Private check`), and the input's
+location is handed over — the input is never committed, copied or quoted. A failed check goes to the Lead like a
+failed manual test (*Manual criterion fails*).
 
 ### Operator environments and documented procedures
 
@@ -161,9 +163,8 @@ upload tools, what the target host has installed) is planned against that enviro
   have (tools such as `git`, the hosts it reaches, DNS, its console, the order in which the operator pastes the steps)
   and records the answers as scenarios and acceptance criteria, against which the Devil's Advocate checks the plan.
 - **Third-party pages.** For a document that leads the operator through another provider's page or console (a settings
-  page, a dashboard), the spec asks the Product Manager how far it may
-  rest on them (exact labels, only the page's name and purpose, or a link to the provider's guide) and records the
-  answer as a non-functional requirement.
+  page, a dashboard), the spec asks the Product Manager how far it may rest on them (exact labels, only the page's
+  name and purpose, or a link to the provider's guide) and records the answer as a non-functional requirement.
 - **Dry run.** The plan schedules a dry run of the documented steps by the Product Manager (or a stated stand-in)
   **before** the documentation is reviewed, with the hosts and software versions it needs (the backend version with
   the API the procedure calls, say). Each statement of the document no run has shown is a row of the plan's *Verified
@@ -205,10 +206,9 @@ the CI-built artifact (*Criteria verified only in CI*) or **dry run** (*Operator
 procedures*) needs a CI result before the review. Its plan says so, and the orchestrator opens the PR as a draft right
 after step 7 (`create-pr` step 8, `specs/` still in the diff, no working record comment yet), waits for CI and reads
 `sonar-check.py pr <n>` before step 8; findings are worked as in step 11. The *Sonar gate* alone is no reason for an
-early PR. The dry run runs on that
-head, before the documentation is reviewed. Step 9 also requires the green CI run, the dry-run result and the
-Reviewer's round on the same head; step 10 then only posts the working record and removes `specs/`, and marks nothing
-ready (*Draft until green*).
+early PR. The dry run runs on that head, before the documentation is reviewed. Step 9 also requires the green CI run,
+the dry-run result and the Reviewer's round on the same head; step 10 then only posts the working record and removes
+`specs/`, and marks nothing ready (*Draft until green*).
 
 ## Pipeline
 
@@ -220,7 +220,7 @@ ready (*Draft until green*).
 | 4 | Skeleton | Dev | Only when the plan adds or changes API: compile-only signatures built as *Skeleton* in `.squad/stack.md` describes, *Build* passes |
 | 5 | Tests first | Tester | Only the tests the plan names for its acceptance criteria (one or a few per criterion); they compile and **fail** on the current code or the skeleton. A plan-named test that cannot fail yet is *deferred* to step 6; other guards, pins of existing behavior, determinism and bound tests are not written |
 | 6 | Implementation + coverage | Dev, Tester | All tests green; *Coverage gate* passes; then the Dev writes the plan's doc updates, area documents included, against the code as built (`squad-dev.md`, *Documentation*). The Tester's coverage pass adds tests only for uncovered lines, a resource bound the plan names, a deferred or missing plan-named test, or a test a reviewer asks for |
-| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator commits and runs `gate-stamp.py`, which runs the tier's gates (`patch`: *Gates of a patch*) and `figure-check.py` (no gate) and logs them as a stamp with the head SHA: a gate result counts only as that stamp, never as a member's report. The *Sonar gate* runs in step 11 on the draft PR. A `figure-check.py` hit (documentation still stating a value the diff changed) that the Dev's last report does not confirm goes back to the Dev; the others reach the Reviewer with the gate output. The orchestrator clears a *Format check* failure itself (`squad-next.py` prints how); analyzer diagnostics and style findings that need reading launch the Code Officer (structural items go to the Dev or Tester), then the stamp runs again. Exit: a passing stamp on the head |
+| 7 | Code check | Orchestrator, Code Officer | `main` merged first when it moved (*Merge conflicts*). The orchestrator commits and runs `gate-stamp.py`, which runs the tier's gates (`patch`: *Gates of a patch*) and `figure-check.py` (no gate) and logs them as a stamp with the head SHA: a gate result counts only as that stamp, never as a member's report. The *Sonar gate* runs in step 11 on the draft PR. A `figure-check.py` hit (documentation still stating a value the diff changed) that the Dev's last report does not confirm goes back to the Dev; the others reach the Reviewer with the gate output. The orchestrator clears a *Format check* failure itself (`squad-next.py` prints how); analyzer diagnostics and style findings that need reading launch the Code Officer (*Loop limits*), then the stamp runs again. Exit: a passing stamp on the head |
 | 8 | Review | Reviewer (+ Security's diff review on `security`, and on an unlisted security area) | They get the code SHA and gate output of step 7's stamp (they do not re-run the gates); commits during the round may touch only `specs/` and do not make it stale. No blocking findings → 9; blocking → owner fixes (Dev: code and documentation, Tester: tests), back to 6, then a mandatory delta round — except a verbatim documentation fix (*Verbatim documentation fixes*) |
 | 9 | PR approval | Orchestrator, Lead when needed | *PR approval* below, and what *Early draft PR* adds |
 | 10 | Pull request | Orchestrator | Working record posted as comment, `specs/<folder>/` removed and `scope-check.py --no-specs` clean, PR opened **as a draft** (*Draft until green*; merged later with *Squash and merge*) — or, after an *Early draft PR*, only the record and the removal |
@@ -240,16 +240,18 @@ The orchestrator first runs this checklist in full:
 - every link or statement a review round reported `unopened` is confirmed (*Pages the session cannot open*).
 
 Then it sets each `Proposed` decision record of this change and its index row to `Accepted` (bookkeeping like
-`log.md`, no delta round; `squad-next.py` prints the commands, the stamp with `gate-stamp.py --verbatim`). It launches the Lead in mode `approve-pr` only for an open decision — a plan deviation in a member's
-report, a Lead decision recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), or a
-change to `docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find
-consistent — listing each point; the Lead decides only those (`squad-lead.md`, mode `approve-pr`), non-blocking
-findings having been decided in step 8 (*Non-blocking findings*). Otherwise it logs "approved by checklist" → 10.
+`log.md`, no delta round; `squad-next.py` prints the commands, the stamp with `gate-stamp.py --verbatim`). It launches
+the Lead in mode `approve-pr` only for an open decision — a plan deviation in a member's report, a Lead decision
+recorded during steps 3–8 (loop limit, dispute, accepted gap, finding accepted unfixed), or a change to
+`docs/ARCHITECTURE.md` or `.squad/project.md` that the plan does not name or the Reviewer did not find consistent —
+listing each point; the Lead decides only those (`squad-lead.md`, mode `approve-pr`). Otherwise it logs "approved by
+checklist" → 10.
 
 A fix the Lead orders goes back to step 6 or 8 and counts against the review loop; any edit beyond the record status,
 `docs/ARCHITECTURE.md` included, has an owner and gets a delta round; then the checklist runs again, and the Lead's
-`approve-pr` agent is continued only for a point the fix left open. `NOT APPROVED` without a fix means the Lead decides or escalates. After the PR, a re-approval runs the same checklist
-once CI on the new head has finished and passes.
+`approve-pr` agent is continued only for a point the fix left open. `NOT APPROVED` without a fix means the Lead
+decides or escalates. After the PR, a re-approval runs the same checklist once CI on the new head has finished and
+passes.
 
 ## Plan challenge
 
@@ -269,8 +271,9 @@ thing or miss the defect) or `minor`, and the orchestrator routes by that rank:
   now`: the Lead decides it in mode `revise` before the skeleton, in one launch with any major objection
   (`squad-next.py` names the launch).
 - **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`, `spec.md`:
-  the sentence as it stands and as it should read) is applied by the orchestrator when it appends the note, the way
-  of *Verbatim documentation fixes* (`specs/` only, logged, no launch). A fix that needs judgment, or one that changes an acceptance criterion, is routed as above.
+  the sentence as it stands and as it should read) is applied by the orchestrator when it appends the note, the way of
+  *Verbatim documentation fixes* (`specs/` only, logged, no launch). A fix that needs judgment, or one that changes an
+  acceptance criterion, is routed as above.
 - **A major objection:** the Lead, in mode `revise` with all objections, answers each one in the plan's
   *Challenge* section, the minor ones included.
 
@@ -280,12 +283,12 @@ Security delta confirmation.
 
 ## Outcome "no change"
 
-If the Lead concludes in step 2 (also after answering the Devil's Advocate) that no code change is needed —
-duplicate, cannot be reproduced, works as designed (e.g. covered by an accepted decision record), or out of
-scope — it returns `RESULT: NO CHANGE` with a proposed issue comment (`squad-lead.md`, *Output format*). The
-orchestrator posts the comment only after the Product Manager has confirmed it, with
-the log appended as a collapsed "Squad working record" block, then removes the work folder in a commit and pushes; no
-PR is opened, the branch stays without one, and the user is told so.
+If the Lead concludes in step 2 (also after answering the Devil's Advocate) that no code change is needed — duplicate,
+cannot be reproduced, works as designed (e.g. covered by an accepted decision record), or out of scope — it returns
+`RESULT: NO CHANGE` with a proposed issue comment (`squad-lead.md`, *Output format*). The orchestrator posts the
+comment only after the Product Manager has confirmed it, with the log appended as a collapsed "Squad working record"
+block, then removes the work folder in a commit and pushes; no PR is opened, the branch stays without one, and the
+user is told so.
 
 ## Loop limits
 
@@ -295,13 +298,13 @@ PR is opened, the branch stays without one, and the user is told so.
   fixes them or escalates. A finding is never waved through.
 - **Spec challenge (step 2, features):** one Devil's Advocate round, no veto, handled like the plan challenge
   (minor objections into the spec's *Challenge notes*, which the Lead answers while it plans).
-- **Plan ↔ Security (steps 2–3):** at most 2 rejections. After the 2nd `CHANGES_REQUIRED` the Lead narrows the scope, splits into separate issues,
-  escalates to the Product Manager, or — without an escalation — accepts and fixes the remaining defect if it is a
-  pure wording defect, one confined to the plan's resource section (limits, bounds, sizes) whose fix changes no scope,
-  or one whose **complete fix** (the exact statements or edits) Security supplied and whose fix changes no scope and no
-  acceptance criterion (a defect in a claim about how code, a library or a server behaves: only once Security has
-  **measured** the failure); exactly one Security delta confirmation of the fix follows, and a further rejection goes
-  to the Product Manager.
+- **Plan ↔ Security (steps 2–3):** at most 2 rejections. After the 2nd `CHANGES_REQUIRED` the Lead narrows the scope,
+  splits into separate issues, escalates to the Product Manager, or — without an escalation — accepts and fixes the
+  remaining defect if it is a pure wording defect, one confined to the plan's resource section (limits, bounds, sizes)
+  whose fix changes no scope, or one whose **complete fix** (the exact statements or edits) Security supplied and
+  whose fix changes no scope and no acceptance criterion (a defect in a claim about how code, a library or a server
+  behaves: only once Security has **measured** the failure); exactly one Security delta confirmation of the fix
+  follows, and a further rejection goes to the Product Manager.
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review, then at most **2 further fix-and-review rounds**,
   each on the delta only; blocking findings still open then go to the Lead (accept with justification, split into a
   follow-up issue, abort, or escalate). Rounds count per review round with blocking findings, not per launch: the

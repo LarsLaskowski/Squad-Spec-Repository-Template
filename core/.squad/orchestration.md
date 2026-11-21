@@ -43,23 +43,13 @@ drafted again from the revised spec.
 
 Many squad, instruction and documentation files come from the template repository and are refreshed with
 its `adopt-template` skill (`.squad/template.json` records the repository, its release tag and commit, and the stack
-profile):
-
-- **Managed** — overwritten on every refresh: `CLAUDE.md`, `.squad/team.md`, `.squad/routing.md`,
-  `.squad/orchestration.md`,
-  the tools the template ships to `.squad/tools/` (`lesson-label.py` lists them), a profile's shared rule files (`.squad/*-rules.*`), `.claude/agents/squad-*.md`, `.claude/hooks/`, the template's
-  skills, `.github/ISSUE_TEMPLATE/feature_request.md`, the `_template.md` files of `docs/decisions/` and
-  `docs/areas/`, `docs/decisions/process.md` (the squad's process decisions), `specs/README.md` and
-  `specs/_template/`.
-- **Marked** — rebuilt on every refresh, keeping the repository's content inside `<!-- project:… -->` blocks:
-  `AGENTS.md`, `docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`,
-  `.github/pull_request_template.md`, `docs/decisions/README.md` and `docs/areas/README.md`, and the template blocks of
-  `.editorconfig` (`squad:dotnet-rules`, `squad:sonar-rules`; the rest of the file is seeded).
-  `.github/copilot-instructions.md` is generated from `AGENTS.md`, which says how a change reaches both.
-- **Seeded** — created once and owned by the repository from then on: `.squad/stack.md`, `.squad/project.md`,
-  `.squad/tools/squad_settings.py`, `.claude/settings.json` (a refresh adds the members' hooks `git-guard.py` and
-  `file-guard.py` when one is missing), `SECURITY.md`, `docs/UNIT_TESTS.md` and the profile's CI, CodeQL, Dependabot
-  and tool configuration files.
+profile). A **managed** file (the squad's rule files, agents, hooks, skills and the tools the template ships to
+`.squad/tools/`) is overwritten on every refresh; a **marked** file (`AGENTS.md`, `docs/ARCHITECTURE.md`, …) is
+rebuilt, keeping the repository's content inside `<!-- project:… -->` blocks (`.github/copilot-instructions.md` is
+generated from `AGENTS.md`, which says how a change reaches both); a **seeded** file (`.squad/stack.md`,
+`.squad/project.md`, `squad_settings.py`, `.claude/settings.json`, `SECURITY.md`, `docs/UNIT_TESTS.md`, the
+profile's CI and tool configuration) is created once and owned by the repository from then on. `lesson-label.py`
+lists the managed and marked files and names the kind of a path.
 
 ## Squad lessons
 
@@ -104,12 +94,11 @@ A fix, delta or `revise` round of the same member within the same run continues 
 launch; so do the Lead's mode `plan` after mode `spec` and a feature's next task group (the member's last agent of the
 same mode, with the group's task rows). The first launch of any other mode is fresh, and so is a launch after a session
 restart (the agent id is gone) or after one that ended on an API error. An agent continued five times or from 250,000
-reported tokens on (a round adds tens of thousands, and `squad-log.py` warns past 300,000), one that ran on another model than *Launch model* names, or one already continued in another mode,
+reported tokens on, one that ran on another model than *Launch model* names, or one already continued in another mode,
 gets a fresh launch with a short hand-over — the plan or task group, what the earlier rounds settled, the open findings
 and the head SHA.
-`squad-next.py` names for every launch the agent it continues, by the step cell of its fresh launch, or why it is
-fresh, and how to log it: keep the agent id of every fresh launch, since the agent it names is not always the member's
-last one. What a continued member may do is in `team.md` (*Shared rules*).
+`squad-next.py` names for every launch the agent it continues, or why it is fresh: keep the agent id of every fresh
+launch, since the agent it names is not always the member's last one. What a continued member may do is in `team.md` (*Shared rules*).
 A report a launch delivers again word for word (a task notification after its hand-back) belongs to the round already
 received: no reply, no row. When the same launch keeps re-sending it while it waits on a background command of its
 own, stop that agent (`TaskStop`) and log its round from the first report.
@@ -161,7 +150,7 @@ review (`update_pull_request` with `draft: false`) only when all of this holds o
   waited for, not counted as passed);
 - `python3 .squad/tools/sonar-check.py pr <number>` exits 0: the CI code analysis of **this** head passed its
   quality gate with **no new issue** and no hotspot to review (a passed gate with new issues is still
-  rework). PENDING (exit 3) means a newer analysis than the shown one is still to come, not a problem of the head (the analysis can lag the pushes by several commits): wait and run it again, never read a `Quality Gate passed` comment instead; still
+  rework). PENDING (exit 3) means a newer analysis than the shown one is still to come: wait and run it again, never read a `Quality Gate passed` comment instead; still
   PENDING once every CI check of the head has finished means the analysis cannot be read;
 - no commit for a known failure or finding is still to be pushed, and after a fix in the squad skills the
   re-approval of step 9 has passed on this head.

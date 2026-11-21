@@ -27,19 +27,17 @@ The orchestrator tells you which **mode** to run:
   and no security area of `.squad/project.md` touched, *Scenarios* may say "none" and each criterion is then
   written as its own scenario (given, when, then). A feature whose change is documentation only gets no spec:
   return the `docs` result of mode `plan` instead (*Tiers*). Check every claim the issue makes about today's
-  behavior against the code before you build a scenario on it. For an installer or deployment feature, ask the
-  Product Manager what the target host has and may have, and for a document that leads the operator through another
-  provider's page how far it may rest on that page (`RESULT: ESCALATE`, *Operator environments and documented
-  procedures* in `.squad/routing.md`), and record the answers as that section says. A feature that already
+  behavior against the code before you build a scenario on it. For an installer or deployment feature, or a
+  document that leads the operator through another provider's page, ask the Product Manager what *Operator
+  environments and documented procedures* (`.squad/routing.md`) has the spec ask (`RESULT: ESCALATE`), and record
+  the answers as that section says. A feature that already
   exists or contradicts an accepted decision record is `RESULT: NO CHANGE` with the reason and a proposed issue
   comment.
 - `plan` — pick the tier on the change (`.squad/routing.md`, *Tiers*). For tiers `docs` and `patch` write
   **no** `plan.md`: return the tier with its justification, the files and the exact edits, and the acceptance
   criteria in your result; for `patch` also, per edit, the existing test or check that covers it (an edit to
-  production code without one gets the name of the single test the Tester adds), and `patch/security` when a
-  security area, CI or build file is touched. A few exact edits without a logic change are `patch`, even in a
-  CI file; a change that needs a decision record is `trivial` or higher; one of test code only is `tests` (or
-  `patch` within its budget).
+  production code without one gets the name of the single test the Tester adds). A change that needs a decision
+  record is `trivial` or higher.
   Otherwise write `plan.md` from `specs/_template/plan.md` (features: `tasks.md` too, against the challenged
   `spec.md`); `plan-check.py` checks its structure. For a feature you also close the spec: answer each entry of
   its *Challenge notes* in a *Challenge* section of the spec (accepted — what changed; or rejected — why) and
@@ -53,8 +51,7 @@ The orchestrator tells you which **mode** to run:
   the plan assigns to the Dev or the Tester — name that verification, with its cases, and leave running it to
   its owner. Size the plan to the change: `PLAN_MAX_WORDS` (`squad_settings.py`) gives each tier a ceiling for its
   largest changes, not a target, so a plan of a few edits stays far below it. Measure a size against its limit with
-  the script that checks it (`plan-check.py`, `config-check.py`, `decision-check.py`), never with `wc -w`, which
-  counts a stand-alone dash differently. The plan states:
+  the script that checks it (`plan-check.py`, `config-check.py`, `decision-check.py`), never with `wc -w`. The plan states:
   - the **tier** with a one-sentence justification, and *Security areas touched* in every plan: a change that
     touches a security area without creating, changing or removing a security control is not `security`;
   - every factual claim the plan rests on in *Verified facts*, with its evidence and status (the template);
@@ -145,9 +142,8 @@ The orchestrator tells you which **mode** to run:
   behavior it leads to is written once in the area document, which the record links and names in its
   `Area:` field. If a guarantee or flow changes, the plan names the `docs/ARCHITECTURE.md` update with its
   owner, and the record is linked from it.
-  If no code change is warranted (duplicate, not reproducible, works as designed — e.g. covered by an
-  accepted decision record — or out of scope), write no plan and return `RESULT: NO CHANGE` with the reason
-  and a proposed issue comment (*Output format*).
+  If no code change is warranted (*Outcome "no change"* in `.squad/routing.md`), write no plan and return
+  `RESULT: NO CHANGE` with the reason and a proposed issue comment (*Output format*).
 - `revise` — after `plan-check.py` findings: fix exactly those, nothing else; after its spec-size warning:
   shorten the spec as mode `spec` says, or keep it and give the reason in your result. After a spec challenge: rework
   `spec.md` and answer each objection in its *Challenge* section (accepted — what changed; or rejected — why).

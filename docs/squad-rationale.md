@@ -1274,3 +1274,20 @@ clients with `TransientHttpRetryHandler` but not the §3 list of the same client
 PlexToJellyfinSync#315: the v2026.11.11 refresh touched `ci.yml`, and SonarQube Cloud failed the quality gate on
 githubactions:S8233 ("Move this write permission from workflow level to job level", security rating C on new code) for
 the seeded `checks: write`, which only the build job's `dorny/test-reporter` step needs.
+
+## Reasons moved out in the second consolidation (#443)
+
+The consolidation of #443 moved these reasons out of the rule files; the rules they explain stay where they were.
+
+- **The continuation cap at 250,000 tokens** (orchestration.md, *Continuing a member*): a round adds tens of
+  thousands of tokens, and `squad-log.py` warns past 300,000, so the cap leaves room for one more round.
+- **PENDING from `sonar-check.py`** (orchestration.md, *Draft until green*): it is no problem of the head; the CI
+  code analysis can lag the pushes by several commits.
+- **Permalinks in the working record** (squad-issue, step 10): the comment tool takes its body as typed text, so a
+  long document posted in full would be re-typed.
+- **The orchestrator on Sonnet** (squad-issue, *Session model*): the orchestrating session re-reads its whole context
+  on every turn and is often a run's largest cost.
+- **Sizes by the checking script, never `wc -w`** (squad-lead.md, mode `plan`): `wc -w` counts a stand-alone dash
+  differently.
+- **Plan and spec edits applied by the orchestrator** (routing.md, *Plan challenge*): Dev and Tester may not edit
+  those documents, so nobody else would apply a note's exact edit.

@@ -8,8 +8,7 @@ GitHub action and records every step and launch in `log.md` (`squad-issue`, step
 ones the skills use.
 
 The orchestrator's own procedures are in [`orchestration.md`](orchestration.md), which the members need not read;
-*Outside authors*, *Squad lessons*, *Draft until green*, *Merge conflicts*, *Verbatim documentation fixes*, *An
-artifact the Product Manager cannot build* and *Unlisted security areas*, named here, are its sections.
+a section named here that this file lacks is one of its sections.
 
 ## Bug or feature
 
@@ -296,8 +295,8 @@ again. Each objection is ranked `major` (the plan would build the wrong thing or
   to `fix now` (`squad-next.py` names the launch), since Dev and Tester may not edit the plan.
 - **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`,
   `spec.md`: the sentence as it stands and as it should read) is applied by the orchestrator when it appends the
-  note, the way of *Verbatim documentation fixes* (`orchestration.md`; `specs/` only, logged, no launch): Dev and
-  Tester may not edit those documents, so nobody else would. A fix that needs judgment, or one that changes an
+  note, the way of *Verbatim documentation fixes* (`specs/` only, logged, no launch), since Dev and Tester may not
+  edit those documents. A fix that needs judgment, or one that changes an
   acceptance criterion, is routed as above.
 - **A major objection:** the Lead, in mode `revise` with all objections, answers each one in the plan's
   *Challenge* section, the minor ones included.
@@ -310,8 +309,8 @@ Security delta confirmation.
 
 If the Lead concludes in step 2 (also after answering the Devil's Advocate) that no code change is needed —
 duplicate, cannot be reproduced, works as designed (e.g. covered by an accepted decision record), or out of
-scope — it returns `RESULT: NO CHANGE` with a proposed issue comment, written for the issue's author (`squad-lead.md`,
-*Output format*: none that thanks the repository owner who posts it). The orchestrator shows the comment to
+scope — it returns `RESULT: NO CHANGE` with a proposed issue comment (`squad-lead.md`, *Output format*). The
+orchestrator shows the comment to
 the Product Manager and posts it only after confirmation (a public statement on the issue), with the log
 appended as a collapsed "Squad working record" block. It removes the work folder with a commit and pushes; no
 PR is opened, the branch stays without one, and the user is told so.
@@ -324,7 +323,6 @@ PR is opened, the branch stays without one, and the user is told so.
   go to the Lead in mode `decide`, which fixes them or escalates. A finding is never waved through.
 - **Spec challenge (step 2, features):** one Devil's Advocate round, no veto, handled like the plan challenge
   (minor objections into the spec's *Challenge notes*, which the Lead answers while it plans).
-- **Plan challenge (step 2):** at most one round, no veto (*Plan challenge*).
 - **Plan ↔ Security (steps 2–3):** at most 2 rejections; when step 3 runs, the first revision answers the plan
   challenge and the first `CHANGES_REQUIRED` together. After the 2nd `CHANGES_REQUIRED` the Lead
   decides: narrow the scope, split into separate issues, escalate to the Product Manager, or — when the

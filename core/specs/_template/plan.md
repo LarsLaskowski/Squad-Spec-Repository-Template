@@ -3,9 +3,8 @@
 Source: Issue #<number> | [spec.md](spec.md)
 Tier: tests | trivial | standard | security  (tiers `docs` and `patch` use no plan.md) — <one-sentence justification>
 Security areas touched: none | <areas>
-<!-- Each security area of `.squad/project.md`, Docker/CI or build configuration and dependency the change
-touches, or "none" — in every plan (`.squad/routing.md`, *Tiers*). Only a plan over its tier's PLAN_MAX_WORDS adds
-the line "Plan size: <why the scope needs it>" here (`plan-check.py`). -->
+<!-- Security areas touched: as *Tiers* in `.squad/routing.md` defines them, or "none". Only a plan over its tier's
+PLAN_MAX_WORDS adds the line "Plan size: <why the scope needs it>" here (`plan-check.py`). -->
 
 ## Problem / root cause
 
@@ -16,7 +15,7 @@ For a bug: the cause, with file and line. For a feature: one sentence pointing t
 Every factual claim the plan rests on — from the issue, the spec, the code, a library, the image — with its
 evidence (file and line, a command and its output, the sample or document read) and its status. A claim no
 one could check yet is `unverified`, and its evidence cell says `to verify:` with the measurement, its owner
-and the step. `.squad/tools/plan-check.py` rejects a row without evidence or status.
+and the step.
 
 | # | Claim | Evidence | Status |
 | - | ----- | -------- | ------ |
@@ -39,7 +38,7 @@ One row per acceptance criterion (of this plan, or of `spec.md` for a feature): 
 first, named strictly by *Layout* in `.squad/stack.md`; each test carries its criterion id (*Criterion ids* in
 `docs/UNIT_TESTS.md`). A criterion no unit test can verify names its kind and check instead: `CI: <the check>`,
 `manual: <who, on which build>` or `after merge: <what, by whom>` (a linked verification issue, step 10).
-`.squad/tools/plan-check.py` reports a criterion without a row; `--matrix` shows each one's result.
+`.squad/tools/plan-check.py` reports a criterion without a row.
 
 | AC | Test(s) | Test file |
 | -- | ------- | --------- |
@@ -53,10 +52,9 @@ CI.
 
 ## Verification without tests
 
-Only when the change touches no production or test code, in any tier: steps 4, 5 and the *Coverage gate*
-are not applicable (*Changes without production or test code* in `.squad/routing.md`). Every acceptance
-criterion is then verified here instead of by a test, one line each with its kind as above (`- AC1: CI: …`, `check:`
-for a read-only check): where and by whom (workflow step, PR dry run, read-only check). A criterion verified here has
+Only when the change touches no production or test code, in any tier (*Changes without production or test code*
+in `.squad/routing.md`): every acceptance criterion is verified here instead of by a test, one line each with its
+kind as above (`- AC1: CI: …`, `check:` for a read-only check), where and by whom. A criterion verified here has
 no *Tests per criterion* row, or one of the same kind or naming a test that exists already: a pointer such as
 `check (below)` reads as a test name. Otherwise delete this section.
 
@@ -98,8 +96,7 @@ cover*) — or "none".
 ## Areas
 
 The area documents in `docs/areas/` this change touches (`docs/areas/README.md` lists them), and what changes in
-each — or "none" (no change in behavior). A new area: name and scope for the index, a Lead decision. A change
-in behavior updates its area document in this pull request.
+each — or "none" (no change in behavior). A new area: name and scope for the index, a Lead decision.
 
 ## Documentation updates
 

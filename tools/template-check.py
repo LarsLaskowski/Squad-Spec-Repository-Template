@@ -217,7 +217,7 @@ RULE_FILES = [
     "specs/_template/tasks.md",
 ]
 # The words of all rule files after the last consolidation; set anew by each consolidation PR (AGENTS.md, Writing rules).
-RULE_WORDS_BASELINE = 28656
+RULE_WORDS_BASELINE = 30032
 CONSOLIDATION_GROWTH = 0.15
 SENTENCE_MIN_WORDS = 6
 NEAR_MATCH = 0.8

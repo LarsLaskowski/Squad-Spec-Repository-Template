@@ -2,8 +2,7 @@
 
 Bug fixes (`squad-issue`) and features (`squad-spec`, which adds `spec.md`) run the same pipeline (*Bug or feature*).
 The orchestrator — the session running the skill — launches the members, passes documents between them, performs every
-Git and GitHub action and logs every step and launch in `log.md` (`squad-issue`, step 1). Step numbers are the
-skills'.
+Git and GitHub action and logs every step and launch in `log.md` (`squad-issue`, step 1). Step numbers are the skills'.
 
 The orchestrator's own procedures are in [`orchestration.md`](orchestration.md), which the members need not read;
 a section named here that this file lacks is one of its sections.
@@ -270,10 +269,10 @@ thing or miss the defect) or `minor`, and the orchestrator routes by that rank:
   way — except a note that leaves the plan a choice ("document it, or reject") or that Security recommends to `fix
   now`: the Lead decides it in mode `revise` before the skeleton, in one launch with any major objection
   (`squad-next.py` names the launch).
-- **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`, `spec.md`:
-  the sentence as it stands and as it should read) is applied by the orchestrator when it appends the note, the way of
-  *Verbatim documentation fixes* (`specs/` only, logged, no launch). A fix that needs judgment, or one that changes an
-  acceptance criterion, is routed as above.
+- **A note or minor objection whose fix is an exact edit of the challenged document itself** (`plan.md`, `spec.md`: the
+  sentence as it stands and as it should read) is applied by the orchestrator when it appends the note, the way of
+  *Verbatim documentation fixes* (`specs/` only, logged, no launch, no stamp). A fix that needs judgment, or one that
+  changes an acceptance criterion, is routed as above.
 - **A major objection:** the Lead, in mode `revise` with all objections, answers each one in the plan's
   *Challenge* section, the minor ones included.
 
@@ -301,10 +300,10 @@ user is told so.
 - **Plan ↔ Security (steps 2–3):** at most 2 rejections. After the 2nd `CHANGES_REQUIRED` the Lead narrows the scope,
   splits into separate issues, escalates to the Product Manager, or — without an escalation — accepts and fixes the
   remaining defect if it is a pure wording defect, one confined to the plan's resource section (limits, bounds, sizes)
-  whose fix changes no scope, or one whose **complete fix** (the exact statements or edits) Security supplied and
-  whose fix changes no scope and no acceptance criterion (a defect in a claim about how code, a library or a server
-  behaves: only once Security has **measured** the failure); exactly one Security delta confirmation of the fix
-  follows, and a further rejection goes to the Product Manager.
+  whose fix changes no scope, or one whose **complete fix** (the exact statements or edits) Security supplied and whose
+  fix changes no scope and no acceptance criterion (a defect in a claim about how code, a library or a server behaves:
+  only once Security has **measured** the failure); exactly one Security delta confirmation of the fix follows, and a
+  further rejection goes to the Product Manager.
 - **Review ↔ Dev (steps 6–8):** review pass 1 is a full review, then at most **2 further fix-and-review rounds**,
   each on the delta only; blocking findings still open then go to the Lead (accept with justification, split into a
   follow-up issue, abort, or escalate). Rounds count per review round with blocking findings, not per launch: the

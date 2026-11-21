@@ -1290,4 +1290,34 @@ The consolidation of #443 moved these reasons out of the rule files; the rules t
 - **Sizes by the checking script, never `wc -w`** (squad-lead.md, mode `plan`): `wc -w` counts a stand-alone dash
   differently.
 - **Plan and spec edits applied by the orchestrator** (routing.md, *Plan challenge*): Dev and Tester may not edit
-  those documents, so nobody else would apply a note's exact edit.
+  those documents, so nobody else would apply a note's exact edit; for the same reason the Lead decides a Security
+  note that leaves a choice or asks to fix now.
+- **Objections ranked `major` or `minor`** (routing.md, *Plan challenge*): so the orchestrator routes them without
+  judgment.
+- **The orchestrator carries every document** (routing.md, introduction): subagents cannot talk to each other
+  directly.
+- **A patch with production code runs *Test with coverage*, not *Test (project)*** (routing.md, *Gates of a patch*):
+  *Test (project)* writes no coverage report, and the *Coverage gate* reads the reports of the full run, the overall
+  figure included.
+- **The *Image build check*, not a full-tree build** (routing.md, *Criteria verified only in CI*): the check reproduces
+  the Dockerfile's own order — manifests, restore, then the sources, a build without a restore — so it fails where the
+  image build fails.
+- **The manual test before the step-8 review set** (routing.md, *Criteria verified only in CI*): a document the test
+  corrects is then reviewed once, not twice.
+- **Third-party pages** (routing.md, *Operator environments and documented procedures*): a document that leads the
+  operator through another provider's page or console rests on labels and layouts that change without notice, so the
+  Product Manager decides how far it may rest on them.
+- **No early draft PR for the *Sonar gate* alone** (routing.md, *Early draft PR*): every push to an open PR runs all of
+  CI again, and step 11 reads the analysis anyway.
+- **The *Outcome "no change"* comment waits for the Product Manager** (routing.md): it is a public statement on the
+  issue.
+- **Decision-record wording findings stated verbatim** (squad-reviewer.md, *Hard constraints*): records are the Lead's,
+  and any other form of the finding costs a Lead launch just to reword a name, link, number or sentence.
+- **Review before the push** (create-pr, step 6): the pull request opens on a reviewed change instead of collecting
+  review rounds as comment threads afterwards.
+- **One reviewer agent for both skills** (review-pr, step 2): `create-pr` and `review-pr` delegate to the same
+  `squad-reviewer`, so the checklist, severity model and round semantics are identical before and after the push.
+- **The verdict line leads the review body** (review-pr, step 3): the author sees whether anything is required without
+  reading every thread.
+- **A fix's reasoning in the commit message** (review-pr, *Answering findings on your own PR*): it stays with the code
+  rather than in a review reply.

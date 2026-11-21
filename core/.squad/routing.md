@@ -56,8 +56,8 @@ step 10 posts with the working record.
 An issue or feature PR changes only the product and its documentation, never the squad or the agent instructions:
 `.squad/` (`team.md`, `routing.md`, tools), `.claude/`, `CLAUDE.md`, and `AGENTS.md` and
 `.github/copilot-instructions.md` outside their project blocks. Squad lessons are filed in step 12 (*Squad lessons*),
-not fixed in the product PR. `python3 .squad/tools/scope-check.py` reports any such file in step 7's stamp and the
-Reviewer's step 8; a finding is blocking.
+not fixed in the product PR. `python3 .squad/tools/scope-check.py` reports such a file in step 7's stamp and the
+Reviewer's step 8 as a blocking finding.
 
 Exceptions: `.squad/stack.md`, `.squad/project.md` and the project blocks of `AGENTS.md` describe the product, and
 `.squad/tools/squad_settings.py`, with the files a tool writes from it (`SETTINGS_OUTPUTS` in `scope-check.py`), is the
@@ -353,14 +353,14 @@ environment variable checks the fixture against it, and only counts are reported
 question with the options and the Lead's recommendation. The orchestrator creates the follow-up issues the Lead
 decides on and lists them in the PR under Next Steps.
 
-Besides the Lead's escalation, the orchestrator involves the Product Manager only where a rule says so: an issue
-labelled both bug and feature, and values only the Product Manager can produce (*Bug or feature*); a feature's spec
-approval (*Spec approval*); the public issue comment of *Outcome "no change"* and of *Outside authors*; a download a
-member was denied (*A denied measurement*); a Security rejection of a fix the Lead accepted, and a safeguard stop
-(*Loop limits*); the dry run and statements no run has shown (*Operator environments and documented procedures*);
-*Pages the session cannot open*; a manual test before step 9 (*Criteria verified only in CI*); a pull request the user
-marked ready before *Draft until green* holds. A request the Product Manager makes on the open pull request goes to
-the Lead first (*Loop limits*, New scope on the open PR).
+Besides the Lead's escalation, the orchestrator involves the Product Manager only where a rule says so: *Bug or
+feature* (an issue labelled both, values only the Product Manager can produce); *Spec approval*; the public issue
+comment of *Outcome "no change"* and of *Outside authors*; *A denied measurement* (a download a member was denied);
+*Loop limits* (a Security rejection of a fix the Lead accepted, a safeguard stop); *Operator environments and
+documented procedures* (the dry run, statements no run has shown); *Pages the session cannot open*; *Criteria verified
+only in CI* (a manual test before step 9); a pull request the user marked ready before *Draft until green* holds. A
+request the Product Manager makes on the open pull request goes to the Lead first (*Loop limits*, New scope on the
+open PR).
 
 ## Non-blocking findings
 

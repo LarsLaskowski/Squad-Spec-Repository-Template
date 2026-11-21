@@ -6,8 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
-- [Core] The squad's rule files are consolidated: restated rules in `squad-issue`, `squad-lead.md`, `routing.md` and
-  `orchestration.md` become pointers to their one place or to the tool that decides them; no rule changes (#443)
+- [Core] The squad's rule files are consolidated (about 9 % fewer words): restated rules become pointers to their one
+  place or to the tool that decides them, reasons move out of the rule files, and long sentences are tightened; no
+  rule changes what it says (#443)
 
 ## v2026.11.13 — 2026-11-20
 

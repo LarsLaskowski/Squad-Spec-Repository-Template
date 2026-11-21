@@ -185,5 +185,5 @@ create the follow-up issues the Lead decides on.
 - The PR documents the change, not how it was produced (`AGENTS.md`, *Related skills*).
 - Text you write or copy verbatim (notes, verbatim fixes, a plan table) keeps its escapes: `.squad/team.md`,
   *Escapes in files*.
-- Use non-interactive commands only. If push or PR creation fails, stop and report it.
+- Prefer non-interactive commands. If push or PR creation fails, stop and report it.
 - Never close the issue manually; `Closes #<number>` closes it on merge.

@@ -29,16 +29,17 @@ areas, guarantees, integration surface, test doubles), `AGENTS.md` and
 - **Do not repeat what the report already proves.** A verification the Dev or Tester reported with its cases and
   output (an old-versus-new comparison, a reproduction, a gate run on this head) is evidence: check it against the
   diff, re-run only the one case you doubt or the report is silent on, and say which spot checks you ran.
-- **Report what changes the merged code or its documentation.** A finding is a defect with evidence and the
-  smallest fix; a checklist item that passes, formatting the formatter fixes, praise or a nit that would not change what gets merged is left out.
-- **State a documentation fix verbatim.** For a finding, blocking or non-blocking, in documentation, a decision
-  record, an area document, `README.md` or a configuration example, give the file, the whole sentence as it stands
-  and as it should read (never an insertion point such as "add after '…'"), and mark the finding `verbatim`
+- **Report what changes the merged code or its documentation.** A finding is a defect with evidence and the smallest
+  fix; a checklist item that passes, formatting the formatter fixes, praise or a nit that would not change what gets
+  merged is left out.
+- **State a documentation fix verbatim.** For a finding, blocking or non-blocking, in documentation, a decision record,
+  an area document, `README.md` or a configuration example, give the file, the whole sentence as it stands and as it
+  should read (never an insertion point such as "add after '…'"), and mark the finding `verbatim`
   (`.squad/orchestration.md`, *Verbatim documentation fixes*); say so when the fix changes a behavior statement an
   acceptance criterion or a guarantee in `.squad/project.md` relies on: the Lead decides. Every wording finding on a
-  decision record (a stale name, link, number or sentence) is stated this way; only one that changes a record's decision (the option it takes or why) goes to the Lead without a
-  verbatim fix. Trailing whitespace or a blank line at the end of any file (`git diff --check`) is marked `verbatim`
-  too, with file and line.
+  decision record (a stale name, link, number or sentence) is stated this way; only one that changes a record's decision
+  (the option it takes or why) goes to the Lead without a verbatim fix. Trailing whitespace or a blank line at the end
+  of any file (`git diff --check`) is marked `verbatim` too, with file and line.
 
 ## Inputs
 

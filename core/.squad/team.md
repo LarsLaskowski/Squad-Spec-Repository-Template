@@ -1,11 +1,10 @@
 # Team
 
-The squad of this repository, for bug reports (`squad-issue` skill) and new features with or without a GitHub
-issue (`squad-spec` skill; `routing.md`, *Bug or feature*), after [bradygaster/squad](https://github.com/bradygaster/squad).
-This file names the members and the rules they share, `routing.md` holds the pipeline and its limits,
-`orchestration.md` the orchestrator's own procedures, and each role's charter is its Claude Code subagent file under
-`.claude/agents/` (all changed only in squad-maintenance PRs). The roles run as subagents of the invoking session, the
-orchestrator.
+The squad of this repository, for bug reports (`squad-issue` skill) and new features with or without a GitHub issue
+(`squad-spec` skill; `routing.md`, *Bug or feature*), after [bradygaster/squad](https://github.com/bradygaster/squad).
+This file names the members and the rules they share, `routing.md` holds the pipeline and its limits, `orchestration.md`
+the orchestrator's own procedures, and each role's charter is its Claude Code subagent file under `.claude/agents/` (all
+changed only in squad-maintenance PRs). The roles run as subagents of the invoking session, the orchestrator.
 
 The squad files are stack-neutral and come from the Squad-Spec-Repository-Template repository; what is specific
 to this repository lives in two files the members read first:

@@ -56,15 +56,15 @@ The orchestrator tells you which **mode** to run:
     step 9": the Tester does not decide it;
   - for a resource bound over an external system (a database, the network, the file system: one read at a time, a
     cap on open connections), the seam its test observes the bound through, in *Approach* beside the bound;
-  - the **documentation updates**, each file with what changes in it, owned by the Dev (test documentation: the
-    Tester), never the orchestrator (an edit of `.squad/stack.md` or `.squad/project.md` too: `.squad/team.md`,
-    *Files*), and written once the code is green, against that code; exact wording only where a criterion fixes the
-    text. Find them by a sweep of the area documents and `docs/ARCHITECTURE.md` for every enumeration or "only
-    these …" statement the change extends (routes, rules, settings, tables, limits), each hit listed — for a set the
-    change alters (the clients that get a handler, say), every list and sentence of that set, found by its members'
-    names, not only the first — plus the documents you know the change touches and every one the checklist of
-    `.github/pull_request_template.md` (its project block included) asks for, such as a changelog entry for a
-    user-visible change;
+  - the **documentation updates**, each file with what changes in it, owned by the Dev (test documentation: the Tester),
+    never the orchestrator (for an edit of `.squad/stack.md` or `.squad/project.md` the owner reports the exact text and
+    the orchestrator writes it in: `.squad/team.md`, *Files*), and written once the code is green, against that code;
+    exact wording only where a criterion fixes the text. Find them by a sweep of the area documents and
+    `docs/ARCHITECTURE.md` for every enumeration or "only these …" statement the change extends (routes, rules,
+    settings, tables, limits), each hit listed — for a set the change alters (the clients that get a handler, say),
+    every list and sentence of that set, found by its members' names, not only the first — plus the documents you know
+    the change touches and every one the checklist of `.github/pull_request_template.md` (its project block included)
+    asks for, such as a changelog entry for a user-visible change;
   - for every area document the change extends, its words now and the words the change adds, on its *Areas* line
     (`docs/areas/<name>.md (+N words)`): past `AREA_MAX_WORDS` (`plan-check.py` warns) a split into a new area
     document is planned now, also in the spec's *Area documents*, not left to `decision-check.py` afterwards;
@@ -83,8 +83,9 @@ The orchestrator tells you which **mode** to run:
     default;
   - for documentation that links or describes third-party pages: who opens those the session cannot, and when
     (*Pages the session cannot open* in `.squad/routing.md`);
-  - what the template asks for a change without production or test code (*Verification without tests*), a
-    criterion verified only in CI or by hand on a build, and files no unit test can cover;
+  - what the template asks for a change without production or test code (*Verification without tests*), for a change to
+    an input the image build is sensitive to or a criterion tested by hand on a build (its verification or build:
+    *Criteria verified only in CI*), and for files no unit test can cover;
   - a claim about measured or library behavior that a security property or a test double rests on: *unverified*
     with its measurement and owner (`.squad/team.md`, *Test doubles that model a real component*); a measurement
     that executes a downloaded vendor binary names the orchestrator as its owner (a member's run is denied), to

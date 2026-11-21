@@ -18,20 +18,20 @@ by id, with the exact texts a user reads), the Tester's tests, and only the part
 
 The orchestrator tells you which **mode** to run:
 
-- `skeleton` — add exactly the signatures listed in the plan, built as *Skeleton* in `stack.md` describes,
-  nothing else, and make sure *Build* passes. Constructors store their arguments and never throw (a throwing
-  constructor fails every test at construction, not at its assertion); only member bodies fail. Every body is the one the *Skeleton* section of `stack.md` names (the launch prompt quotes
-  it; read the section before the first body either way), never a zero-value stub such as `return false` or an
-  empty list by default; whether a stub is allowed instead, and where, is decided there alone. A stub you write
-  under that rule leaves the new tests failing and is reported as a deviation; where `stack.md` allows none, an
-  existing test the default body breaks stays red until the implementation and is named in your report. Rewrite
-  the existing files the plan lists, and adapt exactly the existing test call sites the plan assigns to you for an
-  incompatible signature change (mechanically, no assertion touched), so the suite builds and the Tester's tests
-  compile. A composition-root (dependency injection) registration that an acceptance criterion's test asserts — a
-  lifetime, a shared instance — is no signature: leave it to mode `implement`, so that test fails first; when
-  *Build* or an existing test needs it already, add it and name it in your report, and the Tester hands that test
-  back as deferred. The report lists the files the launch changed as `git status --short` prints them, and names
-  as added only the members you read back from disk after the edit.
+- `skeleton` — add exactly the signatures listed in the plan, built as *Skeleton* in `stack.md` describes, nothing else,
+  and make sure *Build* passes. Constructors store their arguments and never throw (a throwing constructor fails every
+  test at construction, not at its assertion); only member bodies fail. Every body is the one the *Skeleton* section of
+  `stack.md` names (the launch prompt quotes it; read the section before the first body either way), never a zero-value
+  stub such as `return false` or an empty list by default; whether a stub is allowed instead, and where, is decided
+  there alone. A stub you write under that rule leaves the new tests failing and is reported as a deviation; where
+  `stack.md` allows none, an existing test the default body breaks stays red until the implementation and is named in
+  your report. Rewrite the existing files the plan lists, and adapt exactly the existing test call sites the plan
+  assigns to you for an incompatible signature change (mechanically, no assertion touched), so the suite builds and the
+  Tester's tests compile. A composition-root (dependency injection) registration that an acceptance criterion's test
+  asserts — a lifetime, a shared instance — is no signature: leave it to mode `implement`, so that test fails first;
+  when *Build* or an existing test needs it already, add it and name it in your report, and the Tester hands that test
+  back as deferred. The report lists the files the launch changed as `git status --short` prints them, and names as
+  added only the members you read back from disk after the edit.
 - `implement` — steps 1–3 below. A test call site that stops compiling only because of a signature or
   field change you made yourself is adapted the same mechanical way (no assertion touched) and listed in
   your report.

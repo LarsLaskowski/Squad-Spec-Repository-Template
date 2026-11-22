@@ -151,9 +151,10 @@ EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
 EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,3}$", re.I)
 # What follows a mention and denies the PR itself: "is not needed", ": none", "- not needed"; "is not optional" and
 # "- not a branch build" deny something else.
-NOT_WANTED = r"not\s+(?:needed|required|asked|opened|planned|wanted)\b"
+NOT_WANTED = r"not\s+(?:needed|necessary|required|asked|opened|planned|wanted|applicable)\b"
+NO_AT_END = r"no\b(?=\s*(?:[,;.\u2014\u2013-]|$)|\s+(?:early|draft|pr|need))"
 EARLY_PR_DENIED_AFTER = (re.compile(rf"^\s*(?:is|are|was)\s+(?:never\b|{NOT_WANTED})", re.I),
-                         re.compile(rf"^\s*[:\u2014\u2013-]\s*(?:(?:none|n/a)\b|no(?=\W*$)|{NOT_WANTED})", re.I),
+                         re.compile(rf"^\s*[:\u2014\u2013-]\s*(?:(?:none|n/a)\b|{NO_AT_END}|{NOT_WANTED})", re.I),
                          re.compile(r"^\s*(?:is\s+)?unneeded\b", re.I))
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
@@ -163,7 +164,8 @@ NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 # add before the Lead escalates (*Loop limits*, *Manual criterion fails*).
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 # The Tester's `6 Private check` row says the same in any case ("AC1 failed: ...").
-PRIVATE_FAILED = re.compile(MANUAL_FAILED.pattern, re.I)
+# A zero or a negation before it ("0 failed", "nothing failed") is no failure.
+PRIVATE_FAILED = re.compile(r"(?<!\b0 )(?<!nothing )(?<!none )(?<!no )\bFAIL(?:ED|S)?\b", re.I)
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
 # A continuation adds tens of thousands of tokens: from here on the next launch is fresh, so the round never ends past
@@ -788,12 +790,15 @@ def revision(run, challenge, reviews, security_due):
 
 
 FIX_NOW = re.compile(r"\bfix now\b", re.I)
+# A negation that stands right before `fix now` ("not a fix now", "do not fix now"); "token never expires; fix now" is
+# a finding with a recommendation.
+FIX_NOW_DENIED = re.compile(r"\b(?:no|not|never|without)\s+(?:an?\s+|the\s+)?$", re.I)
 
 
 def fix_now_asked(notes):
     """True when a line of the *Security notes* recommends `fix now`: a mention that no negation precedes or follows
     (`a linked issue, not a fix now`) counts."""
-    return any(not EARLY_PR_DENIED.search(line[:found.start()])
+    return any(not FIX_NOW_DENIED.search(line[:found.start()])
                and not any(pattern.search(line[found.end():]) for pattern in EARLY_PR_DENIED_AFTER)
                for line in notes.splitlines() for found in FIX_NOW.finditer(line))
 
@@ -1044,11 +1049,9 @@ def code_steps(run):
     if run.code_free():
         return code_free_steps(run)
     for group, skeleton, docs_only in groups(run):
-        found = group_step(run, group, skeleton, docs_only)
-        if found:
-            return found
         tag = f" ({group})" if group else ""
         found = decided_fix(run, group, tag) if run.base_tier != "tests" else None
+        found = found or group_step(run, group, skeleton, docs_only)
         if found:
             return found
     return documentation(run)
@@ -1122,20 +1125,27 @@ def group_step(run, group, skeleton, docs_only=False):
 
 
 def decided_fix(run, group, tag):
-    """The launch of the work a step-6 Lead `decide` of the group orders with `FIX:`, until a Dev or Tester row of step 6
-    follows it: before step 7, also when the Coverage gate passed (DockerUpdateGuard#520). The owner `FIX:` names
-    (the Tester for a test, otherwise the Dev) works on it; the decision of a private check has its own route."""
+    """The launch of the work a step-6 Lead `decide` of the group orders with `FIX:`, before step 7 and also when the
+    Coverage gate passed (DockerUpdateGuard#520): the Dev, then the Tester when `FIX:` names both, each until a row of
+    its own follows the decision. A `FIX:` that names only the Tester goes to the Tester, otherwise to the Dev; the
+    decision of a private check has its own route."""
     decisions = [row for row in group_rows(run, LEAD, "6", group, word="decide")
                  if "private check" not in row.step.lower()]
     if not decisions or not fix_ordered(decisions[-1].result):
         return None
-    if any(row.index > decisions[-1].index for who in (DEV, TESTER) for row in group_rows(run, who, "6", group)):
+    decision = decisions[-1]
+    fix = decision.result[decision.result.index("FIX:"):].split("ISSUE:")[0]
+    tester = bool(re.search(r"\btester\b", fix, re.I))
+    dev = bool(re.search(r"\bdev\b", fix, re.I)) or not tester
+    done = {who: any(row.index > decision.index for row in group_rows(run, who, "6", group)) for who in (DEV, TESTER)}
+    if dev and not done[DEV]:
+        who, mode, label = DEV, "implement", "Implement"
+    elif tester and not done[TESTER]:
+        who, mode, label = TESTER, "coverage", "Coverage"
+    else:
         return None
-    fix = decisions[-1].result[decisions[-1].result.index("FIX:"):]
-    tester = re.search(r"\btester\b", fix.split(";")[0], re.I) and not re.search(r"\bdev\b", fix.split(";")[0], re.I)
-    who, mode, label = (TESTER, "coverage", "Coverage") if tester else (DEV, "implement", "Implement")
     return heading(f"step 6 — the work the Lead's decision orders{tag}") + launch(
-        run, who, mode, f"6 {label} (decide){tag}", f"the Lead's decision (row \"{decisions[-1].step}\") and its "
+        run, who, mode, f"6 {label} (decide){tag}", f"the Lead's decision (row \"{decision.step}\") and its "
         f"`FIX:` line, {BASE_HANDOVER}")
 
 

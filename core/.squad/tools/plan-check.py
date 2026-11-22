@@ -120,7 +120,8 @@ AREA_MAX_WORDS = getattr(settings, "AREA_MAX_WORDS", 5000)
 AREA_HEADROOM = 500
 AREA_PATH = re.compile(r"docs/areas/[\w.-]+\.md")
 # `+N words` (the change adds) or `-N words` (it removes: a split that makes the document shrink, Censio#236).
-AREA_ADDS = re.compile(r"(?:(\+)|(?<![\w.])([-\u2212\u2013]))\s*([\d,]+)\s*words?\b", re.I)
+# A minus sign touches its digits, so a dash that separates the path from the count ("storage.md - 300 words") is none.
+AREA_ADDS = re.compile(r"(?:(?P<plus>\+)\s*|(?<![\w.])[-\u2212\u2013](?=\d))(?P<n>[\d,]+)\s*words?\b", re.I)
 SPEC_MAX_WORDS = getattr(settings, "SPEC_MAX_WORDS", 2500)
 SPEC_BASE_WORDS = getattr(settings, "SPEC_BASE_WORDS", 300)
 SPEC_WORDS_PER_CRITERION = getattr(settings, "SPEC_WORDS_PER_CRITERION", 200)
@@ -810,7 +811,7 @@ def signed_words(adds):
     """The words a `+N words` or `-N words` match of *Areas* adds (negative: removes), or None without a match."""
     if adds is None:
         return None
-    return int(adds.group(3).replace(",", "")) * (1 if adds.group(1) else -1)
+    return int(adds.group("n").replace(",", "")) * (1 if adds.group("plus") else -1)
 
 
 def area_size_warning(path, adds):

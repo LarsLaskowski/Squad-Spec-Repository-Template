@@ -223,6 +223,31 @@ class TestPlanSteps(NextTest):
                       row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
         self.assertNotIn("`fix now` notes", self.next(), "the delta approval confirms the revision, no loop")
 
+    def test_a_finding_that_says_never_or_not_still_recommends_fix_now(self):
+        # Release review of v2026.11.13+: a negation in the finding text is no negation of the recommendation.
+        for line in ("1. [NON-BLOCKING] The session token never expires. Recommendation: fix now.",
+                     "2. Logs do not redact the header \u2014 fix now", "- Token never expires; fix now"):
+            self.assertTrue(self.tool.fix_now_asked(line), line)
+        for line in ("A linked issue, not a fix now.", "Fix now is not needed."):
+            self.assertFalse(self.tool.fix_now_asked(line), line)
+
+    def test_a_private_check_row_that_counts_no_failure_passes(self):
+        for result in ("AC1 passed, 0 failed", "AC1 passed; nothing failed", "AC1 PASS, none failed"):
+            self.assertIsNone(self.tool.PRIVATE_FAILED.search(result), result)
+        for result in ("AC1 failed: the recording is rejected", "AC1 PASS, AC2 FAIL", "AC1 fails"):
+            self.assertIsNotNone(self.tool.PRIVATE_FAILED.search(result), result)
+
+    def test_a_mixed_fix_goes_to_the_dev_and_then_to_the_tester(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: Dev \u2014 x; Tester \u2014 y; ISSUE: none", 9000))
+        self.assertIn("Launch: squad-dev, mode implement", self.next())
+        self.repo.log(row("6 Implement (decide)", "Dev", "fixed", 9000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("Launch: squad-tester, mode coverage", out)
+        self.assertIn('"6 Coverage (decide)"', out)
+        self.repo.log(row("6 Coverage (decide)", "Tester", "done", 9000, "sonnet/medium"))
+        self.assertNotIn("the work the Lead's decision orders", self.next())
+
     def test_a_negated_fix_now_in_the_security_notes_launches_no_revision(self):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
                         + "\n## Security notes\n\n1. A linked issue, not a fix now.\n2. Fix now is not needed.\n")
@@ -1414,7 +1439,10 @@ class TestEarlyPrAsked(NextTest):
                      "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
                      "An early draft PR is not needed.", "Early draft PR: none.", "Early draft PR: not needed.",
                      "There is no need for an early draft PR.", "We do not ask for an early draft PR.",
-                     "Early draft PR - not needed.", "An early draft PR is never needed.", "Early draft PR: no."):
+                     "Early draft PR - not needed.", "An early draft PR is never needed.", "Early draft PR: no.",
+                     "Early draft PR: no, the change is small", "Early draft PR \u2014 not necessary",
+                     "Early draft PR: not applicable", "Early draft PR is not necessary here",
+                     "Early draft PR: No early PR needed"):
             self.assertFalse(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):

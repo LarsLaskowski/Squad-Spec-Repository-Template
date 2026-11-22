@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] The release review's fixes in `squad-next.py` and `plan-check.py`: a finding that says "never" or "not" still
+  recommends `fix now`, "Early draft PR: no/not necessary/not applicable" counts as declined, a private-check row that
+  counts no failure passes, a spaced dash is no minus sign in *Areas*, and a `FIX:` naming the Dev and the Tester
+  launches both (#451)
 - [Core] A step-6 Lead `decide` that orders a `FIX:` is launched by `squad-next.py` (Dev, or Tester for a test) before
   step 7, and `routing.md` sends branch conditions reported as not unit-testable to the Lead also when the Coverage gate
   passes (#448)

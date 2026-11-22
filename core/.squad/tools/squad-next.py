@@ -147,16 +147,9 @@ PR_ENDED = re.compile(r"\b(?:merged|closed)\b", re.I)
 # A continuation that a fix, delta or revise round makes in another mode is no change of mode.
 ROUND_OF_SAME_MODE = re.compile(r"\b(?:fix|delta|revis)", re.I)
 READY = re.compile(r"\bready for review\b", re.I)
-EARLY_PR = re.compile(r"\bearly draft pr\b", re.I)
-EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:\w+\W+){0,3}$", re.I)
-# What follows a mention and denies the PR itself: "is not needed", ": none", "- not needed"; "is not optional" and
-# "- not a branch build" deny something else.
-NOT_WANTED = r"not\s+(?:needed|necessary|required|asked|opened|planned|wanted|applicable)\b"
-NO_AT_END = r"no\b(?=\s*(?:[,;.\u2014\u2013-]|$)|\s+(?:early|draft|pr|need))"
-EARLY_PR_DENIED_AFTER = (re.compile(rf"^\s*(?:is|are|was)\s+(?:never\b|{NOT_WANTED})", re.I),
-                         re.compile(rf"^\s*[:\u2014\u2013-]\s*(?:(?:none|n/a|skipped|nobody)\b|{NO_AT_END}|{NOT_WANTED})", re.I),
-                         re.compile(r"^\s*\?\s*no\b", re.I),
-                         re.compile(r"^\s*(?:is\s+)?unneeded\b", re.I))
+# A plan line that asks for an early draft PR: `Early draft PR: yes` (`routing.md`, *Early draft PR*); anything else, `no`
+# included, does not. `plan-check.py` warns about a plan that names one in prose without the line.
+EARLY_PR_TAG = re.compile(r"^\s*(?:[-*]\s*)?Early draft PR:\s*yes\b", re.I)
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
 NOTES = re.compile(r"^#{2,6}[ \t]+Challenge(?: notes)?\b", re.I | re.M)
@@ -165,10 +158,7 @@ NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 # add before the Lead escalates (*Loop limits*, *Manual criterion fails*).
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 # The Tester's `6 Private check` row says the same in any case ("AC1 failed: ...").
-# A zero or a negation before it ("0 failed", "no tests failed", "none of them failed") is no failure.
-PRIVATE_FAILED = re.compile(MANUAL_FAILED.pattern, re.I)
-NOT_FAILED = re.compile(r"\b(?:0|zero|no|none|nothing|not|never)\b[^;,.:\n]*$", re.I)
-NO_FAILURE_AFTER = re.compile(r"^[ \t:=]*(?:0|zero|none|nil)\b", re.I)
+# The Tester's `6 Private check` row states `PASS` or `FAIL` in capitals per criterion; one `FAIL` fails the row.
 VERDICT_PASS = re.compile(r"\bPASS(?:ED|ES)?\b")
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
@@ -195,8 +185,10 @@ VERDICT_FORMATS = {
     SECURITY: "`VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED` (mode diff, approved with non-blocking findings: "
               "`VERDICT: APPROVED | NON-BLOCKING <n>`)",
 }
-DECIDE_FORMAT = ("`RESULT: DECIDED — <option>`; on review findings `FIX: <each change and its owner>` and `ISSUE: "
-                 "<each linked issue>` after the dash, `FIX:` in capitals whenever it orders a change")
+DECIDE_FORMAT = ("`RESULT: DECIDED — <option>`; on review findings `FIX: <Dev|Tester|orchestrator|Code Officer> — "
+                 "<change>` per `;`-separated item and `ISSUE: <each linked issue>` after the dash, `FIX:` in capitals "
+                 "whenever it orders a change")
+FIX_OWNER = re.compile(r"^\s*(?:FIX:\s*)?(dev|tester|orchestrator|code officer)\b", re.I)
 # A Lead decision that orders a change: `FIX:` in capitals, with its colon ("no FIX needed" orders none).
 FIX_ORDERED = re.compile(r"\bFIX:")
 # An orchestrator row of steps 4–6 that says it skipped the step (`4 Skeleton skipped`, `6 Implement skipped (G1)`).
@@ -446,9 +438,23 @@ def fix_ordered(result):
     return bool(FIX_ORDERED.search(result))
 
 
-def verdict_problem(agent, result):
-    """For `squad-log.py`: the exact verdict line the row of `agent` lacks, or None when it carries one (or the member
-    reports none)."""
+def row_format_problem(agent, result, step):
+    """The fixed format beyond the verdict line that a row lacks, or None: the Tester's `6 Private check` row states
+    `PASS` or `FAIL`, and every `FIX:` item of a Lead decision names its owner (`DECIDE_FORMAT`)."""
+    if agent == TESTER and re.search(r"private check", step or "", re.I) and private_verdict(result) is None:
+        return "a capital `PASS` or `FAIL` per criterion"
+    if agent == LEAD and fix_ordered(result) and not all(FIX_OWNER.match(item) for item in fix_items(result)
+                                                         if item.strip()):
+        return "`FIX: <Dev|Tester|orchestrator|Code Officer> — <change>` per `;`-separated item"
+    return None
+
+
+def verdict_problem(agent, result, step=None):
+    """For `squad-log.py`: the exact verdict line (or fixed format, `row_format_problem`) the row of `agent` lacks, or
+    None when it carries one (or the member reports none)."""
+    problem = row_format_problem(agent, result or "", step)
+    if problem:
+        return problem
     checks = {REVIEWER: REVIEW, ADVOCATE: OBJECTIONS, SECURITY: SECURITY_VERDICT, LEAD: RESULT}
     found = checks[agent].search(result or "") if agent in checks else None
     if agent not in checks or (found and not (agent == REVIEWER and partial_review(found, result))):
@@ -793,18 +799,14 @@ def revision(run, challenge, reviews, security_due):
         fix_now_revision(run, reviews, revisions) or confirmation(run, security_due and bool(answered), verdict, challenge)
 
 
-FIX_NOW = re.compile(r"\bfix now\b", re.I)
-# A negation that stands right before `fix now` ("not a fix now", "do not fix now"); "token never expires; fix now" is
-# a finding with a recommendation.
-FIX_NOW_DENIED = re.compile(r"\b(?:no|not|never|without|neither|isn't|rather than|instead of)\s+(?:an?\s+|the\s+)?$", re.I)
+# A Security note that recommends the fix in this change ends `Recommendation: fix now`; `Recommendation: issue` files it.
+FIX_NOW_TAG = re.compile(r"\bRecommendation:\s*fix now\b", re.I)
 
 
 def fix_now_asked(notes):
-    """True when a line of the *Security notes* recommends `fix now`: a mention that no negation precedes or follows
-    (`a linked issue, not a fix now`) counts."""
-    return any(not FIX_NOW_DENIED.search(line[:found.start()])
-               and not any(pattern.search(line[found.end():]) for pattern in EARLY_PR_DENIED_AFTER)
-               for line in notes.splitlines() for found in FIX_NOW.finditer(line))
+    """True when a line of the *Security notes* carries the tag `Recommendation: fix now` (`squad-security.md`); no
+    other wording of "fix now" counts (`squad-notes.py` warns about a note that has one without the tag)."""
+    return bool(FIX_NOW_TAG.search(notes))
 
 
 def fix_now_revision(run, reviews, revisions):
@@ -1142,12 +1144,16 @@ def decide_rows(run, group):
     return found
 
 
+def fix_items(result):
+    """The `;`-separated items of the `FIX:` part of a Lead decision (up to its `ISSUE:`)."""
+    return result[result.index("FIX:"):].split("ISSUE:")[0].split(";")
+
+
 def fix_owners(fix):
-    """(Dev, Tester) that the `FIX:` line of a decision names as the owner of a change: the first word of a
-    `;`-separated item, `FIX: Dev — x; Tester — y`; a member named in an item's prose is none. A line without an owner
-    is the Dev's; one that names only the orchestrator or the Code Officer is neither's."""
-    names = {match.group(1).lower() for item in fix.split(";")
-             if (match := re.match(r"^\s*(?:FIX:\s*)?(dev|tester|orchestrator|code officer)\b", item, re.I))}
+    """(Dev, Tester) that the items of a `FIX:` line name as owners: the first words of an item, `FIX: Dev — x; Tester —
+    y` (`DECIDE_FORMAT`). A line that names no owner is the Dev's; one that names only the orchestrator or the Code
+    Officer is neither's."""
+    names = {match.group(1).lower() for item in fix.split(";") if (match := FIX_OWNER.match(item))}
     return "dev" in names or not names, "tester" in names
 
 
@@ -1432,11 +1438,8 @@ def failed_gates(run, last):
 
 
 def early_pr_asked(line):
-    """A plan line that asks for an early draft PR: one mention that no negation of up to three words precedes
-    (`no early draft PR`, `without an early draft PR`, DockerUpdateGuard#505) counts."""
-    return any(not EARLY_PR_DENIED.search(line[:found.start()])
-               and not any(pattern.search(line[found.end():]) for pattern in EARLY_PR_DENIED_AFTER)
-               for found in EARLY_PR.finditer(line))
+    """True for a plan line `Early draft PR: yes`."""
+    return bool(EARLY_PR_TAG.search(line))
 
 
 def early_pr(run):
@@ -1532,16 +1535,12 @@ def private_criteria(run):
                    and plan.tester_private_check(row[1])), key=plan.criterion_number)
 
 
-def private_failed(result):
-    """True when a `6 Private check` row reports a failure: `fail`, `failed` or `fails` that no zero or negation of its
-    clause before it ("no tests failed") and no zero after it ("failed: 0") cancels. A capital `FAIL` is the verdict and
-    fails the row; without one a capital `PASS` passes it ("AC1 PASS, 3 of 12 samples failed" is for the Lead to
-    read); a row with neither fails on any such word."""
-    found = [match for match in PRIVATE_FAILED.finditer(result)
-             if not NOT_FAILED.search(result[:match.start()]) and not NO_FAILURE_AFTER.search(result[match.end():])]
-    if any(MANUAL_FAILED.fullmatch(match.group(0)) for match in found):
-        return True
-    return bool(found) and not VERDICT_PASS.search(result)
+def private_verdict(result):
+    """`FAIL` when a `6 Private check` row holds a capital `FAIL` (`FAILED`, `FAILS`), else `PASS` when it holds a capital
+    `PASS`, else None: the row states no verdict and is corrected (`squad-log.py --replace-last`)."""
+    if MANUAL_FAILED.search(result):
+        return "FAIL"
+    return "PASS" if VERDICT_PASS.search(result) else None
 
 
 def failed_private_check(run, rows):
@@ -1571,7 +1570,13 @@ def private_check(run):
     if run.after_pr or run.plan is None or not (criteria := private_criteria(run)):
         return None
     rows = run.of(TESTER, {"6"}, word="private")
-    if rows and not private_failed(rows[-1].result):
+    verdict = private_verdict(rows[-1].result) if rows else None
+    if rows and verdict is None:
+        return heading("step 6 — the Tester's private-check row states no PASS or FAIL") + [
+            DO + "correct the row without a new launch, from the Tester's report: "
+            f"python3 {LOG_TOOL} {run.name} --replace-last \"Tester\" --step \"{rows[-1].step}\" --new-result "
+            "\"<PASS or FAIL per criterion in capitals, then the result>\""]
+    if rows and verdict == "PASS":
         return None
     if rows and (failed := failed_private_check(run, rows)):
         return failed

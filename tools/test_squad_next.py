@@ -184,7 +184,7 @@ class TestPlanSteps(NextTest):
     def test_security_notes_that_recommend_fix_now_go_to_the_lead_before_the_skeleton(self):
         # Censio#38: the notes were appended to plan.md, no step sent them to the Lead, the Tester found the gap.
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. The loader's error and thread rule is missing: fix now.\n")
+                        + "\n## Security notes\n\n1. The loader's error and thread rule is missing. Recommendation: fix now.\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
         out = self.next()
@@ -197,7 +197,7 @@ class TestPlanSteps(NextTest):
 
     def test_fix_now_notes_of_a_delta_review_after_a_rejection_still_reach_the_lead(self):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+                        + "\n## Security notes\n\n1. A gap. Recommendation: fix now.\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
                       row("3 Plan security", "Security", "VERDICT: CHANGES_REQUIRED", 9000),
                       row("2 Plan revise", "Lead", "RESULT: DONE", 9000, continued=True),
@@ -207,7 +207,7 @@ class TestPlanSteps(NextTest):
     def test_fix_now_notes_of_a_later_delta_approval_reach_the_lead(self):
         # #441: the anchor was the first approval, so the notes of a delta approval after a revision were lost.
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. A new gap: fix now.\n")
+                        + "\n## Security notes\n\n1. A new gap. Recommendation: fix now.\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
                       row("2 Plan revise", "Lead", "RESULT: DONE", 9000, continued=True),
@@ -216,34 +216,29 @@ class TestPlanSteps(NextTest):
 
     def test_a_security_notes_revision_is_not_asked_again_after_its_delta_approval(self):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+                        + "\n## Security notes\n\n1. A gap. Recommendation: fix now.\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
                       row("2 Plan revise (security notes)", "Lead", "RESULT: DONE", 9000, continued=True),
                       row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
         self.assertNotIn("`fix now` notes", self.next(), "the delta approval confirms the revision, no loop")
 
-    def test_a_finding_that_says_never_or_not_still_recommends_fix_now(self):
-        # Release review of v2026.11.13+: a negation in the finding text is no negation of the recommendation.
+    def test_only_the_recommendation_tag_asks_for_fix_now(self):
+        # Release reviews: no reading of negations around "fix now"; the tag is the format (squad-security.md).
         for line in ("1. [NON-BLOCKING] The session token never expires. Recommendation: fix now.",
-                     "2. Logs do not redact the header \u2014 fix now", "- Token never expires; fix now"):
+                     "2. Logs do not redact the header. Recommendation: Fix now"):
             self.assertTrue(self.tool.fix_now_asked(line), line)
-        for line in ("A linked issue, not a fix now.", "Fix now is not needed.", "This isn't a fix now.",
-                     "Neither a fix now nor an issue.", "Rather than fix now, open an issue.",
-                     "Instead of a fix now: a linked issue."):
+        for line in ("A linked issue, not a fix now. Recommendation: issue", "Fix now is not needed.",
+                     "Token never expires; fix now", "Recommendation: issue #5 rather than fix now"):
             self.assertFalse(self.tool.fix_now_asked(line), line)
 
-    def test_a_private_check_row_that_counts_no_failure_passes(self):
-        for result in ("AC1 passed, 0 failed", "AC1 passed; nothing failed", "AC1 PASS, none failed"):
-            self.assertFalse(self.tool.private_failed(result), result)
-        for result in ("no tests failed", "nothing has failed", "none of them failed", "zero failed", "AC1: not failed",
-                       "No FAIL", "AC1 PASS \u2014 12 samples, failed: 0", "AC1 PASS (0 of 12 samples failed)",
-                       "AC1 PASS: passed 12, failed 0", "AC1 PASS, none of the 12 samples failed",
-                       "not a single check failed", "passed 12, failed 0"):
-            self.assertFalse(self.tool.private_failed(result), result)
-        for result in ("AC1 failed: the recording is rejected", "AC1 PASS, AC2 FAIL", "AC1 fails",
-                       "no code changed; AC2 FAIL"):
-            self.assertTrue(self.tool.private_failed(result), result)
+    def test_a_private_check_row_is_read_by_its_capital_verdict_alone(self):
+        for result in ("AC1 PASS", "AC1 PASS \u2014 12 samples, failed: 0", "AC1 PASS (0 of 12 samples failed)"):
+            self.assertEqual(self.tool.private_verdict(result), "PASS", result)
+        for result in ("AC1 FAIL", "AC1 PASS, AC2 FAIL", "AC1 FAILED: the recording is rejected"):
+            self.assertEqual(self.tool.private_verdict(result), "FAIL", result)
+        for result in ("AC1 passed, 0 failed", "no tests failed", "AC1 failed: rejected"):
+            self.assertIsNone(self.tool.private_verdict(result), result)
 
     def test_a_mixed_fix_goes_to_the_dev_and_then_to_the_tester(self):
         self.implemented()
@@ -258,7 +253,8 @@ class TestPlanSteps(NextTest):
 
     def test_a_negated_fix_now_in_the_security_notes_launches_no_revision(self):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. A linked issue, not a fix now.\n2. Fix now is not needed.\n")
+                        + "\n## Security notes\n\n1. A linked issue, not a fix now. Recommendation: issue\n"
+                        "2. Fix now is not needed. Recommendation: issue\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
         self.assertNotIn("`fix now` notes", self.next())
@@ -933,7 +929,7 @@ class TestReviewAndAfter(NextTest):
 
     def test_security_notes_that_say_fix_now_are_named_in_a_major_objections_revision(self):
         self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
-                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+                        + "\n## Security notes\n\n1. A gap. Recommendation: fix now.\n")
         self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: OBJECTIONS 1 major, 0 minor", 9000),
                       row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
         self.assertIn("every *Security notes* entry that recommends `fix now`", self.next())
@@ -954,10 +950,24 @@ class TestReviewAndAfter(NextTest):
         self.stamp()
         self.assertNotIn("manual test of AC1", self.next(), "the Product Manager is not asked for the Tester's check")
 
-    def test_a_lower_case_failed_private_check_goes_to_the_lead(self):
+    def test_a_private_check_row_without_a_capital_verdict_is_corrected_not_guessed(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
         self.repo.log(row("6 Private check", "Tester", "AC1 failed: the recording is rejected", 20000, "sonnet/medium"))
-        self.assertIn("step 6 — the Tester's private check failed", self.next())
+        out = self.next()
+        self.assertIn("step 6 \u2014 the Tester's private-check row states no PASS or FAIL", out)
+        self.assertIn('--replace-last "Tester" --step "6 Private check"', out)
+
+    def test_squad_log_asks_for_the_fixed_formats_of_a_row(self):
+        tool = self.tool
+        self.assertIn("PASS", tool.verdict_problem("squad-tester", "AC1 failed: x", "6 Private check"))
+        self.assertIsNone(tool.verdict_problem("squad-tester", "AC1 PASS", "6 Private check"))
+        self.assertIsNone(tool.verdict_problem("squad-tester", "no verdict needed", "6 Coverage"))
+        lead = "RESULT: DECIDED \u2014 FIX: {}; ISSUE: none"
+        self.assertIn("<Dev|Tester|orchestrator|Code Officer>",
+                      tool.verdict_problem("squad-lead", lead.format("remove the guard")))
+        self.assertIn("<Dev|Tester|orchestrator|Code Officer>",
+                      tool.verdict_problem("squad-lead", lead.format("Dev \u2014 x; the Tester's test stays")))
+        self.assertIsNone(tool.verdict_problem("squad-lead", lead.format("Dev \u2014 x; Tester \u2014 y")))
 
     def test_a_decision_that_orders_no_code_runs_the_private_check_again_without_the_dev(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
@@ -1479,30 +1489,14 @@ if __name__ == "__main__":
 
 
 class TestEarlyPrAsked(NextTest):
-    """The plan's own sentence decides whether step 7 asks for an early draft PR (DockerUpdateGuard#505)."""
+    """The plan's line `Early draft PR: yes` decides whether step 7 asks for an early draft PR (DockerUpdateGuard#505)."""
 
-    def test_a_plan_that_asks_for_one_is_read_as_asking(self):
-        for line in ("An early draft PR is opened after step 6.", "Open the early draft PR right away."):
+    def test_only_the_yes_line_asks(self):
+        for line in ("Early draft PR: yes", "- Early draft PR: Yes \u2014 AC4 needs CI", "  early draft pr: yes"):
             self.assertTrue(self.tool.early_pr_asked(line), line)
 
-    def test_a_negated_mention_does_not_ask(self):
-        for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
-                     "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
-                     "An early draft PR is not needed.", "Early draft PR: none.", "Early draft PR: not needed.",
-                     "There is no need for an early draft PR.", "We do not ask for an early draft PR.",
-                     "Early draft PR - not needed.", "An early draft PR is never needed.", "Early draft PR: no.",
-                     "Early draft PR: no, the change is small", "Early draft PR \u2014 not necessary",
-                     "Early draft PR: not applicable", "Early draft PR is not necessary here",
-                     "Early draft PR: No early PR needed", "Early draft PR: skipped", "Early draft PR? No.",
-                     "Early draft PR: nobody needs it"):
+    def test_anything_else_does_not_ask(self):
+        for line in ("Early draft PR: no", "Early draft PR: no, the change is small", "Early draft PR: not needed",
+                     "An early draft PR is opened after step 6.", "No early draft PR.", "Early draft PR: skipped",
+                     "AC4 is verified by an early draft PR, not by a branch build."):
             self.assertFalse(self.tool.early_pr_asked(line), line)
-
-    def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):
-        for line in ("AC4 is verified by an early draft PR, not by a branch build.",
-                     "An early draft PR (not a branch build) runs the image job.",
-                     "An early draft PR is not optional: AC4 needs CI.", "Open an early draft PR - not a branch build.",
-                     "An early draft PR is not a branch build.", "Early draft PR: not a branch build, AC4 needs CI."):
-            self.assertTrue(self.tool.early_pr_asked(line), line)
-
-    def test_a_negation_of_one_mention_does_not_hide_another(self):
-        self.assertTrue(self.tool.early_pr_asked("No early draft PR before step 6, then an early draft PR."))

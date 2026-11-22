@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-next.py` reads fixed formats instead of guessing from free text: a capital `PASS` or `FAIL` in the
+  Tester's private-check row, `FIX: <owner> — <change>` per item in a Lead decision, `Recommendation: fix now` in
+  Security's notes and the plan line `Early draft PR: yes`; `squad-log.py`, `squad-notes.py` and `plan-check.py` warn
+  about a row, note or plan that lacks them, and the plan template carries the line (#458)
 - [Core] The third release review's fixes in `squad-next.py`: a step-6 Lead `decide` without a group belongs to the
   latest group of steps 4–6 in a feature, a private-check row with a `PASS` or `FAIL` verdict is read by it ("failed:
   0" passes), only the first word of a `FIX:` item names its owner, and more negations of `fix now` and of an early

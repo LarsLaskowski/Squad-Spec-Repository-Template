@@ -553,6 +553,17 @@ class TestPlanCheck(unittest.TestCase):
         within = areas.replace("big.md:", "big.md (+50 words):")
         self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 
+    def test_an_early_draft_pr_named_in_prose_needs_its_line(self):
+        prose = PLAN + "\nThe change opens an early draft PR after step 6.\n"
+        warnings = self.script.check(self.feature(plan=prose))[1]
+        self.assertTrue(any("Early draft PR: yes" in warning for warning in warnings), warnings)
+        for line in ("Early draft PR: yes", "Early draft PR: no"):
+            tagged = prose + f"\n{line}\n"
+            self.assertFalse(any("early draft PR" in warning for warning in self.script.check(
+                self.feature(plan=tagged))[1]), line)
+        self.assertFalse(any("early draft PR" in warning for warning in self.script.check(
+            self.feature(plan=PLAN))[1]), "a plan that never names one needs no line")
+
     def test_plan_over_the_limit_of_its_tier_is_a_finding(self):
         errors, warnings = self.script.check(self.feature(plan=PLAN + "\nfiller " * 3000))
         self.assertTrue(any("PLAN_MAX_WORDS 2500 for tier standard" in e for e in errors), errors)

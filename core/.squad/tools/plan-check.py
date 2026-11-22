@@ -804,6 +804,7 @@ def check(folder, approved=False):
             check_placeholders("tasks.md", tasks, errors)
     check_plan_size(plan, errors, warnings, approved)
     check_area_sizes(plan, warnings)
+    check_early_pr(plan, warnings)
     return errors, warnings
 
 
@@ -827,6 +828,21 @@ def area_size_warning(path, adds):
     return (f"plan.md: {path} has {states} (AREA_MAX_WORDS {AREA_MAX_WORDS}): plan the split into a new area document "
             "now (name and scope for the index, in the spec's Area documents), or state the words the change adds on "
             "the line (`+N words`, or `-N words` when it shrinks)")
+
+
+EARLY_PR_NAMED = re.compile(r"\bearly draft pr\b", re.I)
+EARLY_PR_LINE = re.compile(r"^\s*(?:[-*]\s*)?Early draft PR:\s*(?:yes|no)\b", re.I)
+
+
+def check_early_pr(plan, warnings):
+    """A warning when the plan names an early draft PR in prose and has no line `Early draft PR: yes` or `: no`:
+    `squad-next.py` reads only that line (`.squad/routing.md`, *Early draft PR*)."""
+    lines = [line for line in strip_comments(plan).splitlines() if line.strip() and line.strip() not in template_lines()]
+    if any(EARLY_PR_LINE.match(line) for line in lines):
+        return
+    if any(EARLY_PR_NAMED.search(line) for line in lines):
+        warnings.append("plan.md: names an early draft PR in prose; state it as a line `Early draft PR: yes` or "
+                        "`Early draft PR: no` (`.squad/routing.md`, *Early draft PR*), the only form squad-next.py reads")
 
 
 def check_area_sizes(plan, warnings):

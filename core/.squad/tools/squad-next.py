@@ -154,7 +154,8 @@ EARLY_PR_DENIED = re.compile(r"\b(?:no|not|none|never|nor|without|neither)\W+(?:
 NOT_WANTED = r"not\s+(?:needed|necessary|required|asked|opened|planned|wanted|applicable)\b"
 NO_AT_END = r"no\b(?=\s*(?:[,;.\u2014\u2013-]|$)|\s+(?:early|draft|pr|need))"
 EARLY_PR_DENIED_AFTER = (re.compile(rf"^\s*(?:is|are|was)\s+(?:never\b|{NOT_WANTED})", re.I),
-                         re.compile(rf"^\s*[:\u2014\u2013-]\s*(?:(?:none|n/a)\b|{NO_AT_END}|{NOT_WANTED})", re.I),
+                         re.compile(rf"^\s*[:\u2014\u2013-]\s*(?:(?:none|n/a|skipped|nobody)\b|{NO_AT_END}|{NOT_WANTED})", re.I),
+                         re.compile(r"^\s*\?\s*no\b", re.I),
                          re.compile(r"^\s*(?:is\s+)?unneeded\b", re.I))
 SPEC_SETTLED = re.compile(r"\bspec (?:approved|corrected)\b", re.I)
 CORRECTED = re.compile(r"\bspec corrected\b", re.I)
@@ -165,8 +166,10 @@ NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 # The Tester's `6 Private check` row says the same in any case ("AC1 failed: ...").
 # A zero or a negation before it ("0 failed", "no tests failed", "none of them failed") is no failure.
-PRIVATE_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b", re.I)
-NOT_FAILED = re.compile(r"\b(?:0|zero|no|none|nothing|not)\b(?:[ \t]+\w+){0,2}[ \t:]*$", re.I)
+PRIVATE_FAILED = re.compile(MANUAL_FAILED.pattern, re.I)
+NOT_FAILED = re.compile(r"\b(?:0|zero|no|none|nothing|not|never)\b[^;,.:\n]*$", re.I)
+NO_FAILURE_AFTER = re.compile(r"^[ \t:=]*(?:0|zero|none|nil)\b", re.I)
+VERDICT_PASS = re.compile(r"\bPASS(?:ED|ES)?\b")
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
 # A continuation adds tens of thousands of tokens: from here on the next launch is fresh, so the round never ends past
@@ -793,7 +796,7 @@ def revision(run, challenge, reviews, security_due):
 FIX_NOW = re.compile(r"\bfix now\b", re.I)
 # A negation that stands right before `fix now` ("not a fix now", "do not fix now"); "token never expires; fix now" is
 # a finding with a recommendation.
-FIX_NOW_DENIED = re.compile(r"\b(?:no|not|never|without)\s+(?:an?\s+|the\s+)?$", re.I)
+FIX_NOW_DENIED = re.compile(r"\b(?:no|not|never|without|neither|isn't|rather than|instead of)\s+(?:an?\s+|the\s+)?$", re.I)
 
 
 def fix_now_asked(notes):
@@ -1124,23 +1127,44 @@ def group_step(run, group, skeleton, docs_only=False):
     return None
 
 
+def decide_rows(run, group):
+    """The step-6 Lead `decide` rows of the group, a private check's excepted: a row that names it, or in a feature a row
+    that names none (the launch of `--launch squad-lead decide` prints no group) after the latest row of steps 4–6
+    that does."""
+    rows = [row for row in run.of(LEAD, {"6"}, word="decide") if "private check" not in row.step.lower()]
+    found = []
+    for row in rows:
+        before = [other for other in run.rows if other.number in ("4", "5", "6") and other.index < row.index
+                  and GROUP.search(other.step)]
+        tag = GROUP.search(row.step) or (GROUP.search(before[-1].step) if before else None)
+        if not group or (tag is not None and tag.group(1) == group):
+            found.append(row)
+    return found
+
+
+def fix_owners(fix):
+    """(Dev, Tester) that the `FIX:` line of a decision names as the owner of a change: the first word of a
+    `;`-separated item, `FIX: Dev — x; Tester — y`; a member named in an item's prose is none. A line without an owner
+    is the Dev's; one that names only the orchestrator or the Code Officer is neither's."""
+    names = {match.group(1).lower() for item in fix.split(";")
+             if (match := re.match(r"^\s*(?:FIX:\s*)?(dev|tester|orchestrator|code officer)\b", item, re.I))}
+    return "dev" in names or not names, "tester" in names
+
+
 def decided_fix(run, group, tag):
     """The launch of the work a step-6 Lead `decide` of the group orders with `FIX:`, before step 7 and also when the
     Coverage gate passed (DockerUpdateGuard#520): the Dev, then the Tester when `FIX:` names both, each until a row of
     its own follows the decision. A `FIX:` that names only the Tester goes to the Tester, one that names another owner
     (the orchestrator, the Code Officer) and no Dev gets no launch, otherwise it goes to the Dev; a decision before the
     group's implementation waits for it; tier `tests` has no Dev; the decision of a private check has its own route."""
-    decisions = [row for row in group_rows(run, LEAD, "6", group, word="decide")
-                 if "private check" not in row.step.lower()]
+    decisions = decide_rows(run, group)
     if not decisions or not fix_ordered(decisions[-1].result):
         return None
     decision = decisions[-1]
     if run.base_tier != "tests" and not implement_ended(run, group):
         return None
-    fix = decision.result[decision.result.index("FIX:"):].split("ISSUE:")[0]
-    tester = bool(re.search(r"\btester\b", fix, re.I))
-    other = bool(re.search(r"\b(?:orchestrator|code officer)\b", fix, re.I))
-    dev = run.base_tier != "tests" and (bool(re.search(r"\bdev\b", fix, re.I)) or not (tester or other))
+    dev, tester = fix_owners(decision.result[decision.result.index("FIX:"):].split("ISSUE:")[0])
+    dev = dev and run.base_tier != "tests"
     done = {who: any(row.index > decision.index for row in group_rows(run, who, "6", group)) for who in (DEV, TESTER)}
     if dev and not done[DEV]:
         who, mode, label = DEV, "implement", "Implement"
@@ -1509,9 +1533,15 @@ def private_criteria(run):
 
 
 def private_failed(result):
-    """True when a `6 Private check` row reports a failure: `fail`, `failed` or `fails` in any case that no zero or
-    negation right before it cancels."""
-    return any(not NOT_FAILED.search(result[:found.start()]) for found in PRIVATE_FAILED.finditer(result))
+    """True when a `6 Private check` row reports a failure: `fail`, `failed` or `fails` that no zero or negation of its
+    clause before it ("no tests failed") and no zero after it ("failed: 0") cancels. A capital `FAIL` is the verdict and
+    fails the row; without one a capital `PASS` passes it ("AC1 PASS, 3 of 12 samples failed" is for the Lead to
+    read); a row with neither fails on any such word."""
+    found = [match for match in PRIVATE_FAILED.finditer(result)
+             if not NOT_FAILED.search(result[:match.start()]) and not NO_FAILURE_AFTER.search(result[match.end():])]
+    if any(MANUAL_FAILED.fullmatch(match.group(0)) for match in found):
+        return True
+    return bool(found) and not VERDICT_PASS.search(result)
 
 
 def failed_private_check(run, rows):

@@ -202,7 +202,8 @@ arrive in step 11.
 
 CI runs on pull requests only, so step 10's PR comes too late for a change whose **CI-only criteria**, manual test on
 the CI-built artifact (*Criteria verified only in CI*) or **dry run** (*Operator environments and documented
-procedures*) needs a CI result before the review. Its plan says so, and the orchestrator opens the PR as a draft right
+procedures*) needs a CI result before the review. Its plan says so with the line `Early draft PR: yes` (`squad-next.py` reads only that
+line), and the orchestrator opens the PR as a draft right
 after step 7, `specs/` still in the diff, and works the findings of CI and `sonar-check.py pr <n>` before step 8 as in
 step 11 (`squad-next.py` prints the steps). The *Sonar gate* alone is no reason for an
 early PR. The dry run runs on that head. Step 9 also requires the green CI run, the dry-run result and the Reviewer's

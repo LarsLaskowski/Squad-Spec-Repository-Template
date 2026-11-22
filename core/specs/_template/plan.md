@@ -62,6 +62,8 @@ no *Tests per criterion* row, or one of the same kind or naming a test that exis
 
 <!-- New user-visible output: its layout, or "layout free for the Tester, approved in step 9" (squad-lead.md). -->
 
+Early draft PR: no
+
 ## Options considered
 
 Each alternative weighed and why it lost — or "one option: <why the fix is the only reasonable one>"

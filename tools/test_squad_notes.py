@@ -49,6 +49,16 @@ class TestSquadNotes(unittest.TestCase):
         self.assertEqual(self.text(), PLAN + "\n## Challenge notes\n\n" + REPORT.split("\n\nVERDICT")[0] + "\n")
         self.assertIn("4 line(s) written verbatim", done.stdout)
 
+    def test_a_security_note_that_names_fix_now_without_its_tag_is_warned_about(self):
+        # The Lead is launched for `Recommendation: fix now` only (squad-next.py); a loose "fix now" is not read.
+        report = ("1. The token never expires: fix now.\n2. The log line names the host. Recommendation: fix now\n"
+                  "3. A wording. Recommendation: issue\n\nVERDICT: APPROVED\n")
+        done = self.run_notes("issue-5", "security", "--stdin", stdin=report)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("WARNING: a note names `fix now` without `Recommendation:", done.stdout)
+        self.assertIn("The token never expires", done.stdout)
+        self.assertEqual(done.stdout.count("WARNING"), 1, "only the untagged line is named")
+
     def test_control_characters_of_a_report_are_written_as_text_escapes(self):
         # PiMonitor#238: a quoted U+FEFF in Security's report made plan-check.py fail after the notes were appended.
         done = self.run_notes("issue-5", "security", "--stdin",

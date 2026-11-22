@@ -228,14 +228,18 @@ class TestPlanSteps(NextTest):
         for line in ("1. [NON-BLOCKING] The session token never expires. Recommendation: fix now.",
                      "2. Logs do not redact the header \u2014 fix now", "- Token never expires; fix now"):
             self.assertTrue(self.tool.fix_now_asked(line), line)
-        for line in ("A linked issue, not a fix now.", "Fix now is not needed."):
+        for line in ("A linked issue, not a fix now.", "Fix now is not needed.", "This isn't a fix now.",
+                     "Neither a fix now nor an issue.", "Rather than fix now, open an issue.",
+                     "Instead of a fix now: a linked issue."):
             self.assertFalse(self.tool.fix_now_asked(line), line)
 
     def test_a_private_check_row_that_counts_no_failure_passes(self):
         for result in ("AC1 passed, 0 failed", "AC1 passed; nothing failed", "AC1 PASS, none failed"):
             self.assertFalse(self.tool.private_failed(result), result)
         for result in ("no tests failed", "nothing has failed", "none of them failed", "zero failed", "AC1: not failed",
-                       "No FAIL"):
+                       "No FAIL", "AC1 PASS \u2014 12 samples, failed: 0", "AC1 PASS (0 of 12 samples failed)",
+                       "AC1 PASS: passed 12, failed 0", "AC1 PASS, none of the 12 samples failed",
+                       "not a single check failed", "passed 12, failed 0"):
             self.assertFalse(self.tool.private_failed(result), result)
         for result in ("AC1 failed: the recording is rejected", "AC1 PASS, AC2 FAIL", "AC1 fails",
                        "no code changed; AC2 FAIL"):
@@ -382,6 +386,15 @@ class TestCodeSteps(NextTest):
         out = self.next()
         self.assertIn("step 6 \u2014 Implement", out)
         self.assertNotIn('"6 Implement (decide)"', out)
+
+    def test_an_owner_named_in_the_prose_of_a_fix_is_no_owner(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead",
+                          "RESULT: DECIDED \u2014 FIX: Dev \u2014 remove the guard; the Tester's test stays", 9000))
+        self.assertIn("Launch: squad-dev, mode implement", self.next())
+        self.repo.log(row("6 Implement (decide)", "Dev", "fixed", 9000, "sonnet/medium"))
+        self.assertNotIn("squad-tester, mode coverage \u2026", self.next())
+        self.assertNotIn('"6 Coverage (decide)"', self.next())
 
     def test_a_step_6_decide_for_another_owner_launches_no_member(self):
         self.implemented()
@@ -704,6 +717,19 @@ class TestCodeSteps(NextTest):
         self.assertIn("Next: step 6 — Coverage (G2)", self.next())
         self.repo.log(row("6 Coverage gate (all groups)", "Orchestrator", "PASS"))
         self.assertNotIn("Coverage (G2)", self.next())
+
+    def test_an_untagged_step_6_decide_of_a_feature_belongs_to_the_latest_group_of_steps_4_to_6(self):
+        # Release review: the launch of `--launch squad-lead decide` prints no group, the ordered fix was lost.
+        self.feature(TASKS)
+        self.group_one_done()
+        self.repo.log(row("4 Skeleton (G2)", "Dev", "done", 9000, "sonnet/medium", continued="4 Skeleton (G1)"),
+                      row("5 Tests first (G2)", "Tester", "red", 9000, "sonnet/medium", continued=True),
+                      row("6 Implement (G2)", "Dev", "green", 9000, "sonnet/medium", continued="6 Implement (G1)"),
+                      row("6 Coverage skipped (G2)", "Orchestrator", "the gate passes; 2 lines not unit-testable"),
+                      row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: Dev \u2014 remove the unreachable guard", 9000))
+        out = self.next()
+        self.assertIn("step 6 \u2014 the work the Lead's decision orders (G2)", out)
+        self.assertIn('"6 Implement (decide) (G2)"', out)
 
     def test_a_coverage_row_without_a_group_before_a_groups_implementation_leaves_its_pass_due(self):
         self.feature(TASKS)
@@ -1467,7 +1493,8 @@ class TestEarlyPrAsked(NextTest):
                      "Early draft PR - not needed.", "An early draft PR is never needed.", "Early draft PR: no.",
                      "Early draft PR: no, the change is small", "Early draft PR \u2014 not necessary",
                      "Early draft PR: not applicable", "Early draft PR is not necessary here",
-                     "Early draft PR: No early PR needed"):
+                     "Early draft PR: No early PR needed", "Early draft PR: skipped", "Early draft PR? No.",
+                     "Early draft PR: nobody needs it"):
             self.assertFalse(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):

@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] The third release review's fixes in `squad-next.py`: a step-6 Lead `decide` without a group belongs to the
+  latest group of steps 4–6 in a feature, a private-check row with a `PASS` or `FAIL` verdict is read by it ("failed:
+  0" passes), only the first word of a `FIX:` item names its owner, and more negations of `fix now` and of an early
+  draft PR are read as declined (#455)
 - [Core] The second release review's fixes in `squad-next.py`: a step-6 Lead `decide` before the group's implementation
   no longer ends the implementation or coverage step, a `FIX:` for the orchestrator or the Code Officer launches no
   member, a Tester `FIX:` is launched on tier `tests`, and a private-check row that says "no tests failed" passes (#453)

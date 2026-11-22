@@ -34,6 +34,7 @@ import subprocess
 import sys
 import unicodedata
 
+EMPHASIS = re.compile(r"[*_`]")
 UNTAGGED_FIX_NOW = re.compile(r"\bfix now\b", re.I)
 RECOMMENDATION = re.compile(r"\bRecommendation:\s*(?:fix now|issue)\b", re.I)
 HEADINGS = {"challenge": "## Challenge notes", "security": "## Security notes"}
@@ -153,7 +154,8 @@ def lf_text(text):
 
 def untagged_fix_now(body):
     """The lines of Security's notes that say `fix now` and carry no `Recommendation:` tag (`squad-security.md`)."""
-    return [line for line in body.splitlines() if UNTAGGED_FIX_NOW.search(line) and not RECOMMENDATION.search(line)]
+    plain = [(line, EMPHASIS.sub("", line)) for line in body.splitlines()]
+    return [line for line, text in plain if UNTAGGED_FIX_NOW.search(text) and not RECOMMENDATION.search(text)]
 
 
 def with_notes(text, heading, body):

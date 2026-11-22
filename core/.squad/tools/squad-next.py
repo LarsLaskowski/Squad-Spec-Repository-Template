@@ -801,6 +801,8 @@ def revision(run, challenge, reviews, security_due):
 
 # A Security note that recommends the fix in this change ends `Recommendation: fix now`; `Recommendation: issue` files it.
 FIX_NOW_TAG = re.compile(r"\bRecommendation:\s*fix now\b", re.I)
+# Markdown emphasis around the tag (`**Recommendation:** fix now`) is no part of it.
+EMPHASIS = re.compile(r"[*_`]")
 LOOSE_FIX_NOW = re.compile(r"\bfix now\b", re.I)
 RECOMMENDATION = re.compile(r"\bRecommendation:", re.I)
 
@@ -809,8 +811,9 @@ def fix_now_asked(notes):
     """True when a line of the *Security notes* carries the tag `Recommendation: fix now` (`squad-security.md`), or says
     `fix now` and carries no `Recommendation:` tag at all: a note written before the tag existed recommends it
     loosely, and `squad-notes.py` warns about such a line when it writes one. `Recommendation: issue` files it."""
+    lines = [EMPHASIS.sub("", line) for line in notes.splitlines()]
     return any(FIX_NOW_TAG.search(line) or (LOOSE_FIX_NOW.search(line) and not RECOMMENDATION.search(line))
-               for line in notes.splitlines())
+               for line in lines)
 
 
 def fix_now_revision(run, reviews, revisions):
@@ -1477,13 +1480,15 @@ def early_pr_line_missing(run, own):
     """The Lead's revision for a plan that names an early draft PR in prose and has no line `Early draft PR: yes` or
     `: no` (a plan written before the line existed), once: `squad-next.py` reads only the line."""
     check = plan_check()
-    if any(check.EARLY_PR_LINE.match(line) for line in own) or run.of(LEAD, {"7"}, word="early draft"):
+    if any(check.EARLY_PR_LINE.match(line) for line in (run.plan or "").splitlines()) or run.of(
+            LEAD, {"7"}, word="early draft"):
         return None
     if not any(check.EARLY_PR_NAMED.search(line) for line in own):
         return None
     return heading("step 7 — the plan names an early draft PR in prose, without the line `Early draft PR: yes|no`") + \
         launch(run, LEAD, "revise", "7 Plan revise (early draft PR)", "the plan: add the line `Early draft PR: yes` "
-               "where the prose asks for one, `Early draft PR: no` where it declines; the scope stays", rule=LAST)
+               "where the prose asks for one, `Early draft PR: no` where it declines; the scope stays, and the answer is "
+               "`RESULT: DONE`", rule=LAST)
 
 
 def manual_check(run):

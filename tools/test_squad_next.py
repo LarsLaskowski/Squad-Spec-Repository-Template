@@ -409,7 +409,9 @@ class TestCodeSteps(NextTest):
         self.assertNotIn("without naming who makes it", self.next())
 
     def test_loose_fix_now_prose_of_an_old_note_still_reaches_the_lead(self):
-        for note in ("1. Cap the upload at 10 MB \u2014 fix now.", "2. Recommended: fix now."):
+        for note in ("1. Cap the upload at 10 MB \u2014 fix now.", "2. Recommended: fix now.",
+                     "3. The token never expires. **Recommendation:** fix now", "4. Recommendation: **fix now**",
+                     "5. Recommendation: `fix now`"):
             self.assertTrue(self.tool.fix_now_asked(note), note)
         for note in ("1. A wording. Recommendation: issue", "2. Recommendation: issue #5 rather than fix now"):
             self.assertFalse(self.tool.fix_now_asked(note), note)
@@ -424,6 +426,15 @@ class TestCodeSteps(NextTest):
         self.assertIn("Launch: squad-lead, mode revise", out)
         self.repo.log(row("7 Plan revise (early draft PR)", "Lead", "RESULT: DONE", 9000))
         self.assertNotIn("names an early draft PR in prose", self.next(), "one revision, no loop")
+
+    def test_the_template_line_needs_no_revision_and_the_launch_asks_for_done(self):
+        self.implemented()
+        prose = "\nAC1 is tested on the CI-built image, so this change needs an early draft PR.\n"
+        self.repo.write("specs/issue-5/plan.md", plan_text() + prose)
+        self.stamp()
+        self.assertIn("`RESULT: DONE`", self.next(), "a NO CHANGE answer would end the run")
+        self.repo.write("specs/issue-5/plan.md", plan_text() + prose + "\nEarly draft PR: no\n")
+        self.assertNotIn("names an early draft PR in prose", self.next(), "the line exists")
 
     def test_a_step_6_decide_for_another_owner_launches_no_member(self):
         self.implemented()

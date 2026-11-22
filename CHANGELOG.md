@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A Security note that writes `Recommendation: fix now` in Markdown emphasis (`**Recommendation:** fix now`)
+  still reaches the Lead, and the Lead's early-draft-PR revision of an old plan is answered `RESULT: DONE`, not asked
+  for a plan that already carries the line (#462)
 - [Core] `squad-next.py` reads fixed formats instead of guessing from free text: a capital `PASS` or `FAIL` in the
   Tester's private-check row, `FIX: <owner> — <change>` per item in a Lead decision, `Recommendation: fix now` in
   Security's notes and the plan line `Early draft PR: yes`; `squad-log.py`, `squad-notes.py` and `plan-check.py` warn

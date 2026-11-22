@@ -58,6 +58,9 @@ class TestSquadNotes(unittest.TestCase):
         self.assertIn("WARNING: a note names `fix now` without `Recommendation:", done.stdout)
         self.assertIn("The token never expires", done.stdout)
         self.assertEqual(done.stdout.count("WARNING"), 1, "only the untagged line is named")
+        marked = self.run_notes("issue-5", "security", "--stdin",
+                                stdin="1. A gap. **Recommendation:** fix now\n\nVERDICT: APPROVED\n")
+        self.assertNotIn("WARNING", marked.stdout, "emphasis around the tag is no gap")
 
     def test_control_characters_of_a_report_are_written_as_text_escapes(self):
         # PiMonitor#238: a quoted U+FEFF in Security's report made plan-check.py fail after the notes were appended.

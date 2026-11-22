@@ -33,6 +33,10 @@ Mode `tests-first`:
    it (*Escapes in files* in `.squad/team.md`). Test code meets the analyzer's cognitive-complexity limit like
    production code (SonarQube analyzes the tests too): keep a table test's body flat, with helpers for setup and
    result collection instead of nesting in its loop.
+   Evaluate every numeric expectation and every unit conversion of a helper once (a scratch run or a hand
+   calculation in the test's comment), and check an expected step against the documented grid or alignment before
+   pinning it. Write control and bidirectional characters (U+202E) only as escapes, never as the character itself
+   (SonarQube S6389, which no local analyzer reports).
    For a documented shell procedure derive the cases from the plan's list of what happens when the lines are
    pasted at once or one at a time, one fails or a variable is lost; a test that reads a repository document
    normalizes `\r\n` (`docs/UNIT_TESTS.md`); for a script only CI can run, run the local smoke substitute

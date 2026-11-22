@@ -6,6 +6,15 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A step-6 Lead `decide` that orders a `FIX:` is launched by `squad-next.py` (Dev, or Tester for a test) before
+  step 7, and `routing.md` sends branch conditions reported as not unit-testable to the Lead also when the Coverage gate
+  passes (#448)
+- [Core] `plan-check.py` reads `-N words` in the *Areas* line, so a plan that splits an area document and makes it
+  shrink is checked against the resulting size (#449)
+- [Profile] The .NET rule baseline sets Reihitsu RH2008, RH2009 and RH2111 (Reihitsu.Analyzer 1.5.0) to `suggestion`,
+  so the update does not break a repository's build (#447)
+- [Core] The Tester checks the numbers and unit conversions of its tests and writes bidirectional characters as
+  escapes only, and the plan names the pieces the skeleton already holds for real (#446)
 - [Core] `squad-next.py` hands the Lead `fix now` notes of a later delta approval and skips a negated "not a fix now",
   reads only "is not needed", ": none" and the like as declining an early draft PR, reads a lower-case "failed" in a
   private-check row, and launches no Dev when the Lead's decision on it orders no code; `plan.md` asks for

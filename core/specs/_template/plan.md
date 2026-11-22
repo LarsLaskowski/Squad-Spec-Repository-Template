@@ -78,7 +78,8 @@ Every new or changed API member (one a test or another type calls), with its ful
 "none". Each backticked declaration here is one the Dev's skeleton adds (step 4), so a private member is described
 in *Approach*, and a plan without API writes this section in plain prose. A member the change deletes stands on a
 line of its own that starts with "Deleted:" or says it "is deleted" or "is removed": no declaration the skeleton
-adds.
+adds. Name the pieces the skeleton already holds for real (a registration, a route, a nav entry), so the Tester
+knows which of the plan's tests it defers.
 
 ## Test files
 
@@ -96,8 +97,8 @@ cover*) — or "none".
 ## Areas
 
 The area documents in `docs/areas/` this change touches (`docs/areas/README.md` lists them), and what changes in
-each, with the words it adds (`docs/areas/<name>.md (+N words)`) — or "none" (no change in behavior). A new area:
-name and scope for the index, a Lead decision.
+each, with the words it adds or removes (`docs/areas/<name>.md (+N words)`, `(-N words)` when it shrinks) — or
+"none" (no change in behavior). A new area: name and scope for the index, a Lead decision.
 
 ## Documentation updates
 

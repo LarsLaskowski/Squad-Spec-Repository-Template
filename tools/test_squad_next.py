@@ -328,6 +328,27 @@ class TestCodeSteps(NextTest):
         out = self.next("--launch", "squad-lead", "decide")
         self.assertIn("Agent: fresh launch", out)
 
+    def test_a_step_6_decide_that_orders_a_fix_goes_back_to_the_dev_before_step_7(self):
+        # DockerUpdateGuard#520: step 7 was printed and the ordered fix had no launch.
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED — FIX: Dev — remove the unreachable guards", 9000))
+        out = self.next()
+        self.assertIn("step 6 — the work the Lead's decision orders", out)
+        self.assertIn("Launch: squad-dev, mode implement", out)
+        self.assertIn('"6 Implement (decide)"', out)
+        self.repo.log(row("6 Implement (decide)", "Dev", "fixed", 9000, "sonnet/medium"))
+        self.assertNotIn("the work the Lead's decision orders", self.next(), "one Dev row ends it")
+
+    def test_a_step_6_decide_that_orders_a_test_fix_goes_to_the_tester(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED — FIX: Tester — assert the branch", 9000))
+        self.assertIn("Launch: squad-tester, mode coverage", self.next())
+
+    def test_a_step_6_decide_that_orders_no_fix_launches_nobody(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED — accept, no FIX needed", 9000))
+        self.assertNotIn("the work the Lead's decision orders", self.next())
+
     def test_the_orchestrators_skip_row_ends_step_4(self):
         self.repo.write("specs/issue-5/plan.md", plan_text())
         self.repo.log(INTAKE, PLANNED, SKIPPED)

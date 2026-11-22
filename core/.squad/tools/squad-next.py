@@ -1047,6 +1047,10 @@ def code_steps(run):
         found = group_step(run, group, skeleton, docs_only)
         if found:
             return found
+        tag = f" ({group})" if group else ""
+        found = decided_fix(run, group, tag) if run.base_tier != "tests" else None
+        if found:
+            return found
     return documentation(run)
 
 
@@ -1115,6 +1119,24 @@ def group_step(run, group, skeleton, docs_only=False):
     if not coverage_ended(run, group):
         return coverage_pass(run, tag, rows, deferred_tests(run, group)) + [decide_pointer(run, tag)]
     return None
+
+
+def decided_fix(run, group, tag):
+    """The launch of the work a step-6 Lead `decide` of the group orders with `FIX:`, until a Dev or Tester row of step 6
+    follows it: before step 7, also when the Coverage gate passed (DockerUpdateGuard#520). The owner `FIX:` names
+    (the Tester for a test, otherwise the Dev) works on it; the decision of a private check has its own route."""
+    decisions = [row for row in group_rows(run, LEAD, "6", group, word="decide")
+                 if "private check" not in row.step.lower()]
+    if not decisions or not fix_ordered(decisions[-1].result):
+        return None
+    if any(row.index > decisions[-1].index for who in (DEV, TESTER) for row in group_rows(run, who, "6", group)):
+        return None
+    fix = decisions[-1].result[decisions[-1].result.index("FIX:"):]
+    tester = re.search(r"\btester\b", fix.split(";")[0], re.I) and not re.search(r"\bdev\b", fix.split(";")[0], re.I)
+    who, mode, label = (TESTER, "coverage", "Coverage") if tester else (DEV, "implement", "Implement")
+    return heading(f"step 6 — the work the Lead's decision orders{tag}") + launch(
+        run, who, mode, f"6 {label} (decide){tag}", f"the Lead's decision (row \"{decisions[-1].step}\") and its "
+        f"`FIX:` line, {BASE_HANDOVER}")
 
 
 def decide_pointer(run, tag):

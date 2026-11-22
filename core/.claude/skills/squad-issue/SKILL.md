@@ -116,8 +116,8 @@ create the follow-up issues the Lead decides on.
    reason, only for what the *Pipeline* row 6 names or open test documentation (also when the gate passes); otherwise
    log why the pass is skipped. Repeat until the gate passes. Then continue the Dev's `implement` agent for the
    plan's documentation updates not written yet (*Documentation* in `squad-dev.md`; test documentation: the Tester in
-   mode `coverage`), logged as a step-6 continuation, and run *Test* again. Lines reported as not unit-testable go to
-   `squad-lead` in mode `decide`.
+   mode `coverage`), logged as a step-6 continuation, and run *Test* again. Lines or branch conditions reported as
+   not unit-testable go to `squad-lead` in mode `decide`, also when the gate passes; `squad-next.py` launches a `FIX:` it orders.
 7. **Code check.** `git fetch origin main` and merge `main` first when it moved (*Merge conflicts*). Commit, then
    run `python3 .squad/tools/gate-stamp.py <folder>` as `squad-next.py`'s *Gates due* lines say (in the background,
    `--check`, `--project`). Route what it reports as the *Pipeline* row says (a `figure-check.py` hit to `squad-dev`

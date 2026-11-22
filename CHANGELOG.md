@@ -9,31 +9,22 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 - [Core] `squad-next.py` reads fixed formats instead of guessing from free text: a capital `PASS` or `FAIL` in the
   Tester's private-check row, `FIX: <owner> — <change>` per item in a Lead decision, `Recommendation: fix now` in
   Security's notes and the plan line `Early draft PR: yes`; `squad-log.py`, `squad-notes.py` and `plan-check.py` warn
-  about a row, note or plan that lacks them, and the plan template carries the line (#458)
-- [Core] The third release review's fixes in `squad-next.py`: a step-6 Lead `decide` without a group belongs to the
-  latest group of steps 4–6 in a feature, a private-check row with a `PASS` or `FAIL` verdict is read by it ("failed:
-  0" passes), only the first word of a `FIX:` item names its owner, and more negations of `fix now` and of an early
-  draft PR are read as declined (#455)
-- [Core] The second release review's fixes in `squad-next.py`: a step-6 Lead `decide` before the group's implementation
-  no longer ends the implementation or coverage step, a `FIX:` for the orchestrator or the Code Officer launches no
-  member, a Tester `FIX:` is launched on tier `tests`, and a private-check row that says "no tests failed" passes (#453)
-- [Core] The release review's fixes in `squad-next.py` and `plan-check.py`: a finding that says "never" or "not" still
-  recommends `fix now`, "Early draft PR: no/not necessary/not applicable" counts as declined, a private-check row that
-  counts no failure passes, a spaced dash is no minus sign in *Areas*, and a `FIX:` naming the Dev and the Tester
-  launches both (#451)
-- [Core] A step-6 Lead `decide` that orders a `FIX:` is launched by `squad-next.py` (Dev, or Tester for a test) before
-  step 7, and `routing.md` sends branch conditions reported as not unit-testable to the Lead also when the Coverage gate
-  passes (#448)
+  about a row, note or plan that lacks them, and the plan template carries the line. A run in progress keeps working:
+  a loose `fix now` still reaches the Lead, a plan that asks for an early draft PR in prose gets one Lead revision, and
+  a row or decision without its format gets a correction step (#458, #460)
+- [Core] A step-6 Lead `decide` that orders a `FIX:` is launched by `squad-next.py`: the Dev, then the Tester when `FIX:`
+  names it, also when the Coverage gate passed and for a decision without a group in a feature; it waits for the
+  group's implementation, and `routing.md` sends branch conditions reported as not unit-testable to the Lead also when
+  the gate passes (#448, #453, #455)
+- [Core] `squad-next.py` hands the Lead the `fix now` notes of a later delta approval and launches no Dev when the
+  Lead's decision on a failed private check orders no code; `plan.md` asks for the words each area gains or loses
+  (#441)
 - [Core] `plan-check.py` reads `-N words` in the *Areas* line, so a plan that splits an area document and makes it
   shrink is checked against the resulting size (#449)
 - [Profile] The .NET rule baseline sets Reihitsu RH2008, RH2009 and RH2111 (Reihitsu.Analyzer 1.5.0) to `suggestion`,
   so the update does not break a repository's build (#447)
 - [Core] The Tester checks the numbers and unit conversions of its tests and writes bidirectional characters as
   escapes only, and the plan names the pieces the skeleton already holds for real (#446)
-- [Core] `squad-next.py` hands the Lead `fix now` notes of a later delta approval and skips a negated "not a fix now",
-  reads only "is not needed", ": none" and the like as declining an early draft PR, reads a lower-case "failed" in a
-  private-check row, and launches no Dev when the Lead's decision on it orders no code; `plan.md` asks for
-  `(+N words)` per area (#441)
 - [Core] The squad's rule files are consolidated (about 9 % fewer words): restated rules become pointers to their one
   place or to the tool that decides them, reasons move out of the rule files, and long sentences are tightened; no
   rule changes what it says (#443)

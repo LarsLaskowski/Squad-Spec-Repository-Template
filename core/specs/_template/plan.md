@@ -96,7 +96,8 @@ cover*) — or "none".
 ## Areas
 
 The area documents in `docs/areas/` this change touches (`docs/areas/README.md` lists them), and what changes in
-each — or "none" (no change in behavior). A new area: name and scope for the index, a Lead decision.
+each, with the words it adds (`docs/areas/<name>.md (+N words)`) — or "none" (no change in behavior). A new area:
+name and scope for the index, a Lead decision.
 
 ## Documentation updates
 

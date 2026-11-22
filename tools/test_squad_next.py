@@ -204,6 +204,32 @@ class TestPlanSteps(NextTest):
                       row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
         self.assertIn("Lead revision for Security's `fix now` notes", self.next())
 
+    def test_fix_now_notes_of_a_later_delta_approval_reach_the_lead(self):
+        # #441: the anchor was the first approval, so the notes of a delta approval after a revision were lost.
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. A new gap: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
+                      row("2 Plan revise", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
+        self.assertIn("Lead revision for Security's `fix now` notes", self.next())
+
+    def test_a_security_notes_revision_is_not_asked_again_after_its_delta_approval(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. A gap: fix now.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000),
+                      row("2 Plan revise (security notes)", "Lead", "RESULT: DONE", 9000, continued=True),
+                      row("3 Plan security delta", "Security", "VERDICT: APPROVED", 9000, continued=True))
+        self.assertNotIn("`fix now` notes", self.next(), "the delta approval confirms the revision, no loop")
+
+    def test_a_negated_fix_now_in_the_security_notes_launches_no_revision(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("security", "authentication")
+                        + "\n## Security notes\n\n1. A linked issue, not a fix now.\n2. Fix now is not needed.\n")
+        self.repo.log(INTAKE, PLANNED, row("2 Plan challenge", "Devil's Advocate", "VERDICT: NO OBJECTIONS", 9000),
+                      row("3 Plan security", "Security", "VERDICT: APPROVED", 9000))
+        self.assertNotIn("`fix now` notes", self.next())
+
     def test_an_approved_plan_gets_new_findings_as_a_revise_and_its_size_as_a_warning(self):
         self.implemented()
         self.repo.write("specs/issue-5/plan.md", plan_text() + "\nfiller " * 6000)
@@ -831,6 +857,19 @@ class TestReviewAndAfter(NextTest):
         self.stamp()
         self.assertNotIn("manual test of AC1", self.next(), "the Product Manager is not asked for the Tester's check")
 
+    def test_a_lower_case_failed_private_check_goes_to_the_lead(self):
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 failed: the recording is rejected", 20000, "sonnet/medium"))
+        self.assertIn("step 6 — the Tester's private check failed", self.next())
+
+    def test_a_decision_that_orders_no_code_runs_the_private_check_again_without_the_dev(self):
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 FAIL on the private recording", 20000, "sonnet/medium"),
+                      row("6 Decide (private check)", "Lead", "RESULT: DECIDED — rerun, the input was stale", 9000))
+        out = self.next()
+        self.assertNotIn("squad-dev", out, "no change was ordered")
+        self.assertIn("the Tester's check of AC1 over a private input", out)
+
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.
         self.implemented(test="manual: the Product Manager times the query on the reference host")
@@ -1353,12 +1392,15 @@ class TestEarlyPrAsked(NextTest):
         for line in ("No branch build is needed and no early draft PR.", "It runs without an early draft PR.",
                      "There is not an early draft PR, nor a branch build.", "Never an early draft PR.",
                      "An early draft PR is not needed.", "Early draft PR: none.", "Early draft PR: not needed.",
-                     "There is no need for an early draft PR.", "We do not ask for an early draft PR."):
+                     "There is no need for an early draft PR.", "We do not ask for an early draft PR.",
+                     "Early draft PR - not needed.", "An early draft PR is never needed.", "Early draft PR: no."):
             self.assertFalse(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_something_else_next_to_the_mention_still_asks(self):
         for line in ("AC4 is verified by an early draft PR, not by a branch build.",
-                     "An early draft PR (not a branch build) runs the image job."):
+                     "An early draft PR (not a branch build) runs the image job.",
+                     "An early draft PR is not optional: AC4 needs CI.", "Open an early draft PR - not a branch build.",
+                     "An early draft PR is not a branch build.", "Early draft PR: not a branch build, AC4 needs CI."):
             self.assertTrue(self.tool.early_pr_asked(line), line)
 
     def test_a_negation_of_one_mention_does_not_hide_another(self):

@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-next.py` hands the Lead `fix now` notes of a later delta approval and skips a negated "not a fix now",
+  reads only "is not needed", ": none" and the like as declining an early draft PR, reads a lower-case "failed" in a
+  private-check row, and launches no Dev when the Lead's decision on it orders no code; `plan.md` asks for
+  `(+N words)` per area (#441)
 - [Core] The squad's rule files are consolidated (about 9 % fewer words): restated rules become pointers to their one
   place or to the tool that decides them, reasons move out of the rule files, and long sentences are tightened; no
   rule changes what it says (#443)

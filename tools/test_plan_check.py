@@ -548,6 +548,8 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("4902 words now and 150 added", self.script.check(self.feature(plan=added))[1][0])
         shrinks = areas.replace("big.md:", "big.md (-1200 words):")
         self.assertEqual(self.script.check(self.feature(plan=shrinks))[1], [], "a split that shrinks it is within")
+        dash = areas.replace("big.md:", "big.md \u2013 300 words added:")
+        self.assertEqual(len(self.script.check(self.feature(plan=dash))[1]), 1, "a separator dash is no minus sign")
         within = areas.replace("big.md:", "big.md (+50 words):")
         self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 

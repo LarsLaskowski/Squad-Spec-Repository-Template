@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.14 — 2026-11-22
+
 - [Core] A Security note that writes `Recommendation: fix now` in Markdown emphasis (`**Recommendation:** fix now`)
   still reaches the Lead, and the Lead's early-draft-PR revision of an old plan is answered `RESULT: DONE`, not asked
   for a plan that already carries the line (#462)

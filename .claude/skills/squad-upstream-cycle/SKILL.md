@@ -107,8 +107,10 @@ On an up-to-date checkout of `origin/main` (`AGENTS.md`, *Releases*):
    `dotnet` consumer's rule baseline changed.
 3. One `squad-reviewer` pass (charter `core/.claude/agents/squad-reviewer.md`) over `git diff <last tag>..origin/main`
    limited to what the targets receive.
-4. A finding of any of the three is fixed first in a pull request of its own (phase 3 and 4 for that PR alone), then
-   this phase starts again from step 1.
+4. A failing check of step 1 or 2 and a *blocking* review finding (`AGENTS.md`, *Releases*: a regression against the
+   last tag, shown by a run or a probe) are fixed first in a pull request of its own (phase 3 and 4 for that PR alone),
+   then this phase starts again from step 1, the review limited to what that pull request changed. Every other finding
+   becomes a `squad` issue for the next cycle (filed here, listed in the report) and does not hold the release.
 5. On a new branch: `python3 tools/release.py prepare`, commit, open the draft PR `[Docs] Release vYYYY.MM.N` with the
    version's `CHANGELOG.md` section as the description, subscribe and drive it.
 6. After its merge, tell the user: create the release on GitHub (*Releases*, *Draft a new release*), tag

@@ -50,10 +50,13 @@ The targets receive the template by release, so every squad run can be traced to
   analysis of `main` reports after the merge. Then the release is rehearsed, so a refresh never stops on what the
   release brought: `python3 tools/rollout-check.py` applies `main` to a scratch copy of every `active` consumer and
   must pass; one `squad-reviewer` pass (the charter `core/.claude/agents/squad-reviewer.md`, the review every refresh
-  runs) reviews `git diff <last tag>..origin/main` over what the targets receive; a finding of either is fixed in a pull
-  request of its own first. A release pull request (`[Docs] Release vYYYY.MM.N`) made with
-  `python3 tools/release.py prepare` turns *Unreleased* into the version's section. After its
-  squash merge, the owner creates the release on GitHub (*Releases*, *Draft a new release*): a new tag `vYYYY.MM.N` on
+  runs) reviews `git diff <last tag>..origin/main` over what the targets receive. A failing `rollout-check.py` and a
+  blocking review finding are fixed in a pull request of its own first, and the rehearsal then starts again. A
+  finding blocks when the last release handled a realistic input right and `main` handles it wrong, shown by a run or
+  a probe; every other finding (an open case of a heuristic, a gap the last release had too, a wording) becomes a
+  `squad` issue for the next cycle and does not hold the release. A release pull request
+  (`[Docs] Release vYYYY.MM.N`) made with `python3 tools/release.py prepare` turns *Unreleased* into the version's
+  section. After its squash merge, the owner creates the release on GitHub (*Releases*, *Draft a new release*): a new tag `vYYYY.MM.N` on
   `main` at that merge commit, the version's `CHANGELOG.md` section as its notes; no local tool is needed, and the
   rollout reads this lightweight tag like an annotated one. With Python, `python3 tools/release.py tag` checks the
   checkout of `main` and prints the commands for an annotated tag instead. A tag is created only by the owner or with

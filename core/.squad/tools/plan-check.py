@@ -57,7 +57,7 @@ Checks, in the work folder `specs/<folder>/`:
   its size, also not when a merge of `main` brought a lower limit (`.squad/orchestration.md`, *Merge conflicts*).
 
 An area document that the plan's *Areas* names (`docs/areas/<name>.md`) and whose size plus the words the plan says the
-change adds (`+N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`, default 5000), or that is within
+change adds or removes (`+N words` or `-N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`, default 5000), or that is within
 500 words of it with no such statement, is a warning: the split is planned now (Censio#38).
 
 After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
@@ -118,7 +118,8 @@ PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
 AREA_MAX_WORDS = getattr(settings, "AREA_MAX_WORDS", 5000)
 AREA_HEADROOM = 500
 AREA_PATH = re.compile(r"docs/areas/[\w.-]+\.md")
-AREA_ADDS = re.compile(r"\+\s*([\d,]+)\s*words?\b", re.I)
+# `+N words` (the change adds) or `-N words` (it removes: a split that makes the document shrink, Censio#236).
+AREA_ADDS = re.compile(r"(?:(\+)|(?<![\w.])([-\u2212\u2013]))\s*([\d,]+)\s*words?\b", re.I)
 SPEC_MAX_WORDS = getattr(settings, "SPEC_MAX_WORDS", 2500)
 SPEC_BASE_WORDS = getattr(settings, "SPEC_BASE_WORDS", 300)
 SPEC_WORDS_PER_CRITERION = getattr(settings, "SPEC_WORDS_PER_CRITERION", 200)
@@ -804,19 +805,26 @@ def check(folder, approved=False):
     return errors, warnings
 
 
+def signed_words(adds):
+    """The words a `+N words` or `-N words` match of *Areas* adds (negative: removes), or None without a match."""
+    if adds is None:
+        return None
+    return int(adds.group(3).replace(",", "")) * (1 if adds.group(1) else -1)
+
+
 def area_size_warning(path, adds):
     """The warning for one area document a line of *Areas* names, or None: its current size plus the words the plan
     says the change adds passes AREA_MAX_WORDS, or it is within AREA_HEADROOM of it with no such statement."""
     if not os.path.isfile(path):
         return None
     current = len(read(path, []).split())
-    added = int(adds.group(1).replace(",", "")) if adds else None
+    added = signed_words(adds)
     if current + (added or 0) <= (AREA_MAX_WORDS if adds else AREA_MAX_WORDS - AREA_HEADROOM):
         return None
     states = f"{current} words now" + (f" and {added} added" if adds else "")
     return (f"plan.md: {path} has {states} (AREA_MAX_WORDS {AREA_MAX_WORDS}): plan the split into a new area document "
             "now (name and scope for the index, in the spec's Area documents), or state the words the change adds on "
-            "the line (`+N words`)")
+            "the line (`+N words`, or `-N words` when it shrinks)")
 
 
 def check_area_sizes(plan, warnings):

@@ -326,7 +326,8 @@ user is told so.
   the reproduction. Neither counts against a loop limit.
 - **Code check needs a structural change** (or breaks build/tests): the Code Officer's edit is reverted and the item
   goes to the Dev (tests: the Tester), then the code check runs again; not counted against a loop limit.
-- **Coverage gate fails:** Dev and Tester iterate; lines no unit test can cover go to the Lead, its decision recorded
+- **Coverage gate fails:** Dev and Tester iterate; lines no unit test can cover go to the Lead, also branch
+  conditions a member reports as not unit-testable when the gate passes, its decision recorded
   in `log.md`; a whole such file the plan did not list (*Code a unit test cannot cover*) is a plan defect it records
   with the decision.
 - **After the PR (step 11):** CI or quality-gate failures and review comments are fixed on the same

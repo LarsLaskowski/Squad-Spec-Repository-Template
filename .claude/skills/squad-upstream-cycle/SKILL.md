@@ -32,10 +32,10 @@ On every invocation, first find the phase, then continue there (a session that r
 | An open `[Docs] Release …` pull request here | Phase 5 (drive it) |
 | A merged release PR whose version has no tag on `origin` yet | Phase 5, last step (wait for the owner) |
 | An open lesson pull request of this cycle here | Phase 4 (drive it) |
-| Open issues labelled `squad` here that no merged PR closed | Phase 3 |
-| Otherwise | Phase 1 |
+| Otherwise (also with open issues labelled `squad` here: they are fixed in Phase 3 together with what Phases 1–2 bring) | Phase 1 |
 
-`git fetch origin --tags` before reading tags. Tell the user in one line which phase you start at and why.
+An issue open here never replaces Phases 1–2: the consumers are collected on every start of Phase 1, because lessons
+may have been filed there since. `git fetch origin --tags` before reading tags. Tell the user in one line which phase you start at and why.
 
 ## Phase 1 — Collect
 

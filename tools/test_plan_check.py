@@ -546,6 +546,8 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("docs/areas/big.md has 4902 words now (AREA_MAX_WORDS 5000)", warnings[0])
         added = areas.replace("big.md:", "big.md (+150 words):")
         self.assertIn("4902 words now and 150 added", self.script.check(self.feature(plan=added))[1][0])
+        shrinks = areas.replace("big.md:", "big.md (-1200 words):")
+        self.assertEqual(self.script.check(self.feature(plan=shrinks))[1], [], "a split that shrinks it is within")
         within = areas.replace("big.md:", "big.md (+50 words):")
         self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 

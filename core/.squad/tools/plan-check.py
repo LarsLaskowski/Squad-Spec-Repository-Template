@@ -56,9 +56,10 @@ Checks, in the work folder `specs/<folder>/`:
   says so when the log has a row of step 4 or later) its size is a warning only: an approved plan is not reopened for
   its size, also not when a merge of `main` brought a lower limit (`.squad/orchestration.md`, *Merge conflicts*).
 
-An area document that the plan's *Areas* names (`docs/areas/<name>.md`) and whose size plus the words the plan says the
-change adds or removes (`+N words` or `-N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`, default 5000), or that is within
-500 words of it with no such statement, is a warning: the split is planned now (Censio#38).
+An area document that the plan's *Areas* names (`docs/areas/<name>.md`) and whose size plus the words the plan says
+the change adds or removes (`+N words` or `-N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`,
+default 5000), or that is within 500 words of it with no such statement, is a warning: the split is planned now
+(Censio#38).
 
 After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
 `Plan challenge: due — …` or `Plan challenge: not due — …`: due on tier `security`, and on tier `standard` when

@@ -69,6 +69,8 @@ Mode `coverage` (after the Dev's implementation):
    executes lines without asserting behavior does not count. Report lines you believe no unit test can cover, with
    the reason, for the Lead; a whole file (a script without a test runner, a generated file) belongs in the plan's
    list (*Code a unit test cannot cover* in `.squad/routing.md`) — name it when the plan missed it.
+   The report of a `6 Private check` (*Private check*) states `PASS` or `FAIL` in capitals for each criterion
+   (`squad-next.py` reads only those words).
 3. If the Dev adapted existing test call sites (skeleton step, or after its own signature or field change,
    *Loop limits* in `.squad/routing.md`), check that only call sites that no longer compiled changed and no
    assertion or test data was weakened. Report anything else for the Lead.

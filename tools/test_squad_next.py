@@ -228,8 +228,7 @@ class TestPlanSteps(NextTest):
         for line in ("1. [NON-BLOCKING] The session token never expires. Recommendation: fix now.",
                      "2. Logs do not redact the header. Recommendation: Fix now"):
             self.assertTrue(self.tool.fix_now_asked(line), line)
-        for line in ("A linked issue, not a fix now. Recommendation: issue", "Fix now is not needed.",
-                     "Token never expires; fix now", "Recommendation: issue #5 rather than fix now"):
+        for line in ("A linked issue, not a fix now. Recommendation: issue", "Recommendation: issue #5 rather than fix now"):
             self.assertFalse(self.tool.fix_now_asked(line), line)
 
     def test_a_private_check_row_is_read_by_its_capital_verdict_alone(self):
@@ -383,14 +382,48 @@ class TestCodeSteps(NextTest):
         self.assertIn("step 6 \u2014 Implement", out)
         self.assertNotIn('"6 Implement (decide)"', out)
 
-    def test_an_owner_named_in_the_prose_of_a_fix_is_no_owner(self):
+    def test_an_item_that_names_no_owner_first_is_corrected_not_guessed(self):
+        # The owner is the first word of an item; "the Tester's test stays" names none.
         self.implemented()
         self.repo.log(row("6 Decide", "Lead",
                           "RESULT: DECIDED \u2014 FIX: Dev \u2014 remove the guard; the Tester's test stays", 9000))
-        self.assertIn("Launch: squad-dev, mode implement", self.next())
-        self.repo.log(row("6 Implement (decide)", "Dev", "fixed", 9000, "sonnet/medium"))
-        self.assertNotIn("squad-tester, mode coverage \u2026", self.next())
-        self.assertNotIn('"6 Coverage (decide)"', self.next())
+        self.assertIn("without naming who makes it", self.next())
+
+    def test_an_old_format_row_and_note_are_not_skipped_after_the_refresh(self):
+        # Release review: runs in progress at the refresh hold rows, notes and plans of the old free-form formats.
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 passed on the private recording", 20000, "sonnet/medium"))
+        out = self.next()
+        self.assertIn("states no PASS or FAIL", out)
+        self.assertNotIn("python3 python3", out, "the correction runs as printed")
+        self.assertIn("python3 .squad/tools/squad-log.py issue-5 --replace-last", out)
+
+    def test_a_decision_without_an_owner_is_corrected_or_taken_as_done(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: the Tester corrects the expected value", 9000))
+        out = self.next()
+        self.assertIn("without naming who makes it", out)
+        self.assertIn('--replace-last "Lead" --step "6 Decide"', out)
+        self.repo.log(row("6 Coverage", "Tester", "corrected", 9000, "sonnet/medium"))
+        self.assertNotIn("the work the Lead's decision orders", self.next(), "the Tester's row after it settles it")
+        self.assertNotIn("without naming who makes it", self.next())
+
+    def test_loose_fix_now_prose_of_an_old_note_still_reaches_the_lead(self):
+        for note in ("1. Cap the upload at 10 MB \u2014 fix now.", "2. Recommended: fix now."):
+            self.assertTrue(self.tool.fix_now_asked(note), note)
+        for note in ("1. A wording. Recommendation: issue", "2. Recommendation: issue #5 rather than fix now"):
+            self.assertFalse(self.tool.fix_now_asked(note), note)
+
+    def test_a_plan_that_asks_for_an_early_draft_pr_in_prose_is_revised_once(self):
+        self.implemented()
+        self.repo.write("specs/issue-5/plan.md", plan_text(
+        ) + "\nAC1 is tested on the CI-built image, so this change needs an early draft PR.\n")
+        self.stamp()
+        out = self.next()
+        self.assertIn("names an early draft PR in prose", out)
+        self.assertIn("Launch: squad-lead, mode revise", out)
+        self.repo.log(row("7 Plan revise (early draft PR)", "Lead", "RESULT: DONE", 9000))
+        self.assertNotIn("names an early draft PR in prose", self.next(), "one revision, no loop")
 
     def test_a_step_6_decide_for_another_owner_launches_no_member(self):
         self.implemented()

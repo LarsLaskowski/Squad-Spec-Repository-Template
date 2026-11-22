@@ -164,8 +164,9 @@ NOTES_ROW = re.compile(r"\bnotes\b", re.I)
 # add before the Lead escalates (*Loop limits*, *Manual criterion fails*).
 MANUAL_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b")
 # The Tester's `6 Private check` row says the same in any case ("AC1 failed: ...").
-# A zero or a negation before it ("0 failed", "nothing failed") is no failure.
-PRIVATE_FAILED = re.compile(r"(?<!\b0 )(?<!nothing )(?<!none )(?<!no )\bFAIL(?:ED|S)?\b", re.I)
+# A zero or a negation before it ("0 failed", "no tests failed", "none of them failed") is no failure.
+PRIVATE_FAILED = re.compile(r"\bFAIL(?:ED|S)?\b", re.I)
+NOT_FAILED = re.compile(r"\b(?:0|zero|no|none|nothing|not)\b(?:[ \t]+\w+){0,2}[ \t:]*$", re.I)
 MANUAL_GROUPS = 2
 CONTINUATION_CAP = 5
 # A continuation adds tens of thousands of tokens: from here on the next launch is fresh, so the round never ends past
@@ -1050,8 +1051,7 @@ def code_steps(run):
         return code_free_steps(run)
     for group, skeleton, docs_only in groups(run):
         tag = f" ({group})" if group else ""
-        found = decided_fix(run, group, tag) if run.base_tier != "tests" else None
-        found = found or group_step(run, group, skeleton, docs_only)
+        found = decided_fix(run, group, tag) or group_step(run, group, skeleton, docs_only)
         if found:
             return found
     return documentation(run)
@@ -1127,16 +1127,20 @@ def group_step(run, group, skeleton, docs_only=False):
 def decided_fix(run, group, tag):
     """The launch of the work a step-6 Lead `decide` of the group orders with `FIX:`, before step 7 and also when the
     Coverage gate passed (DockerUpdateGuard#520): the Dev, then the Tester when `FIX:` names both, each until a row of
-    its own follows the decision. A `FIX:` that names only the Tester goes to the Tester, otherwise to the Dev; the
-    decision of a private check has its own route."""
+    its own follows the decision. A `FIX:` that names only the Tester goes to the Tester, one that names another owner
+    (the orchestrator, the Code Officer) and no Dev gets no launch, otherwise it goes to the Dev; a decision before the
+    group's implementation waits for it; tier `tests` has no Dev; the decision of a private check has its own route."""
     decisions = [row for row in group_rows(run, LEAD, "6", group, word="decide")
                  if "private check" not in row.step.lower()]
     if not decisions or not fix_ordered(decisions[-1].result):
         return None
     decision = decisions[-1]
+    if run.base_tier != "tests" and not implement_ended(run, group):
+        return None
     fix = decision.result[decision.result.index("FIX:"):].split("ISSUE:")[0]
     tester = bool(re.search(r"\btester\b", fix, re.I))
-    dev = bool(re.search(r"\bdev\b", fix, re.I)) or not tester
+    other = bool(re.search(r"\b(?:orchestrator|code officer)\b", fix, re.I))
+    dev = run.base_tier != "tests" and (bool(re.search(r"\bdev\b", fix, re.I)) or not (tester or other))
     done = {who: any(row.index > decision.index for row in group_rows(run, who, "6", group)) for who in (DEV, TESTER)}
     if dev and not done[DEV]:
         who, mode, label = DEV, "implement", "Implement"
@@ -1504,6 +1508,12 @@ def private_criteria(run):
                    and plan.tester_private_check(row[1])), key=plan.criterion_number)
 
 
+def private_failed(result):
+    """True when a `6 Private check` row reports a failure: `fail`, `failed` or `fails` in any case that no zero or
+    negation right before it cancels."""
+    return any(not NOT_FAILED.search(result[:found.start()]) for found in PRIVATE_FAILED.finditer(result))
+
+
 def failed_private_check(run, rows):
     """The lines that follow a failed `6 Private check` row: the Lead's decision, then the Dev's work when the decision
     orders a change; None once the check runs again."""
@@ -1531,7 +1541,7 @@ def private_check(run):
     if run.after_pr or run.plan is None or not (criteria := private_criteria(run)):
         return None
     rows = run.of(TESTER, {"6"}, word="private")
-    if rows and not PRIVATE_FAILED.search(rows[-1].result):
+    if rows and not private_failed(rows[-1].result):
         return None
     if rows and (failed := failed_private_check(run, rows)):
         return failed

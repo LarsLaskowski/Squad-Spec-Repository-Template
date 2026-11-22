@@ -233,9 +233,13 @@ class TestPlanSteps(NextTest):
 
     def test_a_private_check_row_that_counts_no_failure_passes(self):
         for result in ("AC1 passed, 0 failed", "AC1 passed; nothing failed", "AC1 PASS, none failed"):
-            self.assertIsNone(self.tool.PRIVATE_FAILED.search(result), result)
-        for result in ("AC1 failed: the recording is rejected", "AC1 PASS, AC2 FAIL", "AC1 fails"):
-            self.assertIsNotNone(self.tool.PRIVATE_FAILED.search(result), result)
+            self.assertFalse(self.tool.private_failed(result), result)
+        for result in ("no tests failed", "nothing has failed", "none of them failed", "zero failed", "AC1: not failed",
+                       "No FAIL"):
+            self.assertFalse(self.tool.private_failed(result), result)
+        for result in ("AC1 failed: the recording is rejected", "AC1 PASS, AC2 FAIL", "AC1 fails",
+                       "no code changed; AC2 FAIL"):
+            self.assertTrue(self.tool.private_failed(result), result)
 
     def test_a_mixed_fix_goes_to_the_dev_and_then_to_the_tester(self):
         self.implemented()
@@ -367,6 +371,27 @@ class TestCodeSteps(NextTest):
     def test_a_step_6_decide_that_orders_a_test_fix_goes_to_the_tester(self):
         self.implemented()
         self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED — FIX: Tester — assert the branch", 9000))
+        self.assertIn("Launch: squad-tester, mode coverage", self.next())
+
+    def test_a_step_6_decide_before_the_implementation_waits_for_it(self):
+        # Release review: the decision ended the planned implementation or the coverage pass.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red", 30000, "sonnet/medium"),
+                      row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: Dev \u2014 keep the guard the test pins", 9000))
+        out = self.next()
+        self.assertIn("step 6 \u2014 Implement", out)
+        self.assertNotIn('"6 Implement (decide)"', out)
+
+    def test_a_step_6_decide_for_another_owner_launches_no_member(self):
+        self.implemented()
+        self.repo.log(row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: orchestrator \u2014 note in .squad/stack.md", 9000))
+        self.assertNotIn("the work the Lead's decision orders", self.next())
+
+    def test_a_tester_fix_of_a_step_6_decide_is_launched_on_tier_tests(self):
+        self.repo.write("specs/issue-5/plan.md", plan_text("tests"))
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("6 Coverage", "Tester", "written", 30000, "sonnet/medium"),
+                      row("6 Decide", "Lead", "RESULT: DECIDED \u2014 FIX: Tester \u2014 assert y", 9000))
         self.assertIn("Launch: squad-tester, mode coverage", self.next())
 
     def test_a_step_6_decide_that_orders_no_fix_launches_nobody(self):

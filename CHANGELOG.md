@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] The second release review's fixes in `squad-next.py`: a step-6 Lead `decide` before the group's implementation
+  no longer ends the implementation or coverage step, a `FIX:` for the orchestrator or the Code Officer launches no
+  member, a Tester `FIX:` is launched on tier `tests`, and a private-check row that says "no tests failed" passes (#453)
 - [Core] The release review's fixes in `squad-next.py` and `plan-check.py`: a finding that says "never" or "not" still
   recommends `fix now`, "Early draft PR: no/not necessary/not applicable" counts as declined, a private-check row that
   counts no failure passes, a spaced dash is no minus sign in *Areas*, and a `FIX:` naming the Dev and the Tester

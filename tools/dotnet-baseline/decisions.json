@@ -79,6 +79,18 @@
     "dotnet_diagnostic.MSTEST0001.severity": {
       "value": "error",
       "reason": "every test assembly states its parallelization ([assembly: Parallelize] or [assembly: DoNotParallelize]); MSTest leaves it at suggestion (#379)"
+    },
+    "dotnet_diagnostic.RH2008.severity": {
+      "value": "suggestion",
+      "reason": "Reihitsu.Analyzer 1.5.0 adds this length/complexity rule; unset it is an error and breaks the build of every repository on the update, so it is a suggestion (#447)"
+    },
+    "dotnet_diagnostic.RH2009.severity": {
+      "value": "suggestion",
+      "reason": "Reihitsu.Analyzer 1.5.0 adds this length/complexity rule; unset it is an error and breaks the build of every repository on the update, so it is a suggestion (#447)"
+    },
+    "dotnet_diagnostic.RH2111.severity": {
+      "value": "suggestion",
+      "reason": "Reihitsu.Analyzer 1.5.0 adds this length/complexity rule; unset it is an error and breaks the build of every repository on the update, so it is a suggestion (#447)"
     }
   },
   "sections": {

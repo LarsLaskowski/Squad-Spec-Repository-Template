@@ -6,12 +6,15 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A Security note that writes `Recommendation: fix now` in Markdown emphasis (`**Recommendation:** fix now`)
+  still reaches the Lead, and the Lead's early-draft-PR revision of an old plan is answered `RESULT: DONE`, not asked
+  for a plan that already carries the line (#462)
 - [Core] `squad-next.py` reads fixed formats instead of guessing from free text: a capital `PASS` or `FAIL` in the
   Tester's private-check row, `FIX: <owner> — <change>` per item in a Lead decision, `Recommendation: fix now` in
   Security's notes and the plan line `Early draft PR: yes`; `squad-log.py`, `squad-notes.py` and `plan-check.py` warn
   about a row, note or plan that lacks them, and the plan template carries the line. A run in progress keeps working:
-  a loose `fix now` (also in Markdown emphasis) still reaches the Lead, a plan that asks for an early draft PR in prose
-  gets one Lead revision, and a row or decision without its format gets a correction step (#458, #460, #462)
+  a loose `fix now` still reaches the Lead, a plan that asks for an early draft PR in prose gets one Lead revision, and
+  a row or decision without its format gets a correction step (#458, #460)
 - [Core] A step-6 Lead `decide` that orders a `FIX:` is launched by `squad-next.py`: the Dev, then the Tester when `FIX:`
   names it, also when the Coverage gate passed and for a decision without a group in a feature; it waits for the
   group's implementation, and `routing.md` sends branch conditions reported as not unit-testable to the Lead also when

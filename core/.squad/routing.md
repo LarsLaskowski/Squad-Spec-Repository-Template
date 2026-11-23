@@ -65,6 +65,13 @@ product PR updates them, without an escalation, when the change makes them untru
 area, guarantee or coupling point; the Reviewer treats a stale entry there like stale documentation. A project block of
 `AGENTS.md` changes identically in `.github/copilot-instructions.md` (`scope-check.py` compares them).
 
+A `config-check.py` warning about an entry the change writes in `.squad/project.md` or in *Test doubles* of
+`docs/UNIT_TESTS.md` (more prose than `PROJECT_ENTRY_MAX_PROSE`), or about the words it adds there (more than
+`PROJECT_MAX_GROWTH` or `TEST_DOUBLES_MAX_GROWTH`), is fixed in this run, never in a follow-up issue: the Lead plans the
+edit within the limits (`plan-check.py` warns), its owner (`team.md`, *Files*) writes or reports pointer-sized entries,
+and where step 7's stamp still prints the warning, the orchestrator has that owner shorten the new entries before
+step 8. An older entry the change does not touch stays as it is.
+
 ## Tiers
 
 In step 2 the Lead picks the tier by what the change does, not only by its paths, and justifies it in `plan.md`

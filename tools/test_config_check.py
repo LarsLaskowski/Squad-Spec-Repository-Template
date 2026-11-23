@@ -1,8 +1,10 @@
 """Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
 the members' guards declared in .claude/settings.json, the entries and growth of .squad/project.md): run
 `python3 -m unittest discover tools`."""
+import contextlib
 import glob
 import importlib.util
+import io
 import json
 import os
 import re
@@ -460,6 +462,15 @@ class TestTestDoubles(unittest.TestCase):
         self.assertEqual(self.warnings(), [])
         os.remove(self.script.UNIT_TESTS_FILE)
         self.assertEqual(self.warnings(), [])
+
+    def test_the_project_option_prints_only_these_warnings_and_passes(self):
+        self.add_rows("- `FakeStore` - " + "word " * 55 + "\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = self.script.project_only()
+        self.assertEqual(code, 0, "warnings only: gate-stamp.py prints them, they are no gate")
+        self.assertIn("WARNING: docs/UNIT_TESTS.md (Test doubles", out.getvalue())
+        self.assertIn(": 1 warning(s)", out.getvalue())
 
     def test_every_profile_section_of_a_merged_document_counts(self):
         write(self.script.UNIT_TESTS_FILE, "# Unit Tests (go)\n\n## Test doubles\n\n- `A` - a\n\n---\n\n"

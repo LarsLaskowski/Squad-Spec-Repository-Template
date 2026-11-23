@@ -1326,6 +1326,17 @@ verbatim, unshortened, and the PR lists both word counts so their development ac
 *Integration surface* stays in `.squad/project.md`: the Lead and the Reviewer need it, and a file of its own would
 save little.
 
+## Size warnings of project.md are fixed in the run (routing.md, Scope of a product PR; orchestration.md, Squad lessons; gate-stamp.py; config-check.py `--project`; squad-lead.md, mode plan; adopt-template, step 1)
+
+#467, the follow-up of #466. The size warning of `.squad/project.md` turned into issues in two ways: `adopt-template`
+step 1 filed one on every refresh (LarsLaskowski/Censio#147, #174, #196; LarsLaskowski/Vandox#463, #484;
+LarsLaskowski/Seluna#154), and feature runs reported it as a squad lesson (Censio#214, #245). Each issue led to a
+squad-maintenance pull request that shortened the file, five of them in Censio since #155, and those pull requests
+removed pointers the members used. A growth or entry warning is caused by the change in front of the squad, so the run
+that writes the entry fixes it while its author still holds the context. No pipeline step ran `config-check.py`
+before, so a warning reached nobody until a refresh; the stamp of step 7 now prints it, as no gate, because an older
+entry the change does not touch must not block a product run.
+
 ## Reasons moved out in the second consolidation (#443)
 
 The consolidation of #443 moved these reasons out of the rule files; the rules they explain stay where they were.

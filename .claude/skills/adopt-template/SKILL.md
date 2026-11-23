@@ -48,9 +48,10 @@ Rules that hold throughout:
    introduction from the seed), and every pointer to `.squad/project.md` (*Test doubles*) in the target follows it.
    The PR description lists the words of `.squad/project.md` and of the *Test doubles* section after the refresh
    (`wc -w`), so their growth stays visible from release to release. The size warnings of `config-check.py` are not
-   worked in the refresh; list them in the PR description. Shortening the target's existing `project.md` entries to pointers is a
-   squad-maintenance pull request in that repository (file it there as a `squad` issue); splitting the records and
-   area documents the warnings name is a documentation change of the product (file an issue for it). The same diff
+   worked in the refresh; list them in the PR description. An entry-form or growth warning of `.squad/project.md` or
+   *Test doubles* gets no issue: the next product PR that touches the entry fixes it (`.squad/routing.md` there,
+   *Scope of a product PR*); splitting the records and area documents the warnings name is a documentation change of
+   the product (file an issue for it). The same diff
    covers
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any

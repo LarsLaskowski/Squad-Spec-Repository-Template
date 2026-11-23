@@ -48,6 +48,10 @@ quote, a value starting with a reserved character or `- `, a line that is no `ke
 
 Usage, from anywhere inside the repository:
     python3 .squad/tools/config-check.py
+    python3 .squad/tools/config-check.py --project   # only the warnings about .squad/project.md and Test doubles
+
+With `--project` only the warnings about `.squad/project.md` and the *Test doubles* of `docs/UNIT_TESTS.md` are
+printed, and the exit code is 0: `gate-stamp.py` runs it in step 7 when the branch changes one of them.
 
 Exit code 0 when everything is valid, 1 otherwise.
 """
@@ -599,9 +603,23 @@ def check_decisions(errors, warnings):
         errors.append(f"{script} failed: {result.stderr.strip() or 'no output'}")
 
 
-def main():
+def project_only():
+    """`--project`: print the warnings about `.squad/project.md` and the test doubles; always exit code 0."""
+    warnings = []
+    check_project_size(warnings)
+    check_test_doubles(warnings)
+    for warning in warnings:
+        print(f"{WARNING_PREFIX}{warning}")
+    print(f"Checked {PROJECT_FILE} and the {TEST_DOUBLES} of {UNIT_TESTS_FILE}: {len(warnings)} warning(s)")
+    return 0
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
     # Resolve paths from the repository root, whatever the current directory is.
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    if "--project" in argv:
+        return project_only()
     errors, warnings = [], []
     agents = sorted(glob.glob(os.path.join(AGENTS_DIR, "*.md")))
     for path in agents:

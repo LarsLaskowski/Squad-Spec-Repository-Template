@@ -30,6 +30,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   the Lead reads the section only when its plan adds or changes a double; `config-check.py` applies the entry check
   and `TEST_DOUBLES_MAX_GROWTH` (100) to the section and names one left in `.squad/project.md`, `plan-check.py` the
   stated growth, and a refresh moves the section verbatim (#468)
+- [Core] A size or form warning of `.squad/project.md` or of *Test doubles* is fixed in the run whose change causes it,
+  never in a follow-up issue: `gate-stamp.py` prints `config-check.py --project` in step 7 when the branch changes
+  either file (no gate), the orchestrator has the owner shorten the new entries, and such a warning is no squad lesson;
+  a refresh lists an entry-form warning in its PR description instead of filing a `squad` issue (#467)
 
 ## v2026.11.14 — 2026-11-22
 

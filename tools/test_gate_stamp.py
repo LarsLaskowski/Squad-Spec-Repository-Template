@@ -418,6 +418,20 @@ class TestGateStamp(RepoTest):
         self.assertEqual(code, 0, out)
         self.assertIn("decision-check.py: `python3 .squad/tools/decision-check.py --require-history`", out)
 
+    def test_a_changed_project_md_prints_its_size_warnings_without_a_gate(self):
+        # Template#467: a size or form warning of .squad/project.md is worked in the run that causes it.
+        code, out, _ = self.stamp("--dry-run")
+        self.assertNotIn("config-check.py --project", out, "neither project.md nor the test document changed")
+        self.repo.write(".squad/project.md", "# Project\n\n## Guarantees\n\n- " + "word " * 60 + "\n")
+        self.repo.commit("project knowledge")
+        code, out, _ = self.stamp("--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertIn("config-check.py --project (no gate)", out)
+        code, out, _ = self.stamp()
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARNING: .squad/project.md (Guarantees, \"word word", out)
+        self.assertIn("PASS on", self.repo.read("specs/issue-5/log.md").splitlines()[-1], "a warning is no gate")
+
     def test_a_shallow_clone_is_refused_before_a_gate_runs_when_records_are_checked(self):
         self.repo.write("docs/areas/storage.md", "# Storage\n")
         self.repo.commit("area document")

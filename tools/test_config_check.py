@@ -1,5 +1,5 @@
 """Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
-the members' guards declared in .claude/settings.json, the size of .squad/project.md): run
+the members' guards declared in .claude/settings.json, the entries and growth of .squad/project.md): run
 `python3 -m unittest discover tools`."""
 import glob
 import importlib.util
@@ -293,14 +293,15 @@ class TestSquadGuards(unittest.TestCase):
 
 
 class TestProjectSize(unittest.TestCase):
-    """.squad/project.md past PROJECT_MAX_WORDS is a warning, with the limit from squad_settings.py."""
+    """.squad/project.md: an entry past PROJECT_ENTRY_MAX_PROSE prose words, and a branch that adds more than
+    PROJECT_MAX_GROWTH words against its merge base, are warnings; its total size is none (Template#466)."""
 
     def setUp(self):
         self.script = load_script()
         self.dir = tempfile.TemporaryDirectory()
         self.cwd = os.getcwd()
         os.chdir(self.dir.name)
-        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1498)
+        write(self.script.PROJECT_FILE, "# Project\n\n## Guarantees\n\n" + "- `A` - pointer\n" * 600)
 
     def tearDown(self):
         os.chdir(self.cwd)
@@ -311,24 +312,67 @@ class TestProjectSize(unittest.TestCase):
         self.script.check_project_size(found)
         return found
 
-    def test_the_default_limit_without_settings(self):
-        self.assertEqual(self.warnings(), [], "1500 words: at the limit, not past it")
-        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1600)
+    def git(self, *args):
+        subprocess.run(["git", *args], check=True, capture_output=True)
+
+    def commit_main(self):
+        """A repository whose origin/main holds the current files, with a branch off it."""
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("checkout", "-qb", "work")
+
+    def test_a_large_file_of_pointers_is_no_warning(self):
+        self.assertEqual(self.warnings(), [], "2400 words of pointers: no total limit")
+
+    def test_an_entry_with_too_much_prose_is_named(self):
+        long = "The token expires after a while and is renewed when the client asks for it. " * 4
+        write(self.script.PROJECT_FILE, "# Project\n\n## Security areas\n\n- Session tokens: " + long + "\n"
+                                        "- `src/A.cs`, `src/B.cs`, [area](../docs/areas/a.md) " + "`X` " * 80 + "\n"
+                                        "| Type | What |\n| --- | --- |\n| `A` | " + "word " * 51 + "|\n"
+                                        "1. first\n   " + "more " * 60 + "\n")
         warnings = self.warnings()
-        self.assertEqual(len(warnings), 1)
-        self.assertIn("project.md: 1602 words (PROJECT_MAX_WORDS 1500)", warnings[0])
-        self.assertIn("make every entry a pointer", warnings[0])
+        self.assertEqual(len(warnings), 3, warnings)
+        self.assertIn('(Security areas, "Session tokens: The token expires after a while …"): 62 prose words in '
+                      "one entry (PROJECT_ENTRY_MAX_PROSE 50)", warnings[0])
+        self.assertIn('(Security areas, "`A` | word word word word word word …"): 51 prose words', warnings[1])
+        self.assertIn("(Security areas, \"first more more", warnings[2], "a continuation line belongs to its item")
 
-    def test_the_limit_from_the_settings(self):
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 1000\n")
-        self.assertIn("(PROJECT_MAX_WORDS 1000)", self.warnings()[0])
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 3000\n")
-        self.assertEqual(self.warnings(), [], "the file is loaded anew on every call")
+    def test_the_entry_limit_from_the_settings(self):
+        write(self.script.PROJECT_FILE, "## Guarantees\n\n- " + "word " * 40 + "\n")
+        self.assertEqual(self.warnings(), [])
+        write(self.script.SETTINGS_FILE, "PROJECT_ENTRY_MAX_PROSE = 30\n")
+        self.assertIn("(PROJECT_ENTRY_MAX_PROSE 30)", self.warnings()[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_ENTRY_MAX_PROSE = (\n")
+        self.assertEqual(self.warnings(), [], "a broken settings file leaves the default")
 
-    def test_a_broken_settings_file_leaves_the_default(self):
-        write(self.script.PROJECT_FILE, "word " * 1501)
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = (\n")
-        self.assertIn("(PROJECT_MAX_WORDS 1500)", self.warnings()[0])
+    def test_code_blocks_and_comments_hold_no_entry(self):
+        write(self.script.PROJECT_FILE, "```\n- " + "word " * 60 + "\n```\n- short\n<!-- " + "word " * 60
+              + " -->\n")
+        self.assertEqual(self.warnings(), [])
+
+    def test_growth_against_the_merge_base_past_the_limit(self):
+        self.commit_main()
+        self.assertEqual(self.warnings(), [], "no change")
+        with open(self.script.PROJECT_FILE, "a", encoding="utf-8") as handle:
+            handle.write("- `B` - pointer\n" * 50)
+        self.assertEqual(self.warnings(), [], "200 words: at the limit, not past it")
+        with open(self.script.PROJECT_FILE, "a", encoding="utf-8") as handle:
+            handle.write("- `C`\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("project.md: gained 202 words against the merge base (PROJECT_MAX_GROWTH 200)", warnings[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_GROWTH = 300\n")
+        self.assertEqual(self.warnings(), [], "the limit from the settings")
+
+    def test_no_merge_base_or_a_new_file_skips_the_growth(self):
+        self.assertEqual(self.warnings(), [], "no repository")
+        os.remove(self.script.PROJECT_FILE)
+        write("README.md", "x\n")
+        self.commit_main()
+        write(self.script.PROJECT_FILE, "- `A` - pointer\n" * 600)
+        self.assertEqual(self.warnings(), [], "a file the merge base lacks (a first adoption)")
 
     def test_no_project_file_no_warning(self):
         os.remove(self.script.PROJECT_FILE)

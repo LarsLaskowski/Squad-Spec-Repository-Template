@@ -21,6 +21,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   missing label, and the PR template checks the label (#469)
 - [Profile] The .NET instructions name `{TypeUnderTest}{Concern}Tests` for a test class split by concern, as the
   seeded `docs/UNIT_TESTS.md` does (#472)
+- [Core] `.squad/project.md` has no total size limit any more: `config-check.py` warns when a change adds more than
+  `PROJECT_MAX_GROWTH` (200) words against the merge base and about an entry of more than `PROJECT_ENTRY_MAX_PROSE`
+  (50) prose words, `plan-check.py` when the plan states a larger growth; a refresh replaces `PROJECT_MAX_WORDS` in
+  `squad_settings.py` with the new settings and reports a value the repository had set (#466)
 
 ## v2026.11.14 — 2026-11-22
 

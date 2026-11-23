@@ -375,6 +375,45 @@ class TestMergedWarningSettings(unittest.TestCase):
         self.assertEqual(merged.FIGURE_EXCLUDES, ["go.sum", "*.svg", "packages.lock.json"], "every profile's, once")
 
 
+class TestSettingsMigration(unittest.TestCase):
+    """A refresh replaces the settings a later version retired in the target's squad_settings.py (Template#466)."""
+
+    def setUp(self):
+        self.script = load_script()
+
+    def test_the_retired_total_limit_is_replaced_in_place(self):
+        text = ("BASE_REF = 'origin/main'\n\n# Size warnings\nPROJECT_MAX_WORDS = 1500  # .squad/project.md\n"
+                "AREA_MAX_WORDS = 6000  # own value\nRECORD_MAX_WORDS = 1500\nRECORD_MAX_OPTIONS = 8\n")
+        migrated, notes = self.script.migrated_settings(text)
+        self.assertEqual(notes, [], "the template's default is no value of the repository's own")
+        self.assertNotIn("PROJECT_MAX_WORDS", migrated)
+        self.assertIn("# Size warnings\nPROJECT_MAX_GROWTH = 200  # words .squad/project.md may gain in one change",
+                      migrated, "the new settings stand where the retired one stood")
+        self.assertIn("AREA_MAX_WORDS = 6000  # own value", migrated, "a value the target sets stays")
+        self.assertEqual(self.script.migrated_settings(migrated), (None, []), "a second refresh changes nothing")
+
+    def test_a_value_the_target_set_is_reported(self):
+        migrated, notes = self.script.migrated_settings("PROJECT_MAX_WORDS = 1800  # raised\nAREA_MAX_WORDS = 5000\n")
+        self.assertNotIn("PROJECT_MAX_WORDS", migrated)
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("PROJECT_MAX_WORDS = 1800, the repository's own value, removed", notes[0])
+
+    def test_settings_without_size_limits_get_the_block(self):
+        migrated, _ = self.script.migrated_settings("BASE_REF = 'origin/main'\n")
+        self.assertIn("\n# Size warnings (config-check.py", migrated)
+        for name in self.script.WARNING_SETTINGS:
+            self.assertIn(f"\n{name} = ", migrated, name)
+
+    def test_write_seeds_migrates_an_existing_settings_file(self):
+        with tempfile.TemporaryDirectory() as target:
+            write(os.path.join(target, ".squad", "tools", "squad_settings.py"), "PROJECT_MAX_WORDS = 1200\n")
+            emitted, report = {}, []
+            self.script.write_seeds(target, {".squad/tools/squad_settings.py": "x"}, ["go"], False,
+                                    emitted.__setitem__, report)
+        self.assertIn("PROJECT_MAX_GROWTH = 200", emitted[".squad/tools/squad_settings.py"])
+        self.assertEqual([status for status, _ in report], ["dropped"])
+
+
 class TestReleaseTag(unittest.TestCase):
     def test_the_release_tag_of_head_is_read_from_the_local_tags(self):
         script = load_script()

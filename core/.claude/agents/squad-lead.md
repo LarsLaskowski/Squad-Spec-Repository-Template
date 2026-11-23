@@ -68,6 +68,9 @@ The orchestrator tells you which **mode** to run:
   - for every area document the change extends, its words now and the words the change adds, on its *Areas* line
     (`docs/areas/<name>.md (+N words)`): past `AREA_MAX_WORDS` (`plan-check.py` warns) a split into a new area
     document is planned now, also in the spec's *Area documents*, not left to `decision-check.py` afterwards;
+  - for an edit of `.squad/project.md`, the words it adds on its line of the documentation updates
+    (`.squad/project.md (+N words)`): past `PROJECT_MAX_GROWTH` (`plan-check.py` warns) the new entries are
+    shortened to pointers now;
   - for a feature, `tasks.md` as its template says, task groups in build order;
   - the exact **signatures** of every new or changed API member (the template's *Signatures*) and the existing files
     the skeleton must rewrite — a file you call final is one you read and found so; every new name and signature

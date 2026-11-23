@@ -7,8 +7,9 @@ and never overwrites it. A product PR updates it when the change makes an entry 
 
 Every entry points: it names files, types or endpoints and links the document that says more. Behavior, values,
 limits and sequences are written once, in the area documents (`docs/areas/README.md`), and the reasons in the
-decision records; a copy here goes stale with the next change. `config-check.py` warns when this file grows past
-`PROJECT_MAX_WORDS` words (`.squad/tools/squad_settings.py`).
+decision records; a copy here goes stale with the next change. `config-check.py` warns about an entry of more than
+`PROJECT_ENTRY_MAX_PROSE` prose words (code spans and links do not count) and about a change that adds more than
+`PROJECT_MAX_GROWTH` words to this file (`.squad/tools/squad_settings.py`).
 
 ## Security areas
 

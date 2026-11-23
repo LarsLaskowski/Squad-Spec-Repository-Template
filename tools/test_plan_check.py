@@ -554,6 +554,19 @@ class TestPlanCheck(unittest.TestCase):
         within = areas.replace("big.md:", "big.md (+50 words):")
         self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 
+    def test_the_stated_growth_of_project_md_past_its_limit_is_a_warning(self):
+        # Template#466: a change adds pointers to .squad/project.md, not copies; the total size is no limit.
+        docs = PLAN + "\n## Documentation updates\n\n- `.squad/project.md` (+250 words): the new guarantee\n"
+        warnings = self.script.check(self.feature(plan=docs))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn(".squad/project.md (+250 words) passes PROJECT_MAX_GROWTH 200", warnings[0])
+        within = docs.replace("+250", "+200")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "at the limit, not past it")
+        shrinks = docs.replace("+250", "-250")
+        self.assertEqual(self.script.check(self.feature(plan=shrinks))[1], [], "a shrinking file is within")
+        comment = PLAN + "\n<!-- `.squad/project.md` (+999 words) -->\n"
+        self.assertEqual(self.script.check(self.feature(plan=comment))[1], [], "a comment states nothing")
+
     def test_an_early_draft_pr_named_in_prose_needs_its_line(self):
         prose = PLAN + "\nThe change opens an early draft PR after step 6.\n"
         warnings = self.script.check(self.feature(plan=prose))[1]

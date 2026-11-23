@@ -36,9 +36,11 @@ Rules that hold throughout:
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
    becomes "in the squad: by the member that changed the files, `.squad/team.md`"). A setting the target's
    `squad_settings.py` lacks is added with the seed's comment and default: `SPEC_APPROVAL = "lead"` (who approves a
-   feature's spec) unless the user asks for `"pm"`, the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*`,
-   `SMALL_FEATURE_CRITERIA`, `PROJECT_MAX_WORDS`, `AREA_MAX_WORDS`, `RECORD_MAX_WORDS` and `RECORD_MAX_OPTIONS`, and
-   `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`; a value the target already sets stays. The same holds
+   feature's spec) unless the user asks for `"pm"`, the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*` and
+   `SMALL_FEATURE_CRITERIA`, and `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`; a value the target
+   already sets stays. The size warnings' settings are the apply step's (step 3): it adds the ones the file lacks and
+   removes the retired `PROJECT_MAX_WORDS`; each `dropped` line of its output (a value the target had set) goes into
+   the PR description. The same holds
    for `docs/UNIT_TESTS.md`: a section the seed gained (e.g. *Criterion ids*) is added to the target's test document,
    adapted to its test framework; and for the structure of `project.md`, a pointer file: its introduction and the
    section texts that say what an entry holds. The size warnings of `config-check.py` are not worked in the refresh;

@@ -137,8 +137,8 @@ STACK_SECTIONS = ["## Toolchain", "## Layout", "## Commands", "## Analyzer gate"
 GATE_COMMANDS = ["Format check", "Analyzer gate", "Test", "Test (project)", "Test with coverage", "Coverage gate"]
 MULTI_FILES = [".squad/tools/analyzer-check.py", ".claude/hooks/session-start.sh"]
 SETTINGS = ["COVERAGE_FORMAT", "COVERAGE_REPORT_GLOB", "COVERAGE_PATHSPECS", "COVERAGE_EXCLUDES",
-            "PROJECT_MAX_WORDS", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS", "FIGURE_TRIVIAL",
-            "FIGURE_EXCLUDES"]
+            "PROJECT_MAX_GROWTH", "PROJECT_ENTRY_MAX_PROSE", "AREA_MAX_WORDS", "RECORD_MAX_WORDS", "RECORD_MAX_OPTIONS",
+            "FIGURE_TRIVIAL", "FIGURE_EXCLUDES"]
 DISTRIBUTED_DIRS = ["core", "profiles", "multi", "seed"]
 COGNITIVE_LIMIT = 15
 # SonarQube Cloud rules a refresh has tripped, checked on every distributed Python file and on `tools/` (see

@@ -59,7 +59,8 @@ Checks, in the work folder `specs/<folder>/`:
 An area document that the plan's *Areas* names (`docs/areas/<name>.md`) and whose size plus the words the plan says
 the change adds or removes (`+N words` or `-N words` on the line) passes `AREA_MAX_WORDS` (`squad_settings.py`,
 default 5000), or that is within 500 words of it with no such statement, is a warning: the split is planned now
-(Censio#38).
+(Censio#38). A line of the plan that names `.squad/project.md` and says it gains more than `PROJECT_MAX_GROWTH` words
+(`+N words`; `squad_settings.py`, default 200) is a warning too: the new entries are planned as pointers.
 
 After a run with a `plan.md` the trigger of *Plan challenge* (`.squad/routing.md`) is printed with its reason,
 `Plan challenge: due — …` or `Plan challenge: not due — …`: due on tier `security`, and on tier `standard` when
@@ -118,6 +119,10 @@ PLAN_SIZE = re.compile(r"^Plan size:[ \t]*(\S.*)", re.M)
 # documentation is written (Censio#38).
 AREA_MAX_WORDS = getattr(settings, "AREA_MAX_WORDS", 5000)
 AREA_HEADROOM = 500
+# The words a change may add to .squad/project.md, which five members read on every launch; the plan states them on the
+# file's line of *Documentation updates* (`.squad/project.md (+N words)`).
+PROJECT_MAX_GROWTH = getattr(settings, "PROJECT_MAX_GROWTH", 200)
+PROJECT_PATH = re.compile(r"\.squad/project\.md")
 AREA_PATH = re.compile(r"docs/areas/[\w.-]+\.md")
 # `+N words` (the change adds) or `-N words` (it removes: a split that makes the document shrink, Censio#236).
 # A minus sign touches its digits, so a dash that separates the path from the count ("storage.md - 300 words") is none.
@@ -804,6 +809,7 @@ def check(folder, approved=False):
             check_placeholders("tasks.md", tasks, errors)
     check_plan_size(plan, errors, warnings, approved)
     check_area_sizes(plan, warnings)
+    check_project_growth(plan, warnings)
     check_early_pr(plan, warnings)
     return errors, warnings
 
@@ -863,6 +869,17 @@ def check_area_sizes(plan, warnings):
         adds = AREA_ADDS.search(line)
         found = (area_size_warning(path, adds) for path in sorted(set(AREA_PATH.findall(line))))
         warnings.extend(warning for warning in found if warning)
+
+
+def check_project_growth(plan, warnings):
+    """A warning for a line of the plan that states `.squad/project.md` gains more than PROJECT_MAX_GROWTH words."""
+    for line in strip_comments(plan).splitlines():
+        added = signed_words(AREA_ADDS.search(line)) if PROJECT_PATH.search(line) else None
+        if added is not None and added > PROJECT_MAX_GROWTH:
+            warnings.append(f"plan.md: .squad/project.md (+{added} words) passes PROJECT_MAX_GROWTH "
+                            f"{PROJECT_MAX_GROWTH}: plan the new entries as pointers that name the files and link the "
+                            "area document or decision record, within the limit (.squad/routing.md, *Scope of a "
+                            "product PR*)")
 
 
 def template_lines():

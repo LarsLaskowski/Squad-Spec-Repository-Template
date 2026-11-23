@@ -1437,6 +1437,21 @@ class TestReviewFollowUps(NextTest):
         self.stamp()
         self.assertIn("Review, delta round", self.next(), "a change beyond the status does")
 
+    def test_the_leads_approval_and_the_record_status_stamp_end_step_9(self):
+        # Censio#241: after the Lead's approve-pr row, the record status commit and its --verbatim stamp, step 9 must
+        # not be printed again: no further checklist row is needed.
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Proposed"))
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.repo.log(row("9 PR approval", "Lead", "RESULT: APPROVED — the open points accepted", 9000))
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Accepted"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Accepted"))
+        self.repo.commit("accept the record")
+        self.stamp("--verbatim")
+        self.assertIn("Next: step 10 — Pull request", self.next())
+
     def test_a_removed_comment_line_that_looks_like_a_diff_header_is_no_status_change(self):
         self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))
         self.repo.write("src/a.sql", "select 1;\n-- drop me\n")

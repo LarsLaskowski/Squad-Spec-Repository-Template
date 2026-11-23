@@ -6,6 +6,10 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-notes.py` moves a report's headings down to level 3, so appended notes no longer end their section and
+  count against the plan's size; a member reports with none of its build, test or format jobs running and calls a
+  test green only from a run that named it, a deferred test never; step 9 says the Lead's `RESULT: APPROVED` ends it
+  (#471)
 - [Core] `squad-log.py` refuses a verbatim row that names no finding by its tag and a step-6 coverage skip while the
   group's deferred tests are open; `squad-next.py` prints the tagged verbatim row and, with the Dev's launch, the
   coverage pass the deferred tests make due (#470)

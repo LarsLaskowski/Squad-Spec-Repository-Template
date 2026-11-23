@@ -20,7 +20,7 @@ Mode `tests-first`:
    files the plan names, in the test location from *Layout*, reusing the existing test doubles; each one fails on
    the current code or on the skeleton. A plan-named test that cannot fail yet (its data is already real; a guard,
    pin or determinism check that holds on the skeleton) is not written in this mode: list it in the hand-back as
-   **deferred**, with its name and criterion, and end the hand-back with the line `Deferred: <test names>`
+   **deferred**, with its name and criterion, and never as passing (it does not exist until mode `coverage`), and end the hand-back with the line `Deferred: <test names>`
    (`Deferred: none` without one), from which `squad-next.py` launches mode `coverage` for them even when the
    *Coverage gate* already passes. Move the existing test call sites the plan assigns you (of a signature whose old
    form still exists) to the new signature as the plan says. For a bug, use the input reported in the issue. Check

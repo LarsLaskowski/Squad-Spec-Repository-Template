@@ -78,7 +78,9 @@ rules bind all the same where an interpreter or a shell redirect gets past them.
 you work (`orchestration.md`, *The stop hook*), so a clean `git status` at hand-back is expected: report your
 changes against the head SHA you were given (`git diff <sha>`). Your report is one final reply (or one
 `SubagentHandback` call where the harness offers it), sent once and never split: finish within your turn, with no
-background command left running that you do not wait for.
+build, test or format process of yours still running (a background job is waited for, never left to notify later). A
+test you report as passing is one you ran by name in this launch, the run quoted; a test the Tester deferred is not
+written before its coverage pass, so it is reported as deferred, never as green.
 
 **A real check before "done".** A change to code that can be run, built or type-checked is exercised by a
 real check before it is reported done: the project's tests, type-checker or build, or the changed command

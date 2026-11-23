@@ -1901,7 +1901,8 @@ def approval(run):
         "  A decision open (a plan deviation, a Lead decision of steps 3–8, an unplanned change to docs/ARCHITECTURE.md "
         "or .squad/project.md):"] + launch(run, LEAD, "approve-pr", run.step_cell("9", "PR approval"),
                                            "the base ref, the gate output, the review outcome and the open points one "
-                                           "by one (after the PR also the finished check-run list)")
+                                           "by one (after the PR also the finished check-run list)") + [
+        "  The Lead's `RESULT: APPROVED` row ends the step (with the record status stamped): no checklist row after it"]
 
 
 def settled_by_decision(run, verdict):

@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A squad PR carries its release-notes label like a `create-pr` one, `breaking-change` when the plan, a
+  decision record or the body says it breaks existing users; the Reviewer blocks an unnamed breaking change or a
+  missing label, and the PR template checks the label (#469)
 - [Profile] The .NET instructions name `{TypeUnderTest}{Concern}Tests` for a test class split by concern, as the
   seeded `docs/UNIT_TESTS.md` does (#472)
 

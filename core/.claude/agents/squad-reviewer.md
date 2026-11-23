@@ -93,6 +93,9 @@ every repository:
 - **A change that touches a guarantee** listed under *Guarantees* in `.squad/project.md`: a diff that changes one
   is a finding when the PR description does not say so, or when it leaves the corresponding sentence in `README.md`
   or `docs/` standing while making it untrue.
+- **A change that breaks existing users** (a configuration, input, API or stored data that worked before is refused,
+  stops the start or means something else): blocking when the plan, a decision record or the PR description does not
+  say so, and, on an open pull request, when it lacks the `breaking-change` label the release notes need.
 - **A change in a security area** (*Security areas* in `.squad/project.md`):
   check it against the tier, the plan's *Security areas touched* and what `SECURITY.md` promises.
 - **A new logged value**: a log statement that writes a token, credential,

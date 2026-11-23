@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Profile] The .NET instructions name `{TypeUnderTest}{Concern}Tests` for a test class split by concern, as the
+  seeded `docs/UNIT_TESTS.md` does (#472)
+
 ## v2026.11.14 — 2026-11-22
 
 - [Core] A Security note that writes `Recommendation: fix now` in Markdown emphasis (`**Recommendation:** fix now`)

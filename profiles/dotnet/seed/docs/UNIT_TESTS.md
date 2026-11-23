@@ -21,7 +21,8 @@ neighboring test file before inventing a new pattern.
 
 ## Naming
 
-- Class: `{TypeUnderTest}Tests`.
+- Class: `{TypeUnderTest}Tests`; a type whose tests grow large is split by concern into
+  `{TypeUnderTest}{Concern}Tests` (for example `ParserFailureTests`), one file each.
 - Method: `{TypeUnderTest}{Scenario}{ExpectedResult}` in PascalCase **without underscores**, e.g.
   `ParserEmptyInputReturnsNull`.
 

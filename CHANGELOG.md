@@ -25,6 +25,11 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   `PROJECT_MAX_GROWTH` (200) words against the merge base and about an entry of more than `PROJECT_ENTRY_MAX_PROSE`
   (50) prose words, `plan-check.py` when the plan states a larger growth; a refresh replaces `PROJECT_MAX_WORDS` in
   `squad_settings.py` with the new settings and reports a value the repository had set (#466)
+- [Core] The test doubles move from `.squad/project.md` to a *Test doubles* section of `docs/UNIT_TESTS.md`, which the
+  Tester writes itself; the Tester no longer reads `.squad/project.md` except for a guarantee the plan does not name,
+  the Lead reads the section only when its plan adds or changes a double; `config-check.py` applies the entry check
+  and `TEST_DOUBLES_MAX_GROWTH` (100) to the section and names one left in `.squad/project.md`, `plan-check.py` the
+  stated growth, and a refresh moves the section verbatim (#468)
 
 ## v2026.11.14 — 2026-11-22
 

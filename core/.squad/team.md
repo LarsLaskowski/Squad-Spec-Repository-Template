@@ -12,7 +12,7 @@ to this repository lives in two files the members read first:
 - [`stack.md`](stack.md) — toolchain, layout and the exact commands: format, build, test, coverage, the
   analyzer gate, how to write code and tests that pass it, and how to build a compile-only skeleton.
 - [`project.md`](project.md) — what this project guarantees: the security areas that bring in Security's
-  plan review, deliberate guarantees, the integration surface the Reviewer sweeps, and the test doubles.
+  plan review, deliberate guarantees and the integration surface the Reviewer sweeps.
 
 ## Members
 
@@ -66,12 +66,11 @@ pushes and opens the pull request (`routing.md`, *Pipeline*).
 **Files.** A member writes only what its row in *Members* names — the Lead only under `specs/` and
 `docs/decisions/`, the Tester only in the test paths (`COVERAGE_TEST_PATHSPECS` in `.squad/tools/squad_settings.py`,
 by default its `COVERAGE_EXCLUDES`), the Markdown files under their directories (a fixture README) and
-`docs/UNIT_TESTS.md` — and nothing under `.git/`, `.claude/` or `.squad/` (except the Code Officer's notes in
+`docs/UNIT_TESTS.md`, its *Test doubles* rows included — and nothing under `.git/`, `.claude/` or `.squad/` (except the Code Officer's notes in
 `.squad/stack.md`); the hook `.claude/hooks/file-guard.py` denies every other Write or Edit inside the repository (a
 scratch worktree outside it is not checked). A member that needs another file changed (a test fixture outside the
 test paths) reports it. An edit of `.squad/project.md` or `.squad/stack.md` the plan lists is the orchestrator's: the
-member owning the content (the Tester for *Test doubles*, the Dev for the rest) reports the exact text, and the
-orchestrator writes it verbatim and runs *Format*. Both hooks prevent accidents and are no security boundary: the
+member owning the content reports the exact text, and the orchestrator writes it verbatim and runs *Format*. Both hooks prevent accidents and are no security boundary: the
 rules bind all the same where an interpreter or a shell redirect gets past them.
 
 **Reporting against a SHA.** The orchestrator may commit your edits as work in progress while

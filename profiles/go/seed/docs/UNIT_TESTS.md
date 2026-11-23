@@ -8,7 +8,14 @@ neighboring test file before inventing a new pattern.
 ## Test stack
 
 - The standard `testing` package (plus `net/http/httptest` for handlers). No assertion or mocking
-  library — hand-written fakes behind small interfaces, listed in `.squad/project.md` (*Test doubles*).
+  library — hand-written fakes behind small interfaces, listed under *Test doubles*.
+
+## Test doubles
+
+The hand-written fakes and stubs the tests reuse (no mocking library unless *Test stack* says otherwise), one line
+each: the double, where it lives and what it stands in for; how it behaves is read in its code.
+
+- `{{TODO: FakeX}}` — {{TODO: what it stands in for}}
 
 ## Where tests live
 

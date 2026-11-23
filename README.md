@@ -117,7 +117,8 @@ Four kinds of files in a target repository:
 
 `.squad/stack.md` holds the stack's exact commands (*Format*, *Build*, *Test*, *Analyzer gate*, …) that
 every agent and skill refers to by name; `.squad/project.md` holds the project's security areas,
-guarantees, integration surface and test doubles. That is what keeps the core stack-neutral.
+guarantees and integration surface, and `docs/UNIT_TESTS.md` its test doubles. That is what keeps the core
+stack-neutral.
 
 Placeholders are written `{{TODO: …}}` and only ever appear inside project blocks or seeded files, so a
 refresh never resets filled-in text; `config-check.py` fails while any is left. The `TODO:` prefix keeps

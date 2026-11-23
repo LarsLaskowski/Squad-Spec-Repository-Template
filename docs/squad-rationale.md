@@ -1303,6 +1303,29 @@ Lead states the growth in the plan as it sizes an area document, so `plan-check.
 Both stay warnings. The refresh removes the retired setting itself (`apply-template.py`) and reports a value a target
 had set, since a seeded file is otherwise never touched.
 
+## The test doubles live in the test document (docs/UNIT_TESTS.md seeds, Test doubles; squad-tester.md; squad-lead.md; squad-reviewer.md; team.md, Files; config-check.py; plan-check.py; file-guard.py; adopt-template, steps 1 and 6)
+
+#468. Five members read `.squad/project.md` on every launch, but its *Test doubles* section concerns only some of them:
+
+| Section | Lead | Devil's Advocate | Security | Tester | Reviewer |
+| --- | --- | --- | --- | --- | --- |
+| Security areas, Guarantees | ✔ | ✔ | ✔ | – | ✔ |
+| Integration surface | ✔ | (✔) | – | – | ✔ |
+| Test doubles | when the plan adds or changes a double | – | – | ✔ | ✔ |
+
+The Tester's charter limited it to the section, yet a member loads the whole file, so every Tester launch read about
+1,100 words of security and integration entries it does not use. The section was large and growing: 435 of 1,531
+words in LarsLaskowski/Censio, 395 of 1,460 in LarsLaskowski/DockerUpdateGuard and 350 of 1,496 in
+LarsLaskowski/Vandox. The documents disagreed: `AGENTS.md` (*Testing*) already said `docs/UNIT_TESTS.md` holds the
+project's test doubles, while the profile seeds of that document pointed to `.squad/project.md`. And a new row took a
+detour: the Tester reported its text and the orchestrator wrote it into `.squad/project.md`, although the Tester may
+edit `docs/UNIT_TESTS.md` directly. The fallback (the Tester reads a guarantee in `.squad/project.md` that a test
+touches and the plan does not name) covers runs without a plan, the `docs` tier and rework after a review finding.
+`TEST_DOUBLES_MAX_GROWTH` (100) is about seven doubles at the typical 14 words per row; the refresh moves the section
+verbatim, unshortened, and the PR lists both word counts so their development across releases stays visible.
+*Integration surface* stays in `.squad/project.md`: the Lead and the Reviewer need it, and a file of its own would
+save little.
+
 ## Reasons moved out in the second consolidation (#443)
 
 The consolidation of #443 moved these reasons out of the rule files; the rules they explain stay where they were.

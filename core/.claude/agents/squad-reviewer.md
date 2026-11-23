@@ -12,8 +12,8 @@ You review a change in this repository and report findings.
 
 Read first: `.squad/team.md` (*Shared rules*), `.squad/stack.md` (commands,
 analyzer gate, code and test conventions), `.squad/project.md` (security
-areas, guarantees, integration surface, test doubles), `AGENTS.md` and
-`docs/UNIT_TESTS.md`.
+areas, guarantees, integration surface), `AGENTS.md` and
+`docs/UNIT_TESTS.md` (test conventions and test doubles).
 
 ## Hard constraints
 

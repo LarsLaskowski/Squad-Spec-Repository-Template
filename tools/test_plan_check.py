@@ -567,6 +567,17 @@ class TestPlanCheck(unittest.TestCase):
         comment = PLAN + "\n<!-- `.squad/project.md` (+999 words) -->\n"
         self.assertEqual(self.script.check(self.feature(plan=comment))[1], [], "a comment states nothing")
 
+    def test_the_stated_growth_of_the_test_doubles_past_its_limit_is_a_warning(self):
+        # Template#468: the test doubles moved to docs/UNIT_TESTS.md keep a growth limit of their own.
+        docs = PLAN + "\n## Documentation updates\n\n- `docs/UNIT_TESTS.md` (Test doubles +120 words): FakeStore\n"
+        warnings = self.script.check(self.feature(plan=docs))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("docs/UNIT_TESTS.md (Test doubles) (+120 words) passes TEST_DOUBLES_MAX_GROWTH 100", warnings[0])
+        within = docs.replace("+120", "+100")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "at the limit, not past it")
+        other = docs.replace("(Test doubles +120 words): FakeStore", "(+300 words): a new section on fixtures")
+        self.assertEqual(self.script.check(self.feature(plan=other))[1], [], "the rest of the test document is free")
+
     def test_an_early_draft_pr_named_in_prose_needs_its_line(self):
         prose = PLAN + "\nThe change opens an early draft PR after step 6.\n"
         warnings = self.script.check(self.feature(plan=prose))[1]

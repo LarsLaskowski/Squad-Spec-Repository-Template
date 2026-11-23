@@ -108,8 +108,8 @@ class TestOwnership(GuardTestCase):
         self.assertFalse(self.hook.test_document("README.md", ["*_test.go"]))
 
     def test_a_squad_file_of_the_tester_goes_to_the_orchestrator(self):
-        self.assertIn(".squad/project.md (*Test doubles*): report the rows verbatim", self.reason("squad-tester",
-                                                                                                    "docs/a.md"))
+        self.assertIn(".squad/project.md or .squad/stack.md: report the text verbatim", self.reason("squad-tester",
+                                                                                                      "docs/a.md"))
 
     def test_the_tester_is_told_where_test_files_go(self):
         reason = self.reason("squad-tester", "src/App/Service.cs")

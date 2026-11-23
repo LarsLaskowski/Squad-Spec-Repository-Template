@@ -11,8 +11,10 @@ effort: medium
 `coverage`, against the tests as they stand), and the coverage figure of the change.
 
 Read first: `.squad/team.md` (*Shared rules*), `docs/UNIT_TESTS.md`, `.squad/stack.md` (*Layout*, *Writing
-tests*), `.squad/project.md` (*Test doubles*), and the approved `plan.md` (and `spec.md`/`tasks.md` for
-features).
+tests*), and the approved `plan.md` (and `spec.md`/`tasks.md` for features).
+
+`.squad/project.md` only when a test touches a guarantee the plan does not name (a run without a plan, a fix after a
+review finding): read that guarantee there and report the gap to the Lead.
 
 Mode `tests-first`:
 
@@ -94,5 +96,6 @@ Rules:
   more than one place, and a rebuilt file keeps the duplicate. After the edit, compare `git diff --stat` with the
   intended size and list the case or function headers (`grep -n`) to show each appears once.
 
-Report: tests added (names), their result, the coverage output, and the exact text of an edit under `.squad/`
-the plan gives you (*Test doubles* rows), which the orchestrator writes (`.squad/team.md`, *Files*).
+Report: tests added (names), their result, the coverage output, and the exact text of an edit of
+`.squad/project.md` or `.squad/stack.md` the plan gives you, which the orchestrator writes (`.squad/team.md`,
+*Files*); the *Test doubles* rows of `docs/UNIT_TESTS.md` you write yourself.

@@ -6,6 +6,8 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+## v2026.11.15 — 2026-11-23
+
 - [Core] A plan that names an early draft PR in prose and keeps the template's bare `Early draft PR: no` gets the Lead's
   revision (a declining plan writes `Early draft PR: no — <why>`), one more when the revision adds no line; a Lead
   decision on a failed private check without `FIX:` is corrected before the check runs again on the same code (#464)
@@ -37,6 +39,7 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   with the current words and growth) right after writing the text, `gate-stamp.py` prints it in step 7 when the branch
   changes either file (no gate), a shortening after the stamp is a `--verbatim` stamp, and such a warning is no lesson;
   a refresh lists an entry-form warning in its PR description instead of filing a `squad` issue (#467)
+- [Seed] Seeded files changed; existing targets keep their own copy, so the refresh carries these changes over by hand: `profiles/dotnet/seed/.squad/tools/squad_settings.py`, `profiles/dotnet/seed/docs/UNIT_TESTS.md`, `profiles/go/seed/.squad/tools/squad_settings.py`, `profiles/go/seed/docs/UNIT_TESTS.md`, `profiles/node/seed/.squad/tools/squad_settings.py`, `profiles/node/seed/docs/UNIT_TESTS.md`, `profiles/typescript/seed/.squad/tools/squad_settings.py`, `profiles/typescript/seed/docs/UNIT_TESTS.md`, `seed/.squad/project.md`
 
 ## v2026.11.14 — 2026-11-22
 

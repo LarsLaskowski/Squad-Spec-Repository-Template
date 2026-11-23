@@ -480,10 +480,12 @@ class TestTestDoubles(unittest.TestCase):
 
     def test_rule_bullets_of_an_existing_section_are_no_double_rows(self):
         # Template#473 review: Vandox's section keeps two rule bullets of 63 prose words each.
-        self.add_rows("- Prefer a real object over a fake; " + "word " * 60 + "\n| `FakeRow` | " + "w " * 55 + "|\n")
+        self.add_rows("- Prefer a real object over a fake; " + "word " * 60 + "\n| `FakeRow` | " + "w " * 55 + "|\n"
+                      "- **GitHub API double** - `test/github.ts`, " + "w " * 52 + "\n")
         warnings = self.warnings()
-        self.assertEqual(len(warnings), 1, warnings)
+        self.assertEqual(len(warnings), 2, warnings)
         self.assertIn("`FakeRow`", warnings[0], "a table row is a double row, a prose bullet is none")
+        self.assertIn("GitHub API double", warnings[1], "a bold label names a double too (Seluna)")
 
     def test_doubles_in_both_files_at_the_merge_base_add_up(self):
         # Template#473 review: Vandox has a section in both files; the move counted as +350 words.

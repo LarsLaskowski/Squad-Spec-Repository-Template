@@ -1270,6 +1270,22 @@ class TestReviewAndAfter(NextTest):
         self.stamp("--verbatim")
         self.assertIn("Next: step 9 — PR approval", self.next())
 
+    def test_a_step_7_shortening_of_project_md_takes_the_light_stamp_and_counts_no_finding(self):
+        # Template#473 review: an untagged `7 Verbatim fix` before the first review round gets --verbatim, and the
+        # round's accounting starts after the review rows, so the row counts as no blocking finding.
+        self.implemented()
+        self.stamp()
+        self.repo.log(row("7 Verbatim fix", "Orchestrator", "verbatim: shortened the new .squad/project.md entries"))
+        self.repo.write("README.md", "Readme, shortened\n")
+        self.repo.commit("shorten the new entries")
+        self.assertIn("add --verbatim", self.next())
+        self.stamp("--verbatim")
+        out = self.next()
+        self.assertIn("Next: step 8", out)
+        self.assertNotIn("delta round", out, "the first round reviews the stamped head")
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.assertIn("Next: step 9 — PR approval", self.next())
+
     def test_notes_already_in_the_plan_are_not_asked_for_again(self):
         # PiMonitor#228: the notes step came again after the notes were appended and folded into *Challenge*.
         settled = self.tool.notes_settled

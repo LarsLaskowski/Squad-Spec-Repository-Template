@@ -479,8 +479,9 @@ def entries(text):
 
 def double_row(kind, entry):
     """True for an entry of *Test doubles* that names a double: a table row, or a list item that starts with a code
-    span; the section's rule bullets are no double rows (Vandox keeps rules there)."""
-    return kind == "row" or entry.lstrip().startswith("`")
+    span or a bold label (Seluna: `**GitHub API double** — …`); the section's rule bullets, plain text, are no double
+    rows (Vandox keeps rules there)."""
+    return kind == "row" or entry.lstrip().startswith(("`", "**"))
 
 
 def check_entries(path, text, warnings, keep=None, before=None):

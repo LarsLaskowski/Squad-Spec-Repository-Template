@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] `squad-log.py` refuses a verbatim row that names no finding by its tag and a step-6 coverage skip while the
+  group's deferred tests are open; `squad-next.py` prints the tagged verbatim row and, with the Dev's launch, the
+  coverage pass the deferred tests make due (#470)
 - [Core] A squad PR carries its release-notes label like a `create-pr` one, `breaking-change` when the plan, a
   decision record or the body says it breaks existing users; the Reviewer blocks an unnamed breaking change or a
   missing label, and the PR template checks the label (#469)

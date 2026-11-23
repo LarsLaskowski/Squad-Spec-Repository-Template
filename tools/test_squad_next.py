@@ -515,6 +515,13 @@ class TestCodeSteps(NextTest):
         self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
         self.assertNotIn("deferred tests", self.next())
 
+    def test_the_implement_step_names_the_coverage_pass_the_deferred_tests_make_due(self):
+        # Censio#244: the orchestrator logged a coverage skip right after the Dev's row.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`", 30000, "sonnet/medium"))
+        self.assertIn("After it: the Tester's coverage pass for the deferred tests (`test_a`)", self.next())
+
     def test_a_deferred_test_whose_branch_the_dev_removed_needs_no_coverage_pass(self):
         # Vandox#470: the Tester deferred a test for a branch the Dev had already removed.
         self.repo.write("specs/issue-5/plan.md", plan_text())
@@ -1338,6 +1345,8 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
         self.assertIn("Verdict line: quote it in the prompt, exactly as here; it ends the report", out)
         self.assertIn("`FIX:` in capitals whenever it orders a change", out)
+        # Censio#244: the exact verbatim row, with its tags, is printed where the step offers the fix.
+        self.assertIn('"8 Verbatim fix" Orchestrator "verbatim: [BLOCKING, verbatim] <file:line>;', out)
 
     def test_a_finding_the_plan_already_orders_goes_to_its_owner_without_a_lead_decision(self):
         # PlexToJellyfinSync#292: the finding only asked for the deletion the plan's Approach ordered.

@@ -50,6 +50,36 @@ class TestSquadLog(unittest.TestCase):
     def tearDown(self):
         self.dir.cleanup()
 
+    def refused(self, rows, step, result):
+        root = os.path.join(self.dir.name, "repo")
+        path = os.path.join(root, "specs", "feature-7-x", "log.md")
+        write(path, "| Date | Step | Member | Result |\n| - | - | - | - |\n" + "".join(
+            f"| 2026-01-02 | {cells} |\n" for cells in rows))
+        args = types.SimpleNamespace(member="Orchestrator", step=step, result=result, folder="feature-7-x")
+        return self.script.refused_row(root, path, args)
+
+    def test_refuses_an_untagged_verbatim_row(self):
+        # Censio#244: a plain verbatim row counted as one blocking finding, so the Lead's decide stayed due.
+        reason = self.refused([], "8 Verbatim fix", "Applied the Reviewer's verbatim fixes")
+        self.assertIn("[BLOCKING, verbatim]", reason)
+        self.assertIsNotNone(self.refused([], "8 Docs", "applied the verbatim documentation fixes"))
+        for step, result in (("8 Verbatim fix", "verbatim: [NON-BLOCKING, plan, verbatim] README.md:3"),
+                             ("8 Decide skipped", "skipped — all findings were verbatim documentation fixes"),
+                             ("8 Verbatim fix", "verbatim: [BLOCKING, verbatim] a.md:1; [NON-BLOCKING, verbatim] b.md:2")):
+            self.assertIsNone(self.refused([], step, result), (step, result))
+
+    def test_refuses_a_coverage_skip_while_deferred_tests_are_open(self):
+        # Censio#244: `6 Coverage skipped (G3)` was logged although the step-5 row named a deferred test.
+        rows = ["5 Tests first (G3) | Tester | RESULT: PASS — 11 fail; Deferred: TrayMenuShowsNoLine (passes)",
+                "6 Implement (G3) | Dev | RESULT: PASS — done"]
+        reason = self.refused(rows, "6 Coverage skipped (G3)", "gate passes")
+        self.assertIn("TrayMenuShowsNoLine", reason)
+        done = rows + ["6 Coverage (G3) | Tester | RESULT: PASS — deferred test written"]
+        self.assertIsNone(self.refused(done, "6 Coverage skipped (G3)", "gate passes"))
+        none = ["5 Tests first (G3) | Tester | RESULT: PASS — Deferred: none", rows[1]]
+        self.assertIsNone(self.refused(none, "6 Coverage skipped (G3)", "gate passes"))
+        self.assertIsNone(self.refused(rows, "6 Coverage skipped (G2)", "gate passes"), "another group")
+
     def test_row_follows_the_files_line_ending(self):
         write(self.path, "| Date | Step | Member | Result |\r\n| - | - | - | - |", newline="")
         self.script.append_row(self.path, "1 Intake", "Orchestrator", "branch created", today="2026-01-02")

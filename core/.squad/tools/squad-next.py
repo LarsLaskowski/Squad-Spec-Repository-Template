@@ -31,7 +31,7 @@ a row without one is named, and both ways are printed. A Reviewer's verdict line
 (`VERDICT: APPROVE on <sha>`); one that names none, or a commit whose code differs from the stamp of its round (a
 later commit that touched only `specs/` holds the same code), ties the round to no stamp, and the Reviewer is
 continued on the stamp's SHA. The Orchestrator's verbatim rows after a round subtract the findings they name by tag
-(`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`; a row without a tag counts as one blocking finding), so a
+(`[BLOCKING, verbatim]`, `[NON-BLOCKING, verbatim]`; `squad-log.py` refuses a row without one), so a
 non-blocking finding applied verbatim needs no Lead launch, and a word "blocking" in its prose counts nothing; a
 Lead `decide` row that orders a change (`FIX:` in capitals, with its colon) sends its owners, the gates and a delta
 round before step 9. A new stamp whose code differs from the reviewed one only in the `Status` lines of decision
@@ -1130,7 +1130,7 @@ def group_step(run, group, skeleton, docs_only=False):
             f"{BASE_HANDOVER}") + [
             "  Not due when steps 4 and 5 left the group no production code to write (the skeleton was the whole "
             "change): " + orchestrator_log(run, f"6 Implement skipped{tag}", "skipped — <what steps 4–5 did>").strip(),
-            decide_pointer(run, tag)]
+            decide_pointer(run, tag)] + deferred_note(run, group)
     if not coverage_ended(run, group):
         return coverage_pass(run, tag, rows, deferred_tests(run, group)) + [decide_pointer(run, tag)]
     return None
@@ -1226,6 +1226,16 @@ def documentation_group(run, group, tag):
             run, TESTER, "coverage", f"6 Test documentation{tag}", "the group's task rows of the Tester (test "
             f"documentation; rows under .squad/ as exact text in the report), {BASE_HANDOVER}")
     return None
+
+
+def deferred_note(run, group):
+    """The line that tells, before the Dev's row, that the deferred tests make the Tester's coverage pass due
+    (Censio#244: a coverage skip logged right after the Dev); squad-log.py refuses that skip."""
+    deferred = deferred_tests(run, group)
+    if not deferred or deferral_settled(run, group):
+        return []
+    return [f"  After it: the Tester's coverage pass for the deferred tests ({deferred}), also when the gate passes; "
+            "no coverage skip row"]
 
 
 def coverage_pass(run, tag, rows, deferred=""):
@@ -1817,9 +1827,10 @@ def review_outcome(run, rows, blocking, nonblocking):
             "justification, split into a follow-up issue, abort, or escalate")
     if nonblocking and not decided:
         return heading("step 8 — non-blocking findings (*Non-blocking findings*)") + [
-            "  Verbatim ones: *Verbatim documentation fixes*; all others in one Lead launch, before the round's fix round:"
-        ] + launch(run, LEAD, "decide", run.step_cell("8", "Decide"), "the round's non-blocking findings (and, for "
-                   "context, its blocking ones)")
+            "  Verbatim ones: *Verbatim documentation fixes*, logged as " + verbatim_row(run),
+            "  All others in one Lead launch, before the round's fix round:"] + launch(
+            run, LEAD, "decide", run.step_cell("8", "Decide"), "the round's non-blocking findings (and, for context, "
+            "its blocking ones)")
     ordered = bool(decided) and fix_ordered(decided[-1].result)
     if not blocking and not ordered:
         return None
@@ -1830,7 +1841,7 @@ def review_outcome(run, rows, blocking, nonblocking):
     if run.base_tier in ("docs", "patch"):
         return heading(f"step 8 — {what} (tiers docs and patch)") + [
             DO + "fix them yourself, commit and run the gate stamp again; then a delta round"]
-    verbatim = ["  A fix marked verbatim: apply it yourself (*Verbatim documentation fixes*)"]
+    verbatim = ["  A fix marked verbatim: apply it yourself (*Verbatim documentation fixes*), then " + verbatim_row(run)]
     if not blocking:
         return heading("step 8 — the Lead ordered fixes: their owner, then steps 6–7 and a mandatory delta round") + \
             owner_fixes(run, "8", "the Lead's decide row") + verbatim
@@ -1840,6 +1851,14 @@ def review_outcome(run, rows, blocking, nonblocking):
         purpose="code and documentation") + launch(
         run, TESTER, "coverage", run.step_cell("8", FIX_TESTS), "the blocking findings on tests, the head SHA",
         purpose="tests") + verbatim
+
+
+def verbatim_row(run):
+    """The exact row of a verbatim fix, each finding named by the Reviewer's tag (Censio#244): an untagged row counts
+    as one blocking finding (`verbatim_findings`)."""
+    return (f"{LOG_TOOL} {run.name} \"{run.step_cell('8', 'Verbatim fix')}\" Orchestrator \"verbatim: [BLOCKING, "
+            "verbatim] <file:line>; [NON-BLOCKING, verbatim] <file:line>\" (one tag per finding, as the Reviewer "
+            "wrote it; a plan-ordered one `[NON-BLOCKING, plan, verbatim]`)")
 
 
 def owner_fixes(run, number, source):

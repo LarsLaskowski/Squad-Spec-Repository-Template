@@ -27,6 +27,17 @@ reads the versions of Reihitsu.Analyzer, SonarAnalyzer.CSharp and MSTest(.Analyz
 `Directory.Packages.props` and its SDK from `global.json`, downloads those packages from nuget.org and reads the SDK's
 analyzers from the installed SDK of that feature band (`dotnet --list-sdks`). A rule of a recorded family (`RH`, `S`,
 `CA`, `IDE`, `MSTEST`) the analyzers do not know is never written; it is listed. `CS` and other families are not checked.
+Each id carries the package versions or SDKs that know it (`RH2008 Reihitsu.Analyzer 1.5.0`); an id of a package
+version newer than every one the consumers use is kept from the previous file, so a baseline prepared for an update
+survives a recording before the consumers take it. An id without them (written before #450) takes the sources of its
+family the header names.
+
+Every run (`--record-ids` included) lists the rules of Reihitsu.Analyzer and MSTest.Analyzers the recorded packages
+know that the baseline neither sets nor leaves out on purpose (`decisions.json`, a `null` value), with their package
+and version (#450): such a rule takes the analyzer's default severity, which can break a consumer's build on the
+update. The owner decides a severity for each in `decisions.json`. `--unset-rules` lists them alone from the template's
+files, without a consumer's clone, the SDK or the network. SonarAnalyzer's `S` rules are not listed (their severity
+comes from the SonarQube Cloud profile, `sonar-rules.py`), nor the SDK's `CA` and `IDE` rules (`AnalysisLevel`).
 
 The result is `profiles/dotnet/managed/.squad/dotnet-rules.editorconfig`, which every target receives and its
 `.squad/tools/dotnet-rules.py` writes into the marked blocks of `.editorconfig`, and from its `[*.cs]` rules at
@@ -38,9 +49,11 @@ settings the baseline tightens or adds (`--verbose`: each of them).
 Usage, from the template repository's root:
     python3 tools/dotnet-baseline.py [--check] [--verbose] [--target OWNER/NAME=PATH]
     python3 tools/dotnet-baseline.py --record-ids [--target OWNER/NAME=PATH]
+    python3 tools/dotnet-baseline.py --unset-rules
 
-Exit code 0 when the baseline was written or is current, 1 when a conflict is open or `--check` finds the file out of
-date, 2 NOT CHECKED (a consumer's clone, its origin/main, an analyzer package or an SDK is missing), 4 wrong usage.
+Exit code 0 when the baseline was written or is current (the rules left undecided never fail a run), 1 when a
+conflict is open or `--check` finds the file out of date, 2 NOT CHECKED (a consumer's clone, its origin/main, an
+analyzer package or an SDK is missing), 4 wrong usage.
 """
 import argparse
 import importlib.util
@@ -100,6 +113,9 @@ OPTION_PREFIXES = ("csharp_", "dotnet_style_", "dotnet_naming_", "dotnet_sort_",
 # The analyzer assemblies whose rule ids --record-ids reads, by a part of the file name, and the family each owns.
 FAMILIES = (("Reihitsu.Analyzer", "RH"), ("SonarAnalyzer.CSharp", "S"), (MSTEST_ANALYZERS, "MSTEST"),
             ("NetAnalyzers", "CA"), ("CodeStyle", "IDE"))
+# The families of the analyzer packages whose every rule the baseline decides (#450): `S` takes its severities from the
+# SonarQube Cloud profile (`sonar-rules.py`), `CA` and `IDE` come with the SDK and its `AnalysisLevel`.
+UNSET_FAMILIES = ("RH", "MSTEST")
 GROUPS = (("Files", ("charset", "end_of_line", "insert_final_newline", "trim_trailing_whitespace", "indent_", "tab_width")),
           ("Formatting", ("csharp_new_line", "csharp_indent", "csharp_space", "csharp_preserve")),
           ("Naming", ("dotnet_naming_",)),
@@ -516,32 +532,122 @@ def sdk_assemblies(folder):
     yield from folder_assemblies(os.path.join(analyzers, "codestyle", "cs"))
 
 
+def origin_of(label):
+    """The package version (`Reihitsu.Analyzer 1.5.0`) or SDK (`.NET SDK 11.0.100`) of an assembly's source label."""
+    if label.startswith("sdk/"):
+        return f".NET SDK {label.split('/')[1]}"
+    return label.partition(": ")[0]
+
+
+def version_key(version):
+    return tuple(int(part) for part in re.findall(r"\d+", version.partition("-")[0]))
+
+
+def origin_key(origin):
+    package, _, version = origin.rpartition(" ")
+    return package, version_key(version)
+
+
+def ahead_of(previous, packages):
+    """{rule: origins} of a previous recording from a package version newer than every one the consumers use."""
+    newest = {}
+    for package, version in packages:
+        newest[package] = max(newest.get(package, ()), version_key(version))
+    kept = {}
+    for rule, origins in previous.items():
+        ahead = {origin for origin in origins if origin_key(origin)[1] > newest.get(origin_key(origin)[0], (2 ** 31,))}
+        if ahead:
+            kept[rule] = ahead
+    return kept
+
+
+def write_ids(out, sources, origins):
+    with open(out, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("# Rule ids the analyzers in use know; written by tools/dotnet-baseline.py --record-ids from:\n")
+        handle.writelines(f"#   {source}\n" for source in sources)
+        handle.writelines(f"{rule} {', '.join(sorted(origins[rule], key=origin_key))}\n" for rule in sorted(origins))
+
+
 def record_ids(clones, out=IDS, fetch=fetch_package, sdks=installed_sdks):
-    """Write the rule ids the analyzers the consumers use know, with the sources, to `out`."""
+    """Write the rule ids the analyzers the consumers use know, each with its package versions and SDKs, to `out`."""
     packages, wanted = analyzers_in_use(clones)
     found = [(f"{package} {version}: {name}", binary) for package, version in sorted(packages)
              for name, binary in package_assemblies(fetch(package, version))]
     installed = sdks()
     found += [(source_label(path), binary) for sdk in sorted(wanted) for path, binary in
               sdk_assemblies(sdk_folder(sdk, installed))]
-    known, sources = set(), []
+    origins = ahead_of(load_origins(out), packages)
+    kept, sources = len(origins), []
     for label, binary in found:
         family = family_of(label)
         if family:
-            known |= ids_in(binary, family)
+            for rule in ids_in(binary, family):
+                origins.setdefault(rule, set()).add(origin_of(label))
             sources.append(label)
-    with open(out, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write("# Rule ids the analyzers in use know; written by tools/dotnet-baseline.py --record-ids from:\n")
-        handle.writelines(f"#   {source}\n" for source in sources)
-        handle.writelines(f"{rule}\n" for rule in sorted(known))
-    print(f"{os.path.relpath(out, ROOT)}: {len(known)} rule ids from {len(sources)} assemblies")
+    write_ids(out, sources, origins)
+    print(f"{os.path.relpath(out, ROOT)}: {len(origins)} rule ids from {len(sources)} assemblies, {kept} kept of a "
+          "package version newer than the consumers use")
+
+
+def family_of_rule(rule):
+    match = RULE_ID.match(rule)
+    return match["family"] if match else None
+
+
+def header_origins(lines):
+    """{family: {origin}} of the sources a file's header names."""
+    found = {}
+    for source in (line.lstrip("#").strip() for line in lines if line.startswith("#")):
+        family = family_of(source)
+        if family and (": " in source or source.startswith("sdk/")):
+            found.setdefault(family, set()).add(origin_of(source))
+    return found
+
+
+def load_origins(path=IDS):
+    """{rule: {origin}} of an ids file; a rule written without its origins takes those of its family's sources."""
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as handle:
+        lines = [line.strip() for line in handle if line.strip()]
+    header = header_origins(lines)
+    origins = {}
+    for rule, _, rest in (line.partition(" ") for line in lines if not line.startswith("#")):
+        origins[rule] = set(rest.split(", ")) if rest else set(header.get(family_of_rule(rule), ()))
+    return origins
 
 
 def load_ids(path=IDS):
-    if not os.path.isfile(path):
-        return set()
-    with open(path, encoding="utf-8") as handle:
-        return {line.strip() for line in handle if line.strip() and not line.startswith("#")}
+    return set(load_origins(path))
+
+
+def baseline_rules(text):
+    """The rule ids a baseline file sets, in any of its sections."""
+    return {rule_id(key) for _, key, _ in editorconfig_settings(text or "") if rule_id(key)}
+
+
+def left_out(decisions):
+    """The rule ids the decisions leave out on purpose (a `null` value)."""
+    keys = [normalized_key(key) for key, decision in decisions.get("settings", {}).items() if decision.get("value") is None]
+    return {rule_id(key) for key in keys if rule_id(key)}
+
+
+def unset_rules(origins, baseline_text, decisions):
+    """{origins: [rule]} of the rules of UNSET_FAMILIES the analyzers know and the baseline neither sets nor leaves out."""
+    decided = baseline_rules(baseline_text) | left_out(decisions)
+    unset = {}
+    for rule in sorted(origins, key=lambda rule: sort_key(f"dotnet_diagnostic.{rule}.severity")):
+        if family_of_rule(rule) in UNSET_FAMILIES and rule not in decided:
+            unset.setdefault(", ".join(sorted(origins[rule], key=origin_key)) or "source unknown", []).append(rule)
+    return unset
+
+
+def report_unset(unset):
+    if unset:
+        print("\nKnown to the analyzers, neither set by the baseline nor left out on purpose (decide a severity in "
+              "tools/dotnet-baseline/decisions.json):")
+        for origin in sorted(unset):
+            print(f"  {origin}: {', '.join(unset[origin])}")
 
 
 # --- output -------------------------------------------------------------------------------------------------------
@@ -634,11 +740,16 @@ def report(configs, merged, verbose):
             print(f"  {line}")
 
 
+def read_text(path):
+    """A file's text as it is written, or None when it is missing."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
 def write_or_check(text, check, path=BASELINE):
-    current = None
-    if os.path.isfile(path):
-        with open(path, encoding="utf-8", newline="") as handle:
-            current = handle.read()
+    current = read_text(path)
     if check:
         print(f"{os.path.relpath(path, ROOT)}: {'current' if current == text else 'missing or out of date'}")
         return current == text
@@ -657,20 +768,28 @@ def main(argv=None):
                         help="the clone of a consumer, when it is not the folder of its name next to this repository")
     parser.add_argument("--record-ids", action="store_true",
                         help="write analyzer-ids.txt from the analyzer packages and SDKs the consumers use")
+    parser.add_argument("--unset-rules", action="store_true",
+                        help="only list the rules the analyzers know that the baseline neither sets nor leaves out")
     args = parser.parse_args(argv)
+    if args.unset_rules:
+        report_unset(unset_rules(load_origins(IDS), read_text(BASELINE), load_decisions(DECISIONS)))
+        return CURRENT
     clones = clone_paths(dotnet_consumers(), args.target)
     try:
         if args.record_ids:
             record_ids(clones)
+            report_unset(unset_rules(load_origins(IDS), read_text(BASELINE), load_decisions(DECISIONS)))
             return CURRENT
         configs = [read_consumer(name, clone) for name, clone in clones.items()]
     except NotChecked as error:
         print(f"NOT CHECKED: {error}")
         return NOT_CHECKED
     merged = merge(configs)
-    apply_decisions(merged, load_decisions())
-    drop_unknown(merged, load_ids())
+    decisions = load_decisions(DECISIONS)
+    apply_decisions(merged, decisions)
+    drop_unknown(merged, load_ids(IDS))
     report(configs, merged, args.verbose)
+    report_unset(unset_rules(load_origins(IDS), render(merged), decisions))
     current = write_or_check(render(merged), args.check)
     current = write_or_check(render_global(merged), args.check, GLOBAL_CONFIG) and current
     return FAILED if merged.conflicts or not current else CURRENT

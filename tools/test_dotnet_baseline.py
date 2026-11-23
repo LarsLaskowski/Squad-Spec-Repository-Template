@@ -280,16 +280,48 @@ class TestAnalyzerIds(unittest.TestCase):
                 return self.package()
 
             out = os.path.join(root, "ids.txt")
+            with open(out, "w", encoding="utf-8") as handle:
+                handle.write("# from:\nS9000 SonarAnalyzer.CSharp 1.1.0\nS8000 SonarAnalyzer.CSharp 0.9.0\nRH2008\n")
             with contextlib.redirect_stdout(io.StringIO()):
                 tool.record_ids({"o/App": clone}, out, fetch=fetch,
                                 sdks=lambda: {"11.0.100": os.path.join(root, "sdk", "11.0.100")})
             self.assertEqual(fetched, [("SonarAnalyzer.CSharp", "1.0.0")])
-            self.assertEqual(tool.load_ids(out), {"S1125", "S3776", "CA1822"},
-                             "only each analyzer's own family, without resource, VB or other assemblies")
+            self.assertEqual(tool.load_ids(out), {"S1125", "S3776", "CA1822", "S9000"},
+                             "only each analyzer's own family, without resource, VB or other assemblies, and the "
+                             "previous ids of a version newer than the consumers use")
             with open(out, encoding="utf-8") as handle:
                 text = handle.read()
+            self.assertIn("\nS1125 SonarAnalyzer.CSharp 1.0.0\n", text, "every id carries its package and version")
+            self.assertIn("\nCA1822 .NET SDK 11.0.100\n", text)
+            self.assertIn("\nS9000 SonarAnalyzer.CSharp 1.1.0\n", text)
             self.assertIn("SonarAnalyzer.CSharp 1.0.0: analyzers/SonarAnalyzer.CSharp.dll", text)
             self.assertIn("sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll", text)
+
+    def test_only_ids_of_a_version_newer_than_the_consumers_use_are_kept(self):
+        previous = {"RH2008": {"Reihitsu.Analyzer 1.5.0"}, "RH0001": {"Reihitsu.Analyzer 1.2.0"},
+                    "RH0002": {"Reihitsu.Analyzer 1.10.0", "Reihitsu.Analyzer 1.0.0"},
+                    "MSTEST0001": {"MSTest.Analyzers 9.0.0"}, "CA1822": {".NET SDK 12.0.100"}}
+        self.assertEqual(tool.ahead_of(previous, {("Reihitsu.Analyzer", "1.2.0"), ("Reihitsu.Analyzer", "1.4.0")}),
+                         {"RH2008": {"Reihitsu.Analyzer 1.5.0"}, "RH0002": {"Reihitsu.Analyzer 1.10.0"}},
+                         "versions compare by number; a package or SDK the consumers do not use is not kept")
+
+    def test_an_id_without_its_origin_takes_the_sources_of_its_family(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "ids.txt")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("# Rule ids the analyzers in use know; written by tools/dotnet-baseline.py --record-ids from:\n"
+                             "#   Reihitsu.Analyzer 1.2.0: analyzers/dotnet/cs/Reihitsu.Analyzer.dll\n"
+                             "#   Reihitsu.Analyzer 1.2.0: analyzers/dotnet/cs/Reihitsu.Analyzer.CodeFixes.dll\n"
+                             "#   sdk/11.0.100/Sdks/Microsoft.NET.Sdk/analyzers/Microsoft.CodeAnalysis.NetAnalyzers.dll\n"
+                             "CA1822\nRH0001\nRH2008 Reihitsu.Analyzer 1.5.0\nMSTEST0002\n")
+            self.assertEqual(tool.load_origins(path), {"CA1822": {".NET SDK 11.0.100"},
+                                                       "RH0001": {"Reihitsu.Analyzer 1.2.0"},
+                                                       "RH2008": {"Reihitsu.Analyzer 1.5.0"}, "MSTEST0002": set()})
+
+    def test_the_hand_added_reihitsu_ids_are_recorded_with_their_version(self):
+        origins = tool.load_origins()
+        for rule in ("RH2008", "RH2009", "RH2111"):
+            self.assertEqual(origins.get(rule), {"Reihitsu.Analyzer 1.5.0"}, f"{rule} stays in analyzer-ids.txt (#447)")
 
     def test_a_folder_that_is_no_repository_is_refused(self):
         with tempfile.TemporaryDirectory() as root, self.assertRaises(tool.NotChecked):
@@ -364,6 +396,42 @@ class TestOutput(unittest.TestCase):
         tightened, added = tool.changes(config("b", end_of_line="lf", csharp_prefer_braces="true:error"), merged)
         self.assertEqual(tightened, ["end_of_line: lf -> crlf"])
         self.assertIn("dotnet_diagnostic.RH0010.severity = error", added)
+
+
+class TestUnsetRules(unittest.TestCase):
+    ORIGINS = {"RH0001": {"Reihitsu.Analyzer 1.2.0"}, "RH0002": {"Reihitsu.Analyzer 1.2.0"},
+               "RH0010": {"Reihitsu.Analyzer 1.2.0"}, "RH2008": {"Reihitsu.Analyzer 1.5.0"},
+               "RH0003": {"Reihitsu.Analyzer 1.2.0"}, "MSTEST0002": {"MSTest.Analyzers 4.5.2", "MSTest.Analyzers 4.5.10"},
+               "MSTEST0099": set(), "S1125": {"SonarAnalyzer.CSharp 10.36.0.15337"}, "CA1822": {".NET SDK 11.0.100"}}
+    BASELINE = ("[*.cs]\ndotnet_diagnostic.RH0001.severity = error\n\n"
+                "[**/*.Tests/**.cs]\ndotnet_diagnostic.rh0003.severity = none\n")
+    DECISIONS = {"settings": {"dotnet_diagnostic.RH0002.severity": {"value": None, "reason": "default"},
+                              "dotnet_diagnostic.RH0010.severity": {"value": "error", "reason": "but not written yet"}}}
+
+    def test_a_rule_the_packages_know_and_the_baseline_lacks_is_listed_with_its_package_and_version(self):
+        self.assertEqual(tool.unset_rules(self.ORIGINS, self.BASELINE, self.DECISIONS),
+                         {"Reihitsu.Analyzer 1.2.0": ["RH0010"], "Reihitsu.Analyzer 1.5.0": ["RH2008"],
+                          "MSTest.Analyzers 4.5.2, MSTest.Analyzers 4.5.10": ["MSTEST0002"],
+                          "source unknown": ["MSTEST0099"]},
+                         "a rule set in any section or left out by a null decision is not listed; S, CA and IDE are "
+                         "not the baseline's to decide")
+
+    def test_the_listing_names_package_version_and_rules(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            tool.report_unset({"Reihitsu.Analyzer 1.5.0": ["RH2008", "RH2009"]})
+            tool.report_unset({})
+        self.assertIn("\n  Reihitsu.Analyzer 1.5.0: RH2008, RH2009\n", output.getvalue())
+        self.assertEqual(output.getvalue().count("decisions.json"), 1, "nothing undecided prints nothing")
+
+    def test_unset_rules_runs_from_the_template_files_alone(self):
+        output = io.StringIO()
+        with (mock.patch.object(tool, "clone_paths", side_effect=AssertionError("no clone is read")),
+              mock.patch.object(tool.subprocess, "run", side_effect=AssertionError("no SDK is run")),
+              mock.patch.object(tool.urllib.request, "urlopen", side_effect=AssertionError("no network")),
+              contextlib.redirect_stdout(output)):
+            self.assertEqual(tool.main(["--unset-rules"]), tool.CURRENT, "a listing never fails the run")
+        self.assertNotIn("RH2008", output.getvalue(), "the baseline sets RH2008 (#447)")
 
 
 class TestDecisionsFile(unittest.TestCase):

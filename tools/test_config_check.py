@@ -1,8 +1,10 @@
 """Unit tests for core/.squad/tools/config-check.py (front matter without PyYAML, seed text left without its braces,
-the members' guards declared in .claude/settings.json, the size of .squad/project.md): run
+the members' guards declared in .claude/settings.json, the entries and growth of .squad/project.md): run
 `python3 -m unittest discover tools`."""
+import contextlib
 import glob
 import importlib.util
+import io
 import json
 import os
 import re
@@ -162,9 +164,9 @@ class TestSeededBullets(unittest.TestCase):
                         "- `IClock` in `src/Time.cs`, registered as a singleton\n- {{TODO: the test double}}\n"
                         "Its interface, prose and no bullet.\n")
             errors = []
-            self.script.check_seeded_bullets(path, {self.script.bullet_key(b) for b in
-                                                    self.script.SEEDED_BULLETS[os.path.join(".squad", "project.md")]},
-                                             errors)
+            project = os.path.join(".squad", "project.md")
+            bullets = self.script.SEEDED_BULLETS[project] + self.script.EARLIER_SEED_BULLETS[project]
+            self.script.check_seeded_bullets(path, {self.script.bullet_key(b) for b in bullets}, errors)
         self.assertEqual([error.split(": ", 1)[0].rsplit(":", 1)[1] for error in errors], ["3", "4", "5", "6"])
         self.assertIn("'its interface' is the seed's placeholder text without its braces", errors[0])
 
@@ -293,14 +295,15 @@ class TestSquadGuards(unittest.TestCase):
 
 
 class TestProjectSize(unittest.TestCase):
-    """.squad/project.md past PROJECT_MAX_WORDS is a warning, with the limit from squad_settings.py."""
+    """.squad/project.md: an entry past PROJECT_ENTRY_MAX_PROSE prose words, and a branch that adds more than
+    PROJECT_MAX_GROWTH words against its merge base, are warnings; its total size is none (Template#466)."""
 
     def setUp(self):
         self.script = load_script()
         self.dir = tempfile.TemporaryDirectory()
         self.cwd = os.getcwd()
         os.chdir(self.dir.name)
-        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1498)
+        write(self.script.PROJECT_FILE, "# Project\n\n## Guarantees\n\n" + "- `A` - pointer\n" * 600)
 
     def tearDown(self):
         os.chdir(self.cwd)
@@ -311,24 +314,67 @@ class TestProjectSize(unittest.TestCase):
         self.script.check_project_size(found)
         return found
 
-    def test_the_default_limit_without_settings(self):
-        self.assertEqual(self.warnings(), [], "1500 words: at the limit, not past it")
-        write(self.script.PROJECT_FILE, "# Project\n\n" + "word " * 1600)
+    def git(self, *args):
+        subprocess.run(["git", *args], check=True, capture_output=True)
+
+    def commit_main(self):
+        """A repository whose origin/main holds the current files, with a branch off it."""
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("checkout", "-qb", "work")
+
+    def test_a_large_file_of_pointers_is_no_warning(self):
+        self.assertEqual(self.warnings(), [], "2400 words of pointers: no total limit")
+
+    def test_an_entry_with_too_much_prose_is_named(self):
+        long = "The token expires after a while and is renewed when the client asks for it. " * 4
+        write(self.script.PROJECT_FILE, "# Project\n\n## Security areas\n\n- Session tokens: " + long + "\n"
+                                        "- `src/A.cs`, `src/B.cs`, [area](../docs/areas/a.md) " + "`X` " * 80 + "\n"
+                                        "| Type | What |\n| --- | --- |\n| `A` | " + "word " * 51 + "|\n"
+                                        "1. first\n   " + "more " * 60 + "\n")
         warnings = self.warnings()
-        self.assertEqual(len(warnings), 1)
-        self.assertIn("project.md: 1602 words (PROJECT_MAX_WORDS 1500)", warnings[0])
-        self.assertIn("make every entry a pointer", warnings[0])
+        self.assertEqual(len(warnings), 3, warnings)
+        self.assertIn('(Security areas, "Session tokens: The token expires after a while …"): 62 prose words in '
+                      "one entry (PROJECT_ENTRY_MAX_PROSE 50)", warnings[0])
+        self.assertIn('(Security areas, "`A` | word word word word word word …"): 51 prose words', warnings[1])
+        self.assertIn("(Security areas, \"first more more", warnings[2], "a continuation line belongs to its item")
 
-    def test_the_limit_from_the_settings(self):
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 1000\n")
-        self.assertIn("(PROJECT_MAX_WORDS 1000)", self.warnings()[0])
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = 3000\n")
-        self.assertEqual(self.warnings(), [], "the file is loaded anew on every call")
+    def test_the_entry_limit_from_the_settings(self):
+        write(self.script.PROJECT_FILE, "## Guarantees\n\n- " + "word " * 40 + "\n")
+        self.assertEqual(self.warnings(), [])
+        write(self.script.SETTINGS_FILE, "PROJECT_ENTRY_MAX_PROSE = 30\n")
+        self.assertIn("(PROJECT_ENTRY_MAX_PROSE 30)", self.warnings()[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_ENTRY_MAX_PROSE = (\n")
+        self.assertEqual(self.warnings(), [], "a broken settings file leaves the default")
 
-    def test_a_broken_settings_file_leaves_the_default(self):
-        write(self.script.PROJECT_FILE, "word " * 1501)
-        write(self.script.SETTINGS_FILE, "PROJECT_MAX_WORDS = (\n")
-        self.assertIn("(PROJECT_MAX_WORDS 1500)", self.warnings()[0])
+    def test_code_blocks_and_comments_hold_no_entry(self):
+        write(self.script.PROJECT_FILE, "```\n- " + "word " * 60 + "\n```\n- short\n<!-- " + "word " * 60
+              + " -->\n")
+        self.assertEqual(self.warnings(), [])
+
+    def test_growth_against_the_merge_base_past_the_limit(self):
+        self.commit_main()
+        self.assertEqual(self.warnings(), [], "no change")
+        with open(self.script.PROJECT_FILE, "a", encoding="utf-8") as handle:
+            handle.write("- `B` - pointer\n" * 50)
+        self.assertEqual(self.warnings(), [], "200 words: at the limit, not past it")
+        with open(self.script.PROJECT_FILE, "a", encoding="utf-8") as handle:
+            handle.write("- `C`\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("project.md: gained 202 words against the merge base (PROJECT_MAX_GROWTH 200)", warnings[0])
+        write(self.script.SETTINGS_FILE, "PROJECT_MAX_GROWTH = 300\n")
+        self.assertEqual(self.warnings(), [], "the limit from the settings")
+
+    def test_no_merge_base_or_a_new_file_skips_the_growth(self):
+        self.assertEqual(self.warnings(), [], "no repository")
+        os.remove(self.script.PROJECT_FILE)
+        write("README.md", "x\n")
+        self.commit_main()
+        write(self.script.PROJECT_FILE, "- `A` - pointer\n" * 600)
+        self.assertEqual(self.warnings(), [], "a file the merge base lacks (a first adoption)")
 
     def test_no_project_file_no_warning(self):
         os.remove(self.script.PROJECT_FILE)
@@ -340,6 +386,130 @@ class TestProjectSize(unittest.TestCase):
         errors, warnings = [], []
         self.script.check_decisions(errors, warnings)
         self.assertEqual((errors, warnings), ([], ["docs/areas/a.md: 6000 words"]))
+
+
+class TestTestDoubles(unittest.TestCase):
+    """The *Test doubles* section of docs/UNIT_TESTS.md: the entry check, TEST_DOUBLES_MAX_GROWTH against the merge
+    base, and a section left in .squad/project.md (Template#468)."""
+
+    def setUp(self):
+        self.script = load_script()
+        self.dir = tempfile.TemporaryDirectory()
+        self.cwd = os.getcwd()
+        os.chdir(self.dir.name)
+        write(self.script.PROJECT_FILE, "# Project\n\n## Guarantees\n\n- `A` - pointer\n")
+        write(self.script.UNIT_TESTS_FILE, "# Unit Tests\n\n## Test stack\n\n- " + "word " * 80 + "\n\n"
+                                           "## Test doubles\n\nOne line each.\n\n- `FakeClock` - the clock\n\n"
+                                           "## Naming\n\n- " + "word " * 80 + "\n")
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        self.dir.cleanup()
+
+    def warnings(self):
+        found = []
+        self.script.check_test_doubles(found)
+        return found
+
+    def git(self, *args):
+        subprocess.run(["git", *args], check=True, capture_output=True)
+
+    def commit_main(self):
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("checkout", "-qb", "work")
+
+    def add_rows(self, rows):
+        text = read(self.script.UNIT_TESTS_FILE).replace("## Naming", rows + "\n## Naming")
+        write(self.script.UNIT_TESTS_FILE, text)
+
+    def test_only_the_rows_of_the_section_are_checked(self):
+        self.assertEqual(self.warnings(), [], "long convention bullets outside the section are no entries")
+        self.add_rows("- `FakeStore` - " + "word " * 55 + "\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn('UNIT_TESTS.md (Test doubles, "`FakeStore` - word word word word word word …"): 55 prose '
+                      "words in one entry (PROJECT_ENTRY_MAX_PROSE 50)", warnings[0])
+
+    def test_growth_of_the_section_past_its_limit(self):
+        self.commit_main()
+        self.add_rows("- `FakeB` - b\n" * 25)
+        self.assertEqual(self.warnings(), [], "100 words: at the limit, not past it")
+        self.add_rows("- `FakeC`\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("(*Test doubles*): gained 102 words against the merge base (TEST_DOUBLES_MAX_GROWTH 100)",
+                      warnings[0])
+        write(self.script.SETTINGS_FILE, "TEST_DOUBLES_MAX_GROWTH = 150\n")
+        self.assertEqual(self.warnings(), [], "the limit from the settings")
+
+    def test_the_section_moved_from_project_md_is_no_growth(self):
+        rows = "".join(f"- `Fake{n}` - stands in for the thing number {n}\n" for n in range(30))
+        write(self.script.PROJECT_FILE, "# Project\n\n## Test doubles\n\n" + rows)
+        write(self.script.UNIT_TESTS_FILE, "# Unit Tests\n\n## Naming\n\n- short\n")
+        self.commit_main()
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("project.md: has a *Test doubles* section - move it verbatim to", warnings[0])
+        write(self.script.PROJECT_FILE, "# Project\n")
+        write(self.script.UNIT_TESTS_FILE, "# Unit Tests\n\n## Test doubles\n\n" + rows + "\n## Naming\n\n- short\n")
+        self.assertEqual(self.warnings(), [], "the moved section is measured against its old place")
+
+    def test_a_test_document_without_the_section_is_no_finding(self):
+        write(self.script.UNIT_TESTS_FILE, "# Unit Tests\n\n## Naming\n\n- short\n")
+        self.assertEqual(self.warnings(), [])
+        os.remove(self.script.UNIT_TESTS_FILE)
+        self.assertEqual(self.warnings(), [])
+
+    def test_the_project_option_prints_only_these_warnings_and_passes(self):
+        self.add_rows("- `FakeStore` - " + "word " * 55 + "\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = self.script.project_only()
+        self.assertEqual(code, 0, "warnings only: gate-stamp.py prints them, they are no gate")
+        self.assertIn("WARNING: docs/UNIT_TESTS.md (Test doubles", out.getvalue())
+        self.assertIn(": 1 warning(s)", out.getvalue())
+
+    def test_every_profile_section_of_a_merged_document_counts(self):
+        write(self.script.UNIT_TESTS_FILE, "# Unit Tests (go)\n\n## Test doubles\n\n- `A` - a\n\n---\n\n"
+                                           "# Unit Tests (dotnet)\n\n## Test doubles\n\n- `B` - " + "b " * 60 + "\n")
+        self.assertEqual(len(self.warnings()), 1)
+        self.assertIn("`B` - b", self.script.doubles_text(read(self.script.UNIT_TESTS_FILE)))
+
+    def test_rule_bullets_of_an_existing_section_are_no_double_rows(self):
+        # Template#473 review: Vandox's section keeps two rule bullets of 63 prose words each.
+        self.add_rows("- Prefer a real object over a fake; " + "word " * 60 + "\n| `FakeRow` | " + "w " * 55 + "|\n"
+                      "- **GitHub API double** - `test/github.ts`, " + "w " * 52 + "\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 2, warnings)
+        self.assertIn("`FakeRow`", warnings[0], "a table row is a double row, a prose bullet is none")
+        self.assertIn("GitHub API double", warnings[1], "a bold label names a double too (Seluna)")
+
+    def test_doubles_in_both_files_at_the_merge_base_add_up(self):
+        # Template#473 review: Vandox has a section in both files; the move counted as +350 words.
+        rows = "".join(f"- `Fake{n}` - stands in for the thing number {n}\n" for n in range(30))
+        write(self.script.PROJECT_FILE, "# Project\n\n## Test doubles\n\n" + rows)
+        self.commit_main()
+        write(self.script.PROJECT_FILE, "# Project\n")
+        self.add_rows(rows)
+        self.assertEqual(self.warnings(), [], "the rows moved into the existing section are no growth")
+
+    def test_the_project_option_reports_only_entries_the_branch_writes_and_prints_the_counts(self):
+        # Template#473 review: an old entry's warning was printed in every run that changed the file.
+        self.add_rows("- `FakeOld` - " + "word " * 55 + "\n")
+        self.commit_main()
+        self.add_rows("- `FakeNew` - " + "word " * 56 + "\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.script.project_only()
+        text = out.getvalue()
+        self.assertIn("`FakeNew`", text)
+        self.assertNotIn("`FakeOld`", text, "an entry the merge base has verbatim is left to the full run")
+        self.assertIn(".squad/project.md: 8 words (+0 against the merge base)", text)
+        self.assertRegex(text, r"docs/UNIT_TESTS.md \(\*Test doubles\*\): \d+ words \(\+59 against the merge base\)")
+        self.assertEqual(len([w for w in self.warnings() if "Fake" in w]), 2, "the full run reports both")
 
 
 if __name__ == "__main__":

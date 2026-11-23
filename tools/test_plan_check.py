@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import types
 import unittest
+import unittest.mock as mock
 
 from test_squad_tools import git, load_script, write
 
@@ -553,11 +554,39 @@ class TestPlanCheck(unittest.TestCase):
         within = areas.replace("big.md:", "big.md (+50 words):")
         self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "within the limit with the words added")
 
+    def test_the_stated_growth_of_project_md_past_its_limit_is_a_warning(self):
+        # Template#466: a change adds pointers to .squad/project.md, not copies; the total size is no limit.
+        docs = PLAN + "\n## Documentation updates\n\n- `.squad/project.md` (+250 words): the new guarantee\n"
+        warnings = self.script.check(self.feature(plan=docs))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn(".squad/project.md (+250 words) passes PROJECT_MAX_GROWTH 200", warnings[0])
+        within = docs.replace("+250", "+200")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "at the limit, not past it")
+        shrinks = docs.replace("+250", "-250")
+        self.assertEqual(self.script.check(self.feature(plan=shrinks))[1], [], "a shrinking file is within")
+        comment = PLAN + "\n<!-- `.squad/project.md` (+999 words) -->\n"
+        self.assertEqual(self.script.check(self.feature(plan=comment))[1], [], "a comment states nothing")
+
+    def test_the_stated_growth_of_the_test_doubles_past_its_limit_is_a_warning(self):
+        # Template#468: the test doubles moved to docs/UNIT_TESTS.md keep a growth limit of their own.
+        docs = PLAN + "\n## Documentation updates\n\n- `docs/UNIT_TESTS.md` (Test doubles +120 words): FakeStore\n"
+        warnings = self.script.check(self.feature(plan=docs))[1]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("docs/UNIT_TESTS.md (Test doubles) (+120 words) passes TEST_DOUBLES_MAX_GROWTH 100", warnings[0])
+        within = docs.replace("+120", "+100")
+        self.assertEqual(self.script.check(self.feature(plan=within))[1], [], "at the limit, not past it")
+        other = docs.replace("(Test doubles +120 words): FakeStore", "(+300 words): a new section on fixtures")
+        self.assertEqual(self.script.check(self.feature(plan=other))[1], [], "the rest of the test document is free")
+
     def test_an_early_draft_pr_named_in_prose_needs_its_line(self):
         prose = PLAN + "\nThe change opens an early draft PR after step 6.\n"
         warnings = self.script.check(self.feature(plan=prose))[1]
         self.assertTrue(any("Early draft PR: yes" in warning for warning in warnings), warnings)
-        for line in ("Early draft PR: yes", "Early draft PR: no"):
+        template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", "specs", "_template", "plan.md")
+        with mock.patch.object(self.script, "TEMPLATE_PLAN", template):
+            bare = self.script.check(self.feature(plan=prose + "\nEarly draft PR: no\n"))[1]
+        self.assertTrue(any("Early draft PR: yes" in warning for warning in bare), "the template's line is unset (#464)")
+        for line in ("Early draft PR: yes", "Early draft PR: no \u2014 a branch build is enough"):
             tagged = prose + f"\n{line}\n"
             self.assertFalse(any("early draft PR" in warning for warning in self.script.check(
                 self.feature(plan=tagged))[1]), line)

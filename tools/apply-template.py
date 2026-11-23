@@ -25,7 +25,9 @@ with more than one language, see "Several profiles" below:
   without project markers (written by hand) is backed up first, like a marked file;
 - **seed** files (`seed/` and `profiles/<profile>/seed/`) are written only when the target does not have
   them yet; an existing `.claude/settings.json` only gets the squad's hooks (`SQUAD_HOOKS`: `git-guard.py` and
-  `file-guard.py`) added when it lacks one, everything else in it stays;
+  `file-guard.py`) added when it lacks one, everything else in it stays; an existing `squad_settings.py` loses the
+  settings a later version replaced (`RETIRED_SETTINGS`; a value the target set itself is reported as `dropped`) and
+  gets every size setting it lacks (`WARNING_SETTINGS`), everything else in it stays;
 - **retired** files (`RETIRED` below) that an older template version wrote are removed from the target, and
   every line of the target that still refers to one is listed for fixing by hand;
 - the squad's process decisions are the managed `docs/decisions/process.md`; the numbered records an older template
@@ -61,7 +63,7 @@ Usage, from the template repository's root:
     python3 tools/apply-template.py --target ../OtherRepo      # refresh with the recorded profile(s)
 
 Prints one line per file (created / updated / renormalized / unchanged / kept / skipped / backed-up / conflict /
-removed), the files in template-owned folders of the target that the template does not know (old skills or
+removed / dropped), the files in template-owned folders of the target that the template does not know (old skills or
 agents to review), the lines that still refer to a retired file and the numbered process records to retire.
 """
 import argparse
@@ -126,6 +128,8 @@ RENAMES = {"gitattributes": GITATTRIBUTES}
 # a folder without workspace trust (a cloud or `-p` session); a refresh adds a missing one to a settings file the target
 # already has. {script: the PreToolUse entry that runs it}, as in seed/.claude/settings.json.
 CLAUDE_SETTINGS = ".claude/settings.json"
+SETTINGS_FILE = ".squad/tools/squad_settings.py"
+SETTING_LINE = re.compile(r"([A-Z][A-Z0-9_]*+)[ \t]*+=")
 GIT_GUARD_HOOK = {"matcher": "Bash", "hooks": [{"type": "command",
                                                 "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py"'}]}
 FILE_GUARD_HOOK = {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
@@ -280,12 +284,24 @@ def merge_settings(profile_dirs):
     return "\n".join(lines)
 
 
-# The size warnings of config-check.py and decision-check.py: {setting: (default, comment)}, as in the profile seeds.
+# The size warnings of config-check.py, plan-check.py and decision-check.py: {setting: (default, comment)}, as in the
+# profile seeds.
 WARNING_SETTINGS = {
-    "PROJECT_MAX_WORDS": (1500, ".squad/project.md, read by five members on every launch"),
+    "PROJECT_MAX_GROWTH": (200, "words .squad/project.md may gain in one change (against the merge base with BASE_REF)"),
+    "PROJECT_ENTRY_MAX_PROSE": (50, "prose words of one entry of .squad/project.md or *Test doubles* (no code spans, "
+                                    "links)"),
+    "TEST_DOUBLES_MAX_GROWTH": (100, "words *Test doubles* in docs/UNIT_TESTS.md may gain in one change"),
     "AREA_MAX_WORDS": (5000, "each area document in docs/areas/"),
     "RECORD_MAX_WORDS": (1500, "each unreleased decision record"),
     "RECORD_MAX_OPTIONS": (8, "the options under *Options considered* of an unreleased decision record"),
+}
+WARNING_COMMENT = ("# Size warnings (config-check.py, plan-check.py, decision-check.py): a file or a change past its limit "
+                   "is reported with", "# what it needs.")
+# Settings a later template version replaced: {setting: (the template's default, what replaces it)}. A refresh removes
+# them from the target's squad_settings.py and reports a value the target had set itself (adopt-template step 1).
+RETIRED_SETTINGS = {
+    "PROJECT_MAX_WORDS": (1500, "PROJECT_MAX_GROWTH and PROJECT_ENTRY_MAX_PROSE replace the total size limit of "
+                                ".squad/project.md"),
 }
 
 
@@ -301,11 +317,61 @@ def figure_settings(modules):
 
 def warning_settings(module):
     """The size-warning lines of a merged squad_settings.py, with the primary profile's values."""
-    lines = ["# Size warnings (config-check.py, decision-check.py): a file past its limit is reported with the split "
-             "it needs."]
+    lines = list(WARNING_COMMENT)
     lines += [f"{name} = {getattr(module, name, default)!r}  # {comment}"
               for name, (default, comment) in WARNING_SETTINGS.items()]
     return [*lines, ""]
+
+
+def setting_name(line):
+    """The name a top-level `NAME = value` line of squad_settings.py assigns, or None."""
+    match = SETTING_LINE.match(line)
+    return match.group(1) if match else None
+
+
+def without_retired_settings(lines):
+    """(the lines without RETIRED_SETTINGS, the index where the first one stood or None, a note for each value the
+    target had set itself)."""
+    kept, at, notes = [], None, []
+    for line in lines:
+        name = setting_name(line)
+        if name not in RETIRED_SETTINGS:
+            kept.append(line)
+            continue
+        default, replacement = RETIRED_SETTINGS[name]
+        value = line.split("=", 1)[1].split("#", 1)[0].strip()
+        if value != repr(default):
+            notes.append(f"{SETTINGS_FILE}: {name} = {value}, the repository's own value, removed ({replacement}): "
+                         "name it in the PR description")
+        at = len(kept) if at is None else at
+    return kept, at, notes
+
+
+def migrated_settings(text):
+    """(the target's squad_settings.py text without RETIRED_SETTINGS and with every WARNING_SETTINGS entry it lacks, or
+    None when nothing changes; the notes of `without_retired_settings`)."""
+    lines, at, notes = without_retired_settings(text.split("\n"))
+    names = [setting_name(line) for line in lines]
+    missing = [f"{name} = {default!r}  # {comment}" for name, (default, comment) in WARNING_SETTINGS.items()
+               if name not in names]
+    if at is None and not missing:
+        return None, notes
+    if at is None:
+        known = [index for index, name in enumerate(names) if name in WARNING_SETTINGS]
+        at = known[-1] + 1 if known else len(lines)
+        if not known:
+            missing = ["", *WARNING_COMMENT, *missing]
+    return "\n".join(lines[:at] + missing + lines[at:]), notes
+
+
+def migrate_settings_file(target, emit, report):
+    """The target's existing squad_settings.py, kept as a seed, with the size settings of this template version."""
+    text, notes = migrated_settings(read(target_path(target, SETTINGS_FILE)))
+    report.extend(("dropped", note) for note in notes)
+    if text is None:
+        report.append(("kept", SETTINGS_FILE))
+    else:
+        emit(SETTINGS_FILE, text)
 
 
 def split_chunks(text, pattern):
@@ -664,7 +730,7 @@ def merge_seed(rel, found, names, report):
         return merge_stack_md(list(zip(owners, texts, strict=True)))
     if rel == "docs/UNIT_TESTS.md":
         return merge_unit_tests(list(zip(owners, texts, strict=True)))
-    if rel == ".squad/tools/squad_settings.py":
+    if rel == SETTINGS_FILE:
         return merge_settings([os.path.join(ROOT, "profiles", name) for name in names])
     if rel in MERGERS:
         return MERGERS[rel](texts, owners)
@@ -837,12 +903,16 @@ def merge_squad_hooks(target, emit, report):
         emit(CLAUDE_SETTINGS, text)
 
 
+# Kept seeds a refresh still updates: the squad's hooks in .claude/settings.json, the size settings in squad_settings.py.
+KEPT_SEED_UPDATES = {CLAUDE_SETTINGS: merge_squad_hooks, SETTINGS_FILE: migrate_settings_file}
+
+
 def write_seeds(target, seeds, names, crlf, emit, report):
     existing = is_existing_repository(target)
     for rel, src in sorted(seeds.items()):
         skipped = seed_skip_reason(target, rel, names, existing)
-        if rel == CLAUDE_SETTINGS and skipped and skipped[0] == "kept":
-            merge_squad_hooks(target, emit, report)
+        if rel in KEPT_SEED_UPDATES and skipped and skipped[0] == "kept":
+            KEPT_SEED_UPDATES[rel](target, emit, report)
         elif skipped:
             report.append(skipped)
         else:

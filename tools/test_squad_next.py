@@ -425,7 +425,12 @@ class TestCodeSteps(NextTest):
         self.assertIn("names an early draft PR in prose", out)
         self.assertIn("Launch: squad-lead, mode revise", out)
         self.repo.log(row("7 Plan revise (early draft PR)", "Lead", "RESULT: DONE", 9000))
-        self.assertNotIn("names an early draft PR in prose", self.next(), "one revision, no loop")
+        out = self.next()
+        self.assertNotIn("names an early draft PR in prose", out)
+        # #464: a revision that added no line gets one more, the Lead continued; then the run goes on.
+        self.assertIn("the Lead's revision left the plan without its own line", out)
+        self.repo.log(row("7 Plan revise (early draft PR line)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertNotIn("Early draft PR: yes|no", self.next(), "two revisions, no loop")
 
     def test_the_template_line_needs_no_revision_and_the_launch_asks_for_done(self):
         self.implemented()
@@ -433,8 +438,12 @@ class TestCodeSteps(NextTest):
         self.repo.write("specs/issue-5/plan.md", plan_text() + prose)
         self.stamp()
         self.assertIn("`RESULT: DONE`", self.next(), "a NO CHANGE answer would end the run")
+        # #464: the template's bare line next to such prose may hide a request: it counts as unset.
         self.repo.write("specs/issue-5/plan.md", plan_text() + prose + "\nEarly draft PR: no\n")
-        self.assertNotIn("names an early draft PR in prose", self.next(), "the line exists")
+        self.assertIn("names an early draft PR in prose", self.next(), "the template's line")
+        self.repo.write("specs/issue-5/plan.md", plan_text() + prose + "\nEarly draft PR: no \u2014 a branch build is "
+                        "enough\n")
+        self.assertNotIn("names an early draft PR in prose", self.next(), "the Lead's own line")
 
     def test_a_step_6_decide_for_another_owner_launches_no_member(self):
         self.implemented()
@@ -514,6 +523,13 @@ class TestCodeSteps(NextTest):
         self.assertIn("the deferred tests (`test_a`, `test_b`)", out)
         self.repo.log(row("6 Coverage", "Tester", "deferred tests written", 9000, "sonnet/medium"))
         self.assertNotIn("deferred tests", self.next())
+
+    def test_the_implement_step_names_the_coverage_pass_the_deferred_tests_make_due(self):
+        # Censio#244: the orchestrator logged a coverage skip right after the Dev's row.
+        self.repo.write("specs/issue-5/plan.md", plan_text())
+        self.repo.log(INTAKE, PLANNED, SKIPPED, row("4 Skeleton", "Dev", "done", 30000, "sonnet/medium"),
+                      row("5 Tests first", "Tester", "red; Deferred: `test_a`", 30000, "sonnet/medium"))
+        self.assertIn("After it: the Tester's coverage pass for the deferred tests (`test_a`)", self.next())
 
     def test_a_deferred_test_whose_branch_the_dev_removed_needs_no_coverage_pass(self):
         # Vandox#470: the Tester deferred a test for a branch the Dev had already removed.
@@ -994,6 +1010,18 @@ class TestReviewAndAfter(NextTest):
         self.stamp()
         self.assertNotIn("manual test of AC1", self.next(), "the Product Manager is not asked for the Tester's check")
 
+    def test_a_private_check_decision_without_fix_asks_for_a_correction_before_the_check_runs_again(self):
+        # #464: a decision that orders code without `FIX:` reran the check on unchanged code.
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 FAIL on the private recording", 20000, "sonnet/medium"),
+                      row("6 Decide (private check)", "Lead", "RESULT: DECIDED — add a group for the header", 9000))
+        out = self.next()
+        self.assertIn("names no `FIX:`", out)
+        self.assertIn('--replace-last "Lead" --step "6 Decide (private check)"', out)
+        self.assertIn("Launch: squad-tester, mode coverage", out, "the rerun stays offered for a decision without code")
+        self.repo.log(row("6 Decide (private check)", "Lead", "RESULT: ESCALATE — relax AC1?", 9000))
+        self.assertNotIn("names no `FIX:`", self.next(), "an escalation is no missing FIX")
+
     def test_a_private_check_row_without_a_capital_verdict_is_corrected_not_guessed(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
         self.repo.log(row("6 Private check", "Tester", "AC1 failed: the recording is rejected", 20000, "sonnet/medium"))
@@ -1019,7 +1047,8 @@ class TestReviewAndAfter(NextTest):
                       row("6 Decide (private check)", "Lead", "RESULT: DECIDED — rerun, the input was stale", 9000))
         out = self.next()
         self.assertNotIn("squad-dev", out, "no change was ordered")
-        self.assertIn("the Tester's check of AC1 over a private input", out)
+        self.assertIn("Only when it orders no change (another input, the same code) the check runs again", out)
+        self.assertIn("Launch: squad-tester, mode coverage", out)
 
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.
@@ -1241,6 +1270,22 @@ class TestReviewAndAfter(NextTest):
         self.stamp("--verbatim")
         self.assertIn("Next: step 9 — PR approval", self.next())
 
+    def test_a_step_7_shortening_of_project_md_takes_the_light_stamp_and_counts_no_finding(self):
+        # Template#473 review: an untagged `7 Verbatim fix` before the first review round gets --verbatim, and the
+        # round's accounting starts after the review rows, so the row counts as no blocking finding.
+        self.implemented()
+        self.stamp()
+        self.repo.log(row("7 Verbatim fix", "Orchestrator", "verbatim: shortened the new .squad/project.md entries"))
+        self.repo.write("README.md", "Readme, shortened\n")
+        self.repo.commit("shorten the new entries")
+        self.assertIn("add --verbatim", self.next())
+        self.stamp("--verbatim")
+        out = self.next()
+        self.assertIn("Next: step 8", out)
+        self.assertNotIn("delta round", out, "the first round reviews the stamped head")
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.assertIn("Next: step 9 — PR approval", self.next())
+
     def test_notes_already_in_the_plan_are_not_asked_for_again(self):
         # PiMonitor#228: the notes step came again after the notes were appended and folded into *Challenge*.
         settled = self.tool.notes_settled
@@ -1338,6 +1383,8 @@ class TestReviewFollowUps(NextTest):
         self.assertIn("non-blocking findings (*Non-blocking findings*)", out)
         self.assertIn("Verdict line: quote it in the prompt, exactly as here; it ends the report", out)
         self.assertIn("`FIX:` in capitals whenever it orders a change", out)
+        # Censio#244: the exact verbatim row, with its tags, is printed where the step offers the fix.
+        self.assertIn('"8 Verbatim fix" Orchestrator "verbatim: [BLOCKING, verbatim] <file:line>;', out)
 
     def test_a_finding_the_plan_already_orders_goes_to_its_owner_without_a_lead_decision(self):
         # PlexToJellyfinSync#292: the finding only asked for the deletion the plan's Approach ordered.
@@ -1427,6 +1474,21 @@ class TestReviewFollowUps(NextTest):
         self.repo.commit("change the decision")
         self.stamp()
         self.assertIn("Review, delta round", self.next(), "a change beyond the status does")
+
+    def test_the_leads_approval_and_the_record_status_stamp_end_step_9(self):
+        # Censio#241: after the Lead's approve-pr row, the record status commit and its --verbatim stamp, step 9 must
+        # not be printed again: no further checklist row is needed.
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Proposed"))
+        self.implemented()
+        self.stamp()
+        self.repo.log(self.reviewed("8 Review", "VERDICT: APPROVE", 60000))
+        self.repo.log(row("9 PR approval", "Lead", "RESULT: APPROVED — the open points accepted", 9000))
+        self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Accepted"))
+        self.repo.write("docs/decisions/README.md", RECORD_INDEX.format(status="Accepted"))
+        self.repo.commit("accept the record")
+        self.stamp("--verbatim")
+        self.assertIn("Next: step 10 — Pull request", self.next())
 
     def test_a_removed_comment_line_that_looks_like_a_diff_header_is_no_status_change(self):
         self.repo.write("docs/decisions/0001-topic.md", RECORD.format(status="Proposed"))

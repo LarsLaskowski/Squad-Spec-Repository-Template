@@ -9,8 +9,15 @@ neighboring test file before inventing a new pattern.
 
 - **MSTest** (`[TestClass]`, `[TestMethod]`, `[DataRow]`). No other test framework.
 - **No assertion library** (no FluentAssertions) and **no mocking library** — use real objects or the
-  hand-written fakes and stubs listed in `.squad/project.md` (*Test doubles*).
+  hand-written fakes and stubs listed under *Test doubles*.
 - Coverage is collected with `coverlet.collector`.
+
+## Test doubles
+
+The hand-written fakes and stubs the tests reuse (no mocking library unless *Test stack* says otherwise), one line
+each: the double, where it lives and what it stands in for; how it behaves is read in its code.
+
+- `{{TODO: FakeX}}` — {{TODO: what it stands in for}}
 
 ## Where tests live
 
@@ -21,7 +28,8 @@ neighboring test file before inventing a new pattern.
 
 ## Naming
 
-- Class: `{TypeUnderTest}Tests`.
+- Class: `{TypeUnderTest}Tests`; a type whose tests grow large is split by concern into
+  `{TypeUnderTest}{Concern}Tests` (for example `ParserFailureTests`), one file each.
 - Method: `{TypeUnderTest}{Scenario}{ExpectedResult}` in PascalCase **without underscores**, e.g.
   `ParserEmptyInputReturnsNull`.
 

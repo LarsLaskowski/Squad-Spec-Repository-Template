@@ -1275,6 +1275,68 @@ PlexToJellyfinSync#315: the v2026.11.11 refresh touched `ci.yml`, and SonarQube 
 githubactions:S8233 ("Move this write permission from workflow level to job level", security rating C on new code) for
 the seeded `checks: write`, which only the build job's `dorny/test-reporter` step needs.
 
+## A growth limit per change and an entry form check replace the total size of project.md (config-check.py; plan-check.py; squad_settings.py seeds; apply-template.py, `RETIRED_SETTINGS`; seed project.md; squad-lead.md, mode plan; adopt-template, step 1)
+
+#466. `PROJECT_MAX_WORDS` (1,500, #236) capped the total size of `.squad/project.md`, but a project.md in pointer form
+grows with the product by design: every new security-relevant type, guarantee, integration kind and test double gets
+one line, so every growing project reaches a fixed total. Each refresh or run then opened a "shorten project.md" issue
+(LarsLaskowski/Censio#147, #174, #196, #208, #214, #245; LarsLaskowski/Vandox#463, #484; LarsLaskowski/Seluna#154),
+and the maintenance pull request that followed cut pointers the members used: Vandox collapsed its test doubles into
+`Recording*`/`Scripted*` wildcards, and Censio#245 proposed dropping the area links.
+
+Words of `.squad/project.md` per merged pull request, counted as `config-check.py` counts them:
+
+| Repository | Feature PRs in pointer form | Shortening PRs |
+| --- | --- | --- |
+| Censio (since #155) | +4 to +117, typically about +30 | 5 PRs: −176 (#234), −44 (#210), −252 (#198), −121 (#183), −371 (#155) |
+| Vandox (since #380) | +22 to +101 | 2 PRs: −65 (#465), −203 (after #480) |
+| Vandox (before #380, restating behavior) | +180 (#346), +286 (#313), +656 (#316), +681 (Hardened agent unit) | — |
+
+The totals at the time: Censio 1,531, Vandox 1,496, DockerUpdateGuard 1,460, PiMonitor 1,349, Seluna 1,317 and
+PlexToJellyfinSync 1,082, all close to the limit. The cost the limit protected against is small: 1,500 extra words are
+about 2k tokens per launch of the five readers. The harm #236 described came from entries that restated behavior
+(Vandox's 15,541 words, whose copies went stale), a property of single entries and of how much one change adds, not of
+the total. A growth limit of 200 words per change never triggers on the pointer-form features above and catches all
+four restating changes in the run that wrote them; the entry form check (50 prose words, code spans and links not
+counted, so long type and file lists stay allowed) reports the restated values, limits and sequences themselves. The
+Lead states the growth in the plan as it sizes an area document, so `plan-check.py` warns before the text is written.
+Both stay warnings. The refresh removes the retired setting itself (`apply-template.py`) and reports a value a target
+had set, since a seeded file is otherwise never touched.
+
+## The test doubles live in the test document (docs/UNIT_TESTS.md seeds, Test doubles; squad-tester.md; squad-lead.md; squad-reviewer.md; team.md, Files; config-check.py; plan-check.py; file-guard.py; adopt-template, steps 1 and 6)
+
+#468. Five members read `.squad/project.md` on every launch, but its *Test doubles* section concerns only some of them:
+
+| Section | Lead | Devil's Advocate | Security | Tester | Reviewer |
+| --- | --- | --- | --- | --- | --- |
+| Security areas, Guarantees | ✔ | ✔ | ✔ | – | ✔ |
+| Integration surface | ✔ | (✔) | – | – | ✔ |
+| Test doubles | when the plan adds or changes a double | – | – | ✔ | ✔ |
+
+The Tester's charter limited it to the section, yet a member loads the whole file, so every Tester launch read about
+1,100 words of security and integration entries it does not use. The section was large and growing: 435 of 1,531
+words in LarsLaskowski/Censio, 395 of 1,460 in LarsLaskowski/DockerUpdateGuard and 350 of 1,496 in
+LarsLaskowski/Vandox. The documents disagreed: `AGENTS.md` (*Testing*) already said `docs/UNIT_TESTS.md` holds the
+project's test doubles, while the profile seeds of that document pointed to `.squad/project.md`. And a new row took a
+detour: the Tester reported its text and the orchestrator wrote it into `.squad/project.md`, although the Tester may
+edit `docs/UNIT_TESTS.md` directly. The fallback (the Tester reads a guarantee in `.squad/project.md` that a test
+touches and the plan does not name) covers runs without a plan, the `docs` tier and rework after a review finding.
+`TEST_DOUBLES_MAX_GROWTH` (100) is about seven doubles at the typical 14 words per row; the refresh moves the section
+verbatim, unshortened, and the PR lists both word counts so their development across releases stays visible.
+*Integration surface* stays in `.squad/project.md`: the Lead and the Reviewer need it, and a file of its own would
+save little.
+
+## Size warnings of project.md are fixed in the run (routing.md, Scope of a product PR; orchestration.md, Squad lessons; gate-stamp.py; config-check.py `--project`; squad-lead.md, mode plan; adopt-template, step 1)
+
+#467, the follow-up of #466. The size warning of `.squad/project.md` turned into issues in two ways: `adopt-template`
+step 1 filed one on every refresh (LarsLaskowski/Censio#147, #174, #196; LarsLaskowski/Vandox#463, #484;
+LarsLaskowski/Seluna#154), and feature runs reported it as a squad lesson (Censio#214, #245). Each issue led to a
+squad-maintenance pull request that shortened the file, five of them in Censio since #155, and those pull requests
+removed pointers the members used. A growth or entry warning is caused by the change in front of the squad, so the run
+that writes the entry fixes it while its author still holds the context. No pipeline step ran `config-check.py`
+before, so a warning reached nobody until a refresh; the stamp of step 7 now prints it, as no gate, because an older
+entry the change does not touch must not block a product run.
+
 ## Reasons moved out in the second consolidation (#443)
 
 The consolidation of #443 moved these reasons out of the rule files; the rules they explain stay where they were.

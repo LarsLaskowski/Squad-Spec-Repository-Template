@@ -36,15 +36,25 @@ Rules that hold throughout:
    changed commands, settings and rule sentences by hand (a *Format* row still labelled "Code Officer only"
    becomes "in the squad: by the member that changed the files, `.squad/team.md`"). A setting the target's
    `squad_settings.py` lacks is added with the seed's comment and default: `SPEC_APPROVAL = "lead"` (who approves a
-   feature's spec) unless the user asks for `"pm"`, the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*`,
-   `SMALL_FEATURE_CRITERIA`, `PROJECT_MAX_WORDS`, `AREA_MAX_WORDS`, `RECORD_MAX_WORDS` and `RECORD_MAX_OPTIONS`, and
-   `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`; a value the target already sets stays. The same holds
+   feature's spec) unless the user asks for `"pm"`, the size limits `PLAN_MAX_WORDS` per tier, `SPEC_*` and
+   `SMALL_FEATURE_CRITERIA`, and `FIGURE_TRIVIAL` and `FIGURE_EXCLUDES` of `figure-check.py`; a value the target
+   already sets stays. The size warnings' settings are the apply step's (step 3): it adds the ones the file lacks and
+   removes the retired `PROJECT_MAX_WORDS`; each `dropped` line of its output (a value the target had set) goes into
+   the PR description. The same holds
    for `docs/UNIT_TESTS.md`: a section the seed gained (e.g. *Criterion ids*) is added to the target's test document,
    adapted to its test framework; and for the structure of `project.md`, a pointer file: its introduction and the
-   section texts that say what an entry holds. The size warnings of `config-check.py` are not worked in the refresh;
-   list them in the PR description. Shortening the target's existing `project.md` entries to pointers is a
-   squad-maintenance pull request in that repository (file it there as a `squad` issue); splitting the records and
-   area documents the warnings name is a documentation change of the product (file an issue for it). The same diff
+   section texts that say what an entry holds. A *Test doubles* section still in the target's `.squad/project.md`
+   moves once, verbatim and unshortened, into `docs/UNIT_TESTS.md`: as the seed's *Test doubles* section (its
+   introduction from the seed) where the test document has none, else its rows merged into the existing section,
+   which keeps its own rules and loses only a sentence that points to `.squad/project.md`; every other pointer to
+   `.squad/project.md` (*Test doubles*) in the target follows it. The PR description lists the words of
+   `.squad/project.md` and of the *Test doubles* section after the refresh as `python3 .squad/tools/config-check.py
+   --project` prints them (never `wc -w`, which counts differently), so their growth stays visible from release to
+   release. The size warnings of `config-check.py` are not
+   worked in the refresh; list them in the PR description. An entry-form or growth warning of `.squad/project.md` or
+   *Test doubles* gets no issue: the next product PR that touches the entry fixes it (`.squad/routing.md` there,
+   *Scope of a product PR*); splitting the records and area documents the warnings name is a documentation change of
+   the product (file an issue for it). The same diff
    covers
    `seed/.claude/settings.json`: the apply step adds each squad `PreToolUse` hook the target's
    `.claude/settings.json` lacks (`git-guard.py`, and `file-guard.py` for targets adopted before it; step 8), and any
@@ -160,12 +170,12 @@ Rules that hold throughout:
       setup; a decision record that states a rule the baseline changes is superseded (or edited, if unreleased).
    Test docs under another name (e.g. `docs/TESTS.md`) are renamed to `docs/UNIT_TESTS.md` with `git mv`
    and every link updated; the profile's seed is only used when the target has no test document, and an
-   existing one gets the *Code coverage* and checklist sections of the seed merged in.
+   existing one gets the *Code coverage*, *Test doubles* and checklist sections of the seed merged in.
 6. **Fill `.squad/project.md`** from `ARCHITECTURE.md`, `SECURITY.md`, the README configuration table, the
    decision records and old review skills or agents: concrete security areas, guarantees with their
-   decision records, the integration surface (what must change together), and the test doubles — as pointers, the
-   way its introduction says: values, limits and sequences stay in the document they came from (an area document,
-   `ARCHITECTURE.md`, `README.md`), which the entry links. On a
+   decision records and the integration surface (what must change together), and the test doubles into
+   `docs/UNIT_TESTS.md` (*Test doubles*) — as pointers, the way its introduction says: values, limits and sequences
+   stay in the document they came from (an area document, `ARCHITECTURE.md`, `README.md`), which the entry links. On a
    first adoption, also read `git diff HEAD` of the **managed** files the apply step overwrote — a
    repository that already had a squad keeps its project knowledge there (e.g. the integration-surface
    sweep in an old `squad-reviewer.md`, project names in old charters or the PR template) — and carry that

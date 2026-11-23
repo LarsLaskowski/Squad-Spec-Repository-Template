@@ -10,8 +10,15 @@ neighboring test file before inventing a new pattern.
 <!-- project:begin stack -->
 - Test runner: `{{TODO: Node's built-in test runner via tsx | Vitest | Jest}}`; assertions: `{{TODO: node:assert/strict | expect}}`.
 - No mocking library beyond what the runner ships with — prefer real objects and the hand-written fakes
-  listed in `.squad/project.md` (*Test doubles*).
+  listed under *Test doubles*.
 <!-- project:end stack -->
+
+## Test doubles
+
+The hand-written fakes and stubs the tests reuse (no mocking library unless *Test stack* says otherwise), one line
+each: the double, where it lives and what it stands in for; how it behaves is read in its code.
+
+- `{{TODO: FakeX}}` — {{TODO: what it stands in for}}
 
 ## Where tests live
 

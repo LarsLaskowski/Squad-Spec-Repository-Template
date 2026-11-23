@@ -49,6 +49,15 @@ class TestSquadNotes(unittest.TestCase):
         self.assertEqual(self.text(), PLAN + "\n## Challenge notes\n\n" + REPORT.split("\n\nVERDICT")[0] + "\n")
         self.assertIn("4 line(s) written verbatim", done.stdout)
 
+    def test_the_headings_of_a_report_move_below_the_notes_heading(self):
+        # Censio#241: a report's `## Plan challenge:` heading ended the notes, so plan-check.py counted them as plan.
+        report = "## Plan challenge: G2\n\n### Objection 1\n\n```\n# a comment\n```\n\nVERDICT: 1 objection\n"
+        done = self.run_notes("issue-5", "challenge", "--stdin", stdin=report)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertTrue(self.text().endswith(
+            "## Challenge notes\n\n### Plan challenge: G2\n\n#### Objection 1\n\n```\n# a comment\n```\n"),
+            self.text())
+
     def test_a_security_note_that_names_fix_now_without_its_tag_is_warned_about(self):
         # The Lead is launched for `Recommendation: fix now` only (squad-next.py); a loose "fix now" is not read.
         report = ("1. The token never expires: fix now.\n2. The log line names the host. Recommendation: fix now\n"

@@ -1,14 +1,15 @@
 # Project
 
 What the squad needs to know about this project that is not stack-specific. Read by the Lead, the Devil's
-Advocate, Security, the Tester and the Reviewer. Not template-managed: `adopt-template` creates it once
-and never overwrites it. A product PR updates it when the change makes an entry untrue
-(`.squad/routing.md`, *Scope of a product PR*).
+Advocate, Security and the Reviewer; the test doubles are in `docs/UNIT_TESTS.md` (*Test doubles*). Not
+template-managed: `adopt-template` creates it once and never overwrites it. A product PR updates it when the change
+makes an entry untrue (`.squad/routing.md`, *Scope of a product PR*).
 
 Every entry points: it names files, types or endpoints and links the document that says more. Behavior, values,
 limits and sequences are written once, in the area documents (`docs/areas/README.md`), and the reasons in the
-decision records; a copy here goes stale with the next change. `config-check.py` warns when this file grows past
-`PROJECT_MAX_WORDS` words (`.squad/tools/squad_settings.py`).
+decision records; a copy here goes stale with the next change. `config-check.py` warns about an entry of more than
+`PROJECT_ENTRY_MAX_PROSE` prose words (code spans and links do not count) and about a change that adds more than
+`PROJECT_MAX_GROWTH` words to this file (`.squad/tools/squad_settings.py`).
 
 ## Security areas
 
@@ -53,10 +54,3 @@ change with it.
 **A new external API call or DTO** touches:
 - {{TODO: the client and its DTOs — the external shape must not leak past it}}
 - {{TODO: the fake/stub in the tests}}
-
-## Test doubles
-
-The hand-written fakes and stubs the tests reuse (no mocking library unless `docs/UNIT_TESTS.md` says
-otherwise), one line each: the double, where it lives and what it stands in for; how it behaves is read in its code.
-
-- `{{TODO: FakeX}}` — {{TODO: what it stands in for}}

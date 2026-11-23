@@ -6,6 +6,38 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A plan that names an early draft PR in prose and keeps the template's bare `Early draft PR: no` gets the Lead's
+  revision (a declining plan writes `Early draft PR: no — <why>`), one more when the revision adds no line; a Lead
+  decision on a failed private check without `FIX:` is corrected before the check runs again on the same code (#464)
+- [Core] `squad-notes.py` moves a report's headings down to level 3, so appended notes no longer end their section and
+  count against the plan's size; a member reports with none of its build, test or format jobs running and calls a
+  test green only from a run that named it, a deferred test never; step 9 says the Lead's `RESULT: APPROVED` ends it
+  (#471)
+- [Core] `squad-log.py` refuses a verbatim row that names no finding by its tag and a step-6 coverage skip while the
+  group's deferred tests are open; `squad-next.py` prints the tagged verbatim row and, with the Dev's launch, the
+  coverage pass the deferred tests make due (#470)
+- [Core] A squad PR carries its release-notes label like a `create-pr` one, `breaking-change` when the plan, a
+  decision record or the body says it breaks existing users; the Reviewer blocks an unnamed breaking change or a
+  missing label, and the PR template checks the label (#469)
+- [Profile] The .NET instructions name `{TypeUnderTest}{Concern}Tests` for a test class split by concern, as the
+  seeded `docs/UNIT_TESTS.md` does (#472)
+- [Core] `.squad/project.md` has no total size limit any more: `config-check.py` warns when a change adds more than
+  `PROJECT_MAX_GROWTH` (200) words against the merge base and about an entry of more than `PROJECT_ENTRY_MAX_PROSE`
+  (50) prose words, `plan-check.py` when the plan states a larger growth; a refresh replaces `PROJECT_MAX_WORDS` in
+  `squad_settings.py` with the new settings and reports a value the repository had set (#466)
+- [Core] The test doubles move from `.squad/project.md` to a *Test doubles* section of `docs/UNIT_TESTS.md`, which the
+  Tester writes itself; the Tester no longer reads `.squad/project.md` except for a guarantee the plan does not name,
+  the Lead reads the section only when its plan adds or changes a double; `config-check.py` applies the entry check
+  and `TEST_DOUBLES_MAX_GROWTH` (100) to the section and names one left in `.squad/project.md`, `plan-check.py` the
+  stated growth, and a refresh moves the section verbatim, into an existing *Test doubles* section where the test
+  document has one; the entry check reads only the double rows, and the growth counts both files' sections at the
+  merge base (#468)
+- [Core] A size or form warning of `.squad/project.md` or of *Test doubles* is fixed in the run whose change causes it,
+  never in a follow-up issue: the orchestrator runs `config-check.py --project` (only the entries the branch writes,
+  with the current words and growth) right after writing the text, `gate-stamp.py` prints it in step 7 when the branch
+  changes either file (no gate), a shortening after the stamp is a `--verbatim` stamp, and such a warning is no lesson;
+  a refresh lists an entry-form warning in its PR description instead of filing a `squad` issue (#467)
+
 ## v2026.11.14 — 2026-11-22
 
 - [Core] A Security note that writes `Recommendation: fix now` in Markdown emphasis (`**Recommendation:** fix now`)

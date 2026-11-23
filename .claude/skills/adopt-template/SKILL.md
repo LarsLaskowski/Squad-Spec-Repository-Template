@@ -44,10 +44,13 @@ Rules that hold throughout:
    for `docs/UNIT_TESTS.md`: a section the seed gained (e.g. *Criterion ids*) is added to the target's test document,
    adapted to its test framework; and for the structure of `project.md`, a pointer file: its introduction and the
    section texts that say what an entry holds. A *Test doubles* section still in the target's `.squad/project.md`
-   moves once, verbatim and unshortened, into `docs/UNIT_TESTS.md` as the seed's *Test doubles* section (its
-   introduction from the seed), and every pointer to `.squad/project.md` (*Test doubles*) in the target follows it.
-   The PR description lists the words of `.squad/project.md` and of the *Test doubles* section after the refresh
-   (`wc -w`), so their growth stays visible from release to release. The size warnings of `config-check.py` are not
+   moves once, verbatim and unshortened, into `docs/UNIT_TESTS.md`: as the seed's *Test doubles* section (its
+   introduction from the seed) where the test document has none, else its rows merged into the existing section,
+   which keeps its own rules and loses only a sentence that points to `.squad/project.md`; every other pointer to
+   `.squad/project.md` (*Test doubles*) in the target follows it. The PR description lists the words of
+   `.squad/project.md` and of the *Test doubles* section after the refresh as `python3 .squad/tools/config-check.py
+   --project` prints them (never `wc -w`, which counts differently), so their growth stays visible from release to
+   release. The size warnings of `config-check.py` are not
    worked in the refresh; list them in the PR description. An entry-form or growth warning of `.squad/project.md` or
    *Test doubles* gets no issue: the next product PR that touches the entry fixes it (`.squad/routing.md` there,
    *Scope of a product PR*); splitting the records and area documents the warnings name is a documentation change of

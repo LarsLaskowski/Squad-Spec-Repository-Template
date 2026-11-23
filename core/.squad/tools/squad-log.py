@@ -1171,8 +1171,9 @@ def refused_row(root, path, args):
     if args.member != "Orchestrator":
         return None
     step = cell(args.step)
-    verbatim = re.search(r"verbatim", step, re.I) or (
-        re.match(r"(?:8|11)\b", step) and VERBATIM_FIX.search(args.result) and not SKIPPED.search(step))
+    # Only a review round's findings have tags: a step-7 shortening of `.squad/project.md` entries has none.
+    verbatim = re.match(r"(?:8|11)\b", step) and not SKIPPED.search(step) and (
+        re.search(r"verbatim", step, re.I) or VERBATIM_FIX.search(args.result))
     if verbatim and not VERBATIM_TAG.search(args.result):
         return ("a verbatim row names each finding it applied by its tag, as the Reviewer wrote it: \"verbatim: "
                 "[BLOCKING, verbatim] <file:line>; [NON-BLOCKING, verbatim] <file:line>\" (a plan-ordered one "

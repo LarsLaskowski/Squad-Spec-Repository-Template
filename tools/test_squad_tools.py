@@ -63,6 +63,8 @@ class TestSquadLog(unittest.TestCase):
         reason = self.refused([], "8 Verbatim fix", "Applied the Reviewer's verbatim fixes")
         self.assertIn("[BLOCKING, verbatim]", reason)
         self.assertIsNotNone(self.refused([], "8 Docs", "applied the verbatim documentation fixes"))
+        self.assertIsNone(self.refused([], "7 Verbatim fix", "verbatim: shortened the new project.md entries"),
+                          "a step-7 shortening has no review tags")
         for step, result in (("8 Verbatim fix", "verbatim: [NON-BLOCKING, plan, verbatim] README.md:3"),
                              ("8 Decide skipped", "skipped — all findings were verbatim documentation fixes"),
                              ("8 Verbatim fix", "verbatim: [BLOCKING, verbatim] a.md:1; [NON-BLOCKING, verbatim] b.md:2")):

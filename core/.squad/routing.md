@@ -69,8 +69,11 @@ A `config-check.py` warning about an entry the change writes in `.squad/project.
 `docs/UNIT_TESTS.md` (more prose than `PROJECT_ENTRY_MAX_PROSE`), or about the words it adds there (more than
 `PROJECT_MAX_GROWTH` or `TEST_DOUBLES_MAX_GROWTH`), is fixed in this run, never in a follow-up issue: the Lead plans the
 edit within the limits (`plan-check.py` warns), its owner (`team.md`, *Files*) writes or reports pointer-sized entries,
-and where step 7's stamp still prints the warning, the orchestrator has that owner shorten the new entries before
-step 8. An older entry the change does not touch stays as it is.
+and the orchestrator runs `config-check.py --project` right after writing that text, before step 7's commit, and has
+the owner shorten what it reports. `--project` reports only the entries the branch writes and prints the words and
+growth the plan and the refresh take from it. Where step 7's stamp still prints the warning, the owner shortens the new
+entries before step 8; a shortening that changes nothing else is logged as `7 Verbatim fix` (`verbatim: <entries>`)
+and stamped with `--verbatim`. An older entry the change does not touch stays as it is.
 
 ## Tiers
 

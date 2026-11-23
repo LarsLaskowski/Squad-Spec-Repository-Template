@@ -478,6 +478,37 @@ class TestTestDoubles(unittest.TestCase):
         self.assertEqual(len(self.warnings()), 1)
         self.assertIn("`B` - b", self.script.doubles_text(read(self.script.UNIT_TESTS_FILE)))
 
+    def test_rule_bullets_of_an_existing_section_are_no_double_rows(self):
+        # Template#473 review: Vandox's section keeps two rule bullets of 63 prose words each.
+        self.add_rows("- Prefer a real object over a fake; " + "word " * 60 + "\n| `FakeRow` | " + "w " * 55 + "|\n")
+        warnings = self.warnings()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("`FakeRow`", warnings[0], "a table row is a double row, a prose bullet is none")
+
+    def test_doubles_in_both_files_at_the_merge_base_add_up(self):
+        # Template#473 review: Vandox has a section in both files; the move counted as +350 words.
+        rows = "".join(f"- `Fake{n}` - stands in for the thing number {n}\n" for n in range(30))
+        write(self.script.PROJECT_FILE, "# Project\n\n## Test doubles\n\n" + rows)
+        self.commit_main()
+        write(self.script.PROJECT_FILE, "# Project\n")
+        self.add_rows(rows)
+        self.assertEqual(self.warnings(), [], "the rows moved into the existing section are no growth")
+
+    def test_the_project_option_reports_only_entries_the_branch_writes_and_prints_the_counts(self):
+        # Template#473 review: an old entry's warning was printed in every run that changed the file.
+        self.add_rows("- `FakeOld` - " + "word " * 55 + "\n")
+        self.commit_main()
+        self.add_rows("- `FakeNew` - " + "word " * 56 + "\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.script.project_only()
+        text = out.getvalue()
+        self.assertIn("`FakeNew`", text)
+        self.assertNotIn("`FakeOld`", text, "an entry the merge base has verbatim is left to the full run")
+        self.assertIn(".squad/project.md: 8 words (+0 against the merge base)", text)
+        self.assertRegex(text, r"docs/UNIT_TESTS.md \(\*Test doubles\*\): \d+ words \(\+59 against the merge base\)")
+        self.assertEqual(len([w for w in self.warnings() if "Fake" in w]), 2, "the full run reports both")
+
 
 if __name__ == "__main__":
     unittest.main()

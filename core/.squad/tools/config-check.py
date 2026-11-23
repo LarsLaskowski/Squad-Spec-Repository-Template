@@ -434,7 +434,7 @@ def base_text(path):
 
 
 def word_count(text):
-    """Words as `wc -w` counts them."""
+    """Words split at white space, the count `--project` prints (`wc -w` differs: a stand-alone dash, Censio#156)."""
     return len(text.split())
 
 
@@ -477,10 +477,21 @@ def entries(text):
     return found
 
 
-def check_entries(path, text, warnings):
-    """Every entry of `text` (the file at `path`) with more prose words than PROJECT_ENTRY_MAX_PROSE."""
+def double_row(kind, entry):
+    """True for an entry of *Test doubles* that names a double: a table row, or a list item that starts with a code
+    span; the section's rule bullets are no double rows (Vandox keeps rules there)."""
+    return kind == "row" or entry.lstrip().startswith("`")
+
+
+def check_entries(path, text, warnings, keep=None, before=None):
+    """Every entry of `text` (the file at `path`) with more prose words than PROJECT_ENTRY_MAX_PROSE; with `keep`,
+    only the entries it accepts (kind, text); with `before`, only the entries not in that text verbatim (the ones the
+    branch writes)."""
     limit = setting("PROJECT_ENTRY_MAX_PROSE", PROJECT_ENTRY_MAX_PROSE)
-    for section, _, entry in entries(text):
+    old = {" ".join(entry.split()) for _, _, entry in entries(before)} if before is not None else set()
+    for section, kind, entry in entries(text):
+        if (keep and not keep(kind, entry)) or " ".join(entry.split()) in old:
+            continue
         words = prose_words(entry)
         if words > limit:
             first = " ".join(entry.strip("|-*+ ").split()[:8])
@@ -490,14 +501,16 @@ def check_entries(path, text, warnings):
                             "values and limits")
 
 
-def check_project_size(warnings):
-    """`.squad/project.md`: every entry past PROJECT_ENTRY_MAX_PROSE prose words, and the words the branch adds past
-    PROJECT_MAX_GROWTH."""
+def check_project_size(warnings, new_only=False, counts=None):
+    """`.squad/project.md`: every entry past PROJECT_ENTRY_MAX_PROSE prose words (with `new_only`, only those the branch
+    writes), and the words the branch adds past PROJECT_MAX_GROWTH; `counts` gets its words and growth."""
     if not os.path.isfile(PROJECT_FILE):
         return
     text = read_text(PROJECT_FILE)
-    check_entries(PROJECT_FILE, text, warnings)
     before = base_text(PROJECT_FILE)
+    check_entries(PROJECT_FILE, text, warnings, before=before if new_only else None)
+    if counts is not None:
+        counts.append(size_line(PROJECT_FILE, word_count(text), None if before is None else word_count(before)))
     limit = setting("PROJECT_MAX_GROWTH", PROJECT_MAX_GROWTH)
     if before is not None and word_count(text) - word_count(before) > limit:
         warnings.append(f"{PROJECT_FILE}: gained {word_count(text) - word_count(before)} words against the merge base "
@@ -520,26 +533,36 @@ def doubles_text(text):
 
 
 def doubles_before():
-    """The words of the test doubles at the merge base: the section of the test document, else the one
-    `.squad/project.md` had before it moved; None without a merge base or when neither file is there."""
+    """(words, text) of the test doubles at the merge base: the sections of the test document and of
+    `.squad/project.md` added up, so the move from one to the other is no growth (a test document can have a section
+    of its own already, Vandox); None without a merge base or when neither file is there."""
     tests, project = base_text(UNIT_TESTS_FILE), base_text(PROJECT_FILE)
     if tests is None and project is None:
         return None
-    section = doubles_text(tests or "") or doubles_text(project or "") or ""
-    return word_count(section)
+    sections = "\n".join(filter(None, (doubles_text(tests or ""), doubles_text(project or ""))))
+    return word_count(sections), sections
 
 
-def check_test_doubles(warnings):
-    """A *Test doubles* section left in `.squad/project.md`; in the test document's, every entry past
-    PROJECT_ENTRY_MAX_PROSE prose words and the words the branch adds past TEST_DOUBLES_MAX_GROWTH."""
+def size_line(name, now, before):
+    """The words of a file or section now and its growth against the merge base, as `--project` prints them."""
+    growth = "no merge base" if before is None else f"{now - before:+d} against the merge base"
+    return f"{name}: {now} words ({growth})"
+
+
+def check_test_doubles(warnings, new_only=False, counts=None):
+    """A *Test doubles* section left in `.squad/project.md`; in the test document's, every double row past
+    PROJECT_ENTRY_MAX_PROSE prose words (with `new_only`, only those the branch writes) and the words the branch adds
+    past TEST_DOUBLES_MAX_GROWTH; `counts` gets the section's words and growth."""
     if os.path.isfile(PROJECT_FILE) and doubles_text(read_text(PROJECT_FILE)) is not None:
         warnings.append(f"{PROJECT_FILE}: has a *{TEST_DOUBLES}* section - move it verbatim to {UNIT_TESTS_FILE}, where "
                         "the Tester keeps it (a refresh does: adopt-template step 1)")
     section = doubles_text(read_text(UNIT_TESTS_FILE)) if os.path.isfile(UNIT_TESTS_FILE) else None
     if section is None:
         return
-    check_entries(UNIT_TESTS_FILE, section, warnings)
-    before = doubles_before()
+    before, old_text = doubles_before() or (None, "")
+    check_entries(UNIT_TESTS_FILE, section, warnings, keep=double_row, before=old_text if new_only else None)
+    if counts is not None:
+        counts.append(size_line(f"{UNIT_TESTS_FILE} (*{TEST_DOUBLES}*)", word_count(section), before))
     limit = setting("TEST_DOUBLES_MAX_GROWTH", TEST_DOUBLES_MAX_GROWTH)
     if before is not None and word_count(section) - before > limit:
         warnings.append(f"{UNIT_TESTS_FILE} (*{TEST_DOUBLES}*): gained {word_count(section) - before} words against the "
@@ -604,10 +627,14 @@ def check_decisions(errors, warnings):
 
 
 def project_only():
-    """`--project`: print the warnings about `.squad/project.md` and the test doubles; always exit code 0."""
-    warnings = []
-    check_project_size(warnings)
-    check_test_doubles(warnings)
+    """`--project`: print the words of `.squad/project.md` and of the test doubles with their growth against the merge
+    base, and the warnings about what the branch writes there (an older entry is left to the full run); always exit
+    code 0."""
+    warnings, counts = [], []
+    check_project_size(warnings, new_only=True, counts=counts)
+    check_test_doubles(warnings, new_only=True, counts=counts)
+    for line in counts:
+        print(line)
     for warning in warnings:
         print(f"{WARNING_PREFIX}{warning}")
     print(f"Checked {PROJECT_FILE} and the {TEST_DOUBLES} of {UNIT_TESTS_FILE}: {len(warnings)} warning(s)")

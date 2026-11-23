@@ -33,9 +33,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
   document has one; the entry check reads only the double rows, and the growth counts both files' sections at the
   merge base (#468)
 - [Core] A size or form warning of `.squad/project.md` or of *Test doubles* is fixed in the run whose change causes it,
-  never in a follow-up issue: the orchestrator runs `config-check.py --project` (only the entries the branch
-  writes, with the current words and growth) right after writing the text, `gate-stamp.py` prints it in step 7 when the branch changes
-  either file (no gate), the orchestrator has the owner shorten the new entries, and such a warning is no squad lesson;
+  never in a follow-up issue: the orchestrator runs `config-check.py --project` (only the entries the branch writes,
+  with the current words and growth) right after writing the text, `gate-stamp.py` prints it in step 7 when the branch
+  changes either file (no gate), a shortening after the stamp is a `--verbatim` stamp, and such a warning is no lesson;
   a refresh lists an entry-form warning in its PR description instead of filing a `squad` issue (#467)
 
 ## v2026.11.14 — 2026-11-22

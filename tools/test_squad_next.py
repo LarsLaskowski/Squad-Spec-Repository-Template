@@ -425,7 +425,12 @@ class TestCodeSteps(NextTest):
         self.assertIn("names an early draft PR in prose", out)
         self.assertIn("Launch: squad-lead, mode revise", out)
         self.repo.log(row("7 Plan revise (early draft PR)", "Lead", "RESULT: DONE", 9000))
-        self.assertNotIn("names an early draft PR in prose", self.next(), "one revision, no loop")
+        out = self.next()
+        self.assertNotIn("names an early draft PR in prose", out)
+        # #464: a revision that added no line gets one more, the Lead continued; then the run goes on.
+        self.assertIn("the Lead's revision left the plan without its own line", out)
+        self.repo.log(row("7 Plan revise (early draft PR line)", "Lead", "RESULT: DONE", 9000, continued=True))
+        self.assertNotIn("Early draft PR: yes|no", self.next(), "two revisions, no loop")
 
     def test_the_template_line_needs_no_revision_and_the_launch_asks_for_done(self):
         self.implemented()
@@ -433,8 +438,12 @@ class TestCodeSteps(NextTest):
         self.repo.write("specs/issue-5/plan.md", plan_text() + prose)
         self.stamp()
         self.assertIn("`RESULT: DONE`", self.next(), "a NO CHANGE answer would end the run")
+        # #464: the template's bare line next to such prose may hide a request: it counts as unset.
         self.repo.write("specs/issue-5/plan.md", plan_text() + prose + "\nEarly draft PR: no\n")
-        self.assertNotIn("names an early draft PR in prose", self.next(), "the line exists")
+        self.assertIn("names an early draft PR in prose", self.next(), "the template's line")
+        self.repo.write("specs/issue-5/plan.md", plan_text() + prose + "\nEarly draft PR: no \u2014 a branch build is "
+                        "enough\n")
+        self.assertNotIn("names an early draft PR in prose", self.next(), "the Lead's own line")
 
     def test_a_step_6_decide_for_another_owner_launches_no_member(self):
         self.implemented()
@@ -1001,6 +1010,18 @@ class TestReviewAndAfter(NextTest):
         self.stamp()
         self.assertNotIn("manual test of AC1", self.next(), "the Product Manager is not asked for the Tester's check")
 
+    def test_a_private_check_decision_without_fix_asks_for_a_correction_before_the_check_runs_again(self):
+        # #464: a decision that orders code without `FIX:` reran the check on unchanged code.
+        self.implemented(test="manual: the Tester replays the private recording, never committed")
+        self.repo.log(row("6 Private check", "Tester", "AC1 FAIL on the private recording", 20000, "sonnet/medium"),
+                      row("6 Decide (private check)", "Lead", "RESULT: DECIDED — add a group for the header", 9000))
+        out = self.next()
+        self.assertIn("names no `FIX:`", out)
+        self.assertIn('--replace-last "Lead" --step "6 Decide (private check)"', out)
+        self.assertIn("Launch: squad-tester, mode coverage", out, "the rerun stays offered for a decision without code")
+        self.repo.log(row("6 Decide (private check)", "Lead", "RESULT: ESCALATE — relax AC1?", 9000))
+        self.assertNotIn("names no `FIX:`", self.next(), "an escalation is no missing FIX")
+
     def test_a_private_check_row_without_a_capital_verdict_is_corrected_not_guessed(self):
         self.implemented(test="manual: the Tester replays the private recording, never committed")
         self.repo.log(row("6 Private check", "Tester", "AC1 failed: the recording is rejected", 20000, "sonnet/medium"))
@@ -1026,7 +1047,8 @@ class TestReviewAndAfter(NextTest):
                       row("6 Decide (private check)", "Lead", "RESULT: DECIDED — rerun, the input was stale", 9000))
         out = self.next()
         self.assertNotIn("squad-dev", out, "no change was ordered")
-        self.assertIn("the Tester's check of AC1 over a private input", out)
+        self.assertIn("Only when it orders no change (another input, the same code) the check runs again", out)
+        self.assertIn("Launch: squad-tester, mode coverage", out)
 
     def test_a_failed_manual_test_goes_to_the_lead_and_runs_again_after_the_added_group(self):
         # Vandox#469: a timing criterion failed on the reference host before the review.

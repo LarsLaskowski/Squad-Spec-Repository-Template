@@ -6,6 +6,9 @@ is tagged (`AGENTS.md`, *Releases*). Changes before the first release are in the
 
 ## Unreleased
 
+- [Core] A plan that names an early draft PR in prose and keeps the template's bare `Early draft PR: no` gets the Lead's
+  revision (a declining plan writes `Early draft PR: no — <why>`), one more when the revision adds no line; a Lead
+  decision on a failed private check without `FIX:` is corrected before the check runs again on the same code (#464)
 - [Core] `squad-notes.py` moves a report's headings down to level 3, so appended notes no longer end their section and
   count against the plan's size; a member reports with none of its build, test or format jobs running and calls a
   test green only from a run that named it, a deferred test never; step 9 says the Lead's `RESULT: APPROVED` ends it

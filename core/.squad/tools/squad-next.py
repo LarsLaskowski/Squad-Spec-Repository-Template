@@ -1487,18 +1487,23 @@ def early_pr(run):
 
 
 def early_pr_line_missing(run, own):
-    """The Lead's revision for a plan that names an early draft PR in prose and has no line `Early draft PR: yes` or
-    `: no` (a plan written before the line existed), once: `squad-next.py` reads only the line."""
-    check = plan_check()
-    if any(check.EARLY_PR_LINE.match(line) for line in (run.plan or "").splitlines()) or run.of(
-            LEAD, {"7"}, word="early draft"):
+    """The Lead's revision for a plan that names an early draft PR in prose without a line of its own `Early draft PR:
+    yes` or `: no` (`plan-check.py`'s `early_pr_unstated`: a plan written before the line existed, or one that kept the
+    template's `: no`, #464). A revision that still leaves no line gets one more, the Lead continued; after that the run
+    goes on without the draft PR."""
+    if not plan_check().early_pr_unstated(run.plan or ""):
         return None
-    if not any(check.EARLY_PR_NAMED.search(line) for line in own):
+    revisions = run.of(LEAD, {"7"}, word="early draft")
+    if len(revisions) >= 2:
         return None
+    task = ("the plan: add the line `Early draft PR: yes` where the prose asks for one, `Early draft PR: no — <why>` "
+            "where it declines (the template's bare `: no` line counts as unset next to such prose); the scope stays, "
+            "and the answer is `RESULT: DONE`")
+    if revisions:
+        return heading("step 7 — the Lead's revision left the plan without its own line `Early draft PR: yes|no`") + \
+            launch(run, LEAD, "revise", "7 Plan revise (early draft PR line)", task, rule=LAST)
     return heading("step 7 — the plan names an early draft PR in prose, without the line `Early draft PR: yes|no`") + \
-        launch(run, LEAD, "revise", "7 Plan revise (early draft PR)", "the plan: add the line `Early draft PR: yes` "
-               "where the prose asks for one, `Early draft PR: no` where it declines; the scope stays, and the answer is "
-               "`RESULT: DONE`", rule=LAST)
+        launch(run, LEAD, "revise", "7 Plan revise (early draft PR)", task, rule=LAST)
 
 
 def manual_check(run):
@@ -1604,6 +1609,15 @@ def failed_private_check(run, rows):
         return heading("step 6 — the Dev's work the Lead's decision on the failed private check orders") + launch(
             run, DEV, "implement", "6 Implement (private check)",
             f"the Lead's decision (row \"{decided[0].step}\") on the failed private check, {BASE_HANDOVER}")
+    if not fix_ordered(decided[-1].result) and lead_result(decided[-1]) != "ESCALATE" \
+            and not [row for row in run.rows if row.index > decided[-1].index]:
+        # #464: a decision that orders code without `FIX:` would rerun the check on unchanged code.
+        return heading("step 6 — the Lead's decision on the failed private check names no `FIX:`") + [
+            DO + "when the Lead's report orders a change, correct the row without a new launch: "
+            f"{LOG_TOOL} {run.name} --replace-last \"Lead\" --step \"{decided[-1].step}\" --new-result \"RESULT: "
+            "DECIDED — FIX: <Dev|Tester|orchestrator|Code Officer> — <change>\"",
+            "  Only when it orders no change (another input, the same code) the check runs again:"] + \
+            private_launch(run, private_criteria(run))
     return None
 
 
@@ -1625,13 +1639,18 @@ def private_check(run):
         return None
     if rows and (failed := failed_private_check(run, rows)):
         return failed
+    return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + \
+        private_launch(run, criteria) + [THEN + "the stamp follows once the row says PASS or FAIL"]
+
+
+def private_launch(run, criteria):
+    """The Tester's launch of the private check of `criteria`."""
     lines = launch(
         run, TESTER, "coverage", run.step_cell("6", "Private check"),
         f"the plan's manual check of {', '.join(criteria)} and where the private input is (ask the Product Manager if "
         "the plan does not say); the input is never committed, copied or quoted in the report, only its result")
     lines[-1] = lines[-1].replace("\"<the result>\"", "\"<PASS or FAIL per criterion, then the result>\"")
-    return heading(f"step 6 — the Tester's check of {', '.join(criteria)} over a private input") + lines + [
-        THEN + "the stamp follows once the row says PASS or FAIL"]
+    return lines
 
 
 def manual_criteria(run):

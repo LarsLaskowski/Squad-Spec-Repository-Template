@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import types
 import unittest
+import unittest.mock as mock
 
 from test_squad_tools import git, load_script, write
 
@@ -557,7 +558,11 @@ class TestPlanCheck(unittest.TestCase):
         prose = PLAN + "\nThe change opens an early draft PR after step 6.\n"
         warnings = self.script.check(self.feature(plan=prose))[1]
         self.assertTrue(any("Early draft PR: yes" in warning for warning in warnings), warnings)
-        for line in ("Early draft PR: yes", "Early draft PR: no"):
+        template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core", "specs", "_template", "plan.md")
+        with mock.patch.object(self.script, "TEMPLATE_PLAN", template):
+            bare = self.script.check(self.feature(plan=prose + "\nEarly draft PR: no\n"))[1]
+        self.assertTrue(any("Early draft PR: yes" in warning for warning in bare), "the template's line is unset (#464)")
+        for line in ("Early draft PR: yes", "Early draft PR: no \u2014 a branch build is enough"):
             tagged = prose + f"\n{line}\n"
             self.assertFalse(any("early draft PR" in warning for warning in self.script.check(
                 self.feature(plan=tagged))[1]), line)

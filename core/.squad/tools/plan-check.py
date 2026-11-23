@@ -834,15 +834,25 @@ EARLY_PR_NAMED = re.compile(r"\bearly draft pr\b", re.I)
 EARLY_PR_LINE = re.compile(r"^\s*(?:[-*]\s*)?Early draft PR:\s*(?:yes|no)\b", re.I)
 
 
-def check_early_pr(plan, warnings):
-    """A warning when the plan names an early draft PR in prose and has no line `Early draft PR: yes` or `: no`:
-    `squad-next.py` reads only that line (`.squad/routing.md`, *Early draft PR*)."""
+def early_pr_unstated(plan):
+    """True when the Lead's own text names an early draft PR in prose but no line of its own states `Early draft PR:
+    yes` or `: no`: the template's line `Early draft PR: no`, kept unchanged, counts as unset then (#464), since the
+    prose may ask for one. `squad-next.py` asks the Lead for the line; a plan that declines writes `Early draft PR:
+    no — <why>`, which is its own line."""
     lines = [line for line in strip_comments(plan).splitlines() if line.strip() and line.strip() not in template_lines()]
     if any(EARLY_PR_LINE.match(line) for line in lines):
-        return
-    if any(EARLY_PR_NAMED.search(line) for line in lines):
-        warnings.append("plan.md: names an early draft PR in prose; state it as a line `Early draft PR: yes` or "
-                        "`Early draft PR: no` (`.squad/routing.md`, *Early draft PR*), the only form squad-next.py reads")
+        return False
+    return any(EARLY_PR_NAMED.search(line) for line in lines)
+
+
+def check_early_pr(plan, warnings):
+    """A warning when the plan names an early draft PR in prose without a line of its own `Early draft PR: yes` or
+    `: no` (`early_pr_unstated`): `squad-next.py` reads only that line (`.squad/routing.md`, *Early draft PR*)."""
+    if early_pr_unstated(plan):
+        warnings.append("plan.md: names an early draft PR in prose; state it as a line `Early draft PR: yes`, or "
+                        "`Early draft PR: no — <why>` where it declines (the template's bare `: no` line counts as "
+                        "unset next to such prose; `.squad/routing.md`, *Early draft PR*), the only form squad-next.py "
+                        "reads")
 
 
 def check_area_sizes(plan, warnings):
